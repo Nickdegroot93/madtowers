@@ -234,7 +234,7 @@ SpriteRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: 2e837f3edf9b5409eb5d6ffd4ed67c3b, type: 3}
-  m_Color: {r: 0, g: 1, b: 0, a: 1}
+  m_Color: {r: 0.22, g: 0.29, b: 0.27, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -480,6 +480,7 @@ GameObject:
   m_Component:
   - component: {fileID: 384398900}
   - component: {fileID: 384398899}
+  - component: {fileID: 384398901}
   m_Layer: 0
   m_Name: Background
   m_TagString: Untagged
@@ -537,7 +538,7 @@ SpriteRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: 2e837f3edf9b5409eb5d6ffd4ed67c3b, type: 3}
-  m_Color: {r: 0.1, g: 0.5, b: 0.1, a: 1}
+  m_Color: {r: 0.08, g: 0.12, b: 0.17, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -561,6 +562,27 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &384398901
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 384398898}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 88ce38b9467e4f379c94e04e733e9035, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LevelPresentationController
+  levelDefinition: {fileID: 11400000, guid: 4709fe87a8c64d92966af589b227098e, type: 2}
+  backgroundRenderer: {fileID: 384398899}
+  targetCamera: {fileID: 1738005453}
+  fallbackBackgroundTint: {r: 0.08, g: 0.12, b: 0.17, a: 1}
+  cameraClearColor: {r: 0.06, g: 0.08, b: 0.11, a: 1}
+  fillCameraView: 1
+  overscan: 1.12
+  depthFromCamera: 20
+  sortingOrder: -100
 --- !u!1 &428389638
 GameObject:
   m_ObjectHideFlags: 0
@@ -1935,7 +1957,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
-  m_BackGroundColor: {r: 0, g: 0, b: 0, a: 1}
+  m_BackGroundColor: {r: 0.06, g: 0.08, b: 0.11, a: 1}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
