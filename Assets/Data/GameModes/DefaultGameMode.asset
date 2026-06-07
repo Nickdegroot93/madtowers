@@ -35,15 +35,27 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 7704ea0a0cb0b4d94b1c5a90200dab18, type: 2}
   spawnDelay: 0.5
   gridSpacing: 1
-  landingMode: 1
   minimumLandingNormalY: 0.45
-  stabilityMargin: 0.08
-  lateralBraceStabilityEnabled: 1
-  lateralBraceMinimumContacts: 1
-  connectedComponentLateralBraceEnabled: 1
-  connectedComponentLateralBraceMinimumContacts: 1
-  connectedComponentLateralBraceMaxCells: 4
   horizontalPlacementBufferColumns: 3
+  maxColumnMoveSpeed: 14
+  columnApproachSpeed: 25
+  horizontalSteeringContactSkin: 0.02
+  rotationApproachSpeed: 20
+  maxRotationSpeed: 720
+  groundedCheckDistance: 0.03
+  landingColumnToleranceFraction: 0.08
+  landingCornerInsetFraction: 0.08
+  cornerSlideSpeed: 4
+  invalidContactReleaseTime: 0.25
+  maxLandingImpactSpeed: 0
+  settleLinearThreshold: 0.08
+  settleAngularThreshold: 8
+  settleTime: 0.35
+  sleepSettledBlocksOnLock: 1
+  microAlignSettledBlocks: 1
+  microAlignMaxColumnFraction: 0.08
+  microAlignMaxRotationDegrees: 4
+  maxControlTime: 12
   powerUpSpawnInterval: 10
   powerUpSpawnXRange: 4
   slowMotionDuration: 10

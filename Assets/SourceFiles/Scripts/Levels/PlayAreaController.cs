@@ -57,7 +57,6 @@ public class PlayAreaController : MonoBehaviour
                     segment,
                     binding.FallbackCenterColumn,
                     binding.FallbackColumnCount);
-                TryConfigureGridOrigin(target, configuredSegments);
             }
 
             return;
@@ -69,7 +68,6 @@ public class PlayAreaController : MonoBehaviour
             GetConfiguredSegment(configuredSegments, 0),
             fallbackCenterColumn,
             fallbackColumnCount);
-        TryConfigureGridOrigin(singleFloorTransform, configuredSegments);
     }
 
     private FloorSegmentConfig GetConfiguredSegment(IReadOnlyList<FloorSegmentConfig> configuredSegments, int index)
@@ -140,19 +138,6 @@ public class PlayAreaController : MonoBehaviour
         Vector2 size = box.size;
         size.x = desiredWorldWidth / scaleX;
         box.size = size;
-    }
-
-    private bool TryConfigureGridOrigin(Transform floorSegmentTransform, IReadOnlyList<FloorSegmentConfig> configuredSegments)
-    {
-        if (floorSegmentTransform == null || configuredSegments == null || configuredSegments.Count == 0) return false;
-
-        Collider2D floorCollider = floorSegmentTransform.GetComponent<Collider2D>();
-        if (floorCollider == null) return false;
-
-        float gridSpacing = gameModeConfig != null ? gameModeConfig.GridSpacing : 1f;
-        float originY = floorCollider.bounds.max.y + gridSpacing * 0.5f;
-        BlockController.ConfigureSharedFloor(configuredSegments, originY);
-        return true;
     }
 
     private float GetFallbackCenterX(int centerColumn, int columnCount, float gridSpacing)

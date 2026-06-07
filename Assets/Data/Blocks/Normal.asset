@@ -16,9 +16,6 @@ MonoBehaviour:
   mass: 1
   physMaterial: {fileID: 0}
   gravityScaleMultiplier: 1
-  overrideLandingMode: 0
-  landingModeOverride: 0
-  ignoresStabilityFailure: 0
   colorTint: {r: 1, g: 1, b: 1, a: 1}
   spriteOverride: {fileID: 0}
   materialOverride: {fileID: 0}

@@ -10,7 +10,6 @@ public class StaticSupportIslandManager : MonoBehaviour
     [SerializeField] private float _xRange = 4f;
 
     private readonly RuntimeObjectPool _pool = new RuntimeObjectPool();
-    private readonly List<Vector2> _islandCellCenters = new List<Vector2>(4);
     private readonly List<int> _validBaseColumns = new List<int>(16);
     private float _nextSpawnRollHeight;
 
@@ -108,7 +107,6 @@ public class StaticSupportIslandManager : MonoBehaviour
             : _spawnOffset;
         float baseY = Mathf.Round((currentMaxHeight + spawnAhead) / gridSpacing) * gridSpacing;
 
-        _islandCellCenters.Clear();
         GameObject islandRoot = new GameObject($"Static Support Island - {shape.DisplayName}");
         islandRoot.transform.SetParent(transform);
         islandRoot.transform.position = Vector3.zero;
@@ -122,13 +120,7 @@ public class StaticSupportIslandManager : MonoBehaviour
                 baseY + offset.y * gridSpacing,
                 0f);
 
-            _islandCellCenters.Add(new Vector2(cellPosition.x, cellPosition.y));
             _pool.Get(_staticBlockPrefab, cellPosition, Quaternion.identity, islandRoot.transform);
-        }
-
-        if (!BlockController.RegisterStaticSupportCells(_islandCellCenters, gridSpacing))
-        {
-            Destroy(islandRoot);
         }
     }
 

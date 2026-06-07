@@ -24,23 +24,7 @@ public class GameModeConfig : ScriptableObject
 
     [Header("Placement")]
     [SerializeField] private float gridSpacing = 1f;
-    [SerializeField] private BlockLandingMode landingMode = BlockLandingMode.StrictGrid;
     [SerializeField] private float minimumLandingNormalY = 0.45f;
-    [Tooltip("Required inset from the support edge before a grid-locked block or tower component counts as stable.")]
-    [SerializeField] private float stabilityMargin = 0.08f;
-    [Tooltip("Allows side contact with existing tower/support cells to stabilize hooked or cornered placements.")]
-    [SerializeField] private bool lateralBraceStabilityEnabled = true;
-    [Tooltip("How many side contacts are needed before a bottom-supported overhang counts as braced.")]
-    [Min(1)]
-    [SerializeField] private int lateralBraceMinimumContacts = 1;
-    [Tooltip("If enabled, small connected chunks can use lateral brace forgiveness.")]
-    [SerializeField] private bool connectedComponentLateralBraceEnabled = true;
-    [Tooltip("How many side contacts are needed before a connected tower chunk counts as braced.")]
-    [Min(1)]
-    [SerializeField] private int connectedComponentLateralBraceMinimumContacts = 1;
-    [Tooltip("Maximum connected chunk size that can use lateral brace forgiveness. Larger chunks must satisfy center-of-mass support.")]
-    [Min(1)]
-    [SerializeField] private int connectedComponentLateralBraceMaxCells = 4;
     [Tooltip("Extra columns beyond the current floor/tower edge where the active block may still be placed.")]
     [Min(0)]
     [SerializeField] private int horizontalPlacementBufferColumns = 3;
@@ -50,21 +34,43 @@ public class GameModeConfig : ScriptableObject
     [SerializeField] private float maxColumnMoveSpeed = 14f;
     [Tooltip("How hard the piece is driven toward its target column (eases in, never overshoots).")]
     [SerializeField] private float columnApproachSpeed = 25f;
+    [Tooltip("Clearance kept when steering into side contacts. Prevents active pieces from pushing the landed tower sideways while still allowing late tucks into openings.")]
+    [SerializeField] private float horizontalSteeringContactSkin = 0.02f;
     [Tooltip("How hard the piece rotates toward the requested angle.")]
     [SerializeField] private float rotationApproachSpeed = 20f;
     [Tooltip("Maximum spin speed while rotating (degrees/sec).")]
     [SerializeField] private float maxRotationSpeed = 720f;
-    [Tooltip("How close (world units) support must be below a piece before control is handed to physics.")]
-    [SerializeField] private float groundedCheckDistance = 0.12f;
-    [Tooltip("Caps downward speed at the moment of landing (units/sec) so a fast drop lands as softly as a slow one.")]
-    [SerializeField] private float maxLandingImpactSpeed = 1.5f;
-    [Tooltip("A landed piece is 'settling' once its linear speed (units/sec) drops below this.")]
-    [SerializeField] private float settleLinearThreshold = 0.3f;
+    [Tooltip("How close (world units) support must be below a piece before control is handed to physics. Keep small so players can make last-second tuck moves.")]
+    [SerializeField] private float groundedCheckDistance = 0.03f;
+    [Tooltip("If support is detected while the piece is still this far from its target column, keep sliding horizontally instead of landing on a corner.")]
+    [Range(0f, 0.5f)]
+    [SerializeField] private float landingColumnToleranceFraction = 0.08f;
+    [Tooltip("Upward contacts this close to a cell's left/right edge are ignored as landing support, so pieces do not stand on tiny corners instead of entering gaps.")]
+    [Range(0f, 0.25f)]
+    [SerializeField] private float landingCornerInsetFraction = 0.08f;
+    [Tooltip("How quickly a controlled falling piece slides sideways off an invalid corner contact.")]
+    [SerializeField] private float cornerSlideSpeed = 4f;
+    [Tooltip("How long an unresolved invalid corner contact may stay controlled before it is released to physics.")]
+    [SerializeField] private float invalidContactReleaseTime = 0.25f;
+    [Tooltip("Maximum downward velocity kept when control hands off to physics. Keep at 0 to prevent falling impact from shoving the tower; gravity/weight still applies after landing.")]
+    [SerializeField] private float maxLandingImpactSpeed = 0f;
+    [Tooltip("A landed piece is 'settled' once its linear speed (units/sec) drops below this. Keep low so unstable pieces get time to tip before maintenance runs.")]
+    [SerializeField] private float settleLinearThreshold = 0.08f;
     [Tooltip("...and its spin (degrees/sec) drops below this.")]
-    [SerializeField] private float settleAngularThreshold = 25f;
-    [Tooltip("How long a piece must stay settled after landing before the next piece spawns.")]
-    [SerializeField] private float settleTime = 0.2f;
-    [Tooltip("Safety cap: lock a piece after this many seconds even if it never fully settles.")]
+    [SerializeField] private float settleAngularThreshold = 8f;
+    [Tooltip("How long a landed piece must stay settled before maintenance micro-aligns/sleeps it.")]
+    [SerializeField] private float settleTime = 0.35f;
+    [Tooltip("Sleep settled dynamic blocks when control finishes. This prevents tiny drift while still allowing future contacts to wake the block.")]
+    [SerializeField] private bool sleepSettledBlocksOnLock = true;
+    [Tooltip("After a block genuinely settles, correct tiny X/rotation drift back to the placement grid. Large offsets or visibly tilted blocks are left to physics.")]
+    [SerializeField] private bool microAlignSettledBlocks = true;
+    [Tooltip("Maximum X correction allowed for settled micro-alignment, as a fraction of one grid cell.")]
+    [Range(0f, 0.25f)]
+    [SerializeField] private float microAlignMaxColumnFraction = 0.08f;
+    [Tooltip("Maximum rotation correction allowed for settled micro-alignment, in degrees.")]
+    [Range(0f, 15f)]
+    [SerializeField] private float microAlignMaxRotationDegrees = 4f;
+    [Tooltip("Safety cap: lock a piece after this many seconds even if it never finds a normal landing.")]
     [SerializeField] private float maxControlTime = 12f;
 
     [Header("Power Ups")]
@@ -137,24 +143,26 @@ public class GameModeConfig : ScriptableObject
     public IReadOnlyList<BlockData> FallbackBlockDataVariants => fallbackBlockDataVariants;
     public float SpawnDelay => spawnDelay;
     public float GridSpacing => gridSpacing;
-    public BlockLandingMode LandingMode => landingMode;
     public float MinimumLandingNormalY => minimumLandingNormalY;
-    public float StabilityMargin => stabilityMargin;
-    public bool LateralBraceStabilityEnabled => lateralBraceStabilityEnabled;
-    public int LateralBraceMinimumContacts => Mathf.Max(1, lateralBraceMinimumContacts);
-    public bool ConnectedComponentLateralBraceEnabled => connectedComponentLateralBraceEnabled;
-    public int ConnectedComponentLateralBraceMinimumContacts => Mathf.Max(1, connectedComponentLateralBraceMinimumContacts);
-    public int ConnectedComponentLateralBraceMaxCells => Mathf.Max(1, connectedComponentLateralBraceMaxCells);
     public int HorizontalPlacementBufferColumns => Mathf.Max(0, horizontalPlacementBufferColumns);
     public float MaxColumnMoveSpeed => maxColumnMoveSpeed;
     public float ColumnApproachSpeed => columnApproachSpeed;
+    public float HorizontalSteeringContactSkin => Mathf.Max(0f, horizontalSteeringContactSkin);
     public float RotationApproachSpeed => rotationApproachSpeed;
     public float MaxRotationSpeed => maxRotationSpeed;
     public float GroundedCheckDistance => groundedCheckDistance;
+    public float LandingColumnToleranceFraction => Mathf.Clamp(landingColumnToleranceFraction, 0f, 0.5f);
+    public float LandingCornerInsetFraction => Mathf.Clamp(landingCornerInsetFraction, 0f, 0.25f);
+    public float CornerSlideSpeed => Mathf.Max(0f, cornerSlideSpeed);
+    public float InvalidContactReleaseTime => Mathf.Max(0f, invalidContactReleaseTime);
     public float MaxLandingImpactSpeed => maxLandingImpactSpeed;
     public float SettleLinearThreshold => settleLinearThreshold;
     public float SettleAngularThreshold => settleAngularThreshold;
     public float SettleTime => settleTime;
+    public bool SleepSettledBlocksOnLock => sleepSettledBlocksOnLock;
+    public bool MicroAlignSettledBlocks => microAlignSettledBlocks;
+    public float MicroAlignMaxColumnFraction => Mathf.Clamp(microAlignMaxColumnFraction, 0f, 0.25f);
+    public float MicroAlignMaxRotationDegrees => Mathf.Clamp(microAlignMaxRotationDegrees, 0f, 15f);
     public float MaxControlTime => maxControlTime;
     public float PowerUpSpawnInterval => powerUpSpawnInterval;
     public float PowerUpSpawnXRange => powerUpSpawnXRange;

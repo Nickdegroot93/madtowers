@@ -1,44 +1,55 @@
 # Current Gameplay
 
-This document describes how the game works right now. It is not a future roadmap; it is a practical reference for the current prototype behavior.
+This document describes the prototype as it works now. It is a practical reference for the current game loop, not a future roadmap.
 
 ## Core Loop
 
 1. A tetromino shape is selected from the configured block bag.
 2. The block spawns at the spawn point near the top of the camera view.
 3. While the block is active, the player can move, rotate, and fast-drop it.
-4. The active block falls under controlled kinematic movement, not normal gravity.
-5. When the block lands, it is snapped to the grid and checked for stability.
-6. Stable blocks are frozen into the logical tower grid.
-7. Unstable blocks or unstable tower chunks are released back into Dynamic Rigidbody2D physics.
-8. Score and max height update when the active block locks.
-9. The next block spawns after the configured spawn delay.
-10. Game over occurs only when a block falls into the loss zone below the floor.
+4. The active block is steered on a column grid while using a real `Rigidbody2D`.
+5. When support is detected below the block, player steering stops and Unity 2D physics takes over.
+6. Score and max height update as soon as player control is released.
+7. The next block spawns after the configured spawn delay, even if the previous block/tower is still wobbling.
+8. Settled blocks later run lightweight micro-alignment/sleep maintenance when they are calm enough.
+9. Game over occurs only when a block falls into the loss zone below the floor.
 
 ## Movement And Input
 
 Active blocks use `StackingInputs`.
 
 Current controls handled by `BlockController`:
-- Horizontal movement is discrete, one grid column at a time.
-- Holding left/right uses delayed auto shift:
-  - `dasDelay`
-  - `dasRate`
-- Rotation snaps to 90-degree increments.
+- Horizontal movement changes the target column by one grid column.
+- Holding left/right uses delayed auto shift through `dasDelay` and `dasRate`.
+- Rotation changes the target Z angle in 90-degree increments.
 - Fast drop multiplies fall speed by `fastDropMultiplier`.
 
-While controlled by the player:
-- The block Rigidbody2D is Kinematic.
-- Gravity is disabled.
-- Rotation is locked to grid-right angles.
-- X position is snapped using the configured grid spacing.
-- Horizontal movement is limited to the current playable envelope: floor segments plus already landed block bounds plus the configured placement buffer.
-- The active block must also remain inside the current camera width, so it cannot be moved off-screen while falling.
+While the block is still falling:
+- The body is a dynamic `Rigidbody2D`.
+- Gravity is temporarily disabled.
+- Vertical fall and horizontal column movement are applied by explicit cast-and-position steps.
+- Linear velocity is kept at zero during controlled falling, so the active block is not a physical projectile.
+- Horizontal steering is side-contact limited: if the falling piece would hit a landed block from the side this frame, sideways velocity is capped or stopped instead of pushing the tower.
+- Rotation is driven toward a target 90-degree angle.
+- The block can land while still rotating, and that remaining spin can carry into physics.
+- Landing handoff happens very close to support, so quick last-second horizontal tucks are still possible before physics takes over.
+- If support is detected while the piece is still sliding into its target column, landing is delayed briefly so it does not stand on a tiny corner instead of entering the gap.
+- Upward contacts near a cell's left/right edge are ignored as landing support, so a block needs real support under the body of a cell instead of balancing on a corner scrape.
+- Fast-drop movement still casts ahead for any physical contact. If the nearest contact is not valid landing support, the block stops just above it instead of moving through it and letting the physics solver push bodies apart.
+- If that invalid contact is a corner scrape while the piece is already tucking horizontally, the controlled piece gets a small one-frame sideways nudge off the corner.
+- If the corner cannot be resolved after a short timeout, control releases to physics and the next block can spawn instead of trapping the current block as active forever.
+- Before the physics step can create a downward impact, the script predicts the landing distance and places the active block flush on the support.
+- If the landing rotation is already very close to the target 90-degree angle, tiny spin is cleared at handoff so a clean placement does not slide sideways from leftover rotation.
+- The active block cannot expand the camera and cannot be moved outside the current playable horizontal envelope.
+
+The playable horizontal envelope is based on:
+- Configured floor segments.
+- Already landed block bounds.
+- `horizontalPlacementBufferColumns`.
+- The current camera width.
 
 Current default:
 - `horizontalPlacementBufferColumns = 3`
-
-The falling block does not expand the camera. It can only move within the allowed placement area.
 
 ## Grid And Floor
 
@@ -50,75 +61,80 @@ The current default is:
 - `centerColumn = 0`
 - `columnCount = 9`
 
-That means the floor supports columns `-4` through `4`, with visual edges at `-4.5` and `4.5`.
+That means the floor visually spans columns `-4` through `4`, with visual edges at `-4.5` and `4.5`.
 
-Floor data is used in two places:
-- `PlayAreaController` sizes and positions the visible floor.
-- `PlayAreaController` calculates the logical row-0 height from the floor collider top.
-- `TowerGrid` uses the same floor segment columns to decide which grid cells are supported.
-- `TowerGrid` also treats floor side cells as lateral braces, so pieces can hook around the edge of the floor.
+Floor data is used by:
+- `PlayAreaController`, which sizes and positions the visible floor.
+- `BlockController`, which uses the configured floor segments to limit the active block's horizontal placement bounds.
 
-This is already prepared for future levels with smaller floors, wider floors, or multiple floor segments with gaps.
+The floor uses a real 2D collider and a generated friction material. Physics support comes from the actual collider, not from a separate logical grid.
 
 ## Landing And Physics
 
-The default landing mode is `StrictGrid`.
+The old custom `TowerGrid` stability system has been removed.
 
-In `StrictGrid`:
-- The falling block moves down on the grid.
-- Side/corner contact with frozen blocks does not count as a landing.
-- The block lands only when its grid cells reach logical floor columns, static support islands, or occupied cells below.
-- On landing, it snaps to row and column grid positions.
-- The block is checked for center-of-mass support.
-- If center-of-mass support is not enough, side contact can still stabilize the block as a lateral brace.
+The current landing model is Unity 2D physics:
+- `BlockController` steers the falling piece until support is detected beneath it.
+- Support is detected using a downward `Rigidbody2D.Cast`.
+- The contact must have an upward normal of at least `minimumLandingNormalY`.
+- On first support, gravity is restored and the block's center of mass returns to its real value.
+- Downward landing speed is capped by `maxLandingImpactSpeed`; the default is `0`, so falling speed itself does not shove the tower.
+- Horizontal controlled velocity is cleared at landing so a late left/right input does not push the tower sideways.
+- Angular velocity can still carry into physics, so a piece caught mid-rotation can settle naturally.
 
-If stable:
-- The Rigidbody2D is frozen.
-- Gravity is disabled.
-- The block's cells are registered in `TowerGrid`.
+As soon as the block lands:
+- The script disables player control.
+- The `Rigidbody2D` remains dynamic.
+- Rotation is not frozen.
+- Gravity remains active.
+- Score, height, and the next-block spawn event fire immediately.
 
-If unstable:
-- The block is released into Dynamic physics.
-- Rotation constraints are removed.
-- Gravity is restored.
-- A small directional angular kick and impulse are applied so unstable pieces do not balance forever on a mathematical edge.
+Once a landed block settles:
+- If the block is already very close to a clean column and right-angle rotation, tiny X/rotation drift is corrected before sleeping.
+- Blocks that are visibly tilted or too far off-grid are not corrected; those remain messy physics failures.
+- Tiny residual velocity and spin are cleared.
+- The body is put to sleep so clean placements do not drift by millimeters after they have genuinely settled.
+- Locked block scripts keep running lightweight maintenance. If a later contact wakes a clean block and it settles again near the grid, the same tiny correction/sleep pass runs again.
+- The block is not made kinematic or frozen; future contacts can wake it and make it tilt, slide, or fall.
+- Unity physics continues to decide whether the block stays, tilts, slides, or falls.
 
-After a block is registered, `TowerGrid` also checks connected tower chunks. If a connected chunk's combined center of mass is outside its support footprint, that chunk is released into Dynamic physics too.
+## Physics Tuning
 
-## Stability
+Physics feel is currently controlled by data and collider setup:
+- `BlockData.mass`
+- `BlockData.physicsMaterial`
+- `BlockData.gravityScaleMultiplier`
+- `BlockController.defaultBlockFriction`
+- `BlockController.defaultBlockBounciness`
+- `BlockController.restingLinearDamping`
+- `BlockController.restingAngularDamping`
+- `BlockController.horizontalColliderInset`
+- `PlayAreaController.floorFriction`
+- `PlayAreaController.floorColliderEdgeInset`
+- `ProjectSettings/Physics2DSettings.asset`
 
-Stability uses:
-- The grid cell positions of the current block or connected tower component.
-- The support footprint underneath those cells.
-- Optional lateral brace contacts against existing tower cells, static support islands, and floor sides.
-- `GameModeConfig.stabilityMargin`.
+Important control handoff settings:
+- `maxColumnMoveSpeed`
+- `columnApproachSpeed`
+- `horizontalSteeringContactSkin`
+- `rotationApproachSpeed`
+- `maxRotationSpeed`
+- `groundedCheckDistance`
+- `landingColumnToleranceFraction`
+- `landingCornerInsetFraction`
+- `cornerSlideSpeed`
+- `invalidContactReleaseTime`
+- `maxLandingImpactSpeed`
+- `settleLinearThreshold`
+- `settleAngularThreshold`
+- `settleTime`
+- `sleepSettledBlocksOnLock`
+- `microAlignSettledBlocks`
+- `microAlignMaxColumnFraction`
+- `microAlignMaxRotationDegrees`
+- `maxControlTime`
 
-Current default:
-- `stabilityMargin = 0.08`
-- `lateralBraceStabilityEnabled = true`
-- `lateralBraceMinimumContacts = 1`
-- `connectedComponentLateralBraceEnabled = true`
-- `connectedComponentLateralBraceMinimumContacts = 1`
-- `connectedComponentLateralBraceMaxCells = 4`
-
-The margin means a center of mass must sit slightly inside the support edge. Being exactly on the edge does not count as stable.
-
-Lateral brace stability is the current Tricky Towers-style forgiveness rule:
-- The newly landed block still needs real bottom support.
-- If its center of mass is outside the bottom support footprint, side contact with existing tower cells, static support islands, or floor sides can keep it grid-locked.
-- Pure side-touching with no bottom support does not count.
-- This allows hooked/cornered placements without making unsupported overhangs float.
-
-Connected tower chunks are stricter by default:
-- After a block is registered, `TowerGrid` checks the combined connected chunk.
-- Small connected chunks can still use lateral brace forgiveness.
-- Once a connected chunk grows beyond `connectedComponentLateralBraceMaxCells`, it must satisfy center-of-mass support.
-- This allows one hooked tetromino to stay, while adding enough mass to one side can make the connected tower fall.
-
-Block variants can currently opt out of stability failure with:
-- `BlockData.ignoresStabilityFailure`
-
-That is intended for future sturdy/anchor blocks.
+The game no longer performs mathematical center-of-mass stability checks. If a tower is too heavy, too far overhanging, too slippery, or badly supported, that should emerge from the 2D physics simulation itself.
 
 ## Block Shapes
 
@@ -153,8 +169,6 @@ Current variant responsibilities:
 - Color tint
 - Optional sprite override
 - Optional material override
-- Optional landing mode override
-- Optional stability-failure ignore flag
 
 Current variant assets:
 - Normal
@@ -166,13 +180,14 @@ Future examples that fit this model:
 - Icy: low-friction physics material.
 - Heavy: high mass.
 - Light: low mass or gravity multiplier.
-- Sturdy: ignores stability failure.
 - Bouncy: bouncy physics material.
 - Themed: sprite/material override.
 
+Future sturdy/anchor blocks should be designed as a new explicit gameplay rule or component, not by reintroducing hidden grid stability logic.
+
 ## Spawning
 
-`Spawner` prepares one next block and then spawns it when the current block locks.
+`Spawner` prepares one next block and then spawns it when the current block releases player control on landing.
 
 Current behavior:
 - Uses the configured block bag from `GameModeConfig`.
@@ -193,7 +208,7 @@ Current spawn delay:
 
 Current default config:
 - `initialFallSpeed = 2`
-- `initialGravityScale = 1`
+- `initialGravityScale = 0.85`
 - `difficultyScalingMode = PerBlock`
 - `difficultyAdjustmentMode = Additive`
 - `speedIncreasePerBlock = 0.1`
@@ -227,138 +242,42 @@ Current default config:
 - `horizontalCameraSafeArea = 0.78`
 - `cameraZoomSmoothTime = 0.35`
 
-The camera only moves upward. It does not move back down if the tower collapses.
+The camera:
+- Follows max tower height upward.
+- Never moves back below the highest camera Y reached.
+- Moves the spawn point with the camera.
+- Zooms horizontally based only on already landed blocks in the current vertical focus window.
+- Ignores the currently falling block for zoom decisions.
 
-The spawn point follows the camera so new blocks continue appearing near the top of the visible play area.
+## Game Over And Lives
 
-The background transform follows the camera vertically so the visible background stays filled while the floor and loss zone remain fixed in world space.
+`LossZone` ends the round when a block's collider enters the trigger below the floor.
 
-The camera also adjusts orthographic size horizontally:
-- Blocks register with `BlockController.AllBlocks`.
-- The camera calculates bounds for landed blocks inside the current vertical focus band.
-- If that focused tower section gets close to the horizontal safe area, the camera zooms out.
-- The zoom uses the farthest block edge from the camera center, so one-sided expansion triggers zoom correctly.
-- If wide blocks fall below the focus band and the visible tower becomes narrow again, the camera can zoom back toward the minimum size.
-- The zoom calculation uses the normal minimum camera height as its vertical focus band so old wide foundations do not keep the camera zoomed out forever.
-- Active falling blocks are ignored by camera zoom. This prevents players from holding left/right and forcing the camera to zoom out before anything has been placed.
+Current behavior:
+- If lives are available, `GameManager.GameOver()` consumes one life and continues.
+- If no lives remain, the game over UI appears.
+- The old top-of-screen game-over rule is not part of the current game.
 
-## Score, Height, And Game Over
-
-Score:
-- Increases when a block locks.
-
-Height:
-- Tracks the highest actual block cell Y value.
-- The UI shows max height through `GameEvents.HeightChanged`.
-
-Game over:
-- No longer happens at the top of the screen.
-- Happens only when a Rigidbody2D belonging to a block enters `LossZone`.
-- `LossZone` destroys the fallen block object after triggering game over.
-
-Restart:
-- The restart button asks `GameManager` to reload the current scene.
-- Before the scene reloads, `BlockController.ResetRuntimeState` clears the static tower grid and tracked block list.
-- `GameManager.Awake` also clears block runtime state, so scene reloads from other entry points do not inherit invisible logical tower cells.
-- `GameManager` and `UIManager` clear their singleton references when destroyed.
-
-Lives:
-- `GameManager` supports lives.
-- If lives are above zero, a loss-zone event consumes one life instead of ending the game.
-- Default current lives: `0`.
-
-## Power-Ups
-
-Power-ups are still prototype-level.
-
-Current types:
-- SlowMotion
-- ExtraLife
-
-Current spawning:
-- `PowerUpManager` watches max height.
-- Every configured height interval, it spawns a power-up target.
-- X position is randomly rounded to an integer column.
-- Spawn interval and range come from `GameModeConfig`.
-
-Current collection:
-- Power-ups are collected when a landed block overlaps them.
-- Collection is driven by `BlockController.CollectOverlappingPowerUps`.
-
-Current effects:
-- SlowMotion changes `Time.timeScale` temporarily.
-- ExtraLife increments lives.
-
-Known future cleanup:
-- Power-ups should become ScriptableObject data before adding many more effects.
+Current default:
+- `startingLives = 0`
 
 ## Static Support Islands
 
-`StaticSupportIslandManager` owns static support island spawning.
+`StaticSupportIslandManager` can spawn floating static support islands as the tower gets higher.
 
-Current behavior:
-- Watches max tower height.
-- Every configured height interval, rolls once to decide whether an island appears.
-- If the roll succeeds, chooses one weighted island shape from `GameModeConfig`.
-- Spawns one static 1x1 support prefab per shape cell.
-- Snaps island cells to the same column/grid spacing as falling blocks.
-- Keeps the configured center lane clear, so an untouched falling block will not hit a support island in the default drop path.
-- Registers island cells with `TowerGrid`, so blocks can land on them and count them as real stability support.
+Current data-driven settings:
+- `staticSupportIslandsEnabled`
+- `staticSupportIslandHeightInterval`
+- `staticSupportIslandSpawnChance`
+- `staticSupportIslandFirstHeight`
+- `staticSupportIslandSpawnAheadHeight`
+- `staticSupportIslandMinColumn`
+- `staticSupportIslandMaxColumn`
+- `staticSupportIslandCenterClearColumns`
+- `staticSupportIslandShapes`
 
-Current default config:
-- `staticSupportIslandsEnabled = true`
-- `staticSupportIslandHeightInterval = 8`
-- `staticSupportIslandSpawnChance = 0.35`
-- `staticSupportIslandFirstHeight = 6`
-- `staticSupportIslandSpawnAheadHeight = 8`
-- `staticSupportIslandMinColumn = -5`
-- `staticSupportIslandMaxColumn = 5`
-- `staticSupportIslandCenterClearColumns = 5`
-
-Current default weighted shapes:
-- Single: weight `6`
-- Two Wide: weight `3`
-- Two Tall: weight `2`
-- Corner: weight `1`
-
-Frequency is controlled by both interval and chance. For example, an interval of `8` and chance of `0.35` means the level rolls about every 8 meters of tower height, and roughly 35% of those rolls create an island.
-
-## Events And UI
-
-`GameEvents` is a static event hub for current runtime events:
-- Score changed
-- Lives changed
-- Height changed
-- Next block changed
-- Game over
-
-`UIManager` listens to these events instead of polling gameplay state every frame.
-
-## Current Data Assets
-
-Current level wrapper:
-- `Assets/Data/Levels/Level_01.asset`
-
-Current mechanical game mode:
-- `Assets/Data/GameModes/DefaultGameMode.asset`
-
-Current block definitions:
-- `Assets/Data/BlockDefinitions/Block_I.asset`
-- `Assets/Data/BlockDefinitions/Block_J.asset`
-- `Assets/Data/BlockDefinitions/Block_L.asset`
-- `Assets/Data/BlockDefinitions/Block_O.asset`
-- `Assets/Data/BlockDefinitions/Block_S.asset`
-- `Assets/Data/BlockDefinitions/Block_T.asset`
-- `Assets/Data/BlockDefinitions/Block_Z.asset`
-
-Current block variants:
-- `Assets/Data/Blocks/Normal.asset`
-- `Assets/Data/Blocks/Heavy.asset`
-
-## Known Prototype Edges
-
-- Power-up effects are still hardcoded with an enum.
-- Obstacle spawning is inactive and not yet fully level-authored.
-- `Spawner` still has legacy fallback prefab/variant arrays for safety.
-- There is no level-selection flow yet.
-- Presentation fields exist in `LevelDefinition`, but the active scene still references `GameModeConfig` directly.
+Support islands:
+- Spawn only after the configured height thresholds.
+- Use weighted shape configs.
+- Stay out of the configured center clear lane so a block falling straight down does not hit them.
+- Use real static colliders from the spawned prefab, so blocks can physically land on them.
