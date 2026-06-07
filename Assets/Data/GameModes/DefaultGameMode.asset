@@ -1,0 +1,99 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0fe95161ec248308119ac199c73fdda, type: 3}
+  m_Name: DefaultGameMode
+  m_EditorClassIdentifier:
+  startingLives: 0
+  initialFallSpeed: 2
+  difficultyScalingMode: 1
+  difficultyAdjustmentMode: 0
+  speedIncreasePerBlock: 0.1
+  initialGravityScale: 0.85
+  gravityIncreasePerBlock: 0.05
+  speedIncreaseIntervalSeconds: 60
+  speedIncreasePerInterval: 0.1
+  gravityIncreasePerInterval: 0.05
+  blockBag:
+  - {fileID: 11400000, guid: 399bae529a5644488f2583a430caa834, type: 2}
+  - {fileID: 11400000, guid: 02ed6b9bb4d34cfea6a86b09df8598be, type: 2}
+  - {fileID: 11400000, guid: 76d6700acbdc4b2791222d3bc24f2d98, type: 2}
+  - {fileID: 11400000, guid: 8c2807b281774ad7a04617c108654dbe, type: 2}
+  - {fileID: 11400000, guid: 2163ab145d2748509c37da320f7ef2f8, type: 2}
+  - {fileID: 11400000, guid: 2a34b69853aa48a3bdb72edbe7ad549f, type: 2}
+  - {fileID: 11400000, guid: 3be6106228ed4acea64c37519f7bb64e, type: 2}
+  fallbackBlockDataVariants:
+  - {fileID: 11400000, guid: d47f69c0549f64a78b7a3dde80d0f06a, type: 2}
+  - {fileID: 11400000, guid: 7704ea0a0cb0b4d94b1c5a90200dab18, type: 2}
+  spawnDelay: 0.5
+  gridSpacing: 1
+  landingMode: 1
+  minimumLandingNormalY: 0.45
+  stabilityMargin: 0.08
+  lateralBraceStabilityEnabled: 1
+  lateralBraceMinimumContacts: 1
+  connectedComponentLateralBraceEnabled: 1
+  connectedComponentLateralBraceMinimumContacts: 1
+  connectedComponentLateralBraceMaxCells: 4
+  horizontalPlacementBufferColumns: 3
+  powerUpSpawnInterval: 10
+  powerUpSpawnXRange: 4
+  slowMotionDuration: 10
+  slowMotionScale: 0.5
+  staticSupportIslandsEnabled: 1
+  staticSupportIslandHeightInterval: 8
+  staticSupportIslandSpawnChance: 0.35
+  staticSupportIslandFirstHeight: 6
+  staticSupportIslandSpawnAheadHeight: 8
+  staticSupportIslandMinColumn: -5
+  staticSupportIslandMaxColumn: 5
+  staticSupportIslandCenterClearColumns: 5
+  staticSupportIslandShapes:
+  - displayName: Single
+    weight: 6
+    cellOffsets:
+    - x: 0
+      y: 0
+  - displayName: Two Wide
+    weight: 3
+    cellOffsets:
+    - x: 0
+      y: 0
+    - x: 1
+      y: 0
+  - displayName: Two Tall
+    weight: 2
+    cellOffsets:
+    - x: 0
+      y: 0
+    - x: 0
+      y: 1
+  - displayName: Corner
+    weight: 1
+    cellOffsets:
+    - x: 0
+      y: 0
+    - x: 1
+      y: 0
+    - x: 0
+      y: 1
+  floorSegments:
+  - centerColumn: 0
+    columnCount: 9
+  minimumCameraY: 0
+  towerPeakScreenY: 0.64
+  spawnPointScreenY: 0.88
+  cameraSmoothTime: 0.28
+  minimumCameraSize: 15
+  maximumCameraSize: 24
+  horizontalCameraPadding: 1.5
+  horizontalCameraSafeArea: 0.78
+  cameraZoomSmoothTime: 0.35
