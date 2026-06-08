@@ -38,6 +38,11 @@ public class BlockController : MonoBehaviour
     [Range(0f, 0.2f)]
     [SerializeField] private float horizontalColliderInset = 0.02f;
 
+    [Header("Placement Beam")]
+    [SerializeField] private bool showPlacementBeam = true;
+    [SerializeField] private Color placementBeamColor = new Color(1f, 1f, 1f, 0.12f);
+    [SerializeField] private int placementBeamSortingOrder = -10;
+
     [Header("Active Piece Control (fallback; GameModeConfig overrides these per level)")]
     [Tooltip("How close (world units) support must be below the piece before steering control is handed to physics. Keep small so players can make last-second tuck moves.")]
     [SerializeField] private float groundedCheckDistance = 0.03f;
@@ -77,6 +82,7 @@ public class BlockController : MonoBehaviour
     private readonly BlockCellGeometry _cellGeometry = new BlockCellGeometry();
     private IReadOnlyList<FloorSegmentConfig> _floorSegments;
     private Camera _mainCamera;
+    private SpriteRenderer _placementBeamRenderer;
     private float _physicsGravityScale = 1f;
     private float _gravityScaleMultiplier = 1f;
 
@@ -158,6 +164,7 @@ public class BlockController : MonoBehaviour
         }
 
         ResetControlTargets();
+        CreatePlacementBeam();
     }
 
     public void ApplyData(BlockData data)
@@ -178,6 +185,97 @@ public class BlockController : MonoBehaviour
         }
 
         ResetControlTargets();
+    }
+
+    private void CreatePlacementBeam()
+    {
+        if (!showPlacementBeam || _placementBeamRenderer != null) return;
+
+        SpriteRenderer sourceRenderer = GetComponentInChildren<SpriteRenderer>();
+        if (sourceRenderer == null || sourceRenderer.sprite == null) return;
+
+        GameObject beam = new GameObject($"{name}_PlacementBeam");
+        _placementBeamRenderer = beam.AddComponent<SpriteRenderer>();
+        _placementBeamRenderer.sprite = sourceRenderer.sprite;
+        _placementBeamRenderer.color = placementBeamColor;
+        _placementBeamRenderer.sortingLayerID = sourceRenderer.sortingLayerID;
+        _placementBeamRenderer.sortingOrder = placementBeamSortingOrder;
+        _placementBeamRenderer.enabled = false;
+    }
+
+    private void DestroyPlacementBeam()
+    {
+        if (_placementBeamRenderer == null) return;
+
+        Destroy(_placementBeamRenderer.gameObject);
+        _placementBeamRenderer = null;
+    }
+
+    private void UpdatePlacementBeam()
+    {
+        if (_placementBeamRenderer == null) return;
+
+        bool shouldShow = showPlacementBeam && _isControlEnabled && !HasLanded && !_hasTouchedDown;
+        if (!shouldShow || !TryGetPlacementBeamFootprint(out float centerX, out float width) ||
+            !TryGetPlacementBeamVerticalSpan(out float centerY, out float height))
+        {
+            _placementBeamRenderer.enabled = false;
+            return;
+        }
+
+        Bounds spriteBounds = _placementBeamRenderer.sprite.bounds;
+        float spriteWidth = Mathf.Max(0.001f, spriteBounds.size.x);
+        float spriteHeight = Mathf.Max(0.001f, spriteBounds.size.y);
+
+        Transform beamTransform = _placementBeamRenderer.transform;
+        beamTransform.position = new Vector3(centerX, centerY, transform.position.z);
+        beamTransform.rotation = Quaternion.identity;
+        beamTransform.localScale = new Vector3(width / spriteWidth, height / spriteHeight, 1f);
+
+        _placementBeamRenderer.color = placementBeamColor;
+        _placementBeamRenderer.enabled = true;
+    }
+
+    private bool TryGetPlacementBeamFootprint(out float centerX, out float width)
+    {
+        centerX = transform.position.x;
+        width = gridSpacing;
+
+        _cellGeometry.Refresh();
+        if (_cellGeometry.CellCenters.Count == 0) return false;
+
+        float halfCell = gridSpacing * 0.5f;
+        float minX = float.PositiveInfinity;
+        float maxX = float.NegativeInfinity;
+        for (int i = 0; i < _cellGeometry.CellCenters.Count; i++)
+        {
+            Vector2 cellCenter = _cellGeometry.CellCenters[i];
+            minX = Mathf.Min(minX, cellCenter.x - halfCell);
+            maxX = Mathf.Max(maxX, cellCenter.x + halfCell);
+        }
+
+        if (minX == float.PositiveInfinity || maxX == float.NegativeInfinity) return false;
+
+        centerX = (minX + maxX) * 0.5f;
+        width = Mathf.Max(gridSpacing, maxX - minX);
+        return true;
+    }
+
+    private bool TryGetPlacementBeamVerticalSpan(out float centerY, out float height)
+    {
+        centerY = transform.position.y;
+        height = 0f;
+
+        if (_mainCamera == null)
+        {
+            _mainCamera = Camera.main;
+        }
+
+        if (_mainCamera == null || !_mainCamera.orthographic) return false;
+
+        height = _mainCamera.orthographicSize * 2f;
+        centerY = _mainCamera.transform.position.y;
+        return height > 0f;
     }
 
     // Pulls only the exposed left/right sides of the piece inward (leaving the sprite untouched).
@@ -296,6 +394,7 @@ public class BlockController : MonoBehaviour
     private void OnDestroy()
     {
         TrackedBlocks.Remove(this);
+        DestroyPlacementBeam();
     }
 
     public bool TryGetWorldBounds(out Bounds bounds)
@@ -334,6 +433,11 @@ public class BlockController : MonoBehaviour
         if (!_isControlEnabled) return;
 
         HandleDynamicControl();
+    }
+
+    private void LateUpdate()
+    {
+        UpdatePlacementBeam();
     }
 
     // Shared left/right auto-repeat (DAS) timing. `step` is invoked once on initial press, then
@@ -434,7 +538,7 @@ public class BlockController : MonoBehaviour
 
         // Rotation is also grid-first while active. Letting active pieces sit at small in-between
         // angles made contact classification unpredictable.
-        SetRotationZ(_targetAngleZ);
+        SetRotationZPreservingGridPivot(_targetAngleZ);
         _rb.angularVelocity = 0f;
 
         ApplyControlledHorizontalMovement(velocityX * Time.fixedDeltaTime);
@@ -491,7 +595,7 @@ public class BlockController : MonoBehaviour
         // impact velocity. From here, gravity and balance decide what happens.
         _hasTouchedDown = true;
         SnapToColumnGrid();
-        SetRotationZ(_targetAngleZ);
+        SetRotationZPreservingGridPivot(_targetAngleZ);
         SettleOntoContact();
 
         _rb.bodyType = RigidbodyType2D.Dynamic;
@@ -830,6 +934,51 @@ public class BlockController : MonoBehaviour
         if (_rb != null) _rb.rotation = snappedAngle;
     }
 
+    private void SetRotationZPreservingGridPivot(float angle)
+    {
+        float snappedAngle = SnapValue(angle, RotationStep);
+        float currentAngle = _rb != null ? _rb.rotation : transform.eulerAngles.z;
+        if (Mathf.Abs(Mathf.DeltaAngle(currentAngle, snappedAngle)) <= 0.001f) return;
+
+        if (!TryGetRotationPivot(out Vector2 pivotBefore))
+        {
+            SetRotationZ(snappedAngle);
+            return;
+        }
+
+        SetRotationZ(snappedAngle);
+        Physics2D.SyncTransforms();
+
+        if (!TryGetRotationPivot(out Vector2 pivotAfter))
+        {
+            return;
+        }
+
+        Vector3 position = transform.position;
+        Vector2 correction = pivotBefore - pivotAfter;
+        position.x += correction.x;
+        position.y += correction.y;
+        SetPosition(position);
+        Physics2D.SyncTransforms();
+
+        if (!_hasTouchedDown && _isControlEnabled)
+        {
+            _targetColumnX = SnapValue(_cellGeometry.GetPrimaryWorldX(transform.position.x), gridSpacing);
+        }
+    }
+
+    private bool TryGetRotationPivot(out Vector2 pivot)
+    {
+        pivot = default;
+        if (!_cellGeometry.TryGetWorldBounds(out Bounds bounds)) return false;
+
+        Vector3 center = bounds.center;
+        pivot = new Vector2(
+            SnapValue(center.x, gridSpacing),
+            SnapValue(center.y, gridSpacing));
+        return true;
+    }
+
     private void ResetControlTargets()
     {
         if (_dynamicControlReady || HasLanded) return;
@@ -845,6 +994,7 @@ public class BlockController : MonoBehaviour
         if (!_isControlEnabled) return;
         _isControlEnabled = false;
         HasLanded = true;
+        DestroyPlacementBeam();
 
         FinalizeDynamicControl();
 

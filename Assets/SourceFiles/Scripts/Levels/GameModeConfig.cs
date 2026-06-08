@@ -20,7 +20,7 @@ public class GameModeConfig : ScriptableObject
     [Header("Spawning")]
     [SerializeField] private BlockDefinition[] blockBag;
     [SerializeField] private BlockData[] fallbackBlockDataVariants;
-    [SerializeField] private float spawnDelay = 0.5f;
+    [SerializeField] private float spawnDelay = 0f;
 
     [Header("Placement")]
     [SerializeField] private float gridSpacing = 1f;

@@ -8,7 +8,7 @@ public class Spawner : MonoBehaviour
     [SerializeField] private GameObject[] blockPrefabs;
     [SerializeField] private BlockData[] blockDataVariants;
     [SerializeField] private Transform spawnPoint;
-    [SerializeField] private float spawnDelay = 0.5f;
+    [SerializeField] private float spawnDelay = 0f;
 
     private BlockController _currentBlock;
     private readonly List<BlockDefinition> _definitionBag = new List<BlockDefinition>();
@@ -183,12 +183,18 @@ public class Spawner : MonoBehaviour
             _currentBlock.OnBlockLocked -= HandleBlockLocked;
         }
         
-        StartCoroutine(SpawnWithDelay());
+        float delay = gameModeConfig != null ? gameModeConfig.SpawnDelay : spawnDelay;
+        if (delay <= 0f)
+        {
+            SpawnNextBlock();
+            return;
+        }
+
+        StartCoroutine(SpawnWithDelay(delay));
     }
 
-    private IEnumerator SpawnWithDelay()
+    private IEnumerator SpawnWithDelay(float delay)
     {
-        float delay = gameModeConfig != null ? gameModeConfig.SpawnDelay : spawnDelay;
         yield return new WaitForSeconds(delay);
         SpawnNextBlock();
     }
