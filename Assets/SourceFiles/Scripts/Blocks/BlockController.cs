@@ -34,33 +34,13 @@ public class BlockController : MonoBehaviour
     [Tooltip("Angular drag on a landed block. Damps out wobble so blocks settle and go to sleep instead of jittering.")]
     [SerializeField] private float restingAngularDamping = 0.5f;
 
-    [Tooltip("Shrinks each block collider horizontally by this many world units per side (visual size unchanged). Lets a piece drop into a matching-width gap instead of catching on the corners of its neighbours. Keep small (~0.02). Vertical size is left alone so stacking stays flush.")]
+    [Tooltip("Shrinks only exposed horizontal sides of block colliders by this many world units (visual size unchanged). Internal cell seams stay flush so later pieces do not catch on invisible cracks.")]
     [Range(0f, 0.2f)]
     [SerializeField] private float horizontalColliderInset = 0.02f;
 
-    [Header("Tricky Towers Control (fallback; GameModeConfig overrides these per level)")]
-    [Tooltip("How fast a piece slides between columns, in world units per second. High enough that a one-column hop is quick, low enough that you can still see and interrupt it.")]
-    [SerializeField] private float maxColumnMoveSpeed = 14f;
-    [Tooltip("How hard the piece is driven toward its target column. Higher reaches the lane faster; it always eases in, so it never overshoots into a half-column.")]
-    [SerializeField] private float columnApproachSpeed = 25f;
-    [Tooltip("Small clearance kept between the actively steered piece and side contacts. This lets the falling piece tuck into openings, but stops left/right input from shoving the landed tower sideways.")]
-    [SerializeField] private float horizontalSteeringContactSkin = 0.02f;
-    [Tooltip("How hard the piece rotates toward the requested angle. Rotation still takes a moment, so a late rotate gets 'caught' mid-turn as it lands.")]
-    [SerializeField] private float rotationApproachSpeed = 20f;
-    [Tooltip("Maximum spin speed while rotating, in degrees/second. Higher = quicker turns (and wilder spins when caught mid-rotation on landing).")]
-    [SerializeField] private float maxRotationSpeed = 720f;
+    [Header("Active Piece Control (fallback; GameModeConfig overrides these per level)")]
     [Tooltip("How close (world units) support must be below the piece before steering control is handed to physics. Keep small so players can make last-second tuck moves.")]
     [SerializeField] private float groundedCheckDistance = 0.03f;
-    [Tooltip("If support is detected while the piece is still this far from its target column, keep sliding horizontally instead of landing on a corner.")]
-    [Range(0f, 0.5f)]
-    [SerializeField] private float landingColumnToleranceFraction = 0.08f;
-    [Tooltip("Upward contacts this close to a cell's left/right edge are ignored as landing support, so pieces do not stand on tiny corners instead of entering gaps.")]
-    [Range(0f, 0.25f)]
-    [SerializeField] private float landingCornerInsetFraction = 0.08f;
-    [Tooltip("How quickly a controlled falling piece slides sideways off an invalid corner contact.")]
-    [SerializeField] private float cornerSlideSpeed = 4f;
-    [Tooltip("How long an unresolved invalid corner contact may stay controlled before it is released to physics.")]
-    [SerializeField] private float invalidContactReleaseTime = 0.25f;
     [Tooltip("Maximum downward velocity kept when control hands off to physics. Keep at 0 to prevent falling impact from shoving the tower; gravity/weight still applies after landing.")]
     [SerializeField] private float maxLandingImpactSpeed = 0f;
     [Tooltip("A landed piece counts as 'settled' once its linear speed (units/sec) drops below this. Keep low so unstable pieces get time to tip before maintenance runs.")]
@@ -85,7 +65,7 @@ public class BlockController : MonoBehaviour
     private static PhysicsMaterial2D _sharedFallbackMaterial;
 
     private const float RotationStep = 90f;
-    private const float ControlledContactSkin = 0.001f;
+    private const float GridMatchTolerance = 0.05f;
 
     private Rigidbody2D _rb;
     private StackingInputs _inputs;
@@ -111,7 +91,6 @@ public class BlockController : MonoBehaviour
     private bool _dynamicControlReady;
     private bool _hasTouchedDown;
     private float _landedMaintenanceSettleTimer;
-    private float _invalidContactTimer;
     private float _controlElapsed;
 
     public bool HasLanded { get; private set; }
@@ -131,8 +110,8 @@ public class BlockController : MonoBehaviour
         _sharedFallbackMaterial = null;
     }
 
-    // Rotation nudges the target angle by a quarter turn. The body physically rotates toward it
-    // while falling; if it lands mid-turn, the remaining spin can carry into physics.
+    // Rotation nudges the target angle by a quarter turn. Active pieces snap to that target while
+    // falling, so they stay on the same grid rules as horizontal movement.
     public void RotateLeft()
     {
         if (!_isControlEnabled) return;
@@ -201,17 +180,57 @@ public class BlockController : MonoBehaviour
         ResetControlTargets();
     }
 
-    // Pulls each cell collider in horizontally (leaving the sprite untouched) so a piece can
-    // drop into a gap of equal column width without snagging on a neighbour's top corner.
+    // Pulls only the exposed left/right sides of the piece inward (leaving the sprite untouched).
+    // Internal seams between cells stay flush; otherwise a placed multi-cell block creates tiny
+    // invisible cracks and later pieces can snag on corners that players cannot see.
     private void ApplyHorizontalColliderInset()
     {
         if (horizontalColliderInset <= 0f) return;
 
         BoxCollider2D[] colliders = GetComponentsInChildren<BoxCollider2D>();
-        foreach (BoxCollider2D box in colliders)
+        if (colliders.Length == 0) return;
+
+        Vector2[] centers = new Vector2[colliders.Length];
+        for (int i = 0; i < colliders.Length; i++)
         {
+            centers[i] = transform.InverseTransformPoint(colliders[i].transform.TransformPoint(colliders[i].offset));
+        }
+
+        float neighborDistance = Mathf.Max(0.001f, gridSpacing);
+        float neighborTolerance = Mathf.Max(0.01f, neighborDistance * 0.1f);
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            BoxCollider2D box = colliders[i];
+            bool hasLeftNeighbor = false;
+            bool hasRightNeighbor = false;
+
+            for (int j = 0; j < colliders.Length; j++)
+            {
+                if (i == j) continue;
+
+                Vector2 delta = centers[j] - centers[i];
+                if (Mathf.Abs(delta.y) > neighborTolerance) continue;
+
+                if (Mathf.Abs(delta.x + neighborDistance) <= neighborTolerance)
+                {
+                    hasLeftNeighbor = true;
+                }
+                else if (Mathf.Abs(delta.x - neighborDistance) <= neighborTolerance)
+                {
+                    hasRightNeighbor = true;
+                }
+            }
+
+            float leftInset = hasLeftNeighbor ? 0f : horizontalColliderInset;
+            float rightInset = hasRightNeighbor ? 0f : horizontalColliderInset;
+            float totalInset = leftInset + rightInset;
+            if (totalInset <= 0f) continue;
+
             Vector2 size = box.size;
-            size.x = Mathf.Max(0.1f, size.x - horizontalColliderInset * 2f);
+            Vector2 offset = box.offset;
+            size.x = Mathf.Max(0.1f, size.x - totalInset);
+            offset.x += (leftInset - rightInset) * 0.5f;
+            box.offset = offset;
             box.size = size;
         }
     }
@@ -243,17 +262,7 @@ public class BlockController : MonoBehaviour
         minimumLandingNormalY = config.MinimumLandingNormalY;
         horizontalPlacementBufferColumns = config.HorizontalPlacementBufferColumns;
 
-        // Dynamic-mode control feel, configurable per level via the GameModeConfig asset.
-        maxColumnMoveSpeed = config.MaxColumnMoveSpeed;
-        columnApproachSpeed = config.ColumnApproachSpeed;
-        horizontalSteeringContactSkin = config.HorizontalSteeringContactSkin;
-        rotationApproachSpeed = config.RotationApproachSpeed;
-        maxRotationSpeed = config.MaxRotationSpeed;
         groundedCheckDistance = config.GroundedCheckDistance;
-        landingColumnToleranceFraction = config.LandingColumnToleranceFraction;
-        landingCornerInsetFraction = config.LandingCornerInsetFraction;
-        cornerSlideSpeed = config.CornerSlideSpeed;
-        invalidContactReleaseTime = config.InvalidContactReleaseTime;
         maxLandingImpactSpeed = config.MaxLandingImpactSpeed;
         settleLinearThreshold = config.SettleLinearThreshold;
         settleAngularThreshold = config.SettleAngularThreshold;
@@ -368,12 +377,10 @@ public class BlockController : MonoBehaviour
         return fallSpeed * (fastDropRequested ? fastDropMultiplier : 1f);
     }
 
-    // ---- Tricky Towers dynamic control ------------------------------------------------------
-    // The piece is a real dynamic body the whole time, but while it is still falling we move it by
-    // explicit cast-and-position steps with zero linear velocity. That keeps the placement grid
-    // clean and prevents fall momentum from shoving the tower. The instant it has support beneath
-    // it, control locks, the next block can spawn, and gravity/physics take over. Any remaining
-    // spin can still settle under physics.
+    // ---- Grid-first active control -----------------------------------------------------------
+    // While a piece is active it behaves like Tetris: kinematic, grid-aligned, and deterministic.
+    // Physics only takes over after the placement is locked, which prevents tiny contact-solver
+    // drift from deciding whether the next block can fit.
     private void HandleDynamicControl()
     {
         InitDynamicControlBody();
@@ -399,8 +406,8 @@ public class BlockController : MonoBehaviour
         // fall ourselves while steering, then restore this gravity the moment the piece lands.
         _physicsGravityScale = ResolvePhysicsGravityScale();
 
-        _rb.bodyType = RigidbodyType2D.Dynamic;
-        _rb.constraints = RigidbodyConstraints2D.None;
+        _rb.bodyType = RigidbodyType2D.Kinematic;
+        _rb.constraints = RigidbodyConstraints2D.FreezeRotation;
         _rb.gravityScale = 0f;
         _rb.linearVelocity = Vector2.zero;
         _rb.angularVelocity = 0f;
@@ -415,59 +422,26 @@ public class BlockController : MonoBehaviour
 
     private void SteerWhileFalling()
     {
-        // Horizontal: drive toward the target COLUMN (not a free analog position) so the piece
-        // always comes to rest in a lane and two blocks line up cleanly. The drive eases in -
-        // quick but not instant - so a piece can be caught between columns if it lands mid-slide.
+        // Horizontal: move to the target column as a grid step. This avoids half-column landings,
+        // which were the source of many millimetre gaps and "still falling" states.
         float currentColumnX = _cellGeometry.GetPrimaryWorldX(transform.position.x);
-        float columnError = _targetColumnX - currentColumnX;
-        float desiredVelocityX = Mathf.Clamp(columnError * columnApproachSpeed, -maxColumnMoveSpeed, maxColumnMoveSpeed);
-        float velocityX = LimitHorizontalSteeringVelocity(desiredVelocityX);
+        float columnDelta = _targetColumnX - currentColumnX;
+        float velocityX = 0f;
+        if (Mathf.Abs(columnDelta) > 0.001f)
+        {
+            velocityX = columnDelta / Time.fixedDeltaTime;
+        }
 
-        // Rotation: spin toward the target angle. The spin scales with how far we still have to
-        // turn, so it eases into the target - and if we land before reaching it, the leftover
-        // angular velocity carries into the physics hand-off.
-        float angleError = Mathf.DeltaAngle(_rb.rotation, _targetAngleZ);
-        _rb.angularVelocity = Mathf.Clamp(angleError * rotationApproachSpeed, -maxRotationSpeed, maxRotationSpeed);
+        // Rotation is also grid-first while active. Letting active pieces sit at small in-between
+        // angles made contact classification unpredictable.
+        SetRotationZ(_targetAngleZ);
+        _rb.angularVelocity = 0f;
 
         ApplyControlledHorizontalMovement(velocityX * Time.fixedDeltaTime);
 
         float fallDistance = GetActiveFallSpeed() * Time.fixedDeltaTime;
-        if (TryGetControlledDownContact(
-                fallDistance + groundedCheckDistance,
-                out float contactDistance,
-                out bool isLandingSupport,
-                out Vector2 contactPoint))
+        if (TryGetGridDownContact(fallDistance + groundedCheckDistance, out float contactDistance))
         {
-            bool delayForHorizontalTuck = ShouldDelayLandingForHorizontalTuck(velocityX);
-            if (!isLandingSupport)
-            {
-                ApplyControlledVerticalMovementBeforeContact(fallDistance, contactDistance);
-
-                bool slidOffCorner = delayForHorizontalTuck && TrySlideOffInvalidCorner(contactPoint.x, velocityX);
-                if (slidOffCorner)
-                {
-                    _invalidContactTimer = 0f;
-                    return;
-                }
-
-                _invalidContactTimer += Time.fixedDeltaTime;
-                if (_invalidContactTimer < invalidContactReleaseTime)
-                {
-                    return;
-                }
-
-                _invalidContactTimer = 0f;
-                BeginPhysicsLanding();
-                return;
-            }
-
-            if (delayForHorizontalTuck)
-            {
-                ApplyControlledVerticalMovementBeforeContact(fallDistance, contactDistance);
-                _invalidContactTimer = 0f;
-                return;
-            }
-
             if (contactDistance > 0f)
             {
                 Vector3 position = transform.position;
@@ -476,48 +450,13 @@ public class BlockController : MonoBehaviour
             }
 
             ClearControlledLinearVelocity();
-            _invalidContactTimer = 0f;
             BeginPhysicsLanding();
             return;
         }
 
         ApplyControlledVerticalMovement(fallDistance);
         ClearControlledLinearVelocity();
-        _invalidContactTimer = 0f;
         ClampHorizontalToCameraBounds();
-    }
-
-    private bool ShouldDelayLandingForHorizontalTuck(float appliedVelocityX)
-    {
-        if (Mathf.Abs(appliedVelocityX) <= 0.001f) return false;
-
-        float currentColumnX = _cellGeometry.GetPrimaryWorldX(transform.position.x);
-        float remainingColumnError = Mathf.Abs(_targetColumnX - currentColumnX);
-        float tolerance = Mathf.Max(0f, landingColumnToleranceFraction) * gridSpacing;
-        return remainingColumnError > tolerance;
-    }
-
-    private bool TrySlideOffInvalidCorner(float contactPointX, float requestedVelocityX)
-    {
-        int requestedDirection = Mathf.Abs(requestedVelocityX) > 0.001f
-            ? (int)Mathf.Sign(requestedVelocityX)
-            : _cellGeometry.GetSlideDirectionAwayFromNearestHorizontalEdge(contactPointX);
-        int geometryDirection = _cellGeometry.GetSlideDirectionAwayFromNearestHorizontalEdge(contactPointX);
-
-        return TrySlideOffInvalidCornerInDirection(requestedDirection) ||
-               (geometryDirection != requestedDirection && TrySlideOffInvalidCornerInDirection(geometryDirection));
-    }
-
-    private bool TrySlideOffInvalidCornerInDirection(int slideDirection)
-    {
-        if (slideDirection == 0) return false;
-
-        float desiredSpeed = Mathf.Max(0f, cornerSlideSpeed) * slideDirection;
-        float allowedSpeed = LimitHorizontalSteeringVelocity(desiredSpeed);
-        if (Mathf.Sign(allowedSpeed) != slideDirection || Mathf.Abs(allowedSpeed) <= 0.001f) return false;
-
-        ApplyControlledHorizontalMovement(allowedSpeed * Time.fixedDeltaTime);
-        return true;
     }
 
     private void ApplyControlledHorizontalMovement(float deltaX)
@@ -539,13 +478,6 @@ public class BlockController : MonoBehaviour
         SetPosition(position);
     }
 
-    private void ApplyControlledVerticalMovementBeforeContact(float fallDistance, float contactDistance)
-    {
-        float safeMoveDistance = Mathf.Min(fallDistance, Mathf.Max(0f, contactDistance - ControlledContactSkin));
-        ApplyControlledVerticalMovement(safeMoveDistance);
-        ClearControlledLinearVelocity();
-    }
-
     private void ClearControlledLinearVelocity()
     {
         _rb.linearVelocity = Vector2.zero;
@@ -555,20 +487,18 @@ public class BlockController : MonoBehaviour
     {
         if (_hasTouchedDown) return;
 
-        // First contact: place the piece flush against support before the physics step can turn
-        // fall speed into an impact impulse. From here, gravity and balance decide what happens.
+        // First contact: snap the placed piece back onto the grid, then hand it to physics with no
+        // impact velocity. From here, gravity and balance decide what happens.
         _hasTouchedDown = true;
+        SnapToColumnGrid();
+        SetRotationZ(_targetAngleZ);
+        SettleOntoContact();
+
+        _rb.bodyType = RigidbodyType2D.Dynamic;
+        _rb.constraints = RigidbodyConstraints2D.None;
         _rb.gravityScale = ResolvePhysicsGravityScale();
         _rb.centerOfMass = _originalCenterOfMass;
-
-        float targetAngleError = Mathf.Abs(Mathf.DeltaAngle(_rb.rotation, _targetAngleZ));
-        if (targetAngleError <= microAlignMaxRotationDegrees)
-        {
-            SetRotationZ(_targetAngleZ);
-            _rb.angularVelocity = 0f;
-        }
-
-        SettleOntoContact();
+        _rb.angularVelocity = 0f;
 
         Vector2 landingVelocity = _rb.linearVelocity;
         landingVelocity.x = 0f;
@@ -579,81 +509,84 @@ public class BlockController : MonoBehaviour
         LockBlock();
     }
 
-    private float LimitHorizontalSteeringVelocity(float desiredVelocityX)
+    private bool TryGetGridDownContact(
+        float maxDistance,
+        out float moveDistance)
     {
-        if (Mathf.Abs(desiredVelocityX) < 0.001f) return 0f;
+        moveDistance = Mathf.Infinity;
+        float distance = Mathf.Max(0.001f, maxDistance);
+        float halfCell = gridSpacing * 0.5f;
 
-        Vector2 direction = desiredVelocityX > 0f ? Vector2.right : Vector2.left;
-        float requestedDistance = Mathf.Abs(desiredVelocityX) * Time.fixedDeltaTime;
-        float skin = Mathf.Max(0f, horizontalSteeringContactSkin);
-        float castDistance = requestedDistance + skin;
-
-        RaycastHit2D[] results = new RaycastHit2D[8];
-        int count = _rb.Cast(direction, _contactFilter, results, castDistance);
-        float closestDistance = Mathf.Infinity;
-
-        for (int i = 0; i < count; i++)
+        _cellGeometry.Refresh();
+        for (int i = 0; i < _cellGeometry.CellCenters.Count; i++)
         {
-            RaycastHit2D hit = results[i];
-            if (hit.collider == null) continue;
-
-            // Only side-facing contacts should block horizontal steering. Upward floor/tower
-            // contacts are handled by the landing handoff.
-            if (Vector2.Dot(hit.normal, direction) >= -0.35f) continue;
-            if (hit.distance < closestDistance) closestDistance = hit.distance;
+            Vector2 activeCell = _cellGeometry.CellCenters[i];
+            float activeColumn = SnapValue(activeCell.x, gridSpacing);
+            float activeBottom = activeCell.y - halfCell;
+            AddGridCellSupportDistance(activeColumn, activeBottom, distance, ref moveDistance);
         }
 
-        if (closestDistance == Mathf.Infinity) return desiredVelocityX;
+        if (TryGetStaticDownContact(distance, out float staticDistance))
+        {
+            moveDistance = Mathf.Min(moveDistance, staticDistance);
+        }
 
-        float allowedDistance = Mathf.Max(0f, closestDistance - skin);
-        if (allowedDistance <= 0.001f) return 0f;
+        if (moveDistance == Mathf.Infinity) return false;
 
-        float allowedSpeed = allowedDistance / Time.fixedDeltaTime;
-        return Mathf.Sign(desiredVelocityX) * Mathf.Min(Mathf.Abs(desiredVelocityX), allowedSpeed);
+        moveDistance = Mathf.Max(0f, moveDistance);
+        return true;
     }
 
-    private bool TryGetControlledDownContact(
+    private void AddGridCellSupportDistance(
+        float activeColumn,
+        float activeBottom,
         float maxDistance,
-        out float moveDistance,
-        out bool isLandingSupport,
-        out Vector2 contactPoint)
+        ref float closestDistance)
+    {
+        float halfCell = gridSpacing * 0.5f;
+        for (int blockIndex = 0; blockIndex < TrackedBlocks.Count; blockIndex++)
+        {
+            BlockController block = TrackedBlocks[blockIndex];
+            if (block == null || block == this || !block.HasLanded) continue;
+
+            block._cellGeometry.Refresh();
+            for (int cellIndex = 0; cellIndex < block._cellGeometry.CellCenters.Count; cellIndex++)
+            {
+                Vector2 supportCell = block._cellGeometry.CellCenters[cellIndex];
+                float supportColumn = SnapValue(supportCell.x, gridSpacing);
+                if (Mathf.Abs(supportColumn - activeColumn) > GridMatchTolerance) continue;
+
+                float supportTop = SnapValue(supportCell.y, gridSpacing) + halfCell;
+                float supportDistance = activeBottom - supportTop;
+                if (supportDistance < -GridMatchTolerance || supportDistance > maxDistance + GridMatchTolerance) continue;
+
+                closestDistance = Mathf.Min(closestDistance, Mathf.Max(0f, supportDistance));
+            }
+        }
+    }
+
+    private bool TryGetStaticDownContact(float maxDistance, out float moveDistance)
     {
         moveDistance = 0f;
-        isLandingSupport = false;
-        contactPoint = default;
-        float distance = Mathf.Max(0.001f, maxDistance);
-
         RaycastHit2D[] results = new RaycastHit2D[8];
-        int count = _rb.Cast(Vector2.down, _contactFilter, results, distance);
+        int count = _rb.Cast(Vector2.down, _contactFilter, results, maxDistance);
         float closestContactDistance = Mathf.Infinity;
-        bool closestContactIsLandingSupport = false;
-        Vector2 closestContactPoint = default;
-        const float contactTieTolerance = 0.001f;
 
         for (int i = 0; i < count; i++)
         {
             RaycastHit2D hit = results[i];
-            if (hit.collider == null) continue;
+            if (!IsUpwardSupport(hit)) continue;
+            if (hit.collider.GetComponentInParent<BlockController>() != null) continue;
 
-            bool hitIsLandingSupport = IsLandingSupport(hit);
-            if (hit.distance < closestContactDistance - contactTieTolerance)
+            if (hit.distance < closestContactDistance)
             {
                 closestContactDistance = hit.distance;
-                closestContactIsLandingSupport = hitIsLandingSupport;
-                closestContactPoint = hit.point;
-            }
-            else if (Mathf.Abs(hit.distance - closestContactDistance) <= contactTieTolerance && hitIsLandingSupport)
-            {
-                closestContactIsLandingSupport = true;
-                closestContactPoint = hit.point;
             }
         }
 
         if (closestContactDistance == Mathf.Infinity) return false;
 
         moveDistance = Mathf.Max(0f, closestContactDistance);
-        isLandingSupport = closestContactIsLandingSupport;
-        contactPoint = closestContactPoint;
         return true;
     }
 
@@ -673,7 +606,7 @@ public class BlockController : MonoBehaviour
         float minDistance = Mathf.Infinity;
         for (int i = 0; i < count; i++)
         {
-            if (IsLandingSupport(results[i]) && results[i].distance < minDistance)
+            if (IsUpwardSupport(results[i]) && results[i].distance < minDistance)
             {
                 minDistance = results[i].distance;
             }
@@ -692,10 +625,46 @@ public class BlockController : MonoBehaviour
     private void ShiftTargetColumn(int direction)
     {
         float candidate = _targetColumnX + direction * gridSpacing;
-        if (IsColumnTargetWithinBounds(candidate))
+        if (IsColumnTargetWithinBounds(candidate) && IsGridPlacementFreeAtColumn(candidate))
         {
             _targetColumnX = candidate;
         }
+    }
+
+    private bool IsGridPlacementFreeAtColumn(float candidatePrimaryX)
+    {
+        _cellGeometry.Refresh();
+        float currentPrimaryX = _cellGeometry.GetPrimaryWorldX(transform.position.x);
+        float deltaX = candidatePrimaryX - currentPrimaryX;
+        float rowTolerance = gridSpacing * 0.8f;
+
+        for (int i = 0; i < _cellGeometry.CellCenters.Count; i++)
+        {
+            Vector2 activeCell = _cellGeometry.CellCenters[i];
+            float activeColumn = SnapValue(activeCell.x + deltaX, gridSpacing);
+            float activeRow = SnapValue(activeCell.y, gridSpacing);
+
+            for (int blockIndex = 0; blockIndex < TrackedBlocks.Count; blockIndex++)
+            {
+                BlockController block = TrackedBlocks[blockIndex];
+                if (block == null || block == this || !block.HasLanded) continue;
+
+                block._cellGeometry.Refresh();
+                for (int cellIndex = 0; cellIndex < block._cellGeometry.CellCenters.Count; cellIndex++)
+                {
+                    Vector2 placedCell = block._cellGeometry.CellCenters[cellIndex];
+                    float placedColumn = SnapValue(placedCell.x, gridSpacing);
+                    float placedRow = SnapValue(placedCell.y, gridSpacing);
+                    if (Mathf.Abs(placedColumn - activeColumn) <= GridMatchTolerance &&
+                        Mathf.Abs(placedRow - activeRow) < rowTolerance)
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
     }
 
     private bool IsColumnTargetWithinBounds(float candidateColumnX)
@@ -755,12 +724,9 @@ public class BlockController : MonoBehaviour
         }
     }
 
-    private bool IsLandingSupport(RaycastHit2D hit)
+    private bool IsUpwardSupport(RaycastHit2D hit)
     {
-        if (hit.collider == null || hit.normal.y < minimumLandingNormalY) return false;
-
-        float inset = Mathf.Max(0f, landingCornerInsetFraction) * gridSpacing;
-        return _cellGeometry.IsWorldXInsideAnyCellInterior(hit.point.x, inset);
+        return hit.collider != null && hit.normal.y >= minimumLandingNormalY;
     }
 
     private bool TryGetGameplayHorizontalBounds(out float minX, out float maxX)

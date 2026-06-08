@@ -83,56 +83,6 @@ public sealed class BlockCellGeometry
         return hasBounds;
     }
 
-    public bool IsWorldXInsideAnyCellInterior(float worldX, float inset)
-    {
-        if (_solidColliders == null) return false;
-
-        for (int i = 0; i < _solidColliders.Length; i++)
-        {
-            Collider2D collider = _solidColliders[i];
-            if (collider == null) continue;
-
-            Bounds bounds = collider.bounds;
-            float safeInset = Mathf.Min(Mathf.Max(0f, inset), bounds.extents.x * 0.45f);
-            if (worldX >= bounds.min.x + safeInset && worldX <= bounds.max.x - safeInset)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public int GetSlideDirectionAwayFromNearestHorizontalEdge(float worldX)
-    {
-        if (_solidColliders == null) return 0;
-
-        float nearestDistance = Mathf.Infinity;
-        int direction = 0;
-        for (int i = 0; i < _solidColliders.Length; i++)
-        {
-            Collider2D collider = _solidColliders[i];
-            if (collider == null) continue;
-
-            Bounds bounds = collider.bounds;
-            float leftDistance = Mathf.Abs(worldX - bounds.min.x);
-            if (leftDistance < nearestDistance)
-            {
-                nearestDistance = leftDistance;
-                direction = 1;
-            }
-
-            float rightDistance = Mathf.Abs(worldX - bounds.max.x);
-            if (rightDistance < nearestDistance)
-            {
-                nearestDistance = rightDistance;
-                direction = -1;
-            }
-        }
-
-        return direction;
-    }
-
     private Collider2D GetPrimaryCollider()
     {
         if (_solidColliders == null || _solidColliders.Length == 0) return null;
