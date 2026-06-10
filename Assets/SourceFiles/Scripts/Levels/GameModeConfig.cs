@@ -13,11 +13,8 @@ public class GameModeConfig : ScriptableObject
     [SerializeField] private DifficultyScalingMode difficultyScalingMode = DifficultyScalingMode.PerBlock;
     [SerializeField] private DifficultyAdjustmentMode difficultyAdjustmentMode = DifficultyAdjustmentMode.Additive;
     [SerializeField] private float speedIncreasePerBlock = 0.1f;
-    [SerializeField] private float initialGravityScale = 1f;
-    [SerializeField] private float gravityIncreasePerBlock = 0.05f;
     [SerializeField] private float speedIncreaseIntervalSeconds = 60f;
     [SerializeField] private float speedIncreasePerInterval = 0.1f;
-    [SerializeField] private float gravityIncreasePerInterval = 0.05f;
 
     [Header("Spawning")]
     [SerializeField] private BlockDefinition[] blockBag;
@@ -28,7 +25,6 @@ public class GameModeConfig : ScriptableObject
 
     [Header("Placement")]
     [SerializeField] private float gridSpacing = 1f;
-    [SerializeField] private float minimumLandingNormalY = 0.45f;
     [Tooltip("Extra columns beyond the current floor/tower edge where the active block may still be placed.")]
     [Min(0)]
     [SerializeField] private int horizontalPlacementBufferColumns = 3;
@@ -121,17 +117,13 @@ public class GameModeConfig : ScriptableObject
     public DifficultyScalingMode DifficultyScalingMode => difficultyScalingMode;
     public DifficultyAdjustmentMode DifficultyAdjustmentMode => difficultyAdjustmentMode;
     public float SpeedIncreasePerBlock => speedIncreasePerBlock;
-    public float InitialGravityScale => initialGravityScale;
-    public float GravityIncreasePerBlock => gravityIncreasePerBlock;
     public float SpeedIncreaseIntervalSeconds => Mathf.Max(1f, speedIncreaseIntervalSeconds);
     public float SpeedIncreasePerInterval => speedIncreasePerInterval;
-    public float GravityIncreasePerInterval => gravityIncreasePerInterval;
     public IReadOnlyList<BlockDefinition> BlockBag => blockBag;
     public IReadOnlyList<BlockData> FallbackBlockDataVariants => fallbackBlockDataVariants;
     public IReadOnlyList<AmbientBlockVariantChance> AmbientBlockVariantChances => ambientBlockVariantChances;
     public float SpawnDelay => spawnDelay;
     public float GridSpacing => gridSpacing;
-    public float MinimumLandingNormalY => minimumLandingNormalY;
     public int HorizontalPlacementBufferColumns => Mathf.Max(0, horizontalPlacementBufferColumns);
     public float GroundedCheckDistance => groundedCheckDistance;
     public float MaxLandingImpactSpeed => maxLandingImpactSpeed;

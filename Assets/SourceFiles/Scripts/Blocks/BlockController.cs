@@ -17,8 +17,6 @@ public class BlockController : MonoBehaviour
     [SerializeField] private float gridSpacing = 1.0f;
     [SerializeField] private float dasDelay = 0.2f;
     [SerializeField] private float dasRate = 0.05f;
-    [Tooltip("Minimum upward normal required for a collision to count as a landing surface.")]
-    [SerializeField] private float minimumLandingNormalY = 0.45f;
     [Tooltip("Extra columns beyond the current floor/tower edge where the active block may still be placed.")]
     [SerializeField] private int horizontalPlacementBufferColumns = 3;
 
@@ -78,9 +76,6 @@ public class BlockController : MonoBehaviour
     [Tooltip("Minimum horizontal support overlap required for landing, as a fraction of one grid cell.")]
     [Range(0f, 0.5f)]
     [SerializeField] private float landingMinSupportWidthFraction = 0.15f;
-    [Tooltip("Small horizontal correction allowed while falling past a rejected corner graze, as a fraction of one grid cell.")]
-    [Range(0f, 0.3f)]
-    [SerializeField] private float lateralAssistMaxOverlapFraction = 0f;
     [Tooltip("A landed block that has not NET-moved beyond these tolerances for the stillness window is force-slept, even if the solver keeps twitching it in place. This is what guarantees oscillation can never persist: twitching has zero net movement by definition.")]
     [SerializeField] private float stillnessPositionTolerance = 0.005f;
     [Tooltip("Net rotation tolerance (degrees) for the stillness watchdog.")]
@@ -365,7 +360,6 @@ public class BlockController : MonoBehaviour
         if (config == null) return;
 
         gridSpacing = config.GridSpacing;
-        minimumLandingNormalY = config.MinimumLandingNormalY;
         horizontalPlacementBufferColumns = config.HorizontalPlacementBufferColumns;
 
         groundedCheckDistance = config.GroundedCheckDistance;
@@ -403,6 +397,7 @@ public class BlockController : MonoBehaviour
     {
         TrackedBlocks.Remove(this);
         DestroyPlacementBeam();
+        _inputs?.Dispose();
     }
 
     public bool TryGetWorldBounds(out Bounds bounds)
@@ -508,6 +503,16 @@ public class BlockController : MonoBehaviour
             SteerWhileFalling();
         }
 
+        // A piece steered into a gap/off the floor edge has nothing to land on, and the
+        // kinematic body never triggers the loss zone - hand it to physics immediately
+        // instead of stalling out the maxControlTime safety timer.
+        if (!_hasTouchedDown && GameManager.Instance != null &&
+            transform.position.y < GameManager.Instance.floorOriginY - 3f)
+        {
+            LockBlock();
+            return;
+        }
+
         if (_controlElapsed >= maxControlTime)
         {
             LockBlock();
@@ -573,7 +578,6 @@ public class BlockController : MonoBehaviour
             return;
         }
 
-        ApplyLateralPlacementAssist(fallDistance + groundedCheckDistance);
         ApplyControlledVerticalMovement(fallDistance);
         ClearControlledLinearVelocity();
         ClampHorizontalToCameraBounds();
@@ -691,7 +695,7 @@ public class BlockController : MonoBehaviour
 
     private bool IsValidLandingSupport(RaycastHit2D hit)
     {
-        if (hit.collider == null || hit.normal.y < Mathf.Max(minimumLandingNormalY, landingSupportNormalY)) return false;
+        if (hit.collider == null || hit.normal.y < landingSupportNormalY) return false;
         return GetHorizontalSupportOverlapAtHit(hit) >= GetMinimumLandingSupportWidth();
     }
 
@@ -708,47 +712,6 @@ public class BlockController : MonoBehaviour
     private float GetMinimumLandingSupportWidth()
     {
         return Mathf.Max(0f, landingMinSupportWidthFraction) * gridSpacing;
-    }
-
-    private void ApplyLateralPlacementAssist(float maxDistance)
-    {
-        if (lateralAssistMaxOverlapFraction <= 0f) return;
-
-        float assist = CalculateLateralPlacementAssist(maxDistance);
-        if (Mathf.Abs(assist) <= 0.0001f) return;
-
-        Vector3 position = transform.position;
-        position.x += assist;
-        SetPosition(position);
-        Physics2D.SyncTransforms();
-    }
-
-    private float CalculateLateralPlacementAssist(float maxDistance)
-    {
-        float distance = Mathf.Max(0.001f, maxDistance);
-        int count = _rb.Cast(Vector2.down, _contactFilter, _castResults, distance);
-        float maxAssist = Mathf.Max(0f, lateralAssistMaxOverlapFraction) * gridSpacing;
-        float bestAssist = 0f;
-
-        for (int i = 0; i < count; i++)
-        {
-            RaycastHit2D hit = _castResults[i];
-            if (hit.collider == null || IsValidLandingSupport(hit)) continue;
-
-            float sideSign = Mathf.Sign(hit.normal.x);
-            if (Mathf.Approximately(sideSign, 0f)) continue;
-
-            float overlap = GetHorizontalSupportOverlapAtHit(hit);
-            if (overlap <= 0f || overlap > maxAssist) continue;
-
-            float candidate = sideSign * overlap;
-            if (Mathf.Abs(candidate) > Mathf.Abs(bestAssist))
-            {
-                bestAssist = candidate;
-            }
-        }
-
-        return bestAssist;
     }
 
     private void ResolveIncomingOverlaps()
@@ -1112,40 +1075,6 @@ public class BlockController : MonoBehaviour
         _stillnessTimer = 0f;
     }
 
-    private void TryMicroAlignSettledBlock()
-    {
-        if (!microAlignSettledBlocks) return;
-
-        Vector3 originalPosition = transform.position;
-        float originalRotation = _rb.rotation;
-        float snappedRotation = SnapValue(_rb.rotation, RotationStep);
-        float rotationCorrection = Mathf.Abs(Mathf.DeltaAngle(_rb.rotation, snappedRotation));
-        if (rotationCorrection > microAlignMaxRotationDegrees) return;
-
-        transform.rotation = Quaternion.Euler(0f, 0f, snappedRotation);
-        _rb.rotation = snappedRotation;
-        Physics2D.SyncTransforms();
-
-        _cellGeometry.Refresh();
-        float primaryX = _cellGeometry.GetPrimaryWorldX(transform.position.x);
-        float snappedPrimaryX = SnapValue(primaryX, gridSpacing);
-        float maxColumnCorrection = Mathf.Max(0f, microAlignMaxColumnFraction) * gridSpacing;
-        float columnCorrection = snappedPrimaryX - primaryX;
-        if (Mathf.Abs(columnCorrection) > maxColumnCorrection)
-        {
-            SetPosition(originalPosition);
-            transform.rotation = Quaternion.Euler(0f, 0f, originalRotation);
-            _rb.rotation = originalRotation;
-            Physics2D.SyncTransforms();
-            return;
-        }
-
-        Vector3 position = transform.position;
-        position.x += columnCorrection;
-        SetPosition(position);
-        Physics2D.SyncTransforms();
-    }
-
     // Going to sleep must never move the body. A block that physics holds slightly off-grid or
     // tilted has an off-grid equilibrium: snapping it at sleep time teleports it away from that
     // equilibrium, the solver wakes it and pushes it back, and the next sleep snaps it again -
@@ -1174,14 +1103,9 @@ public class BlockController : MonoBehaviour
             if (_landedMaintenanceSettleTimer >= settleTime)
             {
                 // Sleep freezes the block exactly where physics left it (see SleepSettledBody).
-                // The teleporting micro-align only runs in the stay-awake configuration.
                 if (sleepSettledBlocksOnLock)
                 {
                     SleepSettledBody();
-                }
-                else
-                {
-                    TryMicroAlignSettledBlock();
                 }
                 _landedMaintenanceSettleTimer = 0f;
             }

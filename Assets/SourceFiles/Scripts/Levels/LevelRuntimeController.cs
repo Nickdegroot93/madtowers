@@ -1,8 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI;
 
 /// <summary>
 /// Runs the selected level's meta layer: drives its LevelModifiers, tracks the win target,
@@ -127,7 +125,7 @@ public class LevelRuntimeController : MonoBehaviour
         if (_panelRoot != null || GameManager.Instance == null) return;
 
         GameManager.Instance.SetGamePaused(true);
-        EnsureEventSystem();
+        RuntimeUiKit.EnsureEventSystem();
         BuildCompletionPanel();
     }
 
@@ -162,110 +160,23 @@ public class LevelRuntimeController : MonoBehaviour
         }
     }
 
-    // ---- Runtime UI (same conventions as LevelSelectRuntimeMenu) -----------------------------
+    // ---- Runtime UI ---------------------------------------------------------------------------
 
     private void BuildCompletionPanel()
     {
-        Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        _panelRoot = new GameObject("Level Complete");
-        Canvas canvas = _panelRoot.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 6500;
+        _panelRoot = RuntimeUiKit.CreateOverlayCanvas("Level Complete", 6500);
+        GameObject panel = RuntimeUiKit.CreateCenteredPanel(_panelRoot.transform, new Vector2(640f, 480f));
 
-        CanvasScaler scaler = _panelRoot.AddComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1080f, 1920f);
-        scaler.matchWidthOrHeight = 0.5f;
-        _panelRoot.AddComponent<GraphicRaycaster>();
-
-        GameObject panel = new GameObject("Panel");
-        panel.transform.SetParent(_panelRoot.transform, false);
-        RectTransform panelRect = panel.AddComponent<RectTransform>();
-        panelRect.anchorMin = new Vector2(0.5f, 0.5f);
-        panelRect.anchorMax = new Vector2(0.5f, 0.5f);
-        panelRect.pivot = new Vector2(0.5f, 0.5f);
-        panelRect.sizeDelta = new Vector2(640f, 480f);
-        Image panelImage = panel.AddComponent<Image>();
-        panelImage.color = new Color(0.075f, 0.105f, 0.125f, 0.97f);
-
-        VerticalLayoutGroup layout = panel.AddComponent<VerticalLayoutGroup>();
-        layout.padding = new RectOffset(36, 36, 36, 36);
-        layout.spacing = 22f;
-        layout.childAlignment = TextAnchor.MiddleCenter;
-        layout.childControlWidth = true;
-        layout.childControlHeight = false;
-        layout.childForceExpandWidth = true;
-        layout.childForceExpandHeight = false;
-
-        CreateLabel(panel.transform, font, "Level Complete!", 52, 82f, FontStyle.Bold,
+        RuntimeUiKit.CreateLabel(panel.transform, "Level Complete!", 52, 82f, FontStyle.Bold,
             new Color(0.55f, 0.95f, 0.6f, 1f));
 
         LevelDefinition next = FindNextLevelInTheme();
         if (next != null)
         {
-            CreateButton(panel.transform, font, $"Next: {next.DisplayName}", () => LoadLevel(next));
+            RuntimeUiKit.CreateButton(panel.transform, $"Next: {next.DisplayName}", 88f, () => LoadLevel(next));
         }
 
-        CreateButton(panel.transform, font, "Keep Building", ContinuePlaying);
-        CreateButton(panel.transform, font, "Replay", () => LoadLevel(_level));
-    }
-
-    private static void CreateLabel(Transform parent, Font font, string text, int fontSize,
-        float height, FontStyle style, Color color)
-    {
-        GameObject labelObject = new GameObject("Label");
-        labelObject.transform.SetParent(parent, false);
-
-        Text label = labelObject.AddComponent<Text>();
-        label.font = font;
-        label.text = text;
-        label.fontSize = fontSize;
-        label.fontStyle = style;
-        label.alignment = TextAnchor.MiddleCenter;
-        label.color = color;
-
-        LayoutElement layout = labelObject.AddComponent<LayoutElement>();
-        layout.preferredHeight = height;
-    }
-
-    private static void CreateButton(Transform parent, Font font, string text, UnityEngine.Events.UnityAction onClick)
-    {
-        GameObject buttonObject = new GameObject(text);
-        buttonObject.transform.SetParent(parent, false);
-
-        Image image = buttonObject.AddComponent<Image>();
-        image.color = new Color(0.13f, 0.19f, 0.22f, 1f);
-
-        Button button = buttonObject.AddComponent<Button>();
-        button.targetGraphic = image;
-        button.onClick.AddListener(onClick);
-
-        LayoutElement buttonLayout = buttonObject.AddComponent<LayoutElement>();
-        buttonLayout.preferredHeight = 88f;
-
-        GameObject textObject = new GameObject("Text");
-        textObject.transform.SetParent(buttonObject.transform, false);
-        RectTransform textRect = textObject.AddComponent<RectTransform>();
-        textRect.anchorMin = Vector2.zero;
-        textRect.anchorMax = Vector2.one;
-        textRect.offsetMin = new Vector2(24f, 0f);
-        textRect.offsetMax = new Vector2(-24f, 0f);
-
-        Text label = textObject.AddComponent<Text>();
-        label.font = font;
-        label.text = text;
-        label.fontSize = 32;
-        label.fontStyle = FontStyle.Bold;
-        label.alignment = TextAnchor.MiddleCenter;
-        label.color = Color.white;
-    }
-
-    private static void EnsureEventSystem()
-    {
-        if (FindAnyObjectByType<EventSystem>() != null) return;
-
-        GameObject eventSystem = new GameObject("EventSystem");
-        eventSystem.AddComponent<EventSystem>();
-        eventSystem.AddComponent<StandaloneInputModule>();
+        RuntimeUiKit.CreateButton(panel.transform, "Keep Building", 88f, ContinuePlaying);
+        RuntimeUiKit.CreateButton(panel.transform, "Replay", 88f, () => LoadLevel(_level));
     }
 }

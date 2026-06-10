@@ -5,8 +5,6 @@ using System.Collections.Generic;
 public class Spawner : MonoBehaviour
 {
     [SerializeField] private GameModeConfig gameModeConfig;
-    [SerializeField] private GameObject[] blockPrefabs;
-    [SerializeField] private BlockData[] blockDataVariants;
     [SerializeField] private Transform spawnPoint;
     [SerializeField] private float spawnDelay = 0f;
 
@@ -18,27 +16,15 @@ public class Spawner : MonoBehaviour
 
     private BlockController _currentBlock;
     private readonly List<BlockDefinition> _definitionBag = new List<BlockDefinition>();
-    private readonly List<int> _fallbackBag = new List<int>();
     private readonly List<VariantChance> _variantChances = new List<VariantChance>();
     private BlockData _queuedVariantOverride;
     private BlockDefinition _nextDefinition;
     public BlockController currentBlock => _currentBlock;
     private GameModeConfig ActiveGameModeConfig => LevelSelectionState.ResolveGameMode(gameModeConfig);
 
-    public int nextBlockIndex { get; private set; } = -1;
-
     public string GetNextBlockName()
     {
-        if (_nextDefinition != null)
-        {
-            return _nextDefinition.DisplayName;
-        }
-
-        if (nextBlockIndex >= 0 && blockPrefabs != null && nextBlockIndex < blockPrefabs.Length)
-        {
-            return blockPrefabs[nextBlockIndex].name;
-        }
-        return "None";
+        return _nextDefinition != null ? _nextDefinition.DisplayName : "None";
     }
 
     private void Start()
@@ -80,19 +66,7 @@ public class Spawner : MonoBehaviour
                 int bagIndex = Random.Range(0, _definitionBag.Count);
                 _nextDefinition = _definitionBag[bagIndex];
                 _definitionBag.RemoveAt(bagIndex);
-                nextBlockIndex = -1;
             }
-        }
-
-        if (_nextDefinition == null && blockPrefabs != null && blockPrefabs.Length > 0)
-        {
-            if (_fallbackBag.Count == 0) RefillFallbackBag();
-            if (_fallbackBag.Count == 0) return;
-
-            int bagIndex = Random.Range(0, _fallbackBag.Count);
-            nextBlockIndex = _fallbackBag[bagIndex];
-            _fallbackBag.RemoveAt(bagIndex);
-            _nextDefinition = null;
         }
 
         GameEvents.RaiseNextBlockChanged(GetNextBlockName());
@@ -165,26 +139,9 @@ public class Spawner : MonoBehaviour
         }
     }
 
-    private void RefillFallbackBag()
-    {
-        _fallbackBag.Clear();
-        if (blockPrefabs == null) return;
-
-        for (int i = 0; i < blockPrefabs.Length; i++)
-        {
-            if (blockPrefabs[i] != null) _fallbackBag.Add(i);
-        }
-    }
-
     private GameObject GetPreparedPrefab()
     {
-        if (_nextDefinition != null) return _nextDefinition.Prefab;
-        if (nextBlockIndex >= 0 && blockPrefabs != null && nextBlockIndex < blockPrefabs.Length)
-        {
-            return blockPrefabs[nextBlockIndex];
-        }
-
-        return null;
+        return _nextDefinition != null ? _nextDefinition.Prefab : null;
     }
 
     private BlockData GetBlockData(BlockDefinition definition)
@@ -199,11 +156,6 @@ public class Spawner : MonoBehaviour
         if (configuredData != null && configuredData.Count > 0)
         {
             return configuredData[Random.Range(0, configuredData.Count)];
-        }
-
-        if (blockDataVariants != null && blockDataVariants.Length > 0)
-        {
-            return blockDataVariants[Random.Range(0, blockDataVariants.Length)];
         }
 
         return null;

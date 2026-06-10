@@ -18,11 +18,8 @@ MonoBehaviour:
   difficultyScalingMode: 1
   difficultyAdjustmentMode: 0
   speedIncreasePerBlock: 0.025
-  initialGravityScale: 1
-  gravityIncreasePerBlock: 0
   speedIncreaseIntervalSeconds: 60
   speedIncreasePerInterval: 0.1
-  gravityIncreasePerInterval: 0.05
   blockBag:
   - {fileID: 11400000, guid: 399bae529a5644488f2583a430caa834, type: 2}
   - {fileID: 11400000, guid: 02ed6b9bb4d34cfea6a86b09df8598be, type: 2}
@@ -37,7 +34,6 @@ MonoBehaviour:
   ambientBlockVariantChances: []
   spawnDelay: 0
   gridSpacing: 1
-  minimumLandingNormalY: 0.45
   horizontalPlacementBufferColumns: 3
   groundedCheckDistance: 0.03
   maxLandingImpactSpeed: 2

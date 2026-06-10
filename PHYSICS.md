@@ -88,11 +88,11 @@ Inspector in debug mode if behaviour diverges between pieces.
 | `quietGridPullFactor` | 0.15 | Strength of the awake-time ease toward grid X. **Velocity-based** (I1). |
 | `quietGridPullMaxSpeedFraction` | 0.02 | Pull speed cap = 0.02 u/s — must stay well under `settleLinearThreshold` (0.08) so the pull can never keep a block awake. |
 | `QuietPullMaxTiltDegrees` (const) | 1 | Pull only touches blocks that seated flat. Nudging a tilted block engages/releases its lean contact every frame → rocking limit cycle. |
-| `microAlignMaxColumnFraction` / `microAlignMaxRotationDegrees` | 0.08 / 4 | ε caps: corrections only ever apply within these; beyond them the block belongs to physics. (Used by the pull gate and the stay-awake micro-align path.) |
+| `microAlignMaxColumnFraction` / `microAlignMaxRotationDegrees` | 0.08 / 4 | ε caps: corrections only ever apply within these; beyond them the block belongs to physics. (Used as the quiet-pull drift bound.) |
 | `sleepSettledBlocksOnLock` | true | The whole settle architecture assumes self-managed sleep. |
 | `landingSupportNormalY` | 0.7 | A cast hit only counts as landing if the surface is actually upward-facing — rejects corner/side grazes (diagonal normals). |
 | `landingMinSupportWidthFraction` | 0.15 | A landing also needs ≥15% of a cell of horizontal overlap. Stops 0.5 mm corner grazes from being treated as a floor (the original "block lands on nothing and tips" bug). Too high and valid narrow placements get rejected. |
-| `lateralAssistMaxOverlapFraction` | **0 (disabled)** | The magnetic placement assist caused historical chaos. Only re-enable as polish after everything else is verified, never to fix a bug. |
+| Lateral placement assist | **removed** | The magnetic placement assist caused historical chaos and was deleted. If ever rebuilt, it is polish on top of verified geometry, never a bug fix. |
 | `groundedCheckDistance` | 0.03 | Small so last-second tucks stay possible. |
 | `maxControlTime` | 12 | Safety lock for pieces that never find a landing. |
 | Collision detection | Continuous while falling, **Discrete once landed** | CCD on resting bodies only adds speculative-contact noise and cost; descent is cast-driven anyway. |
@@ -154,7 +154,6 @@ These are the *designer* dials — safe to vary per level. Current defaults:
 | `speedIncreasePerBlock` | 0.025 | 0.03 | Slow ramp (~80 blocks to double). 0.1 made long games impossible. |
 | `maxFallSpeed` | 5 | 5.5 | Hard ceiling — endless games stay physically playable. |
 | `maxLandingImpactSpeed` | 2 | 2 | See I-section; difficulty must never make landings harder. |
-| `initialGravityScale` / `gravityIncreasePerBlock` | 1 / 0 | 1 / 0 | Dead by design — landed gravity is constant (see §2). Keep zeroed. |
 | `towerPeakScreenY` | 0.5 | 0.58 | **The leniency dial.** Lower = more room between tower peak and spawn = more reaction time. Range widened to 0.35–0.9; raise for hard levels. |
 | `spawnPointScreenY` | 0.9 | 0.9 | Where pieces spawn on screen. |
 | `staticSupportIslandSpawnAheadHeight` | 7–8 | — | Keep **below** the spawn-line offset ((spawnY−peakY)·2·cameraSize ≈ 12 at min zoom) so platforms appear under the falling piece and are immediately landable. |

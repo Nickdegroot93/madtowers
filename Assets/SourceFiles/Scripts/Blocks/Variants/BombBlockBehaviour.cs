@@ -49,32 +49,16 @@ public class BombBlockBehaviour : MonoBehaviour
     private void Detonate()
     {
         BlockController self = GetComponent<BlockController>();
+        var touching = new HashSet<Collider2D>();
+        BlockTouchScanner.CollectTouchingColliders(gameObject, _touchRange, touching, _overlapBuffer);
+
         var victims = new HashSet<BlockController>();
-
-        ContactFilter2D filter = new ContactFilter2D
+        foreach (Collider2D hit in touching)
         {
-            useTriggers = false,
-            useLayerMask = false
-        };
+            BlockController other = hit.GetComponentInParent<BlockController>();
+            if (other == null || other == self || !other.HasLanded) continue;
 
-        Collider2D[] ownColliders = GetComponentsInChildren<Collider2D>();
-        for (int colliderIndex = 0; colliderIndex < ownColliders.Length; colliderIndex++)
-        {
-            Collider2D own = ownColliders[colliderIndex];
-            if (own == null || own.isTrigger) continue;
-
-            Bounds bounds = own.bounds;
-            Vector2 probeSize = (Vector2)bounds.size + Vector2.one * (2f * _touchRange);
-            int count = Physics2D.OverlapBox(bounds.center, probeSize, 0f, filter, _overlapBuffer);
-            for (int i = 0; i < count; i++)
-            {
-                if (_overlapBuffer[i] == null) continue;
-
-                BlockController other = _overlapBuffer[i].GetComponentInParent<BlockController>();
-                if (other == null || other == self || !other.HasLanded) continue;
-
-                victims.Add(other);
-            }
+            victims.Add(other);
         }
 
         foreach (BlockController victim in victims)

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
@@ -52,7 +51,7 @@ public class PowerUpChoiceController : MonoBehaviour
         if (_rollBuffer.Count == 0) return;
 
         GameManager.Instance.SetGamePaused(true);
-        EnsureEventSystem();
+        RuntimeUiKit.EnsureEventSystem();
         BuildChoicePanel();
     }
 
@@ -114,51 +113,18 @@ public class PowerUpChoiceController : MonoBehaviour
         _panelRoot = null;
     }
 
-    // ---- Runtime UI (same conventions as LevelSelectRuntimeMenu) -----------------------------
+    // ---- Runtime UI ---------------------------------------------------------------------------
 
     private void BuildChoicePanel()
     {
-        Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        _panelRoot = new GameObject("PowerUp Choice");
-        Canvas canvas = _panelRoot.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 6000;
+        _panelRoot = RuntimeUiKit.CreateOverlayCanvas("PowerUp Choice", 6000);
+        RuntimeUiKit.CreateBackdrop(_panelRoot.transform, new Color(0.02f, 0.04f, 0.05f, 0.82f));
 
-        CanvasScaler scaler = _panelRoot.AddComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1080f, 1920f);
-        scaler.matchWidthOrHeight = 0.5f;
-        _panelRoot.AddComponent<GraphicRaycaster>();
+        GameObject panel = RuntimeUiKit.CreateCenteredPanel(
+            _panelRoot.transform, new Vector2(1000f, 760f), drawBackground: false);
 
-        GameObject backdropObject = new GameObject("Backdrop");
-        backdropObject.transform.SetParent(_panelRoot.transform, false);
-        RectTransform backdropRect = backdropObject.AddComponent<RectTransform>();
-        backdropRect.anchorMin = Vector2.zero;
-        backdropRect.anchorMax = Vector2.one;
-        backdropRect.offsetMin = Vector2.zero;
-        backdropRect.offsetMax = Vector2.zero;
-        Image backdrop = backdropObject.AddComponent<Image>();
-        backdrop.color = new Color(0.02f, 0.04f, 0.05f, 0.82f);
-
-        GameObject panel = new GameObject("Panel");
-        panel.transform.SetParent(_panelRoot.transform, false);
-        RectTransform panelRect = panel.AddComponent<RectTransform>();
-        panelRect.anchorMin = new Vector2(0.5f, 0.5f);
-        panelRect.anchorMax = new Vector2(0.5f, 0.5f);
-        panelRect.pivot = new Vector2(0.5f, 0.5f);
-        panelRect.sizeDelta = new Vector2(1000f, 760f);
-
-        VerticalLayoutGroup panelLayout = panel.AddComponent<VerticalLayoutGroup>();
-        panelLayout.padding = new RectOffset(24, 24, 24, 24);
-        panelLayout.spacing = 26f;
-        panelLayout.childAlignment = TextAnchor.MiddleCenter;
-        panelLayout.childControlWidth = true;
-        panelLayout.childControlHeight = false;
-        panelLayout.childForceExpandWidth = true;
-        panelLayout.childForceExpandHeight = false;
-
-        CreateLabel(panel.transform, font, "Choose a Power-Up", 56, 90f, FontStyle.Bold,
-            new Color(0.92f, 0.97f, 1f, 1f));
+        RuntimeUiKit.CreateLabel(panel.transform, "Choose a Power-Up", 56, 90f, FontStyle.Bold,
+            RuntimeUiKit.TitleColor);
 
         GameObject cardRow = new GameObject("Cards");
         cardRow.transform.SetParent(panel.transform, false);
@@ -175,11 +141,11 @@ public class PowerUpChoiceController : MonoBehaviour
 
         for (int i = 0; i < _rollBuffer.Count; i++)
         {
-            CreateCard(cardRow.transform, font, _rollBuffer[i]);
+            CreateCard(cardRow.transform, _rollBuffer[i]);
         }
     }
 
-    private void CreateCard(Transform parent, Font font, PowerUpDefinition definition)
+    private void CreateCard(Transform parent, PowerUpDefinition definition)
     {
         Color rarityColor = PowerUpRarityInfo.GetColor(definition.Rarity);
 
@@ -208,41 +174,14 @@ public class PowerUpChoiceController : MonoBehaviour
         cardLayout.childForceExpandWidth = true;
         cardLayout.childForceExpandHeight = false;
 
-        CreateLabel(cardObject.transform, font, definition.Rarity.ToString().ToUpperInvariant(),
-            26, 36f, FontStyle.Bold, rarityColor);
-        CreateLabel(cardObject.transform, font, definition.DisplayName,
-            38, 110f, FontStyle.Bold, Color.white);
-        CreateLabel(cardObject.transform, font, definition.Description,
-            27, 300f, FontStyle.Normal, new Color(0.82f, 0.88f, 0.92f, 1f));
+        RuntimeUiKit.CreateLabel(cardObject.transform, definition.Rarity.ToString().ToUpperInvariant(),
+            26, 36f, FontStyle.Bold, rarityColor, TextAnchor.UpperCenter);
+        RuntimeUiKit.CreateLabel(cardObject.transform, definition.DisplayName,
+            38, 110f, FontStyle.Bold, Color.white, TextAnchor.UpperCenter);
+        RuntimeUiKit.CreateLabel(cardObject.transform, definition.Description,
+            27, 300f, FontStyle.Normal, new Color(0.82f, 0.88f, 0.92f, 1f), TextAnchor.UpperCenter);
 
         PowerUpDefinition picked = definition;
         button.onClick.AddListener(() => Pick(picked));
-    }
-
-    private static void CreateLabel(Transform parent, Font font, string text, int fontSize,
-        float height, FontStyle style, Color color)
-    {
-        GameObject labelObject = new GameObject("Label");
-        labelObject.transform.SetParent(parent, false);
-
-        Text label = labelObject.AddComponent<Text>();
-        label.font = font;
-        label.text = text;
-        label.fontSize = fontSize;
-        label.fontStyle = style;
-        label.alignment = TextAnchor.UpperCenter;
-        label.color = color;
-
-        LayoutElement layout = labelObject.AddComponent<LayoutElement>();
-        layout.preferredHeight = height;
-    }
-
-    private static void EnsureEventSystem()
-    {
-        if (FindAnyObjectByType<EventSystem>() != null) return;
-
-        GameObject eventSystem = new GameObject("EventSystem");
-        eventSystem.AddComponent<EventSystem>();
-        eventSystem.AddComponent<StandaloneInputModule>();
     }
 }

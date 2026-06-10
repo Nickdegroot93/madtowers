@@ -40,38 +40,22 @@ public class VineBlockBehaviour : MonoBehaviour
         Rigidbody2D ownBody = GetComponent<Rigidbody2D>();
         if (ownBody == null) return;
 
-        ContactFilter2D filter = new ContactFilter2D
-        {
-            useTriggers = false,
-            useLayerMask = false
-        };
+        var touching = new HashSet<Collider2D>();
+        BlockTouchScanner.CollectTouchingColliders(gameObject, _touchRange, touching, _overlapBuffer);
 
         var weldedBodies = new HashSet<Rigidbody2D>();
-        Collider2D[] ownColliders = GetComponentsInChildren<Collider2D>();
-        for (int colliderIndex = 0; colliderIndex < ownColliders.Length; colliderIndex++)
+        foreach (Collider2D hit in touching)
         {
-            Collider2D own = ownColliders[colliderIndex];
-            if (own == null || own.isTrigger) continue;
+            Rigidbody2D otherBody = hit.attachedRigidbody;
+            if (otherBody == null || otherBody == ownBody) continue;
+            if (!weldedBodies.Add(otherBody)) continue;
 
-            Bounds bounds = own.bounds;
-            Vector2 probeSize = (Vector2)bounds.size + Vector2.one * (2f * _touchRange);
-            int count = Physics2D.OverlapBox(bounds.center, probeSize, 0f, filter, _overlapBuffer);
-            for (int i = 0; i < count; i++)
-            {
-                Collider2D hit = _overlapBuffer[i];
-                if (hit == null) continue;
+            FixedJoint2D joint = gameObject.AddComponent<FixedJoint2D>();
+            joint.connectedBody = otherBody;
+            joint.breakForce = _breakForce;
+            joint.breakTorque = _breakForce;
 
-                Rigidbody2D otherBody = hit.attachedRigidbody;
-                if (otherBody == null || otherBody == ownBody) continue;
-                if (!weldedBodies.Add(otherBody)) continue;
-
-                FixedJoint2D joint = gameObject.AddComponent<FixedJoint2D>();
-                joint.connectedBody = otherBody;
-                joint.breakForce = _breakForce;
-                joint.breakTorque = _breakForce;
-
-                if (weldedBodies.Count >= MaxWelds) return;
-            }
+            if (weldedBodies.Count >= MaxWelds) return;
         }
     }
 }

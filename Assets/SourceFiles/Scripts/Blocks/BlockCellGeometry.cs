@@ -46,12 +46,6 @@ public sealed class BlockCellGeometry
         return collider != null ? GetColliderCenter(collider).x : fallback;
     }
 
-    public float GetPrimaryWorldY(float fallback)
-    {
-        Collider2D collider = GetPrimaryCollider();
-        return collider != null ? GetColliderCenter(collider).y : fallback;
-    }
-
     public Vector2 GetPrimaryWorldCenter(Vector2 fallback)
     {
         Collider2D collider = GetPrimaryCollider();
