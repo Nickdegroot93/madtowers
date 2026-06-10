@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d0fe95161ec248308119ac199c73fdda, type: 3}
-  m_Name: DefaultGameMode
+  m_Name: GameMode_SkyPlatforms
   m_EditorClassIdentifier:
   startingLives: 0
   initialFallSpeed: 2
@@ -56,35 +56,44 @@ MonoBehaviour:
   - {fileID: 11400000, guid: e28f154f7fe04e8c804cb5e2e8f4b35b, type: 2}
   slowMotionScale: 0.5
   staticSupportIslandsEnabled: 1
-  staticSupportIslandHeightInterval: 8
-  staticSupportIslandSpawnChance: 0.35
-  staticSupportIslandFirstHeight: 6
-  staticSupportIslandSpawnAheadHeight: 8
+  staticSupportIslandHeightInterval: 4
+  staticSupportIslandSpawnChance: 0.9
+  staticSupportIslandFirstHeight: 4
+  staticSupportIslandSpawnAheadHeight: 7
   staticSupportIslandMinColumn: -5
   staticSupportIslandMaxColumn: 5
-  staticSupportIslandCenterClearColumns: 5
+  staticSupportIslandCenterClearColumns: 3
   staticSupportIslandShapes:
   - displayName: Single
-    weight: 6
+    weight: 2
     cellOffsets:
     - x: 0
       y: 0
   - displayName: Two Wide
-    weight: 3
+    weight: 6
     cellOffsets:
     - x: 0
       y: 0
     - x: 1
       y: 0
+  - displayName: Three Wide
+    weight: 5
+    cellOffsets:
+    - x: -1
+      y: 0
+    - x: 0
+      y: 0
+    - x: 1
+      y: 0
   - displayName: Two Tall
-    weight: 2
+    weight: 1
     cellOffsets:
     - x: 0
       y: 0
     - x: 0
       y: 1
   - displayName: Corner
-    weight: 1
+    weight: 2
     cellOffsets:
     - x: 0
       y: 0

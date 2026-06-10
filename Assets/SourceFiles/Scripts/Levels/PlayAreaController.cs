@@ -26,9 +26,9 @@ public class PlayAreaController : MonoBehaviour
     [SerializeField] private int fallbackColumnCount = 9;
     [Tooltip("Pulls the floor's collider in by this many world units per side (the green visual is unchanged, so it still spans exactly its configured columns). Matches the block collider inset so pieces don't snag on the floor's top corners. Set to 0 to disable.")]
     [SerializeField] private float floorColliderEdgeInset = 0.03f;
-    [Tooltip("Friction applied to the floor so blocks grip it instead of sliding. Should roughly match the block friction. The floor otherwise uses the slippery engine default (~0.4).")]
+    [Tooltip("Friction applied to the floor so blocks grip it instead of sliding. Should roughly match the block friction.")]
     [Range(0f, 1f)]
-    [SerializeField] private float floorFriction = 0.7f;
+    [SerializeField] private float floorFriction = 0.95f;
 
     private PhysicsMaterial2D _floorMaterial;
 
@@ -39,8 +39,9 @@ public class PlayAreaController : MonoBehaviour
 
     public void ApplyConfig()
     {
-        IReadOnlyList<FloorSegmentConfig> configuredSegments = gameModeConfig != null
-            ? gameModeConfig.FloorSegments
+        GameModeConfig activeConfig = LevelSelectionState.ResolveGameMode(gameModeConfig);
+        IReadOnlyList<FloorSegmentConfig> configuredSegments = activeConfig != null
+            ? activeConfig.FloorSegments
             : null;
 
         if (floorSegments != null && floorSegments.Length > 0)
@@ -56,7 +57,8 @@ public class PlayAreaController : MonoBehaviour
                     target,
                     segment,
                     binding.FallbackCenterColumn,
-                    binding.FallbackColumnCount);
+                    binding.FallbackColumnCount,
+                    activeConfig);
             }
 
             return;
@@ -67,7 +69,26 @@ public class PlayAreaController : MonoBehaviour
             singleFloorTransform,
             GetConfiguredSegment(configuredSegments, 0),
             fallbackCenterColumn,
-            fallbackColumnCount);
+            fallbackColumnCount,
+            activeConfig);
+    }
+
+    /// <summary>World Y of the floor's top surface - the origin for tower height in meters.</summary>
+    public bool TryGetFloorTopWorldY(out float floorTopY)
+    {
+        floorTopY = 0f;
+        Transform target = floorTransform != null ? floorTransform : transform;
+        if (floorSegments != null && floorSegments.Length > 0 && floorSegments[0] != null &&
+            floorSegments[0].FloorTransform != null)
+        {
+            target = floorSegments[0].FloorTransform;
+        }
+
+        Collider2D floorCollider = target.GetComponent<Collider2D>();
+        if (floorCollider == null) return false;
+
+        floorTopY = floorCollider.bounds.max.y;
+        return true;
     }
 
     private FloorSegmentConfig GetConfiguredSegment(IReadOnlyList<FloorSegmentConfig> configuredSegments, int index)
@@ -80,9 +101,14 @@ public class PlayAreaController : MonoBehaviour
         Transform target,
         FloorSegmentConfig segment,
         int fallbackSegmentCenterColumn,
-        int fallbackSegmentColumnCount)
+        int fallbackSegmentColumnCount,
+        GameModeConfig activeConfig = null)
     {
-        float gridSpacing = gameModeConfig != null ? gameModeConfig.GridSpacing : 1f;
+        if (activeConfig == null)
+        {
+            activeConfig = LevelSelectionState.ResolveGameMode(gameModeConfig);
+        }
+        float gridSpacing = activeConfig != null ? activeConfig.GridSpacing : 1f;
         float width = segment != null
             ? segment.GetWidth(gridSpacing)
             : Mathf.Max(1, fallbackSegmentColumnCount) * gridSpacing;

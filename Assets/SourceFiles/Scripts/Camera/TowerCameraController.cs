@@ -8,10 +8,10 @@ public class TowerCameraController : MonoBehaviour
     [SerializeField] private Transform spawnPoint;
     [SerializeField] private Transform[] verticalFollowers;
     [SerializeField] private float fallbackMinimumY = 0f;
-    [Range(0.55f, 0.9f)]
-    [SerializeField] private float fallbackTowerPeakScreenY = 0.7f;
-    [Range(0.65f, 0.95f)]
-    [SerializeField] private float fallbackSpawnPointScreenY = 0.86f;
+    [Range(0.35f, 0.9f)]
+    [SerializeField] private float fallbackTowerPeakScreenY = 0.5f;
+    [Range(0.5f, 0.98f)]
+    [SerializeField] private float fallbackSpawnPointScreenY = 0.9f;
     [SerializeField] private float fallbackSmoothTime = 0.35f;
     [SerializeField] private float fallbackMinimumCameraSize = 15f;
     [SerializeField] private float fallbackMaximumCameraSize = 24f;
@@ -165,13 +165,14 @@ public class TowerCameraController : MonoBehaviour
         }
     }
 
-    private float MinimumCameraY => gameModeConfig != null ? gameModeConfig.MinimumCameraY : fallbackMinimumY;
-    private float TowerPeakScreenY => gameModeConfig != null ? gameModeConfig.TowerPeakScreenY : fallbackTowerPeakScreenY;
-    private float SpawnPointScreenY => gameModeConfig != null ? gameModeConfig.SpawnPointScreenY : fallbackSpawnPointScreenY;
-    private float CameraSmoothTime => gameModeConfig != null ? gameModeConfig.CameraSmoothTime : fallbackSmoothTime;
-    private float MinimumCameraSize => gameModeConfig != null ? gameModeConfig.MinimumCameraSize : fallbackMinimumCameraSize;
-    private float MaximumCameraSize => gameModeConfig != null ? gameModeConfig.MaximumCameraSize : fallbackMaximumCameraSize;
-    private float HorizontalCameraPadding => gameModeConfig != null ? gameModeConfig.HorizontalCameraPadding : fallbackHorizontalPadding;
-    private float HorizontalCameraSafeArea => gameModeConfig != null ? gameModeConfig.HorizontalCameraSafeArea : Mathf.Clamp(fallbackHorizontalSafeArea, 0.5f, 1f);
-    private float CameraZoomSmoothTime => gameModeConfig != null ? gameModeConfig.CameraZoomSmoothTime : fallbackZoomSmoothTime;
+    private GameModeConfig ActiveGameModeConfig => LevelSelectionState.ResolveGameMode(gameModeConfig);
+    private float MinimumCameraY => ActiveGameModeConfig != null ? ActiveGameModeConfig.MinimumCameraY : fallbackMinimumY;
+    private float TowerPeakScreenY => ActiveGameModeConfig != null ? ActiveGameModeConfig.TowerPeakScreenY : fallbackTowerPeakScreenY;
+    private float SpawnPointScreenY => ActiveGameModeConfig != null ? ActiveGameModeConfig.SpawnPointScreenY : fallbackSpawnPointScreenY;
+    private float CameraSmoothTime => ActiveGameModeConfig != null ? ActiveGameModeConfig.CameraSmoothTime : fallbackSmoothTime;
+    private float MinimumCameraSize => ActiveGameModeConfig != null ? ActiveGameModeConfig.MinimumCameraSize : fallbackMinimumCameraSize;
+    private float MaximumCameraSize => ActiveGameModeConfig != null ? ActiveGameModeConfig.MaximumCameraSize : fallbackMaximumCameraSize;
+    private float HorizontalCameraPadding => ActiveGameModeConfig != null ? ActiveGameModeConfig.HorizontalCameraPadding : fallbackHorizontalPadding;
+    private float HorizontalCameraSafeArea => ActiveGameModeConfig != null ? ActiveGameModeConfig.HorizontalCameraSafeArea : Mathf.Clamp(fallbackHorizontalSafeArea, 0.5f, 1f);
+    private float CameraZoomSmoothTime => ActiveGameModeConfig != null ? ActiveGameModeConfig.CameraZoomSmoothTime : fallbackZoomSmoothTime;
 }

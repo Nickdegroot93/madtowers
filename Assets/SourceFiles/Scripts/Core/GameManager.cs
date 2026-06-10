@@ -7,6 +7,7 @@ public class GameManager : MonoBehaviour
 
     [SerializeField] private GameModeConfig gameModeConfig;
     [SerializeField] private float _currentFallSpeed = 2.0f;
+    [SerializeField] private float _maxFallSpeed = 5.0f;
     [SerializeField] private float _currentGravityScale = 1.0f;
     [SerializeField] private DifficultyScalingMode _difficultyScalingMode = DifficultyScalingMode.PerBlock;
     [SerializeField] private DifficultyAdjustmentMode _difficultyAdjustmentMode = DifficultyAdjustmentMode.Additive;
@@ -20,14 +21,21 @@ public class GameManager : MonoBehaviour
     [SerializeField] private int _lives = 1;
 
     public bool isGameOver { get; private set; }
+    public bool IsGamePaused { get; private set; }
     public float maxHeight => _maxHeight;
+    /// <summary>Tower height in meters above the floor (what the HUD shows). maxHeight stays world-space for the camera/spawners.</summary>
+    public float towerHeight => Mathf.Max(0f, _maxHeight - _heightOriginY);
     public int score => _score;
     public int lives => _lives;
     public float currentFallSpeed => _currentFallSpeed;
     public float currentGravityScale => _currentGravityScale;
+    public GameModeConfig ActiveConfig => ActiveGameModeConfig;
 
     private Coroutine _slowMotionCoroutine;
     private float _speedTimer;
+    private float _heightOriginY;
+    private float _timeScaleBeforePause = 1f;
+    private GameModeConfig ActiveGameModeConfig => LevelSelectionState.ResolveGameMode(gameModeConfig);
 
     private void Awake()
     {
@@ -36,13 +44,49 @@ public class GameManager : MonoBehaviour
             Instance = this;
             BlockController.ResetRuntimeState();
             PlayAreaController playAreaController = Object.FindAnyObjectByType<PlayAreaController>();
-            if (playAreaController != null) playAreaController.ApplyConfig();
+            if (playAreaController != null)
+            {
+                playAreaController.ApplyConfig();
+                // Tower height is measured from the floor surface, not world zero - otherwise a
+                // floor below y=0 makes the HUD read 0.0m until the tower crosses world zero.
+                if (playAreaController.TryGetFloorTopWorldY(out float floorTopY))
+                {
+                    _heightOriginY = floorTopY;
+                    _maxHeight = floorTopY;
+                }
+            }
             ApplyConfig();
             PublishState();
+
+            if (GetComponent<PowerUpChoiceController>() == null)
+            {
+                gameObject.AddComponent<PowerUpChoiceController>();
+            }
+            if (GetComponent<LevelRuntimeController>() == null)
+            {
+                gameObject.AddComponent<LevelRuntimeController>();
+            }
         }
         else
         {
             Destroy(gameObject);
+        }
+    }
+
+    /// <summary>Full pause used by the power-up choice screen. Restores the previous time scale on resume.</summary>
+    public void SetGamePaused(bool paused)
+    {
+        if (IsGamePaused == paused) return;
+
+        IsGamePaused = paused;
+        if (paused)
+        {
+            _timeScaleBeforePause = Time.timeScale;
+            Time.timeScale = 0f;
+        }
+        else
+        {
+            Time.timeScale = _timeScaleBeforePause;
         }
     }
 
@@ -56,18 +100,20 @@ public class GameManager : MonoBehaviour
 
     private void ApplyConfig()
     {
-        if (gameModeConfig == null) return;
+        GameModeConfig activeConfig = ActiveGameModeConfig;
+        if (activeConfig == null) return;
 
-        _currentFallSpeed = gameModeConfig.InitialFallSpeed;
-        _currentGravityScale = gameModeConfig.InitialGravityScale;
-        _difficultyScalingMode = gameModeConfig.DifficultyScalingMode;
-        _difficultyAdjustmentMode = gameModeConfig.DifficultyAdjustmentMode;
-        _speedIncreasePerBlock = gameModeConfig.SpeedIncreasePerBlock;
-        _gravityIncreasePerBlock = gameModeConfig.GravityIncreasePerBlock;
-        _speedIncreaseIntervalSeconds = gameModeConfig.SpeedIncreaseIntervalSeconds;
-        _speedIncreasePerInterval = gameModeConfig.SpeedIncreasePerInterval;
-        _gravityIncreasePerInterval = gameModeConfig.GravityIncreasePerInterval;
-        _lives = gameModeConfig.StartingLives;
+        _currentFallSpeed = activeConfig.InitialFallSpeed;
+        _maxFallSpeed = activeConfig.MaxFallSpeed;
+        _currentGravityScale = activeConfig.InitialGravityScale;
+        _difficultyScalingMode = activeConfig.DifficultyScalingMode;
+        _difficultyAdjustmentMode = activeConfig.DifficultyAdjustmentMode;
+        _speedIncreasePerBlock = activeConfig.SpeedIncreasePerBlock;
+        _gravityIncreasePerBlock = activeConfig.GravityIncreasePerBlock;
+        _speedIncreaseIntervalSeconds = activeConfig.SpeedIncreaseIntervalSeconds;
+        _speedIncreasePerInterval = activeConfig.SpeedIncreasePerInterval;
+        _gravityIncreasePerInterval = activeConfig.GravityIncreasePerInterval;
+        _lives = activeConfig.StartingLives;
     }
 
     private void Update()
@@ -86,7 +132,7 @@ public class GameManager : MonoBehaviour
     {
         GameEvents.RaiseScoreChanged(_score);
         GameEvents.RaiseLivesChanged(_lives);
-        GameEvents.RaiseHeightChanged(_maxHeight);
+        GameEvents.RaiseHeightChanged(towerHeight);
     }
 
     public void GameOver()
@@ -102,7 +148,7 @@ public class GameManager : MonoBehaviour
         }
 
         isGameOver = true;
-        GameEvents.RaiseGameOver(_score, _maxHeight);
+        GameEvents.RaiseGameOver(_score, towerHeight);
         Debug.Log("Game Over");
     }
 
@@ -132,7 +178,8 @@ public class GameManager : MonoBehaviour
     private System.Collections.IEnumerator SlowMotionRoutine(float duration)
     {
         float originalTimeScale = Time.timeScale;
-        Time.timeScale = gameModeConfig != null ? gameModeConfig.SlowMotionScale : 0.5f;
+        GameModeConfig activeConfig = ActiveGameModeConfig;
+        Time.timeScale = activeConfig != null ? activeConfig.SlowMotionScale : 0.5f;
         yield return new WaitForSecondsRealtime(duration);
         Time.timeScale = originalTimeScale;
         _slowMotionCoroutine = null;
@@ -155,11 +202,14 @@ public class GameManager : MonoBehaviour
         {
             _currentFallSpeed *= 1f + fallSpeedAmount;
             _currentGravityScale *= 1f + gravityAmount;
-            return;
+        }
+        else
+        {
+            _currentFallSpeed += fallSpeedAmount;
+            _currentGravityScale += gravityAmount;
         }
 
-        _currentFallSpeed += fallSpeedAmount;
-        _currentGravityScale += gravityAmount;
+        _currentFallSpeed = Mathf.Min(_currentFallSpeed, _maxFallSpeed);
     }
 
     public void UpdateMaxHeight(float height)
@@ -167,7 +217,7 @@ public class GameManager : MonoBehaviour
         if (height > _maxHeight)
         {
             _maxHeight = height;
-            GameEvents.RaiseHeightChanged(_maxHeight);
+            GameEvents.RaiseHeightChanged(towerHeight);
         }
     }
 }

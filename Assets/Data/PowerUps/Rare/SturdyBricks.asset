@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7f9bc412c4d54df8902eaac401f193b3, type: 3}
+  m_Name: SturdyBricks
+  m_EditorClassIdentifier: Assembly-CSharp::BlockVariantChancePowerUp
+  displayName: Sturdy Bricks
+  description: Every new brick has a 20% chance to be a sturdy brick that locks in place
+    exactly where it lands.
+  rarity: 1
+  category: 1
+  variant: {fileID: 11400000, guid: c4613f6d44bf411baf2a43b963f291ce, type: 2}
+  chancePerBlock: 0.2

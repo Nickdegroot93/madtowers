@@ -23,20 +23,23 @@ public class BlockController : MonoBehaviour
     [SerializeField] private int horizontalPlacementBufferColumns = 3;
 
     [Header("Physics Material")]
-    [Tooltip("Surface friction applied when the block variant has no PhysicsMaterial2D assigned. Higher grips more (towers slide less); lower is more slippery and tippy. ~0.6-0.8 keeps neat stacks solid like Tricky Towers.")]
+    [Tooltip("Surface friction applied when the block variant has no PhysicsMaterial2D assigned. Higher grips more so tall dynamic towers shear less.")]
     [Range(0f, 1f)]
-    [SerializeField] private float defaultBlockFriction = 0.7f;
+    [SerializeField] private float defaultBlockFriction = 0.95f;
     [Tooltip("Surface bounciness applied when no PhysicsMaterial2D is assigned. Keep at 0 for stable stacking.")]
     [Range(0f, 1f)]
     [SerializeField] private float defaultBlockBounciness = 0f;
     [Tooltip("Linear drag on a landed block. A little damping makes a placed block settle quickly and resist slow sliding instead of drifting. Too high feels floaty.")]
-    [SerializeField] private float restingLinearDamping = 0.25f;
+    [SerializeField] private float restingLinearDamping = 0.5f;
     [Tooltip("Angular drag on a landed block. Damps out wobble so blocks settle and go to sleep instead of jittering.")]
-    [SerializeField] private float restingAngularDamping = 0.5f;
+    [SerializeField] private float restingAngularDamping = 3f;
 
-    [Tooltip("Shrinks only exposed horizontal sides of block colliders by this many world units (visual size unchanged). Internal cell seams stay flush so later pieces do not catch on invisible cracks.")]
-    [Range(0f, 0.2f)]
-    [SerializeField] private float horizontalColliderInset = 0.02f;
+    [Tooltip("Rounds block collider corners as a fraction of one cell.")]
+    [Range(0f, 0.12f)]
+    [SerializeField] private float colliderCornerRadiusFraction = 0.06f;
+    [Tooltip("Effective physics footprint of each cell as a fraction of the visual cell. Slightly undersized shapes give perfect placements real clearance - a piece can slide into a gap exactly its own size - and stop side-by-side blocks from transmitting every landing through the whole row.")]
+    [Range(0.85f, 1f)]
+    [SerializeField] private float colliderFootprintScale = 0.94f;
 
     [Header("Placement Beam")]
     [SerializeField] private bool showPlacementBeam = true;
@@ -46,8 +49,8 @@ public class BlockController : MonoBehaviour
     [Header("Active Piece Control (fallback; GameModeConfig overrides these per level)")]
     [Tooltip("How close (world units) support must be below the piece before steering control is handed to physics. Keep small so players can make last-second tuck moves.")]
     [SerializeField] private float groundedCheckDistance = 0.03f;
-    [Tooltip("Maximum downward velocity kept when control hands off to physics. Keep at 0 to prevent falling impact from shoving the tower; gravity/weight still applies after landing.")]
-    [SerializeField] private float maxLandingImpactSpeed = 0f;
+    [Tooltip("Maximum downward velocity kept when control hands off to physics. 0 means use the current controlled fall speed.")]
+    [SerializeField] private float maxLandingImpactSpeed = 2f;
     [Tooltip("A landed piece counts as 'settled' once its linear speed (units/sec) drops below this. Keep low so unstable pieces get time to tip before maintenance runs.")]
     [SerializeField] private float settleLinearThreshold = 0.08f;
     [Tooltip("...and its spin (degrees/sec) drops below this.")]
@@ -66,11 +69,43 @@ public class BlockController : MonoBehaviour
     [SerializeField] private float microAlignMaxRotationDegrees = 4f;
     [Tooltip("Safety cap: force the piece to lock after this many seconds even if it never finds a normal landing.")]
     [SerializeField] private float maxControlTime = 12f;
+    [Tooltip("Velocity damping applied each FixedUpdate while a landed block is below the settle thresholds but still awake.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float softSettleDampingFactor = 0.8f;
+    [Tooltip("Minimum upward normal for a contact to count as real landing support.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float landingSupportNormalY = 0.7f;
+    [Tooltip("Minimum horizontal support overlap required for landing, as a fraction of one grid cell.")]
+    [Range(0f, 0.5f)]
+    [SerializeField] private float landingMinSupportWidthFraction = 0.15f;
+    [Tooltip("Small horizontal correction allowed while falling past a rejected corner graze, as a fraction of one grid cell.")]
+    [Range(0f, 0.3f)]
+    [SerializeField] private float lateralAssistMaxOverlapFraction = 0f;
+    [Tooltip("A landed block that has not NET-moved beyond these tolerances for the stillness window is force-slept, even if the solver keeps twitching it in place. This is what guarantees oscillation can never persist: twitching has zero net movement by definition.")]
+    [SerializeField] private float stillnessPositionTolerance = 0.005f;
+    [Tooltip("Net rotation tolerance (degrees) for the stillness watchdog.")]
+    [SerializeField] private float stillnessRotationToleranceDegrees = 0.5f;
+    [Tooltip("How long a block must stay within the stillness tolerances before it is force-slept.")]
+    [SerializeField] private float stillnessTime = 0.75f;
+    [Tooltip("How strongly quiet landed blocks are eased back toward their grid X while still awake.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float quietGridPullFactor = 0.15f;
+    [Tooltip("Maximum corrective speed toward the grid in cells/sec. Must stay well below the settle threshold so the correction itself can never keep a block awake.")]
+    [Range(0f, 0.05f)]
+    [SerializeField] private float quietGridPullMaxSpeedFraction = 0.02f;
 
     private static PhysicsMaterial2D _sharedFallbackMaterial;
 
     private const float RotationStep = 90f;
     private const float GridMatchTolerance = 0.05f;
+    // The quiet grid pull only runs on blocks that seated flat. Nudging a tilted block sideways
+    // engages/releases its lean contact each frame, which can feed a rocking limit cycle.
+    private const float QuietPullMaxTiltDegrees = 1f;
+    private const float LandedGravityScale = 1f;
+    private const int CastResultCapacity = 32;
+
+    private readonly RaycastHit2D[] _castResults = new RaycastHit2D[CastResultCapacity];
+    private readonly Collider2D[] _overlapResults = new Collider2D[CastResultCapacity];
 
     private Rigidbody2D _rb;
     private StackingInputs _inputs;
@@ -78,12 +113,11 @@ public class BlockController : MonoBehaviour
     private Vector2 _moveInput;
     private bool _isFastDrop;
     private ContactFilter2D _contactFilter;
-    private ContactFilter2D _triggerFilter;
+    private BlockData _appliedData;
     private readonly BlockCellGeometry _cellGeometry = new BlockCellGeometry();
     private IReadOnlyList<FloorSegmentConfig> _floorSegments;
     private Camera _mainCamera;
     private SpriteRenderer _placementBeamRenderer;
-    private float _physicsGravityScale = 1f;
     private float _gravityScaleMultiplier = 1f;
 
     private float _dasTimer;
@@ -98,6 +132,10 @@ public class BlockController : MonoBehaviour
     private bool _hasTouchedDown;
     private float _landedMaintenanceSettleTimer;
     private float _controlElapsed;
+    private float _lastControlledFallSpeed;
+    private Vector2 _stillnessAnchorPosition;
+    private float _stillnessAnchorRotation;
+    private float _stillnessTimer;
 
     public bool HasLanded { get; private set; }
     public static IReadOnlyList<BlockController> AllBlocks => TrackedBlocks;
@@ -152,11 +190,7 @@ public class BlockController : MonoBehaviour
         _contactFilter.SetLayerMask(collisionLayers);
         _contactFilter.useLayerMask = true;
 
-        // Trigger filter (for collecting power-ups on landing)
-        _triggerFilter = new ContactFilter2D();
-        _triggerFilter.useTriggers = true;
-        _triggerFilter.useLayerMask = false;
-        ApplyHorizontalColliderInset();
+        ApplyColliderForgiveness();
         _cellGeometry.Cache(gameObject);
         if (!TrackedBlocks.Contains(this))
         {
@@ -171,10 +205,12 @@ public class BlockController : MonoBehaviour
     {
         if (data == null) return;
 
+        _appliedData = data;
         if (_rb == null) _rb = GetComponent<Rigidbody2D>();
         _rb.mass = data.Mass;
         _rb.sharedMaterial = ResolveBlockMaterial(data.PhysicsMaterial);
         _gravityScaleMultiplier = data.GravityScaleMultiplier;
+        transform.localScale = Vector3.one * data.SizeScale;
 
         SpriteRenderer[] renderers = GetComponentsInChildren<SpriteRenderer>();
         foreach (var sr in renderers)
@@ -185,6 +221,7 @@ public class BlockController : MonoBehaviour
         }
 
         ResetControlTargets();
+        data.OnApplied(this);
     }
 
     private void CreatePlacementBeam()
@@ -278,58 +315,28 @@ public class BlockController : MonoBehaviour
         return height > 0f;
     }
 
-    // Pulls only the exposed left/right sides of the piece inward (leaving the sprite untouched).
-    // Internal seams between cells stay flush; otherwise a placed multi-cell block creates tiny
-    // invisible cracks and later pieces can snag on corners that players cannot see.
-    private void ApplyHorizontalColliderInset()
+    // Physics shapes are slightly smaller than the visual cells (Tricky-Towers style). With an
+    // exactly cell-sized footprint a piece can never enter a gap that is exactly its own size:
+    // any sub-pixel drift of a neighbour pinches the slot, the piece wedges on the corners, and
+    // the depenetration shoves the walls apart. The sprite stays full size; only collision
+    // shrinks. The inset is uniform so it survives 90-degree rotations, and
+    // BoxCollider2D.edgeRadius expands outward, so the box is shrunk by 2r on top of the inset.
+    private void ApplyColliderForgiveness()
     {
-        if (horizontalColliderInset <= 0f) return;
-
         BoxCollider2D[] colliders = GetComponentsInChildren<BoxCollider2D>();
         if (colliders.Length == 0) return;
 
-        Vector2[] centers = new Vector2[colliders.Length];
-        for (int i = 0; i < colliders.Length; i++)
-        {
-            centers[i] = transform.InverseTransformPoint(colliders[i].transform.TransformPoint(colliders[i].offset));
-        }
-
-        float neighborDistance = Mathf.Max(0.001f, gridSpacing);
-        float neighborTolerance = Mathf.Max(0.01f, neighborDistance * 0.1f);
+        float footprintScale = Mathf.Clamp(colliderFootprintScale, 0.85f, 1f);
         for (int i = 0; i < colliders.Length; i++)
         {
             BoxCollider2D box = colliders[i];
-            bool hasLeftNeighbor = false;
-            bool hasRightNeighbor = false;
-
-            for (int j = 0; j < colliders.Length; j++)
-            {
-                if (i == j) continue;
-
-                Vector2 delta = centers[j] - centers[i];
-                if (Mathf.Abs(delta.y) > neighborTolerance) continue;
-
-                if (Mathf.Abs(delta.x + neighborDistance) <= neighborTolerance)
-                {
-                    hasLeftNeighbor = true;
-                }
-                else if (Mathf.Abs(delta.x - neighborDistance) <= neighborTolerance)
-                {
-                    hasRightNeighbor = true;
-                }
-            }
-
-            float leftInset = hasLeftNeighbor ? 0f : horizontalColliderInset;
-            float rightInset = hasRightNeighbor ? 0f : horizontalColliderInset;
-            float totalInset = leftInset + rightInset;
-            if (totalInset <= 0f) continue;
-
-            Vector2 size = box.size;
-            Vector2 offset = box.offset;
-            size.x = Mathf.Max(0.1f, size.x - totalInset);
-            offset.x += (leftInset - rightInset) * 0.5f;
-            box.offset = offset;
-            box.size = size;
+            Vector2 targetSize = box.size * footprintScale;
+            float requestedRadius = Mathf.Max(0f, colliderCornerRadiusFraction) * gridSpacing;
+            float radius = Mathf.Min(requestedRadius, Mathf.Min(targetSize.x, targetSize.y) * 0.45f);
+            box.size = new Vector2(
+                Mathf.Max(0.05f, targetSize.x - 2f * radius),
+                Mathf.Max(0.05f, targetSize.y - 2f * radius));
+            box.edgeRadius = radius;
         }
     }
 
@@ -405,6 +412,7 @@ public class BlockController : MonoBehaviour
     private void Update()
     {
         if (!_isControlEnabled) return;
+        if (GameManager.Instance != null && GameManager.Instance.IsGamePaused) return;
 
         // Direct read to ensure we have the latest value
         if (_inputs != null)
@@ -506,10 +514,8 @@ public class BlockController : MonoBehaviour
         if (_dynamicControlReady) return;
         _dynamicControlReady = true;
 
-        // Capture the full play gravity (set by the spawner) before we switch it off; we drive the
-        // fall ourselves while steering, then restore this gravity the moment the piece lands.
-        _physicsGravityScale = ResolvePhysicsGravityScale();
-
+        // Active fall is controlled manually (kinematic); landed blocks normalize gravity to a
+        // constant so old tower sections are not under ever-rising load as difficulty scales.
         _rb.bodyType = RigidbodyType2D.Kinematic;
         _rb.constraints = RigidbodyConstraints2D.FreezeRotation;
         _rb.gravityScale = 0f;
@@ -543,8 +549,13 @@ public class BlockController : MonoBehaviour
 
         ApplyControlledHorizontalMovement(velocityX * Time.fixedDeltaTime);
 
-        float fallDistance = GetActiveFallSpeed() * Time.fixedDeltaTime;
-        if (TryGetGridDownContact(fallDistance + groundedCheckDistance, out float contactDistance))
+        // Transforms are synced manually (auto-sync is off), so the down-cast below sees the
+        // horizontal/rotation moves made this step instead of last step's collider poses.
+        Physics2D.SyncTransforms();
+
+        _lastControlledFallSpeed = GetActiveFallSpeed();
+        float fallDistance = _lastControlledFallSpeed * Time.fixedDeltaTime;
+        if (TryGetDownContact(fallDistance + groundedCheckDistance, out float contactDistance))
         {
             if (contactDistance > 0f)
             {
@@ -553,11 +564,11 @@ public class BlockController : MonoBehaviour
                 SetPosition(position);
             }
 
-            ClearControlledLinearVelocity();
             BeginPhysicsLanding();
             return;
         }
 
+        ApplyLateralPlacementAssist(fallDistance + groundedCheckDistance);
         ApplyControlledVerticalMovement(fallDistance);
         ClearControlledLinearVelocity();
         ClampHorizontalToCameraBounds();
@@ -591,96 +602,36 @@ public class BlockController : MonoBehaviour
     {
         if (_hasTouchedDown) return;
 
-        // First contact: snap the placed piece back onto the grid, then hand it to physics with no
-        // impact velocity. From here, gravity and balance decide what happens.
+        // First contact: X/rotation stay grid-authored, but Y comes from the actual cast contact.
+        // From here, gravity and balance decide what happens.
         _hasTouchedDown = true;
         SnapToColumnGrid();
         SetRotationZPreservingGridPivot(_targetAngleZ);
         SettleOntoContact();
+        ResolveIncomingOverlaps();
 
         _rb.bodyType = RigidbodyType2D.Dynamic;
         _rb.constraints = RigidbodyConstraints2D.None;
-        _rb.gravityScale = ResolvePhysicsGravityScale();
+        _rb.gravityScale = ResolveLandedGravityScale();
         _rb.centerOfMass = _originalCenterOfMass;
         _rb.angularVelocity = 0f;
 
-        Vector2 landingVelocity = _rb.linearVelocity;
-        landingVelocity.x = 0f;
-        landingVelocity.y = Mathf.Max(landingVelocity.y, -Mathf.Max(0f, maxLandingImpactSpeed));
-        if (landingVelocity.y > 0f) landingVelocity.y = 0f;
-        _rb.linearVelocity = landingVelocity;
+        _rb.linearVelocity = new Vector2(0f, -GetLandingImpactSpeed());
 
         LockBlock();
     }
 
-    private bool TryGetGridDownContact(
-        float maxDistance,
-        out float moveDistance)
-    {
-        moveDistance = Mathf.Infinity;
-        float distance = Mathf.Max(0.001f, maxDistance);
-        float halfCell = gridSpacing * 0.5f;
-
-        _cellGeometry.Refresh();
-        for (int i = 0; i < _cellGeometry.CellCenters.Count; i++)
-        {
-            Vector2 activeCell = _cellGeometry.CellCenters[i];
-            float activeColumn = SnapValue(activeCell.x, gridSpacing);
-            float activeBottom = activeCell.y - halfCell;
-            AddGridCellSupportDistance(activeColumn, activeBottom, distance, ref moveDistance);
-        }
-
-        if (TryGetStaticDownContact(distance, out float staticDistance))
-        {
-            moveDistance = Mathf.Min(moveDistance, staticDistance);
-        }
-
-        if (moveDistance == Mathf.Infinity) return false;
-
-        moveDistance = Mathf.Max(0f, moveDistance);
-        return true;
-    }
-
-    private void AddGridCellSupportDistance(
-        float activeColumn,
-        float activeBottom,
-        float maxDistance,
-        ref float closestDistance)
-    {
-        float halfCell = gridSpacing * 0.5f;
-        for (int blockIndex = 0; blockIndex < TrackedBlocks.Count; blockIndex++)
-        {
-            BlockController block = TrackedBlocks[blockIndex];
-            if (block == null || block == this || !block.HasLanded) continue;
-
-            block._cellGeometry.Refresh();
-            for (int cellIndex = 0; cellIndex < block._cellGeometry.CellCenters.Count; cellIndex++)
-            {
-                Vector2 supportCell = block._cellGeometry.CellCenters[cellIndex];
-                float supportColumn = SnapValue(supportCell.x, gridSpacing);
-                if (Mathf.Abs(supportColumn - activeColumn) > GridMatchTolerance) continue;
-
-                float supportTop = SnapValue(supportCell.y, gridSpacing) + halfCell;
-                float supportDistance = activeBottom - supportTop;
-                if (supportDistance < -GridMatchTolerance || supportDistance > maxDistance + GridMatchTolerance) continue;
-
-                closestDistance = Mathf.Min(closestDistance, Mathf.Max(0f, supportDistance));
-            }
-        }
-    }
-
-    private bool TryGetStaticDownContact(float maxDistance, out float moveDistance)
+    private bool TryGetDownContact(float maxDistance, out float moveDistance)
     {
         moveDistance = 0f;
-        RaycastHit2D[] results = new RaycastHit2D[8];
-        int count = _rb.Cast(Vector2.down, _contactFilter, results, maxDistance);
+        float distance = Mathf.Max(0.001f, maxDistance);
+        int count = _rb.Cast(Vector2.down, _contactFilter, _castResults, distance);
         float closestContactDistance = Mathf.Infinity;
 
         for (int i = 0; i < count; i++)
         {
-            RaycastHit2D hit = results[i];
-            if (!IsUpwardSupport(hit)) continue;
-            if (hit.collider.GetComponentInParent<BlockController>() != null) continue;
+            RaycastHit2D hit = _castResults[i];
+            if (!IsValidLandingSupport(hit)) continue;
 
             if (hit.distance < closestContactDistance)
             {
@@ -705,14 +656,16 @@ public class BlockController : MonoBehaviour
     // fast drop would fall through that gap under gravity and regain impact speed before contact.
     private void SettleOntoContact()
     {
-        RaycastHit2D[] results = new RaycastHit2D[8];
-        int count = _rb.Cast(Vector2.down, _contactFilter, results, gridSpacing);
+        // The column snap just moved the body; sync so the cast measures from the final X.
+        Physics2D.SyncTransforms();
+
+        int count = _rb.Cast(Vector2.down, _contactFilter, _castResults, gridSpacing);
         float minDistance = Mathf.Infinity;
         for (int i = 0; i < count; i++)
         {
-            if (IsUpwardSupport(results[i]) && results[i].distance < minDistance)
+            if (IsValidLandingSupport(_castResults[i]) && _castResults[i].distance < minDistance)
             {
-                minDistance = results[i].distance;
+                minDistance = _castResults[i].distance;
             }
         }
 
@@ -722,6 +675,117 @@ public class BlockController : MonoBehaviour
             position.y -= minDistance;
             SetPosition(position);
         }
+    }
+
+    private float GetLandingImpactSpeed()
+    {
+        float controlledSpeed = _lastControlledFallSpeed > 0f ? _lastControlledFallSpeed : GetActiveFallSpeed();
+        float cap = Mathf.Max(0f, maxLandingImpactSpeed);
+        return cap > 0f ? Mathf.Min(controlledSpeed, cap) : controlledSpeed;
+    }
+
+    private bool IsValidLandingSupport(RaycastHit2D hit)
+    {
+        if (hit.collider == null || hit.normal.y < Mathf.Max(minimumLandingNormalY, landingSupportNormalY)) return false;
+        return GetHorizontalSupportOverlapAtHit(hit) >= GetMinimumLandingSupportWidth();
+    }
+
+    private float GetHorizontalSupportOverlapAtHit(RaycastHit2D hit)
+    {
+        if (!_cellGeometry.TryGetWorldBounds(out Bounds activeBounds) || hit.collider == null) return 0f;
+
+        activeBounds.center += Vector3.down * Mathf.Max(0f, hit.distance);
+        Bounds supportBounds = hit.collider.bounds;
+        return Mathf.Min(activeBounds.max.x, supportBounds.max.x) -
+               Mathf.Max(activeBounds.min.x, supportBounds.min.x);
+    }
+
+    private float GetMinimumLandingSupportWidth()
+    {
+        return Mathf.Max(0f, landingMinSupportWidthFraction) * gridSpacing;
+    }
+
+    private void ApplyLateralPlacementAssist(float maxDistance)
+    {
+        if (lateralAssistMaxOverlapFraction <= 0f) return;
+
+        float assist = CalculateLateralPlacementAssist(maxDistance);
+        if (Mathf.Abs(assist) <= 0.0001f) return;
+
+        Vector3 position = transform.position;
+        position.x += assist;
+        SetPosition(position);
+        Physics2D.SyncTransforms();
+    }
+
+    private float CalculateLateralPlacementAssist(float maxDistance)
+    {
+        float distance = Mathf.Max(0.001f, maxDistance);
+        int count = _rb.Cast(Vector2.down, _contactFilter, _castResults, distance);
+        float maxAssist = Mathf.Max(0f, lateralAssistMaxOverlapFraction) * gridSpacing;
+        float bestAssist = 0f;
+
+        for (int i = 0; i < count; i++)
+        {
+            RaycastHit2D hit = _castResults[i];
+            if (hit.collider == null || IsValidLandingSupport(hit)) continue;
+
+            float sideSign = Mathf.Sign(hit.normal.x);
+            if (Mathf.Approximately(sideSign, 0f)) continue;
+
+            float overlap = GetHorizontalSupportOverlapAtHit(hit);
+            if (overlap <= 0f || overlap > maxAssist) continue;
+
+            float candidate = sideSign * overlap;
+            if (Mathf.Abs(candidate) > Mathf.Abs(bestAssist))
+            {
+                bestAssist = candidate;
+            }
+        }
+
+        return bestAssist;
+    }
+
+    private void ResolveIncomingOverlaps()
+    {
+        Collider2D[] ownColliders = GetComponentsInChildren<Collider2D>();
+        int iterations = 0;
+
+        while (iterations < 3)
+        {
+            iterations++;
+            Physics2D.SyncTransforms();
+            Vector2 totalCorrection = Vector2.zero;
+
+            for (int ownIndex = 0; ownIndex < ownColliders.Length; ownIndex++)
+            {
+                Collider2D ownCollider = ownColliders[ownIndex];
+                if (ownCollider == null || ownCollider.isTrigger) continue;
+
+                ContactFilter2D filter = _contactFilter;
+                int count = ownCollider.Overlap(filter, _overlapResults);
+                for (int hitIndex = 0; hitIndex < count; hitIndex++)
+                {
+                    Collider2D otherCollider = _overlapResults[hitIndex];
+                    if (otherCollider == null || otherCollider.isTrigger) continue;
+                    if (otherCollider.GetComponentInParent<BlockController>() == this) continue;
+
+                    ColliderDistance2D distance = Physics2D.Distance(ownCollider, otherCollider);
+                    if (!distance.isOverlapped) continue;
+
+                    totalCorrection += distance.normal * distance.distance;
+                }
+            }
+
+            if (totalCorrection.sqrMagnitude <= 0.000001f) return;
+
+            Vector3 position = transform.position;
+            position.x += totalCorrection.x;
+            position.y += totalCorrection.y;
+            SetPosition(position);
+        }
+
+        Physics2D.SyncTransforms();
     }
 
     // Nudges the target column by one (driven by ProcessHorizontalDas). SteerWhileFalling then
@@ -745,6 +809,8 @@ public class BlockController : MonoBehaviour
         for (int i = 0; i < _cellGeometry.CellCenters.Count; i++)
         {
             Vector2 activeCell = _cellGeometry.CellCenters[i];
+            if (IsCellBlockedByStaticObstacle(new Vector2(activeCell.x + deltaX, activeCell.y))) return false;
+
             float activeColumn = SnapValue(activeCell.x + deltaX, gridSpacing);
             float activeRow = SnapValue(activeCell.y, gridSpacing);
 
@@ -769,6 +835,25 @@ public class BlockController : MonoBehaviour
         }
 
         return true;
+    }
+
+    // Placed tetrominoes are handled by the grid-snapped check above (the grid stays the sole X
+    // authority there), but support islands and other static geometry have no BlockController, so
+    // a sideways step would otherwise teleport the kinematic piece straight into them.
+    private bool IsCellBlockedByStaticObstacle(Vector2 candidateCellCenter)
+    {
+        Vector2 probeSize = Vector2.one * (gridSpacing * 0.8f);
+        int count = Physics2D.OverlapBox(candidateCellCenter, probeSize, 0f, _contactFilter, _overlapResults);
+        for (int i = 0; i < count; i++)
+        {
+            Collider2D hit = _overlapResults[i];
+            if (hit == null || hit.isTrigger) continue;
+            if (hit.attachedRigidbody == _rb) continue;
+            if (hit.GetComponentInParent<BlockController>() != null) continue;
+            return true;
+        }
+
+        return false;
     }
 
     private bool IsColumnTargetWithinBounds(float candidateColumnX)
@@ -826,11 +911,6 @@ public class BlockController : MonoBehaviour
             SetPosition(position);
             _rb.linearVelocity = velocity;
         }
-    }
-
-    private bool IsUpwardSupport(RaycastHit2D hit)
-    {
-        return hit.collider != null && hit.normal.y >= minimumLandingNormalY;
     }
 
     private bool TryGetGameplayHorizontalBounds(out float minX, out float maxX)
@@ -997,42 +1077,33 @@ public class BlockController : MonoBehaviour
         DestroyPlacementBeam();
 
         FinalizeDynamicControl();
+        _appliedData?.OnLocked(this);
 
         if (_inputs != null) _inputs.Gameplay.Disable();
 
-        CollectOverlappingPowerUps();
         ReportLockedToGameManager();
 
         OnBlockLocked?.Invoke();
     }
 
-    // The dynamic piece is already a live rigidbody. Controlled linear velocity has already been
-    // cleared on landing, while spin may continue so a piece caught mid-rotation can still tumble
-    // into place. If the body is already settled at handoff, we can immediately micro-align/sleep;
-    // otherwise landed maintenance will do that later.
+    // Handoff ends player control but does not declare the block settled. The landed maintenance
+    // path waits for sustained low motion before micro-aligning/sleeping the body.
     private void FinalizeDynamicControl()
     {
         _rb.bodyType = RigidbodyType2D.Dynamic;
         _rb.constraints = RigidbodyConstraints2D.None;
+        // Continuous detection only matters for the fast controlled descent (which is cast-driven
+        // anyway). On resting bodies it just adds speculative-contact noise across the stack.
+        _rb.collisionDetectionMode = CollisionDetectionMode2D.Discrete;
         if (_dynamicControlReady)
         {
             _rb.centerOfMass = _originalCenterOfMass;
         }
-        if (_rb.gravityScale <= 0f)
-        {
-            _rb.gravityScale = ResolvePhysicsGravityScale();
-        }
-
-        bool canFinalizeAsSettled = _hasTouchedDown && IsSettled();
-        if (canFinalizeAsSettled)
-        {
-            TryMicroAlignSettledBlock();
-        }
-
-        if (sleepSettledBlocksOnLock && canFinalizeAsSettled)
-        {
-            SleepSettledBody();
-        }
+        _rb.gravityScale = ResolveLandedGravityScale();
+        _landedMaintenanceSettleTimer = 0f;
+        _stillnessAnchorPosition = _rb.position;
+        _stillnessAnchorRotation = _rb.rotation;
+        _stillnessTimer = 0f;
     }
 
     private void TryMicroAlignSettledBlock()
@@ -1069,6 +1140,11 @@ public class BlockController : MonoBehaviour
         Physics2D.SyncTransforms();
     }
 
+    // Going to sleep must never move the body. A block that physics holds slightly off-grid or
+    // tilted has an off-grid equilibrium: snapping it at sleep time teleports it away from that
+    // equilibrium, the solver wakes it and pushes it back, and the next sleep snaps it again -
+    // a metronomic, infinite twitch. Grid registration comes from honest sources instead: pieces
+    // land exactly on-grid, and the awake-time velocity pull eases flat blocks toward column.
     private void SleepSettledBody()
     {
         _rb.linearVelocity = Vector2.zero;
@@ -1078,17 +1154,28 @@ public class BlockController : MonoBehaviour
 
     private void HandleLandedMaintenance()
     {
-        if ((!microAlignSettledBlocks && !sleepSettledBlocksOnLock) || _rb == null || _rb.IsSleeping()) return;
+        if ((!microAlignSettledBlocks && !sleepSettledBlocksOnLock) || _rb == null) return;
+        if (_rb.bodyType != RigidbodyType2D.Dynamic || _rb.IsSleeping()) return;
+
+        UpdateStillnessWatchdog();
+        if (_rb.IsSleeping()) return;
 
         if (IsSettled())
         {
+            PullQuietBlockTowardGrid();
+            SoftDampSettledBody();
             _landedMaintenanceSettleTimer += Time.fixedDeltaTime;
             if (_landedMaintenanceSettleTimer >= settleTime)
             {
-                TryMicroAlignSettledBlock();
+                // Sleep freezes the block exactly where physics left it (see SleepSettledBody).
+                // The teleporting micro-align only runs in the stay-awake configuration.
                 if (sleepSettledBlocksOnLock)
                 {
                     SleepSettledBody();
+                }
+                else
+                {
+                    TryMicroAlignSettledBlock();
                 }
                 _landedMaintenanceSettleTimer = 0f;
             }
@@ -1099,18 +1186,73 @@ public class BlockController : MonoBehaviour
         }
     }
 
-    private float ResolvePhysicsGravityScale()
+    // The velocity-based settle check above can be defeated by a marginal contact configuration:
+    // a block pivoting on a corner alternates between two contact states and the solver kicks it
+    // every cycle, so its instantaneous velocity never stays quiet. But such a limit cycle has
+    // zero NET movement, which is what this watchdog measures. Anything that is not actually
+    // going anywhere is put to sleep, making persistent twitching structurally impossible.
+    private void UpdateStillnessWatchdog()
     {
-        if (_rb != null && _rb.gravityScale > 0f)
+        if (!sleepSettledBlocksOnLock) return;
+
+        float positionDrift = Vector2.Distance(_rb.position, _stillnessAnchorPosition);
+        float rotationDrift = Mathf.Abs(Mathf.DeltaAngle(_rb.rotation, _stillnessAnchorRotation));
+        if (positionDrift > stillnessPositionTolerance || rotationDrift > stillnessRotationToleranceDegrees)
         {
-            _physicsGravityScale = _rb.gravityScale * _gravityScaleMultiplier;
-        }
-        else if (_physicsGravityScale <= 0f && GameManager.Instance != null)
-        {
-            _physicsGravityScale = GameManager.Instance.currentGravityScale;
+            _stillnessAnchorPosition = _rb.position;
+            _stillnessAnchorRotation = _rb.rotation;
+            _stillnessTimer = 0f;
+            return;
         }
 
-        return Mathf.Max(0.01f, _physicsGravityScale);
+        _stillnessTimer += Time.fixedDeltaTime;
+        if (_stillnessTimer >= stillnessTime)
+        {
+            SleepSettledBody();
+        }
+    }
+
+    private void SoftDampSettledBody()
+    {
+        float damping = Mathf.Clamp01(softSettleDampingFactor);
+        _rb.linearVelocity *= damping;
+        _rb.angularVelocity *= damping;
+    }
+
+    private void PullQuietBlockTowardGrid()
+    {
+        if (!microAlignSettledBlocks) return;
+
+        // Tolerance contract: only ease blocks that are already essentially in place. A piece
+        // that tipped, tilted, or slid beyond the caps can never reach its snapped X, so pulling
+        // it every frame would turn it into a permanent agitator for the whole tower.
+        float snappedRotation = SnapValue(_rb.rotation, RotationStep);
+        if (Mathf.Abs(Mathf.DeltaAngle(_rb.rotation, snappedRotation)) > QuietPullMaxTiltDegrees) return;
+
+        _cellGeometry.Refresh();
+        float primaryX = _cellGeometry.GetPrimaryWorldX(transform.position.x);
+        float correction = SnapValue(primaryX, gridSpacing) - primaryX;
+        if (Mathf.Abs(correction) <= 0.001f * gridSpacing) return;
+        if (Mathf.Abs(correction) > Mathf.Max(0f, microAlignMaxColumnFraction) * gridSpacing) return;
+
+        // Correct via a small velocity bias, never by writing the transform. Position writes
+        // fought the contact solver (each step created fresh penetration that popped the
+        // neighbours awake) and broke rigidbody interpolation, which made whole towers shimmer.
+        // A sub-settle-threshold velocity keeps the solver in charge and never resets the
+        // settle timer; whatever drift remains is closed by the bounded snap at sleep time.
+        float maxPullSpeed = Mathf.Max(0f, quietGridPullMaxSpeedFraction) * gridSpacing;
+        float pullSpeed = Mathf.Clamp(
+            correction * Mathf.Clamp01(quietGridPullFactor) / Time.fixedDeltaTime,
+            -maxPullSpeed, maxPullSpeed);
+
+        Vector2 velocity = _rb.linearVelocity;
+        velocity.x = pullSpeed;
+        _rb.linearVelocity = velocity;
+    }
+
+    private float ResolveLandedGravityScale()
+    {
+        return Mathf.Max(0.01f, LandedGravityScale * _gravityScaleMultiplier);
     }
 
     private void ReportLockedToGameManager()
@@ -1136,15 +1278,26 @@ public class BlockController : MonoBehaviour
         return highestY;
     }
 
-    private void CollectOverlappingPowerUps()
+    // External disturbance (earthquakes, wind, ...) as a velocity impulse - the only legal way
+    // for outside systems to push a landed block (PHYSICS.md I1: never positions). Sturdy
+    // (Static) blocks ignore jolts by nature of their body type.
+    public void ApplyJolt(Vector2 velocityChange)
     {
-        Collider2D[] results = new Collider2D[8];
-        int count = _rb.Overlap(_triggerFilter, results);
-        for (int i = 0; i < count; i++)
-        {
-            if (results[i] == null) continue;
-            PowerUp pu = results[i].GetComponentInParent<PowerUp>();
-            if (pu != null) pu.Collect();
-        }
+        if (_rb == null || _rb.bodyType != RigidbodyType2D.Dynamic) return;
+
+        _rb.WakeUp();
+        _rb.linearVelocity += velocityChange;
+    }
+
+    // Freezes this block permanently exactly where it currently is - used by sturdy brick
+    // variants and the cement-tower power-up. A Static body costs nothing in the solver and
+    // acts as a player-made platform; it can never drift, wake, or be knocked over.
+    public void MakeSturdy()
+    {
+        if (_rb == null || _rb.bodyType == RigidbodyType2D.Static) return;
+
+        _rb.linearVelocity = Vector2.zero;
+        _rb.angularVelocity = 0f;
+        _rb.bodyType = RigidbodyType2D.Static;
     }
 }

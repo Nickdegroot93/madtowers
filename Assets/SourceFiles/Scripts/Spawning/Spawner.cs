@@ -10,11 +10,19 @@ public class Spawner : MonoBehaviour
     [SerializeField] private Transform spawnPoint;
     [SerializeField] private float spawnDelay = 0f;
 
+    private struct VariantChance
+    {
+        public BlockData Variant;
+        public float Chance;
+    }
+
     private BlockController _currentBlock;
     private readonly List<BlockDefinition> _definitionBag = new List<BlockDefinition>();
     private readonly List<int> _fallbackBag = new List<int>();
+    private readonly List<VariantChance> _variantChances = new List<VariantChance>();
     private BlockDefinition _nextDefinition;
     public BlockController currentBlock => _currentBlock;
+    private GameModeConfig ActiveGameModeConfig => LevelSelectionState.ResolveGameMode(gameModeConfig);
 
     public int nextBlockIndex { get; private set; } = -1;
 
@@ -34,8 +42,30 @@ public class Spawner : MonoBehaviour
 
     private void Start()
     {
+        if (LevelSelectionState.IsSelectionPending) return;
+
+        RegisterAmbientVariantChances();
         PrepareNextBlock();
         SpawnNextBlock();
+    }
+
+    // Level-authored variant rolls (e.g. "3% of bricks are giant on this level") use the same
+    // registry as runtime power-ups, so both stack naturally.
+    private void RegisterAmbientVariantChances()
+    {
+        GameModeConfig activeConfig = ActiveGameModeConfig;
+        IReadOnlyList<AmbientBlockVariantChance> ambient = activeConfig != null
+            ? activeConfig.AmbientBlockVariantChances
+            : null;
+        if (ambient == null) return;
+
+        for (int i = 0; i < ambient.Count; i++)
+        {
+            AmbientBlockVariantChance entry = ambient[i];
+            if (entry == null) continue;
+
+            AddVariantChance(entry.Variant, entry.ChancePerBlock);
+        }
     }
 
     private void PrepareNextBlock()
@@ -90,37 +120,38 @@ public class Spawner : MonoBehaviour
         if (_currentBlock != null)
         {
             _currentBlock.OnBlockLocked += HandleBlockLocked;
-            _currentBlock.ApplyConfig(gameModeConfig);
+            _currentBlock.ApplyConfig(ActiveGameModeConfig);
 
-            BlockData data = GetBlockData(definition);
+            BlockData data = RollVariantChances(GetBlockData(definition));
             if (data != null)
             {
                 _currentBlock.ApplyData(data);
             }
 
+            // Difficulty scales the controlled descent speed only. Landed gravity stays constant
+            // (BlockController normalizes it), so tower load never grows with block count.
             if (GameManager.Instance != null)
             {
                 _currentBlock.fallSpeed = GameManager.Instance.currentFallSpeed;
-                Rigidbody2D rb = blockObj.GetComponent<Rigidbody2D>();
-                if (rb != null)
-                {
-                    rb.gravityScale = GameManager.Instance.currentGravityScale;
-                }
             }
         }
     }
 
     private bool HasConfiguredBlocks()
     {
-        return gameModeConfig != null &&
-               gameModeConfig.BlockBag != null &&
-               gameModeConfig.BlockBag.Count > 0;
+        GameModeConfig activeConfig = ActiveGameModeConfig;
+        return activeConfig != null &&
+               activeConfig.BlockBag != null &&
+               activeConfig.BlockBag.Count > 0;
     }
 
     private void RefillDefinitionBag()
     {
         _definitionBag.Clear();
-        IReadOnlyList<BlockDefinition> configuredBlocks = gameModeConfig.BlockBag;
+        GameModeConfig activeConfig = ActiveGameModeConfig;
+        if (activeConfig == null) return;
+
+        IReadOnlyList<BlockDefinition> configuredBlocks = activeConfig.BlockBag;
         for (int i = 0; i < configuredBlocks.Count; i++)
         {
             BlockDefinition definition = configuredBlocks[i];
@@ -159,8 +190,9 @@ public class Spawner : MonoBehaviour
     {
         if (definition != null && definition.DefaultData != null) return definition.DefaultData;
 
-        IReadOnlyList<BlockData> configuredData = gameModeConfig != null
-            ? gameModeConfig.FallbackBlockDataVariants
+        GameModeConfig activeConfig = ActiveGameModeConfig;
+        IReadOnlyList<BlockData> configuredData = activeConfig != null
+            ? activeConfig.FallbackBlockDataVariants
             : null;
 
         if (configuredData != null && configuredData.Count > 0)
@@ -176,6 +208,42 @@ public class Spawner : MonoBehaviour
         return null;
     }
 
+    /// <summary>
+    /// Registers a chance for future spawns to be replaced with the given variant - used by
+    /// power-ups such as "sturdy bricks". Registering the same variant again stacks the chance.
+    /// </summary>
+    public void AddVariantChance(BlockData variant, float chance)
+    {
+        if (variant == null || chance <= 0f) return;
+
+        for (int i = 0; i < _variantChances.Count; i++)
+        {
+            if (_variantChances[i].Variant != variant) continue;
+
+            _variantChances[i] = new VariantChance
+            {
+                Variant = variant,
+                Chance = Mathf.Clamp01(_variantChances[i].Chance + chance)
+            };
+            return;
+        }
+
+        _variantChances.Add(new VariantChance { Variant = variant, Chance = Mathf.Clamp01(chance) });
+    }
+
+    private BlockData RollVariantChances(BlockData baseData)
+    {
+        for (int i = 0; i < _variantChances.Count; i++)
+        {
+            if (Random.value < _variantChances[i].Chance)
+            {
+                return _variantChances[i].Variant;
+            }
+        }
+
+        return baseData;
+    }
+
     private void HandleBlockLocked()
     {
         if (_currentBlock != null)
@@ -183,7 +251,8 @@ public class Spawner : MonoBehaviour
             _currentBlock.OnBlockLocked -= HandleBlockLocked;
         }
         
-        float delay = gameModeConfig != null ? gameModeConfig.SpawnDelay : spawnDelay;
+        GameModeConfig activeConfig = ActiveGameModeConfig;
+        float delay = activeConfig != null ? activeConfig.SpawnDelay : spawnDelay;
         if (delay <= 0f)
         {
             SpawnNextBlock();

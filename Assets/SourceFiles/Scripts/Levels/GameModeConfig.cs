@@ -8,6 +8,8 @@ public class GameModeConfig : ScriptableObject
     [Min(0)]
     [SerializeField] private int startingLives = 0;
     [SerializeField] private float initialFallSpeed = 2f;
+    [Tooltip("Hard ceiling for the controlled fall speed no matter how long the round runs. Keeps long games playable; raise per level for harder modes.")]
+    [SerializeField] private float maxFallSpeed = 5f;
     [SerializeField] private DifficultyScalingMode difficultyScalingMode = DifficultyScalingMode.PerBlock;
     [SerializeField] private DifficultyAdjustmentMode difficultyAdjustmentMode = DifficultyAdjustmentMode.Additive;
     [SerializeField] private float speedIncreasePerBlock = 0.1f;
@@ -20,6 +22,8 @@ public class GameModeConfig : ScriptableObject
     [Header("Spawning")]
     [SerializeField] private BlockDefinition[] blockBag;
     [SerializeField] private BlockData[] fallbackBlockDataVariants;
+    [Tooltip("Level-flavour variant rolls: each spawn has these chances to be replaced by the given variant (e.g. 3% giant bricks on a hard level). Power-ups can stack more chances on top at runtime.")]
+    [SerializeField] private AmbientBlockVariantChance[] ambientBlockVariantChances;
     [SerializeField] private float spawnDelay = 0f;
 
     [Header("Placement")]
@@ -29,31 +33,11 @@ public class GameModeConfig : ScriptableObject
     [Min(0)]
     [SerializeField] private int horizontalPlacementBufferColumns = 3;
 
-    [Header("Tricky Towers Control (per level)")]
-    [Tooltip("How fast a piece slides between columns (units/sec).")]
-    [SerializeField] private float maxColumnMoveSpeed = 14f;
-    [Tooltip("How hard the piece is driven toward its target column (eases in, never overshoots).")]
-    [SerializeField] private float columnApproachSpeed = 25f;
-    [Tooltip("Clearance kept when steering into side contacts. Prevents active pieces from pushing the landed tower sideways while still allowing late tucks into openings.")]
-    [SerializeField] private float horizontalSteeringContactSkin = 0.02f;
-    [Tooltip("How hard the piece rotates toward the requested angle.")]
-    [SerializeField] private float rotationApproachSpeed = 20f;
-    [Tooltip("Maximum spin speed while rotating (degrees/sec).")]
-    [SerializeField] private float maxRotationSpeed = 720f;
+    [Header("Active Piece Control")]
     [Tooltip("How close (world units) support must be below a piece before control is handed to physics. Keep small so players can make last-second tuck moves.")]
     [SerializeField] private float groundedCheckDistance = 0.03f;
-    [Tooltip("If support is detected while the piece is still this far from its target column, keep sliding horizontally instead of landing on a corner.")]
-    [Range(0f, 0.5f)]
-    [SerializeField] private float landingColumnToleranceFraction = 0.08f;
-    [Tooltip("Upward contacts this close to a cell's left/right edge are ignored as landing support, so pieces do not stand on tiny corners instead of entering gaps.")]
-    [Range(0f, 0.25f)]
-    [SerializeField] private float landingCornerInsetFraction = 0.08f;
-    [Tooltip("How quickly a controlled falling piece slides sideways off an invalid corner contact.")]
-    [SerializeField] private float cornerSlideSpeed = 4f;
-    [Tooltip("How long an unresolved invalid corner contact may stay controlled before it is released to physics.")]
-    [SerializeField] private float invalidContactReleaseTime = 0.25f;
-    [Tooltip("Maximum downward velocity kept when control hands off to physics. Keep at 0 to prevent falling impact from shoving the tower; gravity/weight still applies after landing.")]
-    [SerializeField] private float maxLandingImpactSpeed = 0f;
+    [Tooltip("Maximum downward velocity kept when control hands off to physics. 0 means use the current controlled fall speed.")]
+    [SerializeField] private float maxLandingImpactSpeed = 2f;
     [Tooltip("A landed piece is 'settled' once its linear speed (units/sec) drops below this. Keep low so unstable pieces get time to tip before maintenance runs.")]
     [SerializeField] private float settleLinearThreshold = 0.08f;
     [Tooltip("...and its spin (degrees/sec) drops below this.")]
@@ -73,10 +57,12 @@ public class GameModeConfig : ScriptableObject
     [Tooltip("Safety cap: lock a piece after this many seconds even if it never finds a normal landing.")]
     [SerializeField] private float maxControlTime = 12f;
 
-    [Header("Power Ups")]
-    [SerializeField] private float powerUpSpawnInterval = 10f;
-    [SerializeField] private float powerUpSpawnXRange = 4f;
-    [SerializeField] private float slowMotionDuration = 10f;
+    [Header("Power Up Choices")]
+    [Tooltip("Every this many placed blocks the game pauses and offers a pick of power-ups. 0 disables choices for this mode.")]
+    [Min(0)]
+    [SerializeField] private int powerUpChoiceEveryBlocks = 10;
+    [Tooltip("Power-ups that can appear in choice offers. Rarity weighting comes from each definition.")]
+    [SerializeField] private PowerUpDefinition[] powerUpChoicePool;
     [SerializeField] private float slowMotionScale = 0.5f;
 
     [Header("Static Support Islands")]
@@ -115,12 +101,12 @@ public class GameModeConfig : ScriptableObject
     [Header("Camera")]
     [Tooltip("Camera Y will never go below this value.")]
     [SerializeField] private float minimumCameraY = 0f;
-    [Tooltip("Where the tower peak should sit on screen after the camera catches up. 0 is bottom, 1 is top.")]
-    [Range(0.55f, 0.9f)]
-    [SerializeField] private float towerPeakScreenY = 0.64f;
+    [Tooltip("Where the tower peak should sit on screen after the camera catches up. 0 is bottom, 1 is top. Lower = more room (and reaction time) between the tower and the spawn point; raise for harder levels.")]
+    [Range(0.35f, 0.9f)]
+    [SerializeField] private float towerPeakScreenY = 0.5f;
     [Tooltip("Where newly spawned blocks should appear on screen. 0 is bottom, 1 is top.")]
-    [Range(0.65f, 0.95f)]
-    [SerializeField] private float spawnPointScreenY = 0.88f;
+    [Range(0.5f, 0.98f)]
+    [SerializeField] private float spawnPointScreenY = 0.9f;
     [SerializeField] private float cameraSmoothTime = 0.28f;
     [SerializeField] private float minimumCameraSize = 15f;
     [SerializeField] private float maximumCameraSize = 24f;
@@ -131,6 +117,7 @@ public class GameModeConfig : ScriptableObject
 
     public int StartingLives => startingLives;
     public float InitialFallSpeed => initialFallSpeed;
+    public float MaxFallSpeed => Mathf.Max(0.1f, maxFallSpeed);
     public DifficultyScalingMode DifficultyScalingMode => difficultyScalingMode;
     public DifficultyAdjustmentMode DifficultyAdjustmentMode => difficultyAdjustmentMode;
     public float SpeedIncreasePerBlock => speedIncreasePerBlock;
@@ -141,20 +128,12 @@ public class GameModeConfig : ScriptableObject
     public float GravityIncreasePerInterval => gravityIncreasePerInterval;
     public IReadOnlyList<BlockDefinition> BlockBag => blockBag;
     public IReadOnlyList<BlockData> FallbackBlockDataVariants => fallbackBlockDataVariants;
+    public IReadOnlyList<AmbientBlockVariantChance> AmbientBlockVariantChances => ambientBlockVariantChances;
     public float SpawnDelay => spawnDelay;
     public float GridSpacing => gridSpacing;
     public float MinimumLandingNormalY => minimumLandingNormalY;
     public int HorizontalPlacementBufferColumns => Mathf.Max(0, horizontalPlacementBufferColumns);
-    public float MaxColumnMoveSpeed => maxColumnMoveSpeed;
-    public float ColumnApproachSpeed => columnApproachSpeed;
-    public float HorizontalSteeringContactSkin => Mathf.Max(0f, horizontalSteeringContactSkin);
-    public float RotationApproachSpeed => rotationApproachSpeed;
-    public float MaxRotationSpeed => maxRotationSpeed;
     public float GroundedCheckDistance => groundedCheckDistance;
-    public float LandingColumnToleranceFraction => Mathf.Clamp(landingColumnToleranceFraction, 0f, 0.5f);
-    public float LandingCornerInsetFraction => Mathf.Clamp(landingCornerInsetFraction, 0f, 0.25f);
-    public float CornerSlideSpeed => Mathf.Max(0f, cornerSlideSpeed);
-    public float InvalidContactReleaseTime => Mathf.Max(0f, invalidContactReleaseTime);
     public float MaxLandingImpactSpeed => maxLandingImpactSpeed;
     public float SettleLinearThreshold => settleLinearThreshold;
     public float SettleAngularThreshold => settleAngularThreshold;
@@ -164,9 +143,8 @@ public class GameModeConfig : ScriptableObject
     public float MicroAlignMaxColumnFraction => Mathf.Clamp(microAlignMaxColumnFraction, 0f, 0.25f);
     public float MicroAlignMaxRotationDegrees => Mathf.Clamp(microAlignMaxRotationDegrees, 0f, 15f);
     public float MaxControlTime => maxControlTime;
-    public float PowerUpSpawnInterval => powerUpSpawnInterval;
-    public float PowerUpSpawnXRange => powerUpSpawnXRange;
-    public float SlowMotionDuration => slowMotionDuration;
+    public int PowerUpChoiceEveryBlocks => Mathf.Max(0, powerUpChoiceEveryBlocks);
+    public IReadOnlyList<PowerUpDefinition> PowerUpChoicePool => powerUpChoicePool;
     public float SlowMotionScale => slowMotionScale;
     public bool StaticSupportIslandsEnabled => staticSupportIslandsEnabled;
     public float StaticSupportIslandHeightInterval => Mathf.Max(0.1f, staticSupportIslandHeightInterval);
@@ -218,6 +196,17 @@ public sealed class StaticSupportIslandShapeConfig
     public int Weight => Mathf.Max(0, weight);
     public IReadOnlyList<Vector2Int> CellOffsets => cellOffsets;
     public bool HasCells => cellOffsets != null && cellOffsets.Length > 0;
+}
+
+[System.Serializable]
+public sealed class AmbientBlockVariantChance
+{
+    [SerializeField] private BlockData variant;
+    [Range(0f, 1f)]
+    [SerializeField] private float chancePerBlock = 0.03f;
+
+    public BlockData Variant => variant;
+    public float ChancePerBlock => Mathf.Clamp01(chancePerBlock);
 }
 
 [System.Serializable]

@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d0fe95161ec248308119ac199c73fdda, type: 3}
-  m_Name: DefaultGameMode
+  m_Name: GameMode_Narrow
   m_EditorClassIdentifier:
   startingLives: 0
-  initialFallSpeed: 2
-  maxFallSpeed: 5
+  initialFallSpeed: 2.2
+  maxFallSpeed: 5.5
   difficultyScalingMode: 1
   difficultyAdjustmentMode: 0
-  speedIncreasePerBlock: 0.025
+  speedIncreasePerBlock: 0.03
   initialGravityScale: 1
   gravityIncreasePerBlock: 0
   speedIncreaseIntervalSeconds: 60
@@ -37,7 +37,7 @@ MonoBehaviour:
   spawnDelay: 0
   gridSpacing: 1
   minimumLandingNormalY: 0.45
-  horizontalPlacementBufferColumns: 3
+  horizontalPlacementBufferColumns: 2
   groundedCheckDistance: 0.03
   maxLandingImpactSpeed: 2
   settleLinearThreshold: 0.08
@@ -55,13 +55,13 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 5fbde9516a7c498f9c96bf8222a8bc48, type: 2}
   - {fileID: 11400000, guid: e28f154f7fe04e8c804cb5e2e8f4b35b, type: 2}
   slowMotionScale: 0.5
-  staticSupportIslandsEnabled: 1
+  staticSupportIslandsEnabled: 0
   staticSupportIslandHeightInterval: 8
   staticSupportIslandSpawnChance: 0.35
   staticSupportIslandFirstHeight: 6
   staticSupportIslandSpawnAheadHeight: 8
-  staticSupportIslandMinColumn: -5
-  staticSupportIslandMaxColumn: 5
+  staticSupportIslandMinColumn: -4
+  staticSupportIslandMaxColumn: 4
   staticSupportIslandCenterClearColumns: 5
   staticSupportIslandShapes:
   - displayName: Single
@@ -94,13 +94,13 @@ MonoBehaviour:
       y: 1
   floorSegments:
   - centerColumn: 0
-    columnCount: 9
+    columnCount: 7
   minimumCameraY: 0
-  towerPeakScreenY: 0.5
+  towerPeakScreenY: 0.58
   spawnPointScreenY: 0.9
   cameraSmoothTime: 0.28
-  minimumCameraSize: 15
-  maximumCameraSize: 24
-  horizontalCameraPadding: 1.5
-  horizontalCameraSafeArea: 0.78
+  minimumCameraSize: 14
+  maximumCameraSize: 23
+  horizontalCameraPadding: 1.2
+  horizontalCameraSafeArea: 0.76
   cameraZoomSmoothTime: 0.35

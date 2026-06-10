@@ -30,26 +30,71 @@ public class LevelPresentationController : MonoBehaviour
     }
 #endif
 
+    private ThemeDefinition _resolvedTheme;
+    private LevelDefinition _resolvedThemeLevel;
+
+    // The theme supplies the look shared by its levels; a level overrides it by setting its
+    // own background image, or a tint other than pure white (white = "use the theme's").
+    private ThemeDefinition ResolveTheme(LevelDefinition level)
+    {
+        if (level == null) return null;
+        if (_resolvedThemeLevel == level) return _resolvedTheme;
+
+        _resolvedThemeLevel = level;
+        _resolvedTheme = null;
+        ThemeDefinition[] themes = Resources.LoadAll<ThemeDefinition>("Themes");
+        for (int themeIndex = 0; themeIndex < themes.Length; themeIndex++)
+        {
+            ThemeDefinition theme = themes[themeIndex];
+            if (theme.Levels == null) continue;
+
+            for (int i = 0; i < theme.Levels.Count; i++)
+            {
+                if (theme.Levels[i] != level) continue;
+
+                _resolvedTheme = theme;
+                return _resolvedTheme;
+            }
+        }
+
+        return null;
+    }
+
     private void ApplyPresentation()
     {
         ResolveReferences();
+        LevelDefinition activeLevel = LevelSelectionState.SelectedLevel != null
+            ? LevelSelectionState.SelectedLevel
+            : levelDefinition;
+        ThemeDefinition activeTheme = ResolveTheme(activeLevel);
+
+        Color backgroundTint = activeLevel != null ? activeLevel.BackgroundTint : fallbackBackgroundTint;
+        if (activeLevel != null && activeTheme != null &&
+            activeLevel.BackgroundImage == null && activeLevel.BackgroundTint == Color.white)
+        {
+            backgroundTint = activeTheme.BackgroundTint;
+        }
 
         if (targetCamera != null)
         {
-            targetCamera.backgroundColor = cameraClearColor;
+            targetCamera.backgroundColor = activeLevel != null ? backgroundTint : cameraClearColor;
         }
 
         if (backgroundRenderer == null) return;
 
-        Sprite configuredSprite = levelDefinition != null ? levelDefinition.BackgroundImage : null;
+        Sprite configuredSprite = activeLevel != null ? activeLevel.BackgroundImage : null;
+        if (configuredSprite == null && activeTheme != null)
+        {
+            configuredSprite = activeTheme.BackgroundImage;
+        }
         if (configuredSprite != null)
         {
             backgroundRenderer.sprite = configuredSprite;
-            backgroundRenderer.color = levelDefinition.BackgroundTint;
+            backgroundRenderer.color = backgroundTint;
         }
         else
         {
-            backgroundRenderer.color = fallbackBackgroundTint;
+            backgroundRenderer.color = backgroundTint;
         }
 
         backgroundRenderer.sortingOrder = sortingOrder;
