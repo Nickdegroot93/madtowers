@@ -7,28 +7,18 @@ public class LevelPresentationController : MonoBehaviour
     [SerializeField] private SpriteRenderer backgroundRenderer;
     [SerializeField] private Camera targetCamera;
     [SerializeField] private Color fallbackBackgroundTint = new Color(0.08f, 0.12f, 0.17f, 1f);
-    [SerializeField] private Color cameraClearColor = new Color(0.06f, 0.08f, 0.11f, 1f);
     [SerializeField] private bool fillCameraView = true;
     [SerializeField] private float overscan = 1.12f;
     [SerializeField] private float depthFromCamera = 20f;
     [SerializeField] private int sortingOrder = -100;
 
-    private void OnEnable()
-    {
-        ApplyPresentation();
-    }
-
+    // Refreshed from LateUpdate only ([ExecuteAlways] runs it in edit mode too).
+    // No OnEnable/OnValidate calls: assigning a sprite there happens inside Unity's
+    // Awake/CheckConsistency phase and triggers "SendMessage cannot be called..." warnings.
     private void LateUpdate()
     {
         ApplyPresentation();
     }
-
-#if UNITY_EDITOR
-    private void OnValidate()
-    {
-        ApplyPresentation();
-    }
-#endif
 
     private ThemeDefinition _resolvedTheme;
     private LevelDefinition _resolvedThemeLevel;
@@ -75,9 +65,17 @@ public class LevelPresentationController : MonoBehaviour
             backgroundTint = activeTheme.BackgroundTint;
         }
 
+        if (activeLevel == null)
+        {
+            backgroundTint = fallbackBackgroundTint;
+        }
+
+        // The camera clear color matches the gradient's bottom so anything peeking past
+        // the background quad (overscan edges) blends instead of banding.
+        Color gradientBottom = Color.Lerp(backgroundTint, Color.black, 0.55f);
         if (targetCamera != null)
         {
-            targetCamera.backgroundColor = activeLevel != null ? backgroundTint : cameraClearColor;
+            targetCamera.backgroundColor = gradientBottom;
         }
 
         if (backgroundRenderer == null) return;
@@ -87,15 +85,16 @@ public class LevelPresentationController : MonoBehaviour
         {
             configuredSprite = activeTheme.BackgroundImage;
         }
-        if (configuredSprite != null)
+        if (configuredSprite == null)
         {
-            backgroundRenderer.sprite = configuredSprite;
-            backgroundRenderer.color = backgroundTint;
+            // No art configured: a clean vertical gradient (lighter top, darker bottom)
+            // built in code. Without a sprite the quad never got fitted to the camera and
+            // sat in the world as a stray lighter rectangle.
+            configuredSprite = GetGradientSprite(backgroundTint, gradientBottom);
+            backgroundTint = Color.white;
         }
-        else
-        {
-            backgroundRenderer.color = backgroundTint;
-        }
+        if (backgroundRenderer.sprite != configuredSprite) backgroundRenderer.sprite = configuredSprite;
+        if (backgroundRenderer.color != backgroundTint) backgroundRenderer.color = backgroundTint;
 
         backgroundRenderer.sortingOrder = sortingOrder;
 
@@ -103,6 +102,40 @@ public class LevelPresentationController : MonoBehaviour
         {
             FitBackgroundToCamera();
         }
+    }
+
+    private Sprite _gradientSprite;
+    private Color _gradientTopTint;
+
+    private Sprite GetGradientSprite(Color top, Color bottom)
+    {
+        if (_gradientSprite != null && top == _gradientTopTint) return _gradientSprite;
+        _gradientTopTint = top;
+
+        if (_gradientSprite != null)
+        {
+            DestroyImmediate(_gradientSprite.texture);
+            DestroyImmediate(_gradientSprite);
+        }
+
+        const int H = 256;
+        Texture2D tex = new Texture2D(1, H, TextureFormat.RGBA32, false)
+        {
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear,
+            hideFlags = HideFlags.HideAndDontSave
+        };
+        top.a = 1f;
+        bottom.a = 1f;
+        for (int y = 0; y < H; y++)
+        {
+            tex.SetPixel(0, y, Color.Lerp(bottom, top, (float)y / (H - 1)));
+        }
+        tex.Apply();
+
+        _gradientSprite = Sprite.Create(tex, new Rect(0, 0, 1, H), new Vector2(0.5f, 0.5f), 16f);
+        _gradientSprite.hideFlags = HideFlags.HideAndDontSave;
+        return _gradientSprite;
     }
 
     private void ResolveReferences()

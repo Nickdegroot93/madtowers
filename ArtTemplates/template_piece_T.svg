@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="832" height="576" viewBox="0 0 832 576">
+<rect x="288" y="32" width="256" height="256" fill="#cccccc" fill-opacity="0.25" stroke="#999999" stroke-width="2" stroke-dasharray="10,10"/>
+<rect x="32" y="288" width="256" height="256" fill="#cccccc" fill-opacity="0.25" stroke="#999999" stroke-width="2" stroke-dasharray="10,10"/>
+<rect x="288" y="288" width="256" height="256" fill="#cccccc" fill-opacity="0.25" stroke="#999999" stroke-width="2" stroke-dasharray="10,10"/>
+<rect x="544" y="288" width="256" height="256" fill="#cccccc" fill-opacity="0.25" stroke="#999999" stroke-width="2" stroke-dasharray="10,10"/>
+<line x1="288" y1="32" x2="544" y2="32" stroke="#444444" stroke-width="6"/>
+<line x1="288" y1="32" x2="288" y2="288" stroke="#444444" stroke-width="6"/>
+<line x1="544" y1="32" x2="544" y2="288" stroke="#444444" stroke-width="6"/>
+<line x1="32" y1="288" x2="288" y2="288" stroke="#444444" stroke-width="6"/>
+<line x1="32" y1="544" x2="288" y2="544" stroke="#444444" stroke-width="6"/>
+<line x1="32" y1="288" x2="32" y2="544" stroke="#444444" stroke-width="6"/>
+<line x1="288" y1="544" x2="544" y2="544" stroke="#444444" stroke-width="6"/>
+<line x1="544" y1="288" x2="800" y2="288" stroke="#444444" stroke-width="6"/>
+<line x1="544" y1="544" x2="800" y2="544" stroke="#444444" stroke-width="6"/>
+<line x1="800" y1="288" x2="800" y2="544" stroke="#444444" stroke-width="6"/>
+<text x="6" y="22" font-family="Helvetica" font-size="18" fill="#777777">piece_T.png 832x576 | 256px/cell | 32px bleed</text>
+</svg>
