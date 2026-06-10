@@ -28,7 +28,7 @@ LevelDefinition  (Assets/Resources/Levels/  — one per level)
      ├─ Floor: segments (position + width — gaps and multiple towers possible)
      ├─ Block bag: which BlockDefinitions are in play, and how many copies each
      │    └─ BlockDefinition → shape prefab + default BlockData variant
-     ├─ Ambient variant chances: % rolls that replace spawns with a variant (giant bricks!)
+     ├─ Ambient variant chances: % rolls that replace spawns with a variant
      ├─ Sky platforms (static support islands): on/off, frequency, shapes, columns
      ├─ Power-up choices: cadence (every N blocks) + pool of PowerUpDefinitions
      ├─ Camera: leniency (reaction room), zoom limits
@@ -64,7 +64,7 @@ serialized fields, not a one-off hack.
 | `Assets/Resources/Levels/` | LevelDefinition assets. **Must stay here** (loaded by path at runtime). |
 | `Assets/Resources/GameModes/` | GameModeConfig assets used by levels. |
 | `Assets/SourceFiles/Scripts/Levels/Modifiers/` | LevelModifier behaviour classes (code). |
-| `Assets/Data/Blocks/` | BlockData variant assets (Normal, Heavy, Sturdy, Giant, ...). |
+| `Assets/Data/Blocks/` | BlockData variant assets (Normal, Heavy, Anchor, ...). |
 | `Assets/Data/BlockDefinitions/` | BlockDefinition assets — one per tetromino shape (Block_I ... Block_Z); these are what block bags list. |
 | `Assets/Data/PowerUps/Common|Rare|Epic/` | PowerUpDefinition assets, foldered by rarity (the asset's rarity **field** is what the game reads). |
 | `Assets/Prefabs/Blocks/` | The 7 tetromino shape prefabs (I, O, T, S, Z, L, J). |
@@ -98,20 +98,31 @@ serialized fields, not a one-off hack.
 | `blockBag` | Which BlockDefinitions are in play. **Exclude the L-piece by leaving it out.** `bagCopies` per definition weights frequency (3 copies of I = I-heavy level). Bag-randomised: every copy appears once before reshuffle, Tetris-style. |
 | BlockDefinition → `defaultData` | The variant a shape spawns as by default. |
 | `fallbackBlockDataVariants` | Random variant pool used when a definition has no default data. |
-| `ambientBlockVariantChances` | **Level-flavour rolls**: list of (variant, chance). Example: Giant at 0.03 → 3% of all spawns are double-size bricks. Stacks with power-up-granted chances. |
+| `ambientBlockVariantChances` | **Level-flavour rolls**: list of (variant, chance). Example: Boulder at 0.03 → 3% of all spawns are Boulders. Stacks with power-up-granted chances. |
 
 ### Brick variants (Assets/Data/Blocks/)
-| Variant | What it is |
-|---|---|
-| Normal | Mass 1 baseline. |
-| Heavy | Mass 3, dark tint. |
-| Sturdy | Freezes exactly where it lands (player-made platform). Blue tint. |
-| Giant | `sizeScale 2` — double width/height, fits nowhere. Red tint. The "annoying brick". |
+| Variant | What it is | Polarity |
+|---|---|---|
+| Normal | Mass 1 baseline. | — |
+| Heavy | Mass 3, dark tint. | Neutral |
+| Anchor | Freezes exactly where it lands (player-made platform). Blue. | Positive |
+| Vine | Welds itself to everything it touches shortly after landing (breakable joints — local cement). Green. | Positive |
+| Boulder | Mass 4 — strains everything below it. Brown. | Negative |
+| Feather | Mass 0.4 — shoved around by every later landing. Pale yellow. | Negative |
+| Ice | Near-zero friction — slides off anything not flat. Pale cyan. | Negative |
+| Stubborn | Cannot be rotated while falling. Orange. | Negative |
+| Dizzy | Left/right steering mirrored. Pink. | Negative |
+| Tremor | Jolts the whole tower the moment it lands. Amber. | Negative |
+| Bomb | Red-pulsing 1s fuse after landing, then deletes itself + every touching block (no blast impulse — the tower sags, not flies). Dark gray. | Negative |
 
-New stat-only variants (slippery ice brick via a low-friction PhysicsMaterial2D, feather brick
-via gravityScaleMultiplier, half-size brick via sizeScale 0.5...) are pure assets: right-click
+Classic is vanilla (no ambient rolls) — special variants enter levels via
+`ambientBlockVariantChances`; production levels should pick 1–2 signature variants each.
+Keep mass between 0.4 and 4: Box2D contacts go mushy past ~10:1 ratios between touching blocks.
+
+New stat-only variants (different mass, friction material, control quirks via canRotate /
+invertHorizontalControls, tint) are pure assets: right-click
 > Create > Stacking > Blocks > Block Variant. Behaviour variants (act on land/spawn) need a
-small subclass in `Scripts/Blocks/Variants/` overriding `OnApplied`/`OnLocked` — SturdyBlockData
+small subclass in `Scripts/Blocks/Variants/` overriding `OnApplied`/`OnLocked` — AnchorBlockData
 is the 8-line template.
 
 ### Sky platforms (static support islands)
@@ -129,10 +140,12 @@ is the 8-line template.
 | `powerUpChoiceEveryBlocks` | Every N placed blocks: full pause + pick 1 of 3. 0 disables for the level. |
 | `powerUpChoicePool` | Which PowerUpDefinitions can be offered. Per level — hard levels can ban Cement Tower, gift levels can offer only Legendaries. Rarity weighting (Common 100 / Rare 40 / Epic 15 / Legendary 5) lives in `PowerUpRarityInfo`. |
 
-Current power-ups: Extra Life (Common), Slow Time (Common), Sturdy Bricks 20% (Rare),
-Cement Tower (Epic). Adding more: see the doc comment on `PowerUpDefinition.cs` — many new
-power-ups are zero-code (another `BlockVariantChancePowerUp` asset pointing at a different
-variant, e.g. "Curse: Giant Bricks" as a negative offer).
+Current power-ups: Extra Life (Common), Slow Time (Common), Anchor Brick (Rare — your NEXT
+brick becomes an Anchor, one brick only), Cement Tower (Epic). Adding more: see the doc
+comment on `PowerUpDefinition.cs` — many new power-ups are zero-code: a
+`NextBlockVariantPowerUp` asset pointing at any variant (one-shot), or a
+`BlockVariantChancePowerUp` asset for a persistent chance (e.g. "Curse: Boulders" as a
+negative offer; persistent positives like the old 20%-Anchors proved overpowered).
 
 ### Camera & leniency
 | Setting | What it does |
@@ -162,11 +175,11 @@ Theme Definition), set `sortOrder`, presentation, and its level list.
 
 **Exclude the L-piece:** in the mode's `blockBag`, delete the Block_L definition entry. Done.
 
-**3% giant bricks on a hard level:** mode's `ambientBlockVariantChances` → add element:
-Variant = `Data/Blocks/Giant`, ChancePerBlock = 0.03.
+**3% Boulders on a hard level:** mode's `ambientBlockVariantChances` → add element:
+Variant = `Data/Blocks/Boulder`, ChancePerBlock = 0.03.
 
 **New power-up, zero code:** duplicate an asset in `Data/PowerUps/<Rarity>/`, change fields
-(e.g. a second BlockVariantChance asset granting 35% Sturdy as an Epic), add to a mode's pool.
+(e.g. a second BlockVariantChance asset granting 35% Anchor as an Epic), add to a mode's pool.
 
 **New power-up with new behaviour:** subclass `PowerUpDefinition` in
 `Scripts/PowerUps/Definitions/`, implement `Apply(context)` (context has GameManager + Spawner —
@@ -187,7 +200,7 @@ Already possible with today's data (no code):
 - **Heavy industry** — Heavy as the default data for every definition; landing rhythm changes completely.
 - **Two towers** — two floor segments with a gap; islands disabled; narrow camera.
 - **Gift run** — power-up choice every 5 blocks, pool of Epics only.
-- **Hardcore** — `powerUpChoiceEveryBlocks 0`, peak at 0.7, fast ramp, 3% Giants, no islands.
+- **Hardcore** — `powerUpChoiceEveryBlocks 0`, peak at 0.7, fast ramp, 3% Boulders, no islands.
 - **Platform hopper** — tiny 3-wide floor, very frequent wide islands: the tower must live on platforms.
 
 Needs code (rough effort, all fit the existing hooks):
@@ -204,9 +217,8 @@ Needs code (rough effort, all fit the existing hooks):
 - **Checkpoint heights** (small) — every X meters: +1 life or a bonus choice. Height tracking now works (measured from the floor).
 - **Per-level rarity weight override** (tiny) — make Legendaries common on gift levels.
 - **Fog ceiling** (small, visual) — darkness above a height; build into the unknown.
-- **Sticky bricks** (medium) — weld-joint on contact; the inverse of Giant: forgiving but messy.
 
-A good campaign curve mixes one *pressure* dial (speed, camera, Giants) with one *relief*
+A good campaign curve mixes one *pressure* dial (speed, camera, Boulders) with one *relief*
 dial (more choices, wider floor, islands) per tier, rather than turning everything at once.
 
 ---

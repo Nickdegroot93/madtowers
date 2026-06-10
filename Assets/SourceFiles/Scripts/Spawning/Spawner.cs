@@ -20,6 +20,7 @@ public class Spawner : MonoBehaviour
     private readonly List<BlockDefinition> _definitionBag = new List<BlockDefinition>();
     private readonly List<int> _fallbackBag = new List<int>();
     private readonly List<VariantChance> _variantChances = new List<VariantChance>();
+    private BlockData _queuedVariantOverride;
     private BlockDefinition _nextDefinition;
     public BlockController currentBlock => _currentBlock;
     private GameModeConfig ActiveGameModeConfig => LevelSelectionState.ResolveGameMode(gameModeConfig);
@@ -209,8 +210,27 @@ public class Spawner : MonoBehaviour
     }
 
     /// <summary>
+    /// One-shot override: the next brick becomes the given variant. Power-up choices open while
+    /// the next piece is already spawned (frozen by the pause), so from the player's point of
+    /// view THAT piece is "the next brick" - it gets the variant directly when possible.
+    /// </summary>
+    public void ApplyVariantToNextBlock(BlockData variant)
+    {
+        if (variant == null) return;
+
+        if (_currentBlock != null && !_currentBlock.HasLanded)
+        {
+            _currentBlock.ApplyData(variant);
+            return;
+        }
+
+        _queuedVariantOverride = variant;
+    }
+
+    /// <summary>
     /// Registers a chance for future spawns to be replaced with the given variant - used by
-    /// power-ups such as "sturdy bricks". Registering the same variant again stacks the chance.
+    /// level-flavour rolls and recurring power-ups. Registering the same variant again stacks
+    /// the chance.
     /// </summary>
     public void AddVariantChance(BlockData variant, float chance)
     {
@@ -233,6 +253,13 @@ public class Spawner : MonoBehaviour
 
     private BlockData RollVariantChances(BlockData baseData)
     {
+        if (_queuedVariantOverride != null)
+        {
+            BlockData queued = _queuedVariantOverride;
+            _queuedVariantOverride = null;
+            return queued;
+        }
+
         for (int i = 0; i < _variantChances.Count; i++)
         {
             if (Random.value < _variantChances[i].Chance)

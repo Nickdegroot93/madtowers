@@ -158,15 +158,17 @@ public class BlockController : MonoBehaviour
     // falling, so they stay on the same grid rules as horizontal movement.
     public void RotateLeft()
     {
-        if (!_isControlEnabled) return;
+        if (!_isControlEnabled || !CanRotateVariant) return;
         _targetAngleZ -= RotationStep;
     }
 
     public void RotateRight()
     {
-        if (!_isControlEnabled) return;
+        if (!_isControlEnabled || !CanRotateVariant) return;
         _targetAngleZ += RotationStep;
     }
+
+    private bool CanRotateVariant => _appliedData == null || _appliedData.CanRotate;
 
     // Fast Drop
     public void SetFastDrop(bool active) => _isFastDrop = active;
@@ -210,7 +212,6 @@ public class BlockController : MonoBehaviour
         _rb.mass = data.Mass;
         _rb.sharedMaterial = ResolveBlockMaterial(data.PhysicsMaterial);
         _gravityScaleMultiplier = data.GravityScaleMultiplier;
-        transform.localScale = Vector3.one * data.SizeScale;
 
         SpriteRenderer[] renderers = GetComponentsInChildren<SpriteRenderer>();
         foreach (var sr in renderers)
@@ -418,7 +419,11 @@ public class BlockController : MonoBehaviour
         if (_inputs != null)
         {
             _moveInput = _inputs.Gameplay.Move.ReadValue<Vector2>();
-            
+            if (_appliedData != null && _appliedData.InvertHorizontalControls)
+            {
+                _moveInput.x = -_moveInput.x;
+            }
+
             // Handle rotation triggers
             if (_inputs.Gameplay.RotateLeft.triggered) RotateLeft();
             if (_inputs.Gameplay.RotateRight.triggered) RotateRight();
@@ -1000,6 +1005,7 @@ public class BlockController : MonoBehaviour
         return Mathf.Round(value / step) * step;
     }
 
+
     private void SetPosition(Vector3 pos)
     {
         pos.z = transform.position.z;
@@ -1279,7 +1285,7 @@ public class BlockController : MonoBehaviour
     }
 
     // External disturbance (earthquakes, wind, ...) as a velocity impulse - the only legal way
-    // for outside systems to push a landed block (PHYSICS.md I1: never positions). Sturdy
+    // for outside systems to push a landed block (PHYSICS.md I1: never positions). Anchored
     // (Static) blocks ignore jolts by nature of their body type.
     public void ApplyJolt(Vector2 velocityChange)
     {
@@ -1289,10 +1295,10 @@ public class BlockController : MonoBehaviour
         _rb.linearVelocity += velocityChange;
     }
 
-    // Freezes this block permanently exactly where it currently is - used by sturdy brick
+    // Freezes this block permanently exactly where it currently is - used by anchor brick
     // variants and the cement-tower power-up. A Static body costs nothing in the solver and
     // acts as a player-made platform; it can never drift, wake, or be knocked over.
-    public void MakeSturdy()
+    public void FreezeInPlace()
     {
         if (_rb == null || _rb.bodyType == RigidbodyType2D.Static) return;
 

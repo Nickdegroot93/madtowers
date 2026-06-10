@@ -3,7 +3,7 @@ using UnityEngine.Serialization;
 
 /// <summary>
 /// One brick variant = one asset in Assets/Data/Blocks/. Stats live in the serialized fields;
-/// behaviour lives in the virtual hooks - subclass this (see SturdyBlockData) when a variant
+/// behaviour lives in the virtual hooks - subclass this (see AnchorBlockData) when a variant
 /// needs to do something, and override the hook for the moment it should act.
 /// </summary>
 [CreateAssetMenu(fileName = "BlockData", menuName = "Stacking/Blocks/Block Variant")]
@@ -19,9 +19,11 @@ public class BlockData : ScriptableObject
     [SerializeField] private PhysicsMaterial2D physicsMaterial;
     [SerializeField] private float gravityScaleMultiplier = 1f;
 
-    [Header("Shape")]
-    [Tooltip("Uniform scale of the whole piece. 2 = double-size brick that fits nowhere.")]
-    [SerializeField] private float sizeScale = 1f;
+    [Header("Control")]
+    [Tooltip("Untick for bricks that cannot be rotated while falling (Stubborn brick).")]
+    [SerializeField] private bool canRotate = true;
+    [Tooltip("Tick to mirror left/right steering for this brick (Dizzy brick).")]
+    [SerializeField] private bool invertHorizontalControls = false;
 
     [Header("Visuals")]
     [FormerlySerializedAs("colorTint")]
@@ -33,7 +35,8 @@ public class BlockData : ScriptableObject
     public float Mass => Mathf.Max(0.01f, mass);
     public PhysicsMaterial2D PhysicsMaterial => physicsMaterial;
     public float GravityScaleMultiplier => Mathf.Max(0f, gravityScaleMultiplier);
-    public float SizeScale => Mathf.Max(0.1f, sizeScale);
+    public bool CanRotate => canRotate;
+    public bool InvertHorizontalControls => invertHorizontalControls;
     public Color ColorTint => colorTint;
     public Sprite SpriteOverride => spriteOverride;
     public Material MaterialOverride => materialOverride;

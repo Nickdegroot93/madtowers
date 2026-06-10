@@ -10,13 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3b0b26a1c947741b4ba0402b3db02c0c, type: 3}
-  m_Name: Giant
+  m_Name: Dizzy
   m_EditorClassIdentifier: Assembly-CSharp::BlockData
-  displayName: Giant
-  mass: 2
+  displayName: Dizzy
+  mass: 1
   physicsMaterial: {fileID: 0}
   gravityScaleMultiplier: 1
-  sizeScale: 2
-  colorTint: {r: 0.78, g: 0.34, b: 0.3, a: 1}
+  canRotate: 1
+  invertHorizontalControls: 1
+  colorTint: {r: 0.95, g: 0.55, b: 0.78, a: 1}
   spriteOverride: {fileID: 0}
   materialOverride: {fileID: 0}

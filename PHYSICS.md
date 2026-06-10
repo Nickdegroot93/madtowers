@@ -110,7 +110,7 @@ Code-level details that are part of the contract (not inspector values):
   (`IsCellBlockedByStaticObstacle`) but block-vs-block stays grid-based (I5).
 - Cast/overlap buffers are reused instance arrays — no per-FixedUpdate allocations
   (GC spikes read as physics stutter).
-- Sturdy/cemented blocks (`MakeSturdy()`, used by the sturdy-brick variant and the
+- Anchored/cemented blocks (`FreezeInPlace()`, used by the anchor-brick variant and the
   cement-tower power-up) become Static bodies; landed maintenance skips any non-Dynamic
   body. Static blocks are allowed to violate grid registration — they freeze as-is by design.
 

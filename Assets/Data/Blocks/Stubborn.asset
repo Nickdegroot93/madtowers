@@ -9,14 +9,15 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d3531d027465461a8cf6d6a5845cb1e3, type: 3}
-  m_Name: Sturdy
-  m_EditorClassIdentifier: Assembly-CSharp::SturdyBlockData
-  displayName: Sturdy
+  m_Script: {fileID: 11500000, guid: 3b0b26a1c947741b4ba0402b3db02c0c, type: 3}
+  m_Name: Stubborn
+  m_EditorClassIdentifier: Assembly-CSharp::BlockData
+  displayName: Stubborn
   mass: 1
   physicsMaterial: {fileID: 0}
   gravityScaleMultiplier: 1
-  sizeScale: 1
-  colorTint: {r: 0.45, g: 0.66, b: 0.85, a: 1}
+  canRotate: 0
+  invertHorizontalControls: 0
+  colorTint: {r: 0.95, g: 0.6, b: 0.24, a: 1}
   spriteOverride: {fileID: 0}
   materialOverride: {fileID: 0}

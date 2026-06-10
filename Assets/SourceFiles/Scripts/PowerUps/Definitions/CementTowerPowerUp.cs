@@ -13,7 +13,7 @@ public class CementTowerPowerUp : PowerUpDefinition
             BlockController block = blocks[i];
             if (block == null || !block.HasLanded) continue;
 
-            block.MakeSturdy();
+            block.FreezeInPlace();
         }
     }
 }

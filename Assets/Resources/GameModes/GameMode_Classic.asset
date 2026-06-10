@@ -34,6 +34,7 @@ MonoBehaviour:
   fallbackBlockDataVariants:
   - {fileID: 11400000, guid: d47f69c0549f64a78b7a3dde80d0f06a, type: 2}
   - {fileID: 11400000, guid: 7704ea0a0cb0b4d94b1c5a90200dab18, type: 2}
+  ambientBlockVariantChances: []
   spawnDelay: 0
   gridSpacing: 1
   minimumLandingNormalY: 0.45

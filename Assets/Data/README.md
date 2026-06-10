@@ -9,10 +9,10 @@ always safe (Unity references by GUID via the .meta files — just move the .met
 the file, which the editor does automatically).
 
 ## Blocks/ — brick variants
-One `.asset` per brick variant (Normal, Heavy, Sturdy, ...). Most new variants need **no new
+One `.asset` per brick variant (Normal, Heavy, Anchor, ...). Most new variants need **no new
 script**: create a Block Variant asset (right-click > Create > Stacking > Blocks) and set its
-stats — mass, friction material, tint, `sizeScale` (2 = double-size brick). Only when a brick
-needs new *behaviour* (like Sturdy freezing in place) does it get a small subclass in
+stats — mass, friction material, tint, control quirks. Only when a brick
+needs new *behaviour* (like Anchor freezing in place) does it get a small subclass in
 `Scripts/Blocks/Variants/` overriding a lifecycle hook.
 
 Variants reach the game in two ways:
