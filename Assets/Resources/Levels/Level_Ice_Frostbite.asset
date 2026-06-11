@@ -16,7 +16,5 @@ MonoBehaviour:
   gameModeConfig: {fileID: 11400000, guid: a2c3c3c2baad49849d2de74da38f47fe, type: 2}
   targetType: 2
   targetValue: 15
+  instruction: Ice bricks are slippery! Reach 15 meters.
   modifiers: []
-  backgroundImage: {fileID: 0}
-  backgroundTint: {r: 0.05, g: 0.1, b: 0.16, a: 1}
-  music: {fileID: 0}

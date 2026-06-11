@@ -12,13 +12,16 @@ needed** unless a row says "needs code". Physics tuning dials have their own con
 ```
 ThemeDefinition  (Assets/Resources/Themes/  — an Archero-style chapter)
  ├─ sortOrder (themes play lowest-first; leave gaps: 10, 20, 30...)
- ├─ presentation shared by its levels: background, tint, music (brick skins later)
+ ├─ presentation shared by its levels: backdrop (BackdropPreset: layered sky/clouds/
+ │   hills/particles - see ART.md §3), musicPlaylist (looped in order: A → B → A …),
+ │   skinFolder (generated art; missing files fall back to Classic)
  ├─ featuredUnlocks: power-ups introduced by this theme (messaging; availability is
  │   authored per level pool)
  └─ levels: ordered list of LevelDefinitions — any count per theme
 
 LevelDefinition  (Assets/Resources/Levels/  — one per level)
- ├─ presentation: display name, background image/tint, music (overrides theme when set)
+ ├─ identity: display name (presentation lives on the theme)
+ ├─ instruction: one-sentence goal banner shown (fade in/out) at level start
  ├─ GOAL: targetType (Endless | PlaceBlocks | ReachHeight) + targetValue.
  │   Reaching it pauses and shows Level Complete with "Next: <level>" (next in theme),
  │   Keep Building, and Replay.
@@ -261,8 +264,21 @@ in practice, keep them identical across modes.
 LevelDefinition in `Resources/Levels/`, name it, point it at the mode, set a goal → add it to
 a theme's `levels` array at the position it should play. The menu groups by theme automatically.
 
-**New theme:** create a ThemeDefinition in `Resources/Themes/` (Create > Stacking > Levels >
-Theme Definition), set `sortOrder`, presentation, and its level list.
+**New theme (complete recipe):**
+1. ThemeDefinition in `Resources/Themes/` (Create > Stacking > Levels > Theme Definition):
+   `sortOrder` (leave gaps), `levels` list, `skinFolder`, `backdrop`, `musicPlaylist`.
+2. Backdrop: BackdropPreset in `Data/Backdrops/` (Create > Stacking > Levels > Backdrop
+   Preset) — sky color pairs + altitude fade, cloud style/count/drift, hills on/off +
+   style, ambient particles. No preset = classic dark sky. Best workflow: give Claude an
+   inspiration image; palette and mood translate directly into preset values.
+3. Skin: a preset per generator (`Tools/generate_piece_sprites.py`,
+   `generate_ground_sprite.py`) writing to `Resources/Skins/<Theme>/`; set the theme's
+   `skinFolder`. Missing files fall back to Classic file-by-file, so a ground-only skin
+   is fine.
+4. Music: 1–2 tracks in `Assets/Audio/Music/`, dragged onto `musicPlaylist`
+   (looped in order; survives level restarts within the theme). Specs in ART.md.
+5. Levels: per the "New level" recipe, each with a one-sentence `instruction`.
+   Locks/unlocks and menu placement come automatically from `sortOrder` + completion.
 
 **"1-grid floor, stack 5" level:** mode with `floorSegments: columnCount 1` + level with
 `targetType: PlaceBlocks`, `targetValue: 5`. Pure settings — no code.

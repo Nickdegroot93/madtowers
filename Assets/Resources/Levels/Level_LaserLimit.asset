@@ -18,6 +18,3 @@ MonoBehaviour:
   targetValue: 52
   modifiers:
   - {fileID: 11400000, guid: 4191f3fccd90469ea9adb55493cc2e3b, type: 2}
-  backgroundImage: {fileID: 0}
-  backgroundTint: {r: 0.07, g: 0.06, b: 0.13, a: 1}
-  music: {fileID: 0}

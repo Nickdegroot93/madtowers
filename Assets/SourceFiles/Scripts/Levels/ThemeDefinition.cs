@@ -19,9 +19,11 @@ public class ThemeDefinition : ScriptableObject
     [SerializeField] private LevelDefinition[] levels;
 
     [Header("Presentation (shared by all levels in the theme)")]
-    [SerializeField] private Sprite backgroundImage;
-    [SerializeField] private Color backgroundTint = Color.white;
+    [Tooltip("Layered backdrop (sky/clouds/hills/particles). Empty = the classic dark sky.")]
+    [SerializeField] private BackdropPreset backdrop;
     [SerializeField] private AudioClip music;
+    [Tooltip("Theme soundtrack, played in order and looped as a whole (A, B, A, B...). Takes priority over the single 'music' clip above.")]
+    [SerializeField] private AudioClip[] musicPlaylist;
     [Tooltip("Resources folder with this theme's generated skin (blocks/ground/laser). Empty = Skins/Classic. See ART.md.")]
     [SerializeField] private string skinFolder = "";
 
@@ -36,9 +38,13 @@ public class ThemeDefinition : ScriptableObject
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public int SortOrder => sortOrder;
     public IReadOnlyList<LevelDefinition> Levels => levels;
-    public Sprite BackgroundImage => backgroundImage;
-    public Color BackgroundTint => backgroundTint;
+    public BackdropPreset Backdrop => backdrop;
     public AudioClip Music => music;
+    /// <summary>The playlist if authored, else the single music clip wrapped, else empty.</summary>
+    public IReadOnlyList<AudioClip> MusicPlaylist =>
+        musicPlaylist != null && musicPlaylist.Length > 0
+            ? musicPlaylist
+            : (music != null ? new[] { music } : System.Array.Empty<AudioClip>());
     public string SkinFolder => string.IsNullOrWhiteSpace(skinFolder) ? "Skins/Classic" : skinFolder;
     public bool AlwaysUnlocked => alwaysUnlocked;
     public IReadOnlyList<PowerUpDefinition> FeaturedUnlocks => featuredUnlocks;

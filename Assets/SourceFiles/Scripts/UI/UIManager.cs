@@ -80,6 +80,17 @@ public class UIManager : MonoBehaviour
         {
             Instance = null;
         }
+
+        // Ghost sprites are generated HideAndDontSave copies (they survive scene loads);
+        // destroy the ones we created - never the source piece sprites (cache stores the
+        // source itself when the texture wasn't readable).
+        foreach (Sprite ghost in _ghostSprites.Values)
+        {
+            if (ghost == null || !ghost.texture.hideFlags.HasFlag(HideFlags.HideAndDontSave)) continue;
+            Destroy(ghost.texture);
+            Destroy(ghost);
+        }
+        _ghostSprites.Clear();
     }
 
     private void Start()
@@ -87,7 +98,9 @@ public class UIManager : MonoBehaviour
         if (GameManager.Instance != null)
         {
             HandleScoreChanged(GameManager.Instance.score);
-            HandleHeightChanged(GameManager.Instance.maxHeight);
+            // towerHeight (meters above the floor), not maxHeight (world Y - the floor sits
+            // at -11.5 world, which briefly showed as "-11.5m" before the first block).
+            HandleHeightChanged(GameManager.Instance.towerHeight);
             HandleLivesChanged(GameManager.Instance.lives);
         }
 

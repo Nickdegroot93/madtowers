@@ -18,9 +18,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 212222f8f4a448d2a34c6f76b115e0f9, type: 2}
   - {fileID: 11400000, guid: c4c0c6b052f2430b9f59c3235f27ca65, type: 2}
   - {fileID: 11400000, guid: fa48cbc697054c88a9f1450c833c5c86, type: 2}
-  backgroundImage: {fileID: 0}
-  backgroundTint: {r: 1, g: 1, b: 1, a: 1}
+  backdrop: {fileID: 11400000, guid: 81bf3e369c494d24ab5b899b0bde39c8, type: 2}
   music: {fileID: 0}
-  skinFolder: 
+  skinFolder: Skins/TrainingWheels
   alwaysUnlocked: 0
   featuredUnlocks: []

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Procedurally renders the floor base sprite for a theme. Two Classic variants:
+"""Procedurally renders the floor base sprite per theme:
 
-  ground.png        - stone tower base with brick courses and a door (active)
-  render_hill()     - grassy brown hill preset, currently unused (kept as a
-                      starting point for nature-flavored themes)
+  Skins/Classic/ground.png        - stone tower base (render_tower)
+  Skins/TrainingWheels/ground.png - desert adobe house (render_adobe)
+  render_hill()                   - grassy brown hill preset, currently unused
 
-Pure stdlib, deterministic. Output: Assets/Resources/Skins/Classic/ at 128 px/unit.
+Pure stdlib, deterministic. Output at 128 px/unit.
 
-Layout contract with PlayAreaController.ApplyGroundSkin (both variants):
+Layout contract with PlayAreaController.ApplyGroundSkin (every variant):
 - the flat plateau spans PLATEAU_FRACTION (0.85) of the canvas width, centered
 - the plateau surface is the exact top edge of the canvas
 Shared style rules live in STYLE.md (outline = 30% value, top bevel, gradient).
@@ -19,8 +19,8 @@ W, H = 2080, 1568              # 16.25 x 12.25 world units
 PLATEAU = 1768                 # px; PLATEAU_FRACTION = 1768/2080 = 0.85
 OUTLINE = 14
 
-OUT_DIR = os.path.join(os.path.dirname(__file__), "..",
-                       "Assets", "Resources", "Skins", "Classic")
+SKINS_DIR = os.path.join(os.path.dirname(__file__), "..", "Assets", "Resources", "Skins")
+OUT_DIR = os.path.join(SKINS_DIR, "Classic")
 
 
 # ---------- shared helpers ----------
@@ -274,6 +274,125 @@ def render_tower():
     print(f"{out}  (tower, {W}x{H}, plateau fraction {PLATEAU / W})")
 
 
+# ---------- variant C: desert adobe house (Training Wheels) ----------
+
+def render_adobe():
+    """Flat desert-adobe house (Monument-Valley inspired): tan tiled platform on cream
+    plaster walls with a terracotta trim band, a rectangular terracotta-framed doorway,
+    blue windows, and slim cypress plants. Crisp axis-aligned style, warm outline."""
+    cx = W / 2
+    PLASTER = (243, 231, 206)
+    TERRA = (191, 103, 67)
+    TILE = (202, 172, 130)
+    DOOR_DARK = (44, 52, 66)
+    GLASS = (36, 62, 94)
+    PLANT = (74, 110, 66)
+    outline_col = (84, 64, 46)
+
+    SLAB_H = 96
+    TILE_W = 190
+    JOINT = 7
+    body_hw = PLATEAU / 2 - 170
+
+    door_half = 95
+    band2_top = SLAB_H + 660      # second-story trim line
+    found_top = SLAB_H + 1080     # tiled foundation from here to the canvas bottom
+    door_top, door_bot = SLAB_H + 120, SLAB_H + 1080  # doorway reaches the foundation
+    win_half = 58
+    wins = [(cx - body_hw * 0.55, SLAB_H + 260), (cx + body_hw * 0.55, SLAB_H + 260),
+            (cx - body_hw * 0.55, SLAB_H + 850), (cx + body_hw * 0.55, SLAB_H + 850)]
+    plant_half, plant_top, plant_bot = 34, SLAB_H + 250, SLAB_H + 1080
+    plants = [cx - door_half - 70, cx + door_half + 70]
+    pilaster_x = door_half + 130  # terracotta accents flanking the doorway, lower story
+
+    slab_l, slab_r = int(cx - PLATEAU / 2), int(cx + PLATEAU / 2)
+    body_l, body_r = int(cx - body_hw), int(cx + body_hw)
+
+    px = bytearray(W * H * 4)
+    for y in range(H):
+        grad = 1.04 - 0.26 * (y / H)
+        in_slab_row = y < SLAB_H
+        xl, xr = (slab_l, slab_r) if in_slab_row else (body_l, body_r)
+        for x in range(xl, xr):
+            if in_slab_row:
+                edge = min(x - slab_l, slab_r - 1 - x, y, SLAB_H - 1 - y)
+                if edge < OUTLINE:
+                    rr, gg, bb = (c * grad for c in outline_col)
+                else:
+                    rr, gg, bb = (TILE[0] * grad, TILE[1] * grad, TILE[2] * grad)
+                    if y < OUTLINE + 16:  # sunlit top
+                        rr, gg, bb = rr * 1.14, gg * 1.14, bb * 1.14
+                    # staggered tile joints (two half-height rows, offset like hex pavers)
+                    row = 0 if y < SLAB_H // 2 else 1
+                    if (x - slab_l + row * TILE_W // 2) % TILE_W < JOINT:
+                        rr, gg, bb = (c * grad for c in outline_col)
+                    if row == 1 and abs(y - SLAB_H // 2) < JOINT // 2:
+                        rr, gg, bb = (c * grad for c in outline_col)
+            else:
+                edge = min(x - body_l, body_r - 1 - x, y - SLAB_H)
+                if edge < OUTLINE:
+                    rr, gg, bb = (c * grad for c in outline_col)
+                else:
+                    rr, gg, bb = (PLASTER[0] * grad, PLASTER[1] * grad, PLASTER[2] * grad)
+                    # terracotta trim bands: under the platform + second-story divider
+                    if (y - SLAB_H) < OUTLINE + 26 or band2_top <= y < band2_top + 26:
+                        rr, gg, bb = (TERRA[0] * grad, TERRA[1] * grad, TERRA[2] * grad)
+                    dx = x - cx
+                    # pilaster accents flanking the doorway on the lower story
+                    if abs(abs(dx) - pilaster_x) < 14 and band2_top + 26 <= y < found_top:
+                        rr, gg, bb = (TERRA[0] * grad, TERRA[1] * grad, TERRA[2] * grad)
+                    # rectangular doorway with terracotta frame
+                    if abs(dx) < door_half and door_top <= y < door_bot:
+                        # frame on sides and top only - the opening runs past the
+                        # visible bottom, reading as a true doorway
+                        de = min(door_half - abs(dx), y - door_top)
+                        if de < 14:
+                            rr, gg, bb = (TERRA[0] * grad, TERRA[1] * grad, TERRA[2] * grad)
+                        else:
+                            rr, gg, bb = DOOR_DARK
+                    # windows: terracotta frame, blue glass, plaster cross bars
+                    for wx, wy in wins:
+                        ax, ay = abs(x - wx), abs(y - wy)
+                        if ax < win_half and ay < win_half:
+                            if ax > win_half - 12 or ay > win_half - 12:
+                                rr, gg, bb = (TERRA[0] * grad, TERRA[1] * grad, TERRA[2] * grad)
+                            elif ax < 4 or ay < 4:
+                                rr, gg, bb = (PLASTER[0] * grad, PLASTER[1] * grad, PLASTER[2] * grad)
+                            else:
+                                rr, gg, bb = GLASS
+                            break
+                    # slim cypress plants beside the door (capsule: circle cap + column)
+                    for px_ in plants:
+                        axp = abs(x - px_)
+                        if axp < plant_half and plant_top <= y < plant_bot:
+                            cap = (axp / plant_half) ** 2 + ((y - (plant_top + plant_half)) / plant_half) ** 2
+                            if y >= plant_top + plant_half or cap <= 1.0:
+                                shade = 1.0 - 0.15 * (axp / plant_half)
+                                rr, gg, bb = (PLANT[0] * grad * shade, PLANT[1] * grad * shade, PLANT[2] * grad * shade)
+                            break
+                    # tiled foundation strip down to the canvas bottom
+                    if y >= found_top:
+                        if y - found_top < 10:
+                            rr, gg, bb = (c * grad for c in outline_col)
+                        else:
+                            f2 = 0.92
+                            rr, gg, bb = (TILE[0] * grad * f2, TILE[1] * grad * f2, TILE[2] * grad * f2)
+                            frow = (y - found_top) // 110
+                            if (x - body_l + int(frow) * TILE_W // 2) % TILE_W < JOINT or \
+                                    (y - found_top) % 110 < JOINT // 2 + 3:
+                                rr, gg, bb = (c * grad for c in outline_col)
+
+            f = grain(x, y)
+            put(px, x, y, rr * f, gg * f, bb * f, 1.0)
+
+    out_dir = os.path.join(SKINS_DIR, "TrainingWheels")
+    os.makedirs(out_dir, exist_ok=True)
+    out = os.path.abspath(os.path.join(out_dir, "ground.png"))
+    write_png(out, W, H, px)
+    print(f"{out}  (adobe, {W}x{H}, plateau fraction {PLATEAU / W})")
+
+
 if __name__ == "__main__":
     os.makedirs(OUT_DIR, exist_ok=True)
     render_tower()
+    render_adobe()

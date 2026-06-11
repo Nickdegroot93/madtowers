@@ -41,9 +41,11 @@ public class GameManager : MonoBehaviour
         {
             Instance = this;
             BlockController.ResetRuntimeState();
-            // Theme skin must resolve before any skinned visual loads (the floor's ground
-            // skin is applied just below; block skins load at first spawn).
-            ThemeSkins.ApplyForLevel(LevelSelectionState.SelectedLevel);
+            // Resolve the active theme once; skin must apply before any skinned visual
+            // loads (the floor's ground skin is applied just below; block skins at spawn).
+            ThemeDefinition activeTheme = Campaign.FindThemeOf(LevelSelectionState.SelectedLevel);
+            ThemeSkins.Apply(activeTheme);
+            MusicPlayer.PlayForTheme(activeTheme);
             PlayAreaController playAreaController = Object.FindAnyObjectByType<PlayAreaController>();
             if (playAreaController != null)
             {

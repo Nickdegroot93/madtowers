@@ -14,6 +14,3 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   displayName: Sky Platforms
   gameModeConfig: {fileID: 11400000, guid: b3fdb64a8a7c4ebe9cd49b0e859df7a3, type: 2}
-  backgroundImage: {fileID: 0}
-  backgroundTint: {r: 0.045, g: 0.11, b: 0.105, a: 1}
-  music: {fileID: 0}

@@ -17,6 +17,3 @@ MonoBehaviour:
   targetType: 2
   targetValue: 10
   modifiers: []
-  backgroundImage: {fileID: 0}
-  backgroundTint: {r: 0.055, g: 0.09, b: 0.12, a: 1}
-  music: {fileID: 0}

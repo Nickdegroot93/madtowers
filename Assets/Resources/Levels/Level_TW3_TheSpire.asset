@@ -16,7 +16,5 @@ MonoBehaviour:
   gameModeConfig: {fileID: 11400000, guid: c22636cd5cec49bbaa438ba699481dfc, type: 2}
   targetType: 2
   targetValue: 10
+  instruction: A tiny base, a tall goal. Reach 10 meters!
   modifiers: []
-  backgroundImage: {fileID: 0}
-  backgroundTint: {r: 0.055, g: 0.09, b: 0.12, a: 1}
-  music: {fileID: 0}

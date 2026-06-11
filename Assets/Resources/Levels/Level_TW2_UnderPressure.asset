@@ -16,8 +16,6 @@ MonoBehaviour:
   gameModeConfig: {fileID: 11400000, guid: bd1c62ac13cb4aafaf91929f5f3f4941, type: 2}
   targetType: 1
   targetValue: 52
+  instruction: Clear every wave of bricks - keep your tower under the laser!
   modifiers:
   - {fileID: 11400000, guid: 4191f3fccd90469ea9adb55493cc2e3b, type: 2}
-  backgroundImage: {fileID: 0}
-  backgroundTint: {r: 0.07, g: 0.06, b: 0.13, a: 1}
-  music: {fileID: 0}

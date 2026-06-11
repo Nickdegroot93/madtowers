@@ -16,8 +16,6 @@ MonoBehaviour:
   sortOrder: 20
   levels:
   - {fileID: 11400000, guid: 6ab485f04e87489caaeb4bea7d943736, type: 2}
-  backgroundImage: {fileID: 0}
-  backgroundTint: {r: 1, g: 1, b: 1, a: 1}
   music: {fileID: 0}
   skinFolder: 
   alwaysUnlocked: 0

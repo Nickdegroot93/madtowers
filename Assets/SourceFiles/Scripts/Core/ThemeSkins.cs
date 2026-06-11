@@ -17,33 +17,40 @@ public static class ThemeSkins
     public static string Folder = "Skins/Classic";
 
     /// <summary>
-    /// Point the skin at the theme owning the given level. Must run before the first
+    /// Point the skin at the given theme (null = Classic). Must run before the first
     /// skinned visual loads (GameManager.Awake does, before the floor is configured).
     /// </summary>
-    public static void ApplyForLevel(LevelDefinition level)
+    public static void Apply(ThemeDefinition theme)
     {
-        ThemeDefinition theme = Campaign.FindThemeOf(level);
-        Folder = theme != null ? theme.SkinFolder : "Skins/Classic";
+        Folder = theme != null ? theme.SkinFolder : FallbackFolder;
     }
+
+    private const string FallbackFolder = "Skins/Classic";
 
     /// <summary>Whole-piece sprite for a tetromino shape ("T" -> piece_T), or null.</summary>
     public static Sprite LoadPiece(string shape)
     {
-        return string.IsNullOrEmpty(Folder) || string.IsNullOrEmpty(shape)
-            ? null
-            : Resources.Load<Sprite>($"{Folder}/piece_{shape}");
+        return string.IsNullOrEmpty(shape) ? null : LoadWithFallback($"piece_{shape}");
     }
 
-    /// <summary>The ground "mountain" the tower stands on, or null.</summary>
-    public static Sprite LoadGround()
-    {
-        return string.IsNullOrEmpty(Folder) ? null : Resources.Load<Sprite>($"{Folder}/ground");
-    }
+    /// <summary>The ground base the tower stands on, or null.</summary>
+    public static Sprite LoadGround() => LoadWithFallback("ground");
 
     /// <summary>Optional themed art for the height-limit laser line, or null.</summary>
-    public static Sprite LoadLaser()
+    public static Sprite LoadLaser() => LoadWithFallback("laser");
+
+    // Partial skins are legal (ART.md: "only supply what should differ"): a theme folder
+    // overrides file-by-file and everything else falls back to the Classic skin.
+    private static Sprite LoadWithFallback(string fileName)
     {
-        return string.IsNullOrEmpty(Folder) ? null : Resources.Load<Sprite>($"{Folder}/laser");
+        Sprite sprite = string.IsNullOrEmpty(Folder)
+            ? null
+            : Resources.Load<Sprite>($"{Folder}/{fileName}");
+        if (sprite == null && Folder != FallbackFolder)
+        {
+            sprite = Resources.Load<Sprite>($"{FallbackFolder}/{fileName}");
+        }
+        return sprite;
     }
 
     /// <summary>

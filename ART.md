@@ -58,17 +58,26 @@ transparent icon per special type, drawn as a bold, readable symbol.
 Keep ~24px of empty margin around the symbol. White or light icons work best
 (they get a subtle dark outline in code for readability).
 
-## 3. Background (parallax, scrolls as the tower grows)
+## 3. Background (layered, no images)
 
-You do **not** need one giant looping image. The camera only moves **up**, so
-the background is layered and code handles infinite height:
+Backgrounds are **not images** — each theme has a `BackdropPreset` asset
+(`Assets/Data/Backdrops/`, assigned to the theme's `backdrop` field) that
+composes generated layers at runtime:
 
-| File | Size | Transparent? | What it is / how code uses it |
-|---|---|---|---|
-| `bg_sky.png` | 1080×2160 | No | Tall vertical gradient/painting (ground mood at bottom → sky at top). Code stretches it and fades the top edge into a solid color it keeps using forever, so it never "runs out" as you climb. Keep the **top ~200px close to one flat color**. |
-| `bg_far.png` | 1080×~800 | Yes (transparent top) | Distant silhouette anchored at the bottom of the world: skyline, mountains, treeline. Scrolls away slowly (parallax) and disappears as you climb. |
-| `bg_mid.png` | 1080×~600 | Yes (transparent top) | Optional second silhouette layer, closer/darker than `bg_far`, for depth. |
-| `cloud_01.png` … `cloud_04.png` | ~512×300 each | Yes | Individual clouds (or birds, balloons, floating debris — theme-dependent). Code spawns and drifts these procedurally at all heights, so 4 loose sprites = infinite varied sky. Soft edges are fine. |
+- **Sky**: vertical gradient glued to the camera, crossfading to a second
+  "high altitude" color pair as the tower climbs (`altitudeFadeMeters`).
+- **Clouds**: procedural sprites drifting horizontally, recycled around the
+  camera — infinite height coverage from zero assets. Count/color/speed/scale
+  per preset.
+- **Hills**: ground-level silhouettes with slight parallax that sink out of
+  view as you climb (the ground vanishes; only sky and clouds remain).
+- **Ambient particles**: falling, swaying soft dots — snow, petals, embers are
+  the same system with different color/size/speed numbers.
+
+A theme without a preset gets the classic dark sky. To design a new theme's
+backdrop, give Claude an **inspiration image** (screenshot, painting, photo) —
+palette and mood translate directly into preset values. Hand-made art can
+still join later as additional layers if a hero theme needs it.
 
 ## 4. Ground / floor
 
@@ -127,7 +136,15 @@ just "fill the folder again."
 
 ---
 
-## 8. Sound effects
+## 8. Music
+
+Per theme: 1–2 tracks (**OGG or MP3, 44.1kHz**, matched loudness), dropped in
+`Assets/Audio/Music/` and assigned to the theme's `musicPlaylist` (played in
+order, looped as a whole: A → B → A …). Music survives level restarts within a
+theme and only changes when the theme changes. License: CC0, CC-BY (credits
+screen later), or owned.
+
+## 9. Sound effects
 
 **Generated, not sourced** — `Tools/generate_sfx.py` synthesizes the SFX (16-bit WAVs)
 into `Assets/Resources/Audio/Sfx/`; playback goes through `SfxPlayer`
@@ -142,6 +159,8 @@ is a separate future system (per-theme tracks, ducking).
 
 - Generating the block and ground sprites (`Tools/generate_piece_sprites.py`,
   `Tools/generate_ground_sprite.py`)
+- The entire layered backdrop (sky gradient + altitude crossfade, clouds, hill/mesa
+  silhouettes, ambient particles) — per-theme `BackdropPreset` data, zero image assets
 - Wiring each shape's sprite onto the physics piece (colliders never change)
 - Per-theme block skins; runtime tints/sprite-swaps for power-ups (e.g. cement)
 - Vertical parallax (sky stretch/fade, silhouette layers, procedural clouds)

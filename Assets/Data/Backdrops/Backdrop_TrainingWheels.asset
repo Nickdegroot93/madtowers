@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6a09387ee174200b39a756e32adb89b, type: 3}
+  m_Name: Backdrop_TrainingWheels
+  m_EditorClassIdentifier: Assembly-CSharp::BackdropPreset
+  skyTopLow: {r: 0.07, g: 0.44, b: 0.8, a: 1}
+  skyBottomLow: {r: 0.75, g: 0.91, b: 0.98, a: 1}
+  skyTopHigh: {r: 0.03, g: 0.26, b: 0.56, a: 1}
+  skyBottomHigh: {r: 0.25, g: 0.55, b: 0.83, a: 1}
+  altitudeFadeMeters: 40
+  cloudCount: 5
+  cloudStyle: 1
+  cloudColor: {r: 0.97, g: 0.94, b: 0.87, a: 0.9}
+  cloudDriftSpeed: 0.1
+  cloudScaleRange: {x: 1.5, y: 3}
+  hillsEnabled: 0
+  hillStyle: 1
+  hillFarColor: {r: 0.6, g: 0.81, b: 0.94, a: 1}
+  hillNearColor: {r: 0.55, g: 0.78, b: 0.93, a: 1}
+  particleCount: 0
+  particleColor: {r: 0.98, g: 0.74, b: 0.84, a: 0.85}
+  particleSize: 0.14
+  particleFallSpeed: 0.7
+  particleSwayAmount: 0.8

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 /// <summary>
 /// Runs the selected level's meta layer: drives its LevelModifiers, tracks the win target,
@@ -27,6 +28,55 @@ public class LevelRuntimeController : MonoBehaviour
         };
 
         StartModifiers();
+
+        if (_level != null && !string.IsNullOrWhiteSpace(_level.Instruction))
+        {
+            StartCoroutine(ShowInstructionBanner(_level.Instruction));
+        }
+    }
+
+    // One-sentence goal banner in the upper third at level start: fade in, hold, fade out.
+    // Unscaled time so it behaves the same if the level opens paused (power-up choice etc.).
+    private System.Collections.IEnumerator ShowInstructionBanner(string text)
+    {
+        GameObject root = RuntimeUiKit.CreateOverlayCanvas("Level Instruction", 3000);
+
+        GameObject strip = new GameObject("Strip");
+        strip.transform.SetParent(root.transform, false);
+        RectTransform stripRect = strip.AddComponent<RectTransform>();
+        stripRect.anchorMin = new Vector2(0f, 0.74f);
+        stripRect.anchorMax = new Vector2(1f, 0.74f);
+        stripRect.pivot = new Vector2(0.5f, 0.5f);
+        stripRect.sizeDelta = new Vector2(0f, 150f);
+        Image background = strip.AddComponent<Image>();
+        background.color = new Color(0.03f, 0.05f, 0.07f, 0.62f);
+        background.raycastTarget = false;
+
+        Text label = RuntimeUiKit.CreateLabel(strip.transform, text, 38, 150f,
+            FontStyle.Bold, RuntimeUiKit.TitleColor);
+        RectTransform labelRect = label.rectTransform;
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = new Vector2(40f, 0f);
+        labelRect.offsetMax = new Vector2(-40f, 0f);
+
+        CanvasGroup group = root.AddComponent<CanvasGroup>();
+        group.blocksRaycasts = false;
+
+        const float fadeIn = 0.35f, hold = 2.8f, fadeOut = 0.8f;
+        for (float t = 0f; t < fadeIn; t += Time.unscaledDeltaTime)
+        {
+            group.alpha = t / fadeIn;
+            yield return null;
+        }
+        group.alpha = 1f;
+        yield return new WaitForSecondsRealtime(hold);
+        for (float t = 0f; t < fadeOut; t += Time.unscaledDeltaTime)
+        {
+            group.alpha = 1f - t / fadeOut;
+            yield return null;
+        }
+        Destroy(root);
     }
 
     private void OnEnable()
