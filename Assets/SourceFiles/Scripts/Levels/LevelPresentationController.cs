@@ -30,24 +30,10 @@ public class LevelPresentationController : MonoBehaviour
         if (level == null) return null;
         if (_resolvedThemeLevel == level) return _resolvedTheme;
 
+        // Cached: this runs from LateUpdate every frame, FindThemeOf scans assets.
         _resolvedThemeLevel = level;
-        _resolvedTheme = null;
-        ThemeDefinition[] themes = Resources.LoadAll<ThemeDefinition>("Themes");
-        for (int themeIndex = 0; themeIndex < themes.Length; themeIndex++)
-        {
-            ThemeDefinition theme = themes[themeIndex];
-            if (theme.Levels == null) continue;
-
-            for (int i = 0; i < theme.Levels.Count; i++)
-            {
-                if (theme.Levels[i] != level) continue;
-
-                _resolvedTheme = theme;
-                return _resolvedTheme;
-            }
-        }
-
-        return null;
+        _resolvedTheme = Campaign.FindThemeOf(level);
+        return _resolvedTheme;
     }
 
     private void ApplyPresentation()

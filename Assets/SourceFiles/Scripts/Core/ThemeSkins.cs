@@ -16,6 +16,16 @@ public static class ThemeSkins
     /// <summary>Resources folder of the active theme's skin.</summary>
     public static string Folder = "Skins/Classic";
 
+    /// <summary>
+    /// Point the skin at the theme owning the given level. Must run before the first
+    /// skinned visual loads (GameManager.Awake does, before the floor is configured).
+    /// </summary>
+    public static void ApplyForLevel(LevelDefinition level)
+    {
+        ThemeDefinition theme = Campaign.FindThemeOf(level);
+        Folder = theme != null ? theme.SkinFolder : "Skins/Classic";
+    }
+
     /// <summary>Whole-piece sprite for a tetromino shape ("T" -> piece_T), or null.</summary>
     public static Sprite LoadPiece(string shape)
     {

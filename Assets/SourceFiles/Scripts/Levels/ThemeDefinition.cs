@@ -22,6 +22,12 @@ public class ThemeDefinition : ScriptableObject
     [SerializeField] private Sprite backgroundImage;
     [SerializeField] private Color backgroundTint = Color.white;
     [SerializeField] private AudioClip music;
+    [Tooltip("Resources folder with this theme's generated skin (blocks/ground/laser). Empty = Skins/Classic. See ART.md.")]
+    [SerializeField] private string skinFolder = "";
+
+    [Header("Progression")]
+    [Tooltip("Always playable regardless of campaign progress (testing/sandbox themes).")]
+    [SerializeField] private bool alwaysUnlocked = false;
 
     [Header("Unlocks")]
     [Tooltip("Power-ups that become part of the game from this theme onward. Shown as 'NEW!' when the theme unlocks; actual availability is authored in each level's power-up pool.")]
@@ -33,6 +39,8 @@ public class ThemeDefinition : ScriptableObject
     public Sprite BackgroundImage => backgroundImage;
     public Color BackgroundTint => backgroundTint;
     public AudioClip Music => music;
+    public string SkinFolder => string.IsNullOrWhiteSpace(skinFolder) ? "Skins/Classic" : skinFolder;
+    public bool AlwaysUnlocked => alwaysUnlocked;
     public IReadOnlyList<PowerUpDefinition> FeaturedUnlocks => featuredUnlocks;
 
     /// <summary>The level after the given one within this theme, or null if it was the last.</summary>

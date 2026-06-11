@@ -82,6 +82,56 @@ public static class RuntimeUiKit
         return panel;
     }
 
+    /// <summary>
+    /// A fixed-size panel whose children scroll vertically - for lists that can outgrow
+    /// the screen (level select). Add rows to <paramref name="content"/>; it sizes itself
+    /// to its children and the panel clips + scrolls.
+    /// </summary>
+    public static GameObject CreateScrollColumn(Transform canvasRoot, Vector2 size, out Transform content)
+    {
+        GameObject panel = new GameObject("ScrollPanel");
+        panel.transform.SetParent(canvasRoot, false);
+        RectTransform panelRect = panel.AddComponent<RectTransform>();
+        panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+        panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+        panelRect.pivot = new Vector2(0.5f, 0.5f);
+        panelRect.sizeDelta = size;
+
+        Image background = panel.AddComponent<Image>();
+        background.color = PanelColor;
+        panel.AddComponent<RectMask2D>();
+
+        GameObject contentObject = new GameObject("Content");
+        contentObject.transform.SetParent(panel.transform, false);
+        RectTransform contentRect = contentObject.AddComponent<RectTransform>();
+        contentRect.anchorMin = new Vector2(0f, 1f);
+        contentRect.anchorMax = new Vector2(1f, 1f);
+        contentRect.pivot = new Vector2(0.5f, 1f);
+        contentRect.anchoredPosition = Vector2.zero;
+
+        VerticalLayoutGroup layout = contentObject.AddComponent<VerticalLayoutGroup>();
+        layout.padding = new RectOffset(36, 36, 36, 36);
+        layout.spacing = 22f;
+        layout.childAlignment = TextAnchor.UpperCenter;
+        layout.childControlWidth = true;
+        layout.childControlHeight = false;
+        layout.childForceExpandWidth = true;
+        layout.childForceExpandHeight = false;
+
+        ContentSizeFitter fitter = contentObject.AddComponent<ContentSizeFitter>();
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        ScrollRect scroll = panel.AddComponent<ScrollRect>();
+        scroll.content = contentRect;
+        scroll.horizontal = false;
+        scroll.vertical = true;
+        scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = 30f;
+
+        content = contentObject.transform;
+        return panel;
+    }
+
     public static Text CreateLabel(Transform parent, string text, int fontSize, float height,
         FontStyle style, Color color, TextAnchor alignment = TextAnchor.MiddleCenter)
     {

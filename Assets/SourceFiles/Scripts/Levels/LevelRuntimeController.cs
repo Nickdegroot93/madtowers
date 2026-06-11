@@ -33,12 +33,20 @@ public class LevelRuntimeController : MonoBehaviour
     {
         GameEvents.ScoreChanged += HandleScoreChanged;
         GameEvents.HeightChanged += HandleHeightChanged;
+        GameEvents.GameOver += HandleGameOver;
     }
 
     private void OnDisable()
     {
         GameEvents.ScoreChanged -= HandleScoreChanged;
         GameEvents.HeightChanged -= HandleHeightChanged;
+        GameEvents.GameOver -= HandleGameOver;
+    }
+
+    // Personal bests are recorded at every end-of-run (monotonic - only improvements stick).
+    private void HandleGameOver(int finalScore, float maxHeightMeters)
+    {
+        if (_level != null) ProgressStore.ReportResult(_level, finalScore, maxHeightMeters);
     }
 
     private void Update()
@@ -110,6 +118,11 @@ public class LevelRuntimeController : MonoBehaviour
         if (_completed || GameManager.Instance == null || GameManager.Instance.isGameOver) return;
 
         _completed = true;
+        ProgressStore.MarkLevelCompleted(_level);
+        if (GameManager.Instance != null)
+        {
+            ProgressStore.ReportResult(_level, GameManager.Instance.score, GameManager.Instance.towerHeight);
+        }
         GameEvents.RaiseLevelCompleted(_level);
 
         if (GameManager.Instance.IsGamePaused)
@@ -132,16 +145,8 @@ public class LevelRuntimeController : MonoBehaviour
 
     private LevelDefinition FindNextLevelInTheme()
     {
-        if (_level == null) return null;
-
-        ThemeDefinition[] themes = Resources.LoadAll<ThemeDefinition>("Themes");
-        for (int i = 0; i < themes.Length; i++)
-        {
-            LevelDefinition next = themes[i].GetNextLevel(_level);
-            if (next != null) return next;
-        }
-
-        return null;
+        ThemeDefinition theme = Campaign.FindThemeOf(_level);
+        return theme != null ? theme.GetNextLevel(_level) : null;
     }
 
     private void LoadLevel(LevelDefinition level)

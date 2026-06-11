@@ -10,19 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ccb180f7c3a343d394214cd43034c5c1, type: 3}
-  m_Name: Theme_TestingGrounds
+  m_Name: Theme_TrainingWheels
   m_EditorClassIdentifier: Assembly-CSharp::ThemeDefinition
-  displayName: Testing Grounds
-  sortOrder: 1000
+  displayName: Training Wheels
+  sortOrder: 10
   levels:
-  - {fileID: 11400000, guid: eebcd581c5ad44e786c1e50cc46e6752, type: 2}
-  - {fileID: 11400000, guid: a62838e60f4542fbb6b52921370312cd, type: 2}
-  - {fileID: 11400000, guid: 04a41c27091c48c5808cd0d6043f4822, type: 2}
-  - {fileID: 11400000, guid: 9c1d3c9c74ff4156805efaf42aecf0a0, type: 2}
-  - {fileID: 11400000, guid: d1d7b23c2d48411985fbedf8ba38d297, type: 2}
+  - {fileID: 11400000, guid: 212222f8f4a448d2a34c6f76b115e0f9, type: 2}
+  - {fileID: 11400000, guid: c4c0c6b052f2430b9f59c3235f27ca65, type: 2}
+  - {fileID: 11400000, guid: fa48cbc697054c88a9f1450c833c5c86, type: 2}
   backgroundImage: {fileID: 0}
   backgroundTint: {r: 1, g: 1, b: 1, a: 1}
   music: {fileID: 0}
   skinFolder: 
-  alwaysUnlocked: 1
+  alwaysUnlocked: 0
   featuredUnlocks: []

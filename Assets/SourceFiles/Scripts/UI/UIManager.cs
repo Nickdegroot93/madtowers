@@ -193,7 +193,8 @@ public class UIManager : MonoBehaviour
 
         // Big bold numbers, no labels, no card chrome - readable at a glance.
         PlaceCornerText(scoreText, new Vector2(0f, 1f), new Vector2(28f, -16f), TextAlignmentOptions.TopLeft);
-        PlaceCornerText(heightText, new Vector2(1f, 1f), new Vector2(-28f, -16f), TextAlignmentOptions.TopRight);
+        // Inset past the pause button (86px wide, top-right corner).
+        PlaceCornerText(heightText, new Vector2(1f, 1f), new Vector2(-118f, -16f), TextAlignmentOptions.TopRight);
 
         if (livesText != null) livesText.gameObject.SetActive(false);
         if (nextBlockText != null) nextBlockText.gameObject.SetActive(false);

@@ -105,8 +105,32 @@ touch engine code.
   no file = the code-built bar. Zapped blocks burst via the reusable `BlockShatterFx`
   (shards tinted to the laser color) plus a subtle camera impact.
 
-### Current level inventory (Testing Grounds theme)
+### Campaign structure & progression
 
+The game is a campaign of themes (chapters): themes unlock in `sortOrder` once the
+previous theme's levels are ALL completed; levels within a theme unlock sequentially.
+Rules live in `Campaign.cs` (read-side only); completions and personal bests persist via
+`ProgressStore` (see **DATA.md** for the persistence architecture and cloud-sync plan).
+A theme with `alwaysUnlocked: true` is a sandbox — always playable, never gates the
+campaign (that's Testing Grounds, parked at sortOrder 1000).
+Each theme's `skinFolder` drives all generated art (blocks/ground/laser) via
+`ThemeSkins`; empty = Classic skin.
+
+### Current level inventory
+
+**Theme: Training Wheels (sortOrder 10)**
+| Level | Mode | Goal | Notes |
+|---|---|---|---|
+| Foundations | GameMode_Classic | Place 100 | Plain stacking endurance. |
+| Under Pressure | GameMode_LaserLimit | Place 52 | Height-limit waves (4 waves, standard asset). |
+| The Spire | GameMode_Spire | Reach 10m | 4-column floor climb. |
+
+**Theme: Ice (sortOrder 20)** — placeholder until ice art/music exists (`skinFolder` empty = Classic look)
+| Level | Mode | Goal | Notes |
+|---|---|---|---|
+| Frostbite | GameMode_Frostbite | Reach 15m | Classic + ambient Ice 10%. |
+
+**Theme: Testing Grounds (sortOrder 1000, alwaysUnlocked)** — sandboxes, not part of the campaign
 | Level | Mode asset | Goal | What's different |
 |---|---|---|---|
 | Classic | GameMode_Classic | Reach 10m | The baseline (canonical values in §2). |
@@ -275,9 +299,8 @@ Already possible with today's data (no code):
 
 Needs code (rough effort, all fit the existing hooks):
 
-- **Theme/level unlock persistence** (medium) — themes and completion exist; saving which
-  levels are beaten (PlayerPrefs or a save file) and locking later themes in the menu is the
-  next milestone before this becomes a real campaign.
+- ~~**Theme/level unlock persistence**~~ — done: `ProgressStore` (local JSON, cloud-sync
+  ready — see DATA.md) + `Campaign` lock rules + menu locks/checkmarks/personal bests.
 - **Wind gusts** (small) — a LevelModifier like Earthquake but with telegraphed directional pushes. Watch PHYSICS.md I1: forces only, never positions.
 - ~~**Bomb brick**~~ — done: Bomb variant (1s fuse, chain-deletes touching blocks). Use via ambient chance or a cursed power-up.
 - **Brittle brick** (medium) — breaks into single cells when load exceeds a threshold.

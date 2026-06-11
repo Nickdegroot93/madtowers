@@ -41,6 +41,9 @@ public class GameManager : MonoBehaviour
         {
             Instance = this;
             BlockController.ResetRuntimeState();
+            // Theme skin must resolve before any skinned visual loads (the floor's ground
+            // skin is applied just below; block skins load at first spawn).
+            ThemeSkins.ApplyForLevel(LevelSelectionState.SelectedLevel);
             PlayAreaController playAreaController = Object.FindAnyObjectByType<PlayAreaController>();
             if (playAreaController != null)
             {
@@ -59,6 +62,10 @@ public class GameManager : MonoBehaviour
             if (GetComponent<PowerUpChoiceController>() == null)
             {
                 gameObject.AddComponent<PowerUpChoiceController>();
+            }
+            if (GetComponent<PauseMenuController>() == null)
+            {
+                gameObject.AddComponent<PauseMenuController>();
             }
             if (GetComponent<LevelRuntimeController>() == null)
             {
