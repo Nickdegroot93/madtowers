@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 441b8ad77b4948f0af95820f8275ed2a, type: 3}
+  m_Name: Level_D2_Mirage
+  m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
+  displayName: Mirage
+  gameModeConfig: {fileID: 11400000, guid: bd1c62ac13cb4aafaf91929f5f3f4941, type: 2}
+  targetType: 1
+  targetValue: 52
+  instruction: Clear every wave - stay under the shimmering laser!
+  modifiers:
+  - {fileID: 11400000, guid: 4191f3fccd90469ea9adb55493cc2e3b, type: 2}

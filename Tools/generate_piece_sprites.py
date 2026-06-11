@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Procedurally renders Tricky-Towers-style whole-piece tetromino sprites.
+"""Procedurally renders Tricky-Towers-style whole-piece tetromino sprites, PER THEME.
 
-Pure stdlib (no PIL). Output: piece_X.png into Assets/Resources/BlockSkins/Classic/.
-Style: rounded silhouette, dark colored outline, vertical gradient, top bevel
-highlight, per-cell brightness panels, embossed crack lines along cell seams.
-Deterministic per shape (seeded) so regeneration is stable.
+Pure stdlib (no PIL). Output: piece_X.png into Assets/Resources/Skins/<Theme>/ for each
+entry in THEME_PRESETS. A theme without its own entry falls back to the Classic pieces
+at runtime (ThemeSkins fallback chain) - adding a block look for a theme = adding one
+preset dict here and rerunning. Style per piece: rounded silhouette, dark colored
+outline, vertical gradient, top bevel highlight, embossed crack lines along cell seams.
+Deterministic per shape (seeded) so regeneration is stable. Style rules: STYLE.md
+(the 7 shapes keep their hue identities in every theme - shift saturation/value only).
 """
 import zlib, struct, math, random, os
 
@@ -13,8 +16,25 @@ R = 22            # silhouette corner radius (px)
 OUTLINE = 13      # outline thickness (px)
 BEVEL = 18        # bevel band thickness inside the outline (px)
 
-OUT_DIR = os.path.join(os.path.dirname(__file__), "..",
-                       "Assets", "Resources", "Skins", "Classic")
+SKINS_DIR = os.path.join(os.path.dirname(__file__), "..", "Assets", "Resources", "Skins")
+
+# One entry per theme that wants its own block look. "colors" must keep the 7 hue
+# identities (STYLE.md); "outline" is the outline value factor (0.32 = classic).
+THEME_PRESETS = {
+    "Classic": {
+        "colors": {
+            "I": (64, 196, 222),   # cyan
+            "O": (240, 200, 60),   # yellow
+            "T": (170, 95, 205),   # purple
+            "S": (120, 195, 80),   # green
+            "Z": (228, 88, 88),    # red
+            "J": (95, 125, 225),   # blue
+            "L": (238, 152, 66),   # orange
+        },
+        "outline": 0.32,
+    },
+    # "Desert": { ... desaturated/warm-shifted hues, softer outline ... },
+}
 
 SHAPES = {  # (col,row), row 0 = top of canvas, matches prefab spawn orientation
     "I": [(0,0),(1,0),(2,0),(3,0)],
@@ -37,15 +57,6 @@ RECTS = {
     "J": [(0,1,2,1), (0,0,0,1)],
     "S": [(1,0,2,0), (0,1,1,1), (1,0,1,1)],
     "Z": [(0,0,1,0), (1,1,2,1), (1,0,1,1)],
-}
-COLORS = {
-    "I": (64, 196, 222),   # cyan
-    "O": (240, 200, 60),   # yellow
-    "T": (170, 95, 205),   # purple
-    "S": (120, 195, 80),   # green
-    "Z": (228, 88, 88),    # red
-    "J": (95, 125, 225),   # blue
-    "L": (238, 152, 66),   # orange
 }
 
 
@@ -148,15 +159,15 @@ def rasterize_lines(w, h, segs, half_width, shift_y=0.0):
     return buf
 
 
-def render(shape):
+def render(shape, preset, out_dir):
     cells = SHAPES[shape]
     rng = random.Random(shape)
     cols = max(c for c, _ in cells) + 1
     rows = max(r for _, r in cells) + 1
     w, h = cols * CELL + 2 * BLEED, rows * CELL + 2 * BLEED
     sdf = make_sdf(RECTS[shape])
-    base = COLORS[shape]
-    outline_col = tuple(v * 0.32 for v in base)
+    base = preset["colors"][shape]
+    outline_col = tuple(v * preset["outline"] for v in base)
     cell_bright = {cr: 1.0 + (rng.random() - 0.5) * 0.09 for cr in cells}
 
     seams, hairlines = seam_polylines(cells, rng)
@@ -214,12 +225,14 @@ def render(shape):
             px[o + 1] = min(255, max(0, int(gg)))
             px[o + 2] = min(255, max(0, int(bb)))
             px[o + 3] = int(alpha * 255)
-    out = os.path.abspath(os.path.join(OUT_DIR, f"piece_{shape}.png"))
+    out = os.path.abspath(os.path.join(out_dir, f"piece_{shape}.png"))
     write_png(out, w, h, px)
     print(f"{out}  ({w}x{h})")
 
 
 if __name__ == "__main__":
-    os.makedirs(OUT_DIR, exist_ok=True)
-    for s in SHAPES:
-        render(s)
+    for theme, preset in THEME_PRESETS.items():
+        out_dir = os.path.join(SKINS_DIR, theme)
+        os.makedirs(out_dir, exist_ok=True)
+        for s in SHAPES:
+            render(s, preset, out_dir)

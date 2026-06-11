@@ -33,8 +33,11 @@ public static class ThemeSkins
         return string.IsNullOrEmpty(shape) ? null : LoadWithFallback($"piece_{shape}");
     }
 
-    /// <summary>The ground base the tower stands on, or null.</summary>
-    public static Sprite LoadGround() => LoadWithFallback("ground");
+    /// <summary>
+    /// The plateau strip the blocks stand on, tiled to any floor width (no distortion).
+    /// The only ground visual - theme scenery lives in the backdrop, never on the floor.
+    /// </summary>
+    public static Sprite LoadPlateau() => LoadWithFallback("plateau");
 
     /// <summary>Optional themed art for the height-limit laser line, or null.</summary>
     public static Sprite LoadLaser() => LoadWithFallback("laser");

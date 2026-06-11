@@ -11,6 +11,11 @@ using UnityEngine;
 /// </summary>
 public static class Campaign
 {
+    // DEV ONLY: short-circuits every lock so all themes/levels are playable while building
+    // content. Progress and personal bests still record normally (the save stays honest).
+    // Flip to false for release - or wire to a settings toggle when one exists.
+    public static readonly bool UnlockAllForTesting = true;
+
     /// <summary>All themes, sorted by play order. Loaded fresh per call site (menu build).</summary>
     public static ThemeDefinition[] LoadThemesInOrder()
     {
@@ -53,6 +58,8 @@ public static class Campaign
     /// <summary>themesInOrder must come from LoadThemesInOrder (or be sorted the same way).</summary>
     public static bool IsThemeUnlocked(ThemeDefinition[] themesInOrder, int themeIndex)
     {
+        if (UnlockAllForTesting) return true;
+
         ThemeDefinition theme = themesInOrder[themeIndex];
         if (theme.AlwaysUnlocked) return true;
 
@@ -69,6 +76,7 @@ public static class Campaign
     /// <summary>Sequential within the theme: first level always, others need the previous one.</summary>
     public static bool IsLevelUnlocked(ThemeDefinition theme, int levelIndex)
     {
+        if (UnlockAllForTesting) return true;
         if (theme.AlwaysUnlocked) return true;
         if (levelIndex <= 0) return true;
 

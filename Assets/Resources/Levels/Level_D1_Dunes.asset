@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 441b8ad77b4948f0af95820f8275ed2a, type: 3}
-  m_Name: Level_Ice_Frostbite
-  m_EditorClassIdentifier:
-  displayName: Frostbite
-  gameModeConfig: {fileID: 11400000, guid: a2c3c3c2baad49849d2de74da38f47fe, type: 2}
-  targetType: 2
-  targetValue: 15
-  instruction: Ice bricks are slippery! Reach 15 meters.
+  m_Name: Level_D1_Dunes
+  m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
+  displayName: Dunes
+  gameModeConfig: {fileID: 11400000, guid: e7daa3104128405ba51018e33535bbb8, type: 2}
+  targetType: 1
+  targetValue: 100
+  instruction: Stack 100 blocks under the desert sun.
   modifiers: []

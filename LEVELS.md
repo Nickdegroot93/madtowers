@@ -115,7 +115,11 @@ previous theme's levels are ALL completed; levels within a theme unlock sequenti
 Rules live in `Campaign.cs` (read-side only); completions and personal bests persist via
 `ProgressStore` (see **DATA.md** for the persistence architecture and cloud-sync plan).
 A theme with `alwaysUnlocked: true` is a sandbox — always playable, never gates the
-campaign (that's Testing Grounds, parked at sortOrder 1000).
+campaign (that's Testing Grounds, parked at sortOrder 1000). The menu shows campaign
+themes as a carousel (one theme per screen, arrows cycle); sandbox + unthemed levels
+live behind the "Test Levels" button.
+⚠️ `Campaign.UnlockAllForTesting` is currently **true** (everything playable while
+building content) — flip to false before release.
 Each theme's `skinFolder` drives all generated art (blocks/ground/laser) via
 `ThemeSkins`; empty = Classic skin.
 
@@ -128,10 +132,13 @@ Each theme's `skinFolder` drives all generated art (blocks/ground/laser) via
 | Under Pressure | GameMode_LaserLimit | Place 52 | Height-limit waves (4 waves, standard asset). |
 | The Spire | GameMode_Spire | Reach 10m | 4-column floor climb. |
 
-**Theme: Ice (sortOrder 20)** — placeholder until ice art/music exists (`skinFolder` empty = Classic look)
+**Theme: Desert (sortOrder 20)** — sunset gradient with sky shimmer, faint sun revealed
+while climbing, streak clouds, rolling dunes at ground level
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| Frostbite | GameMode_Frostbite | Reach 15m | Classic + ambient Ice 10%. |
+| Dunes | GameMode_Classic | Place 100 | Stacking endurance, desert dressing. |
+| Mirage | GameMode_LaserLimit | Place 52 | Height-limit waves. |
+| The Obelisk | GameMode_Spire | Reach 10m | 4-column floor; uses the narrow ziggurat variant. |
 
 **Theme: Testing Grounds (sortOrder 1000, alwaysUnlocked)** — sandboxes, not part of the campaign
 | Level | Mode asset | Goal | What's different |

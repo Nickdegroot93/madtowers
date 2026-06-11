@@ -10,13 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ccb180f7c3a343d394214cd43034c5c1, type: 3}
-  m_Name: Theme_Ice
+  m_Name: Theme_Desert
   m_EditorClassIdentifier: Assembly-CSharp::ThemeDefinition
-  displayName: Ice
+  displayName: Desert
   sortOrder: 20
   levels:
-  - {fileID: 11400000, guid: 6ab485f04e87489caaeb4bea7d943736, type: 2}
+  - {fileID: 11400000, guid: 7c6b9c01924f4c418ad7dcc0284a157f, type: 2}
+  - {fileID: 11400000, guid: 27fbf1f7b0aa4b04af64522f0dfee826, type: 2}
+  - {fileID: 11400000, guid: 7eda6a283e544188857116da0fcf2960, type: 2}
+  backdrop: {fileID: 11400000, guid: 31e96611fa81425c95f969c4555b64ef, type: 2}
   music: {fileID: 0}
-  skinFolder: 
+  musicPlaylist: []
+  skinFolder: Skins/Desert
   alwaysUnlocked: 0
   featuredUnlocks: []

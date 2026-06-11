@@ -24,11 +24,11 @@ Each tetromino shape gets **one sprite covering the whole piece** (`piece_I.png`
 variety comes from rotation and the 7 shapes/colors.
 
 **These are generated, not painted.** `Tools/generate_piece_sprites.py` renders
-all 7 (silhouette, outline, gradient, bevel, seam cracks) straight into
-`Assets/Resources/BlockSkins/Classic/`. To restyle: tweak the knobs in the
-script (palette, outline, corner radius, crack density) or ask Claude, rerun,
-done. New themes (ice, haunted, neon outline…) = a style preset in the script
-writing to `BlockSkins/<Theme>/`.
+all 7 (silhouette, outline, gradient, bevel, seam cracks) per entry in its
+`THEME_PRESETS` table into `Assets/Resources/Skins/<Theme>/`. A theme without
+an entry falls back to the Classic pieces automatically. **New block look for
+a theme = one preset dict** (7 hue-identity-preserving colors + an outline
+factor) and a rerun — nothing else.
 
 Hand-made art can still override any shape: export a transparent PNG at
 **256 px per cell + 32 px bleed** (exact canvases: I 1088×320, O 576×576,
@@ -73,6 +73,12 @@ composes generated layers at runtime:
   view as you climb (the ground vanishes; only sky and clouds remain).
 - **Ambient particles**: falling, swaying soft dots — snow, petals, embers are
   the same system with different color/size/speed numbers.
+- **Sky shimmer**: optional altitude variation — the low/high blend oscillates
+  gently while climbing (darker, lighter, darker…) instead of fading once.
+- **Sun**: optional faint disc at a configured height, drifting slowly relative
+  to the camera so it floats through view over a long band of the climb.
+- **Ground props**: procedural cacti (etc.) flanking the floor, sinking away as
+  the tower climbs.
 
 A theme without a preset gets the classic dark sky. To design a new theme's
 backdrop, give Claude an **inspiration image** (screenshot, painting, photo) —
@@ -81,13 +87,21 @@ still join later as additional layers if a hero theme needs it.
 
 ## 4. Ground / floor
 
-**Generated, not painted** — `Tools/generate_ground_sprite.py` renders the
-base the tower stands on (flat plateau on top, mass running below the screen)
-into `Assets/Resources/Skins/<Theme>/`. Classic uses the stone tower base
-(`ground.png`); a grassy-hill preset stays in the script for future themes.
-The game scales the plateau to the floor width and
-hides the old floor bar; the collider is untouched. Per-theme variants
-(haunted house, glacier, dune…) are presets in the script. Hand-made
+**Generated, not painted** — `Tools/generate_ground_sprite.py` renders each
+theme's `plateau.png` into `Assets/Resources/Skins/<Theme>/`: one tile
+(256×96 px = 2×0.75 u) of the landable strip, **tiled** by the game to any
+floor width (never stretched, outlined end caps mark its exact boundary).
+Each theme picks a material via the renderer's parameters: beveled stone
+blocks (Classic), grass-capped earth (Training Wheels), sandstone slabs
+(Desert) — block count, bevel, tone steps, and an optional cap band (grass,
+snow, moss…) per theme.
+
+The plateau is the **only** ground visual, and it matches the landable
+collider width exactly — what you see is what you can land on. There are
+deliberately **no buildings under the floor**: anything decorative near the
+platform risks reading as a landing surface, and it's invisible once the
+tower climbs anyway. Theme scenery (hills, dunes, mountains, props) lives in
+the backdrop system (§3) instead. Hand-made
 override: transparent PNG at 128 px/unit whose flat top spans exactly the
 **middle 85%** of the canvas width, surface at the exact top edge. Shared
 style rules: see STYLE.md.
@@ -154,6 +168,60 @@ flick-drop impact variants (the picked "round 2" recipe) + a softer landing
 (not yet wired). Hand-made/downloaded WAVs (prefer **CC0**, e.g. Kenney packs)
 drop into the same folder and play through the same system. Background music
 is a separate future system (per-theme tracks, ducking).
+
+## Under the hood: how theming works at runtime (exact pipeline)
+
+What happens when a level loads, in order:
+
+1. **Theme resolution** — `GameManager.Awake` calls `Campaign.FindThemeOf(selectedLevel)`
+   once, then `ThemeSkins.Apply(theme)` (sets the static `ThemeSkins.Folder`, e.g.
+   `Skins/Desert`) and `MusicPlayer.PlayForTheme(theme)` (playlist looped in order;
+   keeps playing across level restarts within the same theme).
+2. **Floor** — `PlayAreaController.ApplyGroundSkin`: `ThemeSkins.LoadPlateau()` resolves
+   `<Folder>/plateau` and falls back to `Skins/Classic` per file. The strip is rendered
+   with `SpriteRenderer.drawMode = Tiled` at exactly the collider width (end caps kept
+   by the 12px sprite border); the original floor bar renderer is disabled. The collider
+   is never touched.
+3. **Blocks** — each spawned piece (`BlockController.ApplyBlockSkin`) loads
+   `ThemeSkins.LoadPiece(shape)` with the same fallback chain; the HUD's "next" ghost
+   (`UIManager`) builds a desaturated copy of the same sprite (cached per folder+shape).
+4. **Backdrop** — `LevelPresentationController` (on the scene's Background object,
+   `[ExecuteAlways]`; world elements split into `LevelPresentationController.Elements`):
+   - Resolves `theme.Backdrop` (a `BackdropPreset`), or `BackdropPreset.Defaults`
+     (classic dark sky) when none. Cached per level; re-resolved only on change.
+   - **Sky**: two gradient sprites built by `RuntimeSprites.VerticalGradient`
+     (curve 0.8, top color fully reached at 60% height), regenerated only on preset
+     change and destroyed with their owner (they're HideAndDontSave). The "high"
+     gradient overlays the low one with alpha = `Altitude01()` =
+     `clamp01(towerHeight / altitudeFadeMeters)` ± the shimmer sine
+     (`skyShimmerAmount`, `skyShimmerPeriodMeters`). Camera clear color follows.
+     The quad is fitted to the camera **non-uniformly** each frame (uniform scaling
+     once blew the 1px-wide gradient to ~4000 units — one flat color on screen).
+   - **World elements** (play-mode only, spawned once per scene under
+     `BackdropElements`, recycled forever): clouds (style sprite per preset, drift
+     ±40% speed variance, gentle sine bob, wrap horizontally at ±1.5× half-width,
+     respawn above when fallen 1.6× below view), hills (3 layers, far→near colors
+     lerped from the preset's 2, parallax 0.20/0.13/0.06, plus a solid base fill
+     anchored below the lowest valley *scaled with zoom* so no cutoff line exists at
+     any zoom), sun (fixed screen X, world Y = floor + `sunHeightMeters` + 0.9×climb),
+     props (screen-edge anchored with a floor-clearance minimum), particles (fall +
+     sway, recycled to the top).
+   - **Parallax baseline**: all climb-based offsets measure from the camera's Y at
+     backdrop spawn (`_climbBaseY`), NOT from the floor — the camera starts ~11.5
+     units above the floor, which once lifted everything.
+5. **Laser** (height-limit levels) — `ThemeSkins.LoadLaser()` or the code-built bar.
+6. **Post-FX** — `PostFxController` (self-installed, survives scene loads) applies one
+   global URP volume to every theme: vignette, bloom, color grading (values in
+   STYLE.md). Re-attaches `renderPostProcessing` to the camera on each scene load.
+
+**Sorting orders** (back → front): sky −100 · sky-high overlay −99 · sun −95 ·
+clouds −90 · hill base −86 · hills −85/−84/−83 · props −82 · particles −80 ·
+placement beam −60 · plateau −50 · blocks 0 · laser line 50 · shatter shards 60.
+
+**Sprite factory** — `RuntimeSprites` (core: beam, heart, panel, soft bar, square,
+gradient) + `RuntimeSprites.Backdrop` (clouds, hills, mesas, streaks, cacti, dots):
+fixed shapes cached per session, parameterized builders caller-owned; everything
+HideAndDontSave. Generators in `Tools/` own all themed PNGs (pieces, plateau, sfx).
 
 ## What code handles (no art needed)
 

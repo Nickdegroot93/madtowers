@@ -11,18 +11,22 @@ here changes, change it in every generator (and the C# constant it mirrors).
 **Geometry**
 - Block sprites: **256 px = one cell**, 32 px bleed margin (canvas sizes fixed
   per shape; see ART.md §1).
-- Ground sprites: **128 px = one unit**, canvas 2080×1568, flat plateau =
-  **middle 85%** of canvas width, surface at the exact top edge
-  (mirrored by `PlayAreaController.GroundPlateauWidthFraction`).
+- Ground sprite (128 px = one unit): `plateau.png`, one 256×96 tile, tiled by
+  code to the floor width (design it seamless, with outlined end caps). The
+  plateau is the only floor visual — scenery is the backdrop's job, never
+  attached to the floor.
 - Silhouette corner radius: **22 px** on blocks (≈ 8.5% of a cell); concave
   corners stay sharp. Ground top corners ~20–24 px.
 - One sprite per tetromino shape, drawn in spawn orientation. No per-cell
   randomization, ever.
 
 **Outline**
-- Every silhouette has a closed outline, **13–14 px** thick (at 256 px/cell).
-- Outline color is always **the local base color at 30% value** — a dark
-  version of the thing it outlines, never pure black, never a different hue.
+- Block pieces: every silhouette has a closed outline, **13–14 px** thick (at
+  256 px/cell), colored **the local base color at 30% value** — never pure
+  black, never a different hue.
+- Plateau strips: strong edge lines and end caps in a darker shade of the
+  base (30–50% value per theme). Edges stay crisp and axis-aligned; the
+  invariant is "darker shade of itself", not the exact strength.
 
 **Lighting (the light always comes from straight above)**
 - Vertical gradient on every body: ~**+10–16% brightness at the top edge**
@@ -43,7 +47,12 @@ here changes, change it in every generator (and the C# constant it mirrors).
   reassign hues between shapes.
 
 **Composition (sorting orders)**
-- Background −100 · ground skin −50 · placement beam −10 · blocks 0.
+- Background −100 · hills/scenery −86…−83 · ground skin −50 · placement beam −10 · blocks 0.
+
+**Global post-processing (the cross-theme glue)**
+- One stack over every theme (`PostFxController`): soft vignette (0.22), gentle bloom
+  (0.35 @ 0.9 threshold — lasers/sun/glow bleed light), +8 saturation / +6 contrast.
+  Themes never override it; it's what makes different palettes read as one game.
 
 ## Theme variables (what makes a theme)
 

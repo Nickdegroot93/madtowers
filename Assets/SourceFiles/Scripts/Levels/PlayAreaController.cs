@@ -30,12 +30,8 @@ public class PlayAreaController : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] private float floorFriction = 0.95f;
 
-    [Tooltip("Sorting order of the ground skin: behind blocks (0), in front of the theme background (-100).")]
+    [Tooltip("Sorting order of the plateau skin: behind blocks (0), in front of the theme background (-100).")]
     [SerializeField] private int groundSkinSortingOrder = -50;
-
-    // Fraction of the ground texture's width occupied by the flat plateau.
-    // Must match PLATEAU / W in Tools/generate_ground_sprite.py.
-    private const float GroundPlateauWidthFraction = 0.85f;
 
     private PhysicsMaterial2D _floorMaterial;
 
@@ -136,18 +132,21 @@ public class PlayAreaController : MonoBehaviour
         ApplyGroundSkin(target, width);
     }
 
-    // Visual only: replaces the floating floor bar with the theme's ground "mountain",
-    // whose flat plateau spans exactly the floor width and runs down past the bottom of
-    // the screen. The floor collider, inset and friction are untouched.
+    // Visual only: replaces the floating floor bar with the theme's plateau strip -
+    // plateau.png TILED to the floor width (never stretched; outlined end caps mark its
+    // boundary, preserved by the sprite border). The visual matches the landable collider
+    // width EXACTLY: what you see is what you can land on. Theme scenery (hills, dunes,
+    // mountains) lives in the backdrop, never attached to the floor - nothing decorative
+    // can be mistaken for a landing surface. Collider, inset and friction are untouched.
     private void ApplyGroundSkin(Transform target, float width)
     {
-        Sprite ground = ThemeSkins.LoadGround();
-        if (ground == null) return;
-
         SpriteRenderer floorRenderer = target.GetComponent<SpriteRenderer>();
         if (floorRenderer == null) return;
 
-        Transform existing = target.Find("GroundSkin");
+        Sprite plateau = ThemeSkins.LoadPlateau();
+        if (plateau == null) return;
+
+        Transform existing = target.Find("PlateauSkin");
         SpriteRenderer skin;
         if (existing != null)
         {
@@ -155,25 +154,24 @@ public class PlayAreaController : MonoBehaviour
         }
         else
         {
-            GameObject go = new GameObject("GroundSkin");
+            GameObject go = new GameObject("PlateauSkin");
             go.transform.SetParent(target, false);
             skin = go.AddComponent<SpriteRenderer>();
         }
 
-        skin.sprite = ground;
+        skin.sprite = plateau;
+        skin.drawMode = SpriteDrawMode.Tiled;
         skin.sortingLayerID = floorRenderer.sortingLayerID;
         skin.sortingOrder = groundSkinSortingOrder;
 
-        // Scale so the plateau matches the floor width exactly (the rocky mass below
-        // tapers a bit wider), countering the floor bar's stretched lossy scale.
+        // Counter the floor bar's stretched scale; size in world units via Tiled mode.
         Vector3 parentScale = target.lossyScale;
-        float spriteWidth = Mathf.Max(0.001f, ground.bounds.size.x);
-        float spriteHeight = ground.bounds.size.y;
-        float desiredWidth = width / GroundPlateauWidthFraction;
         skin.transform.localScale = new Vector3(
-            desiredWidth / spriteWidth / Mathf.Max(0.0001f, Mathf.Abs(parentScale.x)),
+            1f / Mathf.Max(0.0001f, Mathf.Abs(parentScale.x)),
             1f / Mathf.Max(0.0001f, Mathf.Abs(parentScale.y)),
             1f);
+        float plateauHeight = plateau.bounds.size.y;
+        skin.size = new Vector2(width, plateauHeight);
 
         // Floor top from the bar sprite's local bounds and scale (not collider bounds:
         // AutoSyncTransforms is off project-wide, so those can be stale right after the
@@ -181,11 +179,8 @@ public class PlayAreaController : MonoBehaviour
         float floorTopY = target.position.y
             + floorRenderer.sprite.bounds.extents.y * Mathf.Abs(target.lossyScale.y);
         skin.transform.position = new Vector3(
-            target.position.x,
-            floorTopY - spriteHeight * 0.5f,
-            target.position.z);
+            target.position.x, floorTopY - plateauHeight * 0.5f, target.position.z);
 
-        // The plateau surface is the floor visual now.
         floorRenderer.enabled = false;
     }
 
