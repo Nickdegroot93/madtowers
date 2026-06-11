@@ -127,6 +127,17 @@ just "fill the folder again."
 
 ---
 
+## 8. Sound effects
+
+**Generated, not sourced** — `Tools/generate_sfx.py` synthesizes the SFX (16-bit WAVs)
+into `Assets/Resources/Audio/Sfx/`; playback goes through `SfxPlayer`
+(pooled, cached, pitch-jittered one-shots). Iterate by tweaking the parameter dicts,
+rerunning, and previewing with `afplay` — no Unity needed. Current set: two
+flick-drop impact variants (the picked "round 2" recipe) + a softer landing
+(not yet wired). Hand-made/downloaded WAVs (prefer **CC0**, e.g. Kenney packs)
+drop into the same folder and play through the same system. Background music
+is a separate future system (per-theme tracks, ducking).
+
 ## What code handles (no art needed)
 
 - Generating the block and ground sprites (`Tools/generate_piece_sprites.py`,

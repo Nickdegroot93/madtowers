@@ -724,9 +724,13 @@ public class BlockController : MonoBehaviour
 
         _rb.linearVelocity = new Vector2(0f, -GetLandingImpactSpeed());
 
-        // Flick-dropped pieces thump: a purely visual camera shake (physics never reads
-        // the camera, and the landing velocity above is already capped).
-        if (_autoDrop) TowerCameraController.Impact();
+        // Flick-dropped pieces thump: camera shake + impact sound. Both purely cosmetic
+        // (physics never reads the camera, and the landing velocity above is already capped).
+        if (_autoDrop)
+        {
+            TowerCameraController.Impact();
+            SfxPlayer.PlayVariant("impact_heavy", 2, 0.6f, 0.07f);
+        }
 
         LockBlock();
     }
