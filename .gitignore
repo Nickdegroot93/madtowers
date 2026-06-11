@@ -51,3 +51,8 @@ Thumbs.db
 # ---- Leftover Unity tutorial videos (template content, not part of the game) ----
 # Excluded from the repo to keep it lean; the files remain on disk locally.
 Assets/Tutorials/Media/
+
+# ---- Android build artifacts Unity drops next to the APK ----
+*_BackUpThisFolder_ButDontShipItWithYourGame/
+*_BurstDebugInformation_DoNotShip/
+.utmp/

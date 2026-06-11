@@ -20,13 +20,20 @@ public class TowerCameraController : MonoBehaviour
     [SerializeField] private float fallbackHorizontalSafeArea = 0.78f;
     [SerializeField] private float fallbackZoomSmoothTime = 0.35f;
 
+    private static TowerCameraController _instance;
+
     private Camera _camera;
     private float _verticalVelocity;
     private float _zoomVelocity;
     private float _highestCameraY;
+    private float _baseY;
+    private float _shakeTime;
+    private float _shakeDuration;
+    private float _shakeAmplitude;
 
     private void Awake()
     {
+        _instance = this;
         _camera = GetComponent<Camera>();
         if (_camera.orthographic)
         {
@@ -34,9 +41,26 @@ public class TowerCameraController : MonoBehaviour
         }
 
         _highestCameraY = Mathf.Max(transform.position.y, MinimumCameraY);
+        _baseY = _highestCameraY;
         SetCameraY(_highestCameraY);
         UpdateSpawnPoint();
         UpdateVerticalFollowers();
+    }
+
+    private void OnDestroy()
+    {
+        if (_instance == this) _instance = null;
+    }
+
+    // Purely visual impact shake (e.g. a flick-dropped piece landing). The shake is a
+    // render-only offset added on top of the smoothed base position - the smoothing state
+    // itself never sees it, and physics never reads the camera, so the tower is unaffected.
+    public static void Impact(float amplitude = 0.16f, float duration = 0.22f)
+    {
+        if (_instance == null) return;
+        _instance._shakeAmplitude = amplitude;
+        _instance._shakeDuration = duration;
+        _instance._shakeTime = duration;
     }
 
     private void LateUpdate()
@@ -45,16 +69,28 @@ public class TowerCameraController : MonoBehaviour
         _highestCameraY = Mathf.Max(_highestCameraY, targetY);
 
         float smoothTime = Mathf.Max(0.01f, CameraSmoothTime);
-        float nextY = Mathf.SmoothDamp(
-            transform.position.y,
+        _baseY = Mathf.SmoothDamp(
+            _baseY,
             _highestCameraY,
             ref _verticalVelocity,
             smoothTime);
 
-        SetCameraY(nextY);
+        SetCameraY(_baseY + GetShakeOffset());
         UpdateZoom();
         UpdateSpawnPoint();
         UpdateVerticalFollowers();
+    }
+
+    // Damped vertical thump: a quick oscillation whose envelope falls off quadratically.
+    private float GetShakeOffset()
+    {
+        if (_shakeTime <= 0f) return 0f;
+
+        _shakeTime -= Time.deltaTime;
+        if (_shakeTime <= 0f) return 0f;
+
+        float remaining = _shakeTime / Mathf.Max(0.0001f, _shakeDuration); // 1 -> 0
+        return Mathf.Sin((1f - remaining) * 30f) * _shakeAmplitude * remaining * remaining;
     }
 
     private void UpdateZoom()

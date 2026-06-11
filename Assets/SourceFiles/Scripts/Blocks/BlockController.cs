@@ -159,6 +159,23 @@ public class BlockController : MonoBehaviour
     }
 
     // Rotation nudges the target angle by a quarter turn. Active pieces snap to that target while
+    // The piece currently under player control (null between lock and next spawn).
+    // Touch gestures use this to address their commands.
+    public static BlockController ActiveControlled { get; private set; }
+
+    /// <summary>Width of one placement column in world units (for gesture distance mapping).</summary>
+    public float GridSpacing => gridSpacing;
+
+    // External (touch) horizontal step. Funnels into ShiftTargetColumn, so all grid,
+    // placement-buffer and obstacle rules apply exactly as for keyboard movement.
+    public void StepColumn(int direction)
+    {
+        if (!_isControlEnabled || direction == 0) return;
+        if (GameManager.Instance != null && GameManager.Instance.IsGamePaused) return;
+        if (_appliedData != null && _appliedData.InvertHorizontalControls) direction = -direction;
+        ShiftTargetColumn(direction > 0 ? 1 : -1);
+    }
+
     // falling, so they stay on the same grid rules as horizontal movement.
     public void RotateLeft()
     {
@@ -175,7 +192,17 @@ public class BlockController : MonoBehaviour
     private bool CanRotateVariant => _appliedData == null || _appliedData.CanRotate;
 
     // Fast Drop
-    public void SetFastDrop(bool active) => _isFastDrop = active;
+    // External (touch) fast-drop request; OR-ed with the keyboard each frame in Update.
+    private bool _externalFastDrop;
+    public void SetFastDrop(bool active) => _externalFastDrop = active;
+
+    // Latched full-speed descent (triggered by a quick downward flick): stays on until the
+    // piece lands, no held finger required. Steering stays available for last-second tucks.
+    private bool _autoDrop;
+    public void StartAutoDrop()
+    {
+        if (_isControlEnabled) _autoDrop = true;
+    }
 
     private void Awake()
     {
@@ -206,6 +233,8 @@ public class BlockController : MonoBehaviour
         ResetControlTargets();
         CreatePlacementBeam();
         ApplyBlockSkin();
+
+        ActiveControlled = this; // newly spawned piece starts under player control
     }
 
     // One sprite covers the whole tetromino (piece_T.png etc.), so every piece of a shape
@@ -486,6 +515,7 @@ public class BlockController : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (ActiveControlled == this) ActiveControlled = null; // e.g. destroyed by the loss zone mid-fall
         TrackedBlocks.Remove(this);
         DestroyPlacementBeam();
         _inputs?.Dispose();
@@ -514,8 +544,8 @@ public class BlockController : MonoBehaviour
             if (_inputs.Gameplay.RotateLeft.triggered) RotateLeft();
             if (_inputs.Gameplay.RotateRight.triggered) RotateRight();
             
-            // Handle fast drop button
-            _isFastDrop = _inputs.Gameplay.FastDrop.IsPressed();
+            // Handle fast drop button (keyboard OR touch gesture)
+            _isFastDrop = _inputs.Gameplay.FastDrop.IsPressed() || _externalFastDrop;
         }
 
         ProcessHorizontalDas(ShiftTargetColumn);
@@ -573,11 +603,20 @@ public class BlockController : MonoBehaviour
         }
     }
 
-    // Current downward speed (units/sec), including the fast-drop boost when S / down is held.
+    // A flick means "I'm done with this piece" - it plunges much faster than held fast
+    // drop. Safe at any speed: the descent cast sweeps the full per-step distance (no
+    // tunneling) and landing velocity is capped by maxLandingImpactSpeed regardless,
+    // so fast play hits exactly as softly as slow play.
+    private const float AutoDropBoost = 2.5f;
+
+    // Current downward speed (units/sec), including the fast-drop boost when S / down is
+    // held or a flick latched the auto-drop.
     private float GetActiveFallSpeed()
     {
-        bool fastDropRequested = _isFastDrop || (_moveInput.y < -0.5f);
-        return fallSpeed * (fastDropRequested ? fastDropMultiplier : 1f);
+        float multiplier = 1f;
+        if (_autoDrop) multiplier = fastDropMultiplier * AutoDropBoost;
+        else if (_isFastDrop || _moveInput.y < -0.5f) multiplier = fastDropMultiplier;
+        return fallSpeed * multiplier;
     }
 
     // ---- Grid-first active control -----------------------------------------------------------
@@ -717,6 +756,10 @@ public class BlockController : MonoBehaviour
         _rb.angularVelocity = 0f;
 
         _rb.linearVelocity = new Vector2(0f, -GetLandingImpactSpeed());
+
+        // Flick-dropped pieces thump: a purely visual camera shake (physics never reads
+        // the camera, and the landing velocity above is already capped).
+        if (_autoDrop) TowerCameraController.Impact();
 
         LockBlock();
     }
@@ -1133,6 +1176,7 @@ public class BlockController : MonoBehaviour
     {
         if (!_isControlEnabled) return;
         _isControlEnabled = false;
+        if (ActiveControlled == this) ActiveControlled = null;
         HasLanded = true;
         DestroyPlacementBeam();
 

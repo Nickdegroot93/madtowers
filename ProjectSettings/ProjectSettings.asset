@@ -8,7 +8,7 @@ PlayerSettings:
   AndroidProfiler: 0
   AndroidFilterTouchesWhenObscured: 0
   AndroidEnableSustainedPerformanceMode: 0
-  defaultScreenOrientation: 4
+  defaultScreenOrientation: 0
   targetDevice: 2
   useOnDemandResources: 0
   accelerometerFrequency: 60
@@ -165,7 +165,7 @@ PlayerSettings:
   androidMaxAspectRatio: 2.4
   androidMinAspectRatio: 1
   applicationIdentifier:
-    Android: com.unity.template.get-started
+    Android: com.nickdegroot.madtowers
     Standalone: com.unity.template.get-started
     iPhone: com.unity.template.get-started
   buildNumber:
@@ -527,6 +527,9 @@ PlayerSettings:
   - m_BuildTarget: Standalone
     m_StaticBatching: 1
     m_DynamicBatching: 0
+  - m_BuildTarget: Android
+    m_StaticBatching: 1
+    m_DynamicBatching: 0
   m_BuildTargetShaderSettings: []
   m_BuildTargetGraphicsJobs: []
   m_BuildTargetGraphicsJobMode: []
@@ -831,6 +834,7 @@ PlayerSettings:
   webWasm2023: 0
   webEnableSubmoduleStrippingCompatibility: 0
   scriptingDefineSymbols:
+    Android: SENTIS_ANALYTICS_ENABLED;APP_UI_EDITOR_ONLY
     Standalone: SENTIS_ANALYTICS_ENABLED;APP_UI_EDITOR_ONLY
   additionalCompilerArguments: {}
   platformArchitecture: {}
