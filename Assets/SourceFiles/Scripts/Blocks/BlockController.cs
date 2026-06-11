@@ -665,9 +665,26 @@ public class BlockController : MonoBehaviour
         // Pivot rotation around the reference cell (not the centre of mass) while steering, so
         // rotating spins the piece in place instead of swinging it sideways out of its column.
         // The real centre of mass is restored on landing so toppling physics stay correct.
-        _originalCenterOfMass = _rb.centerOfMass;
+        // It is COMPUTED from the cell layout, never read back from the body here: the body is
+        // already Kinematic at this point and kinematic bodies report a zeroed centre of mass,
+        // which pinned every landed piece's weight to its grip cell (the body origin) - edge
+        // overhangs balanced on one side of the floor and toppled hard on the other.
+        _originalCenterOfMass = ComputeUniformCellCenterOfMassLocal();
         Vector2 primaryWorld = _cellGeometry.GetPrimaryWorldCenter(_rb.position);
         _rb.centerOfMass = transform.InverseTransformPoint(primaryWorld);
+    }
+
+    // All cells are identical 1x1 boxes of equal density, so the true centre of mass is
+    // exactly the average of the cell centres, expressed in body-local space.
+    private Vector2 ComputeUniformCellCenterOfMassLocal()
+    {
+        _cellGeometry.Refresh();
+        var centers = _cellGeometry.CellCenters;
+        if (centers == null || centers.Count == 0) return Vector2.zero;
+
+        Vector2 sum = Vector2.zero;
+        for (int i = 0; i < centers.Count; i++) sum += centers[i];
+        return transform.InverseTransformPoint(sum / centers.Count);
     }
 
     private void SteerWhileFalling()
@@ -1222,15 +1239,66 @@ public class BlockController : MonoBehaviour
         _rb.Sleep();
     }
 
+    // --- Knife-edge guard (bounded I3 refinement, see PHYSICS.md) -------------------------
+    // A quiet block whose centre of mass hangs horizontally outside its supporting contacts
+    // is mid-tip; force-sleeping it freezes a coin on its rim. Which side of the floor that
+    // happened on was decided by sub-millimetre float noise, so identical-looking edge
+    // placements survived on one side and fell on the other. Deferring sleep lets gravity
+    // resolve the balance honestly. Strictly bounded: after KnifeEdgeGraceSeconds of
+    // staying quiet anyway (leaning, wedged, vine-held) the block sleeps normally - I3's
+    // no-twitch guarantee is delayed for marginal blocks, never lost.
+    private const float KnifeEdgeGraceSeconds = 2f;
+    private const float SupportSpanEpsilon = 0.01f;
+    private static readonly ContactPoint2D[] SharedContactBuffer = new ContactPoint2D[16];
+    private float _knifeEdgeDeferTime;
+
+    private bool ShouldDeferSleepForKnifeEdge()
+    {
+        if (_knifeEdgeDeferTime >= KnifeEdgeGraceSeconds) return false;
+
+        int count = _rb.GetContacts(SharedContactBuffer);
+        Vector2 centerOfMass = _rb.worldCenterOfMass;
+        bool hasSupport = false;
+        float supportMinX = float.MaxValue;
+        float supportMaxX = float.MinValue;
+        for (int i = 0; i < count; i++)
+        {
+            ContactPoint2D contact = SharedContactBuffer[i];
+            // Supporting contact: below the centre of mass and not a pure side graze.
+            // (|normal.y| so the test is robust to contact normal orientation.)
+            if (contact.point.y >= centerOfMass.y - 0.05f) continue;
+            if (Mathf.Abs(contact.normal.y) < 0.5f) continue;
+            hasSupport = true;
+            supportMinX = Mathf.Min(supportMinX, contact.point.x);
+            supportMaxX = Mathf.Max(supportMaxX, contact.point.x);
+        }
+
+        bool knifeEdged = hasSupport &&
+            (centerOfMass.x < supportMinX - SupportSpanEpsilon ||
+             centerOfMass.x > supportMaxX + SupportSpanEpsilon);
+        if (!knifeEdged)
+        {
+            _knifeEdgeDeferTime = 0f;
+            return false;
+        }
+
+        _knifeEdgeDeferTime += Time.fixedDeltaTime;
+        return _knifeEdgeDeferTime < KnifeEdgeGraceSeconds;
+    }
+
     private void HandleLandedMaintenance()
     {
         if ((!microAlignSettledBlocks && !sleepSettledBlocksOnLock) || _rb == null) return;
         if (_rb.bodyType != RigidbodyType2D.Dynamic || _rb.IsSleeping()) return;
 
-        UpdateStillnessWatchdog();
+        bool deferSleep = ShouldDeferSleepForKnifeEdge();
+
+        UpdateStillnessWatchdog(deferSleep);
         if (_rb.IsSleeping()) return;
 
-        if (IsSettled())
+        // While deferred, the block stays fully live - no grid pull, no soft damping, no
+        // settle timer - so nothing slows the tip that resolves the knife edge.
+        if (IsSettled() && !deferSleep)
         {
             PullQuietBlockTowardGrid();
             SoftDampSettledBody();
@@ -1256,7 +1324,7 @@ public class BlockController : MonoBehaviour
     // every cycle, so its instantaneous velocity never stays quiet. But such a limit cycle has
     // zero NET movement, which is what this watchdog measures. Anything that is not actually
     // going anywhere is put to sleep, making persistent twitching structurally impossible.
-    private void UpdateStillnessWatchdog()
+    private void UpdateStillnessWatchdog(bool deferSleep)
     {
         if (!sleepSettledBlocksOnLock) return;
 
@@ -1271,7 +1339,10 @@ public class BlockController : MonoBehaviour
         }
 
         _stillnessTimer += Time.fixedDeltaTime;
-        if (_stillnessTimer >= stillnessTime)
+        // The timer keeps accruing while a knife-edge defers sleep, so the moment the
+        // grace expires the watchdog acts immediately - the I3 guarantee is delayed for
+        // marginal blocks, never lost.
+        if (_stillnessTimer >= stillnessTime && !deferSleep)
         {
             SleepSettledBody();
         }

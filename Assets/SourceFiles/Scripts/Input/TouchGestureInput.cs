@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.EnhancedTouch;
 using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 using TouchPhase = UnityEngine.InputSystem.TouchPhase;
@@ -10,8 +11,11 @@ using TouchPhase = UnityEngine.InputSystem.TouchPhase;
 ///   - horizontal drag: position-based column steps (one column of world width per step)
 ///   - tap: rotate - left half of the screen = counter-clockwise, right half = clockwise
 ///   - drag down past a threshold and hold: fast drop until the finger lifts
+///   - quick short downward flick: latched full-speed auto-drop
 /// A second finger can tap to rotate while the first is dragging. Self-installs at
-/// startup (no scene wiring); in the editor the mouse simulates a touch.
+/// startup (no scene wiring). On desktop the left mouse button acts as one finger -
+/// deliberately NOT via TouchSimulation, which suppresses the mouse device and killed
+/// UI clicks in the level-select menu.
 /// </summary>
 public class TouchGestureInput : MonoBehaviour
 {
@@ -23,10 +27,12 @@ public class TouchGestureInput : MonoBehaviour
     private const float FlickDominance = 1.5f;         // ... and clearly vertical = latched auto-drop
     private const float HudTopIgnoreFraction = 0.10f;  // touches starting in the HUD strip are ignored
     private const float FallbackDpi = 160f;
+    private const int MouseId = -1;
 
     private sealed class TouchState
     {
         public Vector2 StartPos;
+        public Vector2 LastPos;
         public float StartTime;
         public bool IsDrag;
         public bool OwnsDrag;
@@ -36,7 +42,7 @@ public class TouchGestureInput : MonoBehaviour
 
     private readonly Dictionary<int, TouchState> _touches = new Dictionary<int, TouchState>();
     private readonly List<int> _staleIds = new List<int>();
-    private int _dragOwnerId = -1;
+    private int _dragOwnerId = -2; // -2 = none (-1 is the mouse pointer id)
     private Camera _camera;
     private BlockController _lastActive;
 
@@ -51,16 +57,10 @@ public class TouchGestureInput : MonoBehaviour
     private void OnEnable()
     {
         EnhancedTouchSupport.Enable();
-#if UNITY_EDITOR
-        TouchSimulation.Enable();
-#endif
     }
 
     private void OnDisable()
     {
-#if UNITY_EDITOR
-        TouchSimulation.Disable();
-#endif
         EnhancedTouchSupport.Disable();
     }
 
@@ -69,84 +69,99 @@ public class TouchGestureInput : MonoBehaviour
         BlockController active = BlockController.ActiveControlled;
         bool paused = GameManager.Instance != null && GameManager.Instance.IsGamePaused;
 
-        // A new piece spawned mid-gesture: rebase the drag so leftover finger offset from
+        // A new piece spawned mid-gesture: rebase the drag so leftover pointer offset from
         // the previous piece doesn't teleport this one, and require fast drop to re-engage.
         if (active != _lastActive)
         {
             _lastActive = active;
             foreach (TouchState state in _touches.Values)
             {
-                state.StartPos = LastKnownPosition(state);
+                state.StartPos = state.LastPos;
                 state.StepsApplied = 0;
                 state.FastDropEngaged = false;
             }
         }
 
-        bool fastDrop = false;
+        bool sawRealTouch = false;
         foreach (Touch touch in Touch.activeTouches)
         {
+            sawRealTouch = true;
             switch (touch.phase)
             {
                 case TouchPhase.Began:
-                    HandleBegan(touch);
+                    PointerBegan(touch.touchId, touch.screenPosition);
                     break;
                 case TouchPhase.Moved:
                 case TouchPhase.Stationary:
-                    HandleHeld(touch, active);
+                    PointerHeld(touch.touchId, touch.screenPosition, active);
                     break;
                 case TouchPhase.Ended:
                 case TouchPhase.Canceled:
-                    HandleEnded(touch, active, paused);
+                    PointerEnded(touch.touchId, touch.screenPosition, active, paused);
                     break;
-            }
-
-            if (_touches.TryGetValue(touch.touchId, out TouchState held) && held.FastDropEngaged)
-            {
-                fastDrop = true;
             }
         }
 
-        PruneVanishedTouches();
+#if UNITY_EDITOR || UNITY_STANDALONE
+        // Desktop testing: the left mouse button is one finger. The mouse device stays
+        // fully alive for the UI event system.
+        if (!sawRealTouch && Mouse.current != null)
+        {
+            Vector2 mousePos = Mouse.current.position.ReadValue();
+            if (Mouse.current.leftButton.wasPressedThisFrame) PointerBegan(MouseId, mousePos);
+            else if (Mouse.current.leftButton.wasReleasedThisFrame) PointerEnded(MouseId, mousePos, active, paused);
+            else if (Mouse.current.leftButton.isPressed) PointerHeld(MouseId, mousePos, active);
+            else if (_touches.ContainsKey(MouseId)) PointerEnded(MouseId, mousePos, active, paused);
+        }
+#endif
 
+        PruneVanishedTouches(sawRealTouch);
+
+        bool fastDrop = false;
+        foreach (TouchState state in _touches.Values)
+        {
+            if (state.FastDropEngaged) { fastDrop = true; break; }
+        }
         if (active != null)
         {
             active.SetFastDrop(fastDrop && !paused);
         }
     }
 
-    private void HandleBegan(Touch touch)
+    private void PointerBegan(int id, Vector2 pos)
     {
-        Vector2 pos = touch.screenPosition;
         if (pos.y > Screen.height * (1f - HudTopIgnoreFraction)) return; // HUD strip
 
-        _touches[touch.touchId] = new TouchState
+        _touches[id] = new TouchState
         {
             StartPos = pos,
+            LastPos = pos,
             StartTime = Time.unscaledTime
         };
     }
 
-    private void HandleHeld(Touch touch, BlockController active)
+    private void PointerHeld(int id, Vector2 pos, BlockController active)
     {
-        if (!_touches.TryGetValue(touch.touchId, out TouchState state)) return;
+        if (!_touches.TryGetValue(id, out TouchState state)) return;
+        state.LastPos = pos;
 
-        Vector2 delta = touch.screenPosition - state.StartPos;
+        Vector2 delta = pos - state.StartPos;
         float dpi = ScreenDpi();
 
         if (!state.IsDrag &&
             (delta.magnitude > TapMaxMoveInches * dpi || Time.unscaledTime - state.StartTime > TapMaxDuration))
         {
             state.IsDrag = true;
-            if (_dragOwnerId == -1)
+            if (_dragOwnerId == -2)
             {
-                _dragOwnerId = touch.touchId;
+                _dragOwnerId = id;
                 state.OwnsDrag = true;
             }
         }
 
         if (!state.OwnsDrag || active == null) return;
 
-        // Position-based column stepping: finger offset maps 1:1 to grid columns.
+        // Position-based column stepping: pointer offset maps 1:1 to grid columns.
         float columnPixels = ColumnWidthPixels(active);
         int desiredSteps = Mathf.RoundToInt(delta.x / columnPixels);
         while (state.StepsApplied < desiredSteps)
@@ -160,7 +175,7 @@ public class TouchGestureInput : MonoBehaviour
             state.StepsApplied--;
         }
 
-        // Fast drop: a clear downward pull (dominant axis) engages it until release.
+        // Held fast drop: a clear downward pull (dominant axis) engages it until release.
         if (!state.FastDropEngaged &&
             -delta.y > DropEngageInches * dpi &&
             Mathf.Abs(delta.y) > Mathf.Abs(delta.x))
@@ -169,11 +184,11 @@ public class TouchGestureInput : MonoBehaviour
         }
     }
 
-    private void HandleEnded(Touch touch, BlockController active, bool paused)
+    private void PointerEnded(int id, Vector2 pos, BlockController active, bool paused)
     {
-        if (!_touches.TryGetValue(touch.touchId, out TouchState state)) return;
-        _touches.Remove(touch.touchId);
-        if (state.OwnsDrag) _dragOwnerId = -1;
+        if (!_touches.TryGetValue(id, out TouchState state)) return;
+        _touches.Remove(id);
+        if (state.OwnsDrag) _dragOwnerId = -2;
 
         if (paused || active == null) return;
 
@@ -182,7 +197,7 @@ public class TouchGestureInput : MonoBehaviour
         {
             // A quick, short, clearly-downward swipe that ends = flick: latch full-speed
             // descent all the way down, no held finger needed.
-            Vector2 delta = touch.screenPosition - state.StartPos;
+            Vector2 delta = pos - state.StartPos;
             if (duration <= FlickMaxDuration &&
                 -delta.y > FlickMinInches * ScreenDpi() &&
                 Mathf.Abs(delta.y) > FlickDominance * Mathf.Abs(delta.x))
@@ -200,37 +215,29 @@ public class TouchGestureInput : MonoBehaviour
     }
 
     // Touches can vanish without an Ended phase (focus loss, device hiccups); drop their state.
-    private void PruneVanishedTouches()
+    private void PruneVanishedTouches(bool sawRealTouch)
     {
         if (_touches.Count == 0) return;
 
         _staleIds.Clear();
         foreach (int id in _touches.Keys)
         {
+            if (id == MouseId) continue; // mouse lifecycle is handled inline in Update
             bool seen = false;
-            foreach (Touch touch in Touch.activeTouches)
+            if (sawRealTouch)
             {
-                if (touch.touchId == id) { seen = true; break; }
+                foreach (Touch touch in Touch.activeTouches)
+                {
+                    if (touch.touchId == id) { seen = true; break; }
+                }
             }
             if (!seen) _staleIds.Add(id);
         }
         foreach (int id in _staleIds)
         {
-            if (_touches[id].OwnsDrag) _dragOwnerId = -1;
+            if (_touches[id].OwnsDrag) _dragOwnerId = -2;
             _touches.Remove(id);
         }
-    }
-
-    private Vector2 LastKnownPosition(TouchState state)
-    {
-        foreach (Touch touch in Touch.activeTouches)
-        {
-            if (_touches.TryGetValue(touch.touchId, out TouchState s) && s == state)
-            {
-                return touch.screenPosition;
-            }
-        }
-        return state.StartPos;
     }
 
     private float ColumnWidthPixels(BlockController active)

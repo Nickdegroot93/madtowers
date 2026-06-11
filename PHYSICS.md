@@ -44,6 +44,17 @@ net movement by definition, so persistent twitching is structurally impossible. 
 tipping/sliding blocks keep re-anchoring and stay live. Do not remove this thinking the
 settle path covers it — the settle path alone provably does not.
 
+**Bounded knife-edge refinement (June 2026):** a quiet block whose centre of mass lies
+horizontally *outside* its supporting contact span is mid-tip; force-sleeping it froze a
+coin on its rim. Which side of the floor that happened on was decided by sub-millimetre
+float noise, so identical-looking half-on-edge placements survived on the left and fell on
+the right (the original bug report). `ShouldDeferSleepForKnifeEdge()` defers **both** sleep
+paths for such blocks so gravity resolves the balance honestly — but only for
+`KnifeEdgeGraceSeconds` (2 s) of continuous quiet-but-unsupported state. Anything still
+quiet after the grace (leaning, wedged, vine-jointed) sleeps normally, and the watchdog
+timer keeps accruing during the defer, so the I3 guarantee is *delayed* for marginal
+blocks, never lost. If you ever see a block twitching, check this defer first (then I1/I2).
+
 ### I4 — Physics footprint is SMALLER than the visual cell (0.94).
 A piece must be able to slide into a gap exactly its own size. With a footprint of exactly
 1.0 cell that is mathematically impossible (any sub-pixel neighbour drift pinches the slot
@@ -85,6 +96,8 @@ Inspector in debug mode if behaviour diverges between pieces.
 | `stillnessPositionTolerance` | 0.005 | Invariant I3 watchdog. |
 | `stillnessRotationToleranceDegrees` | 0.5 | Invariant I3 watchdog. |
 | `stillnessTime` | 0.75 | Watchdog window. Also makes phantom wake-ups cheap (re-sleep without re-earning velocity quiet). |
+| `KnifeEdgeGraceSeconds` (const) | 2 | I3 refinement: sleep is deferred this long for quiet blocks whose COM is outside their support span, letting them tip honestly. Bounded so I3 still always wins. |
+| `SupportSpanEpsilon` (const) | 0.01 | COM-outside-support margin for the knife-edge test. Larger values defer sleep for more borderline blocks. |
 | `quietGridPullFactor` | 0.15 | Strength of the awake-time ease toward grid X. **Velocity-based** (I1). |
 | `quietGridPullMaxSpeedFraction` | 0.02 | Pull speed cap = 0.02 u/s — must stay well under `settleLinearThreshold` (0.08) so the pull can never keep a block awake. |
 | `QuietPullMaxTiltDegrees` (const) | 1 | Pull only touches blocks that seated flat. Nudging a tilted block engages/releases its lean contact every frame → rocking limit cycle. |
@@ -103,6 +116,11 @@ Code-level details that are part of the contract (not inspector values):
   casts see last step's collider poses → landings measured at the wrong X.
 - `ResolveIncomingOverlaps()` moves **only the incoming kinematic piece**, never a resting
   neighbour, before handoff.
+- The landing restore value `_originalCenterOfMass` is **computed from the cell layout**
+  (`ComputeUniformCellCenterOfMassLocal`), never read back from the body during steering:
+  the body is Kinematic then, and **kinematic bodies report centre of mass (0,0)**. Reading
+  it pinned every landed piece's weight to its grip cell (the body origin) — edge overhangs
+  balanced on one side of the floor and toppled hard on the other (June 2026 bug).
 - Landed `gravityScale` is normalized to a constant 1.0 (`ResolveLandedGravityScale`).
   The escalating-gravity difficulty path was deleted; do not reintroduce it — tower load
   must not grow with block count or collapse becomes a function of time, not skill.
@@ -166,7 +184,8 @@ These are the *designer* dials — safe to vary per level. Current defaults:
 | Symptom | First thing to check |
 |---|---|
 | Towers shimmer / everything moves constantly | Someone is writing positions on landed blocks (I1). Search for `SetPosition`/`transform.position` reachable after `HasLanded`. |
-| One block twitches forever in place | Something moves bodies at sleep time (I2), or the watchdog (I3) was weakened/removed. |
+| One block twitches forever in place | Something moves bodies at sleep time (I2), or the watchdog (I3) was weakened/removed, or the knife-edge defer (I3 refinement) lost its grace bound. |
+| Half-on-edge block survives on one floor side, falls on the other | Knife-edge defer (I3 refinement) removed or its support test broken — COM-on-edge outcomes degrade to float noise without it. |
 | Piece won't fit a gap it should fit; placements shove neighbours | Footprint scale crept back toward 1.0, or islands/blocks scales diverged (I4). Verify in Physics Debugger: collider outlines must sit visibly *inside* sprites. |
 | Blocks land on invisible corners and tip | Landing filter weakened (`landingSupportNormalY`, `landingMinSupportWidthFraction`). |
 | Blocks slide off platforms/floor | A surface lost its 0.95 friction material (remember √-mixing punishes one bad surface). |
