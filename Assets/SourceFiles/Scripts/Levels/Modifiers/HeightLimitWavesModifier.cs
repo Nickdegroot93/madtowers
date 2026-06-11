@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 
 /// <summary>
@@ -25,12 +26,14 @@ public class HeightLimitWavesModifier : LevelModifier
     }
 
     [Tooltip("Each wave: how many blocks to place, and where the line sits. Cleared in order; line rises between waves.")]
+    // Default heights follow ~3 blocks per meter of rise (playtested): late waves must
+    // build wider than the floor, but the squeeze stays fair.
     [SerializeField] private Wave[] waves =
     {
         new Wave { blockCount = 6,  lineHeightAboveFloor = 5f },
-        new Wave { blockCount = 10, lineHeightAboveFloor = 10f },
-        new Wave { blockCount = 15, lineHeightAboveFloor = 17f },
-        new Wave { blockCount = 21, lineHeightAboveFloor = 26f },
+        new Wave { blockCount = 10, lineHeightAboveFloor = 8f },
+        new Wave { blockCount = 15, lineHeightAboveFloor = 13f },
+        new Wave { blockCount = 21, lineHeightAboveFloor = 20f },
     };
 
     [Tooltip("Seconds the line takes to glide to the next wave's height.")]
@@ -51,7 +54,10 @@ public class HeightLimitWavesModifier : LevelModifier
 
     private LevelModifierContext _context;
     private SpriteRenderer _line;
+    private TextMeshPro _counter;
     private int _waveIndex;
+    private int _blocksPlaced;
+    private int _lastShownRemaining = -1;
     private float _floorY;
     private float _lineY;
     private float _lineTargetY;
@@ -95,6 +101,8 @@ public class HeightLimitWavesModifier : LevelModifier
     {
         if (_finished) return;
 
+        _blocksPlaced = totalBlocksPlaced;
+
         // Advance through every wave whose cumulative block count is reached.
         int cumulative = 0;
         int reachedWave = waves.Length;
@@ -110,6 +118,7 @@ public class HeightLimitWavesModifier : LevelModifier
             // level, and "Keep Building" continues as a free endless run.
             _finished = true;
             if (_line != null) _line.gameObject.SetActive(false);
+            if (_counter != null) _counter.gameObject.SetActive(false);
             return;
         }
 
@@ -118,6 +127,17 @@ public class HeightLimitWavesModifier : LevelModifier
             _waveIndex = reachedWave;
             _lineTargetY = CurrentLineWorldY();
         }
+    }
+
+    /// <summary>Blocks still to place before the current wave clears and the line rises.</summary>
+    private int BlocksRemainingInWave()
+    {
+        int cumulative = 0;
+        for (int i = 0; i <= Mathf.Min(_waveIndex, waves.Length - 1); i++)
+        {
+            cumulative += waves[i].blockCount;
+        }
+        return Mathf.Max(0, cumulative - _blocksPlaced);
     }
 
     public override void OnUpdate(LevelModifierContext context, float deltaTime)
@@ -136,6 +156,8 @@ public class HeightLimitWavesModifier : LevelModifier
         Color c = lineColor;
         c.a = Mathf.Clamp01(lineBaseAlpha + linePulseAmount * Mathf.Sin(Time.time * linePulseSpeed) + _flash);
         _line.color = c;
+
+        UpdateCounter(cam, x);
 
         _zapCooldown -= deltaTime;
         if (_zapCooldown <= 0f) CheckViolations();
@@ -170,6 +192,29 @@ public class HeightLimitWavesModifier : LevelModifier
         return _floorY + waves[Mathf.Clamp(_waveIndex, 0, waves.Length - 1)].lineHeightAboveFloor;
     }
 
+    // Countdown riding the right end of the line: blocks left until it rises. Sits just
+    // above the line, follows it as it moves, snaps to the next wave's count on advance.
+    private void UpdateCounter(Camera cam, float cameraX)
+    {
+        if (_counter == null) return;
+
+        float halfWidth = cam != null && cam.orthographic
+            ? cam.orthographicSize * cam.aspect
+            : 8f;
+        _counter.transform.position = new Vector3(cameraX + halfWidth * 0.78f, _lineY + 0.65f, 0f);
+
+        int remaining = BlocksRemainingInWave();
+        if (remaining != _lastShownRemaining)
+        {
+            _lastShownRemaining = remaining;
+            _counter.text = remaining.ToString();
+        }
+
+        Color c = lineColor;
+        c.a = 0.9f;
+        _counter.color = c;
+    }
+
     // The line art follows the active theme's skin folder when it provides laser.png
     // (same convention as piece_*.png and ground.png); otherwise a code-built soft bar.
     // A themed sprite keeps its authored height - only its length is stretched.
@@ -183,5 +228,16 @@ public class HeightLimitWavesModifier : LevelModifier
         _line.sortingOrder = 50; // in front of blocks (0), behind UI
         _line.transform.position = new Vector3(0f, _lineY, 0f);
         _line.transform.localScale = new Vector3(LineLength / _line.sprite.bounds.size.x, 1f, 1f);
+
+        // Separate object (NOT a child): the line is stretched to LineLength and would
+        // distort any child text. Positioned every frame in UpdateCounter.
+        GameObject counterGo = new GameObject("HeightLimitCounter");
+        _counter = counterGo.AddComponent<TextMeshPro>();
+        _counter.fontSize = 7f;
+        _counter.fontStyle = FontStyles.Bold;
+        _counter.alignment = TextAlignmentOptions.Center;
+        _counter.sortingOrder = 51;
+        _counter.text = BlocksRemainingInWave().ToString();
+        _lastShownRemaining = -1;
     }
 }

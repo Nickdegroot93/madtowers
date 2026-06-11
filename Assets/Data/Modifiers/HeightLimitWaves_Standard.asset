@@ -16,11 +16,11 @@ MonoBehaviour:
   - blockCount: 6
     lineHeightAboveFloor: 5
   - blockCount: 10
-    lineHeightAboveFloor: 10
+    lineHeightAboveFloor: 8
   - blockCount: 15
-    lineHeightAboveFloor: 17
+    lineHeightAboveFloor: 13
   - blockCount: 21
-    lineHeightAboveFloor: 26
+    lineHeightAboveFloor: 20
   lineRiseSeconds: 1.2
   lineColor: {r: 1, g: 0.27, b: 0.2, a: 1}
   lineThickness: 0.12

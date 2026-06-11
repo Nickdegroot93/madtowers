@@ -96,9 +96,10 @@ touch engine code.
   laser level...).
 - Tuning knobs on the asset: `waves[]` (blockCount + lineHeightAboveFloor), `lineRiseSeconds`,
   and the laser style — `lineColor`, `lineThickness`, `lineBaseAlpha`, `linePulseAmount`,
-  `linePulseSpeed`. Defaults: **6 @ 5m → 10 @ 10m → 15 @ 17m → 21 @ 26m** (52 blocks total).
-  Heights assume ~8 usable cells of width per meter of height incl. overhang and gaps —
-  retune if the floor width changes.
+  `linePulseSpeed`. Defaults: **6 @ 5m → 10 @ 8m → 15 @ 13m → 21 @ 20m** (52 blocks total) —
+  the rises follow ~3 blocks per meter, so late waves force building wider than the floor
+  without becoming unfair. Retune if the floor width changes. A countdown rides the right
+  end of the line showing blocks left until it rises.
 - Laser **art** follows the active theme automatically: drop a `laser.png` into
   `Resources/Skins/<Theme>/` (see ART.md) and every laser level in that theme uses it;
   no file = the code-built bar. Zapped blocks burst via the reusable `BlockShatterFx`
