@@ -146,7 +146,7 @@ while climbing, streak clouds, rolling dunes at ground level
 |---|---|---|---|
 | Classic | GameMode_Classic | Reach 10m | The baseline (canonical values in §2). |
 | Narrow Tower | GameMode_Narrow | Endless | ~5-column floor, slightly faster, stricter camera. |
-| Sky Platforms | GameMode_SkyPlatforms | Endless | Support islands on (interval 4, chance 0.9, wide shapes). |
+| Sky Platforms | GameMode_SkyPlatforms | Endless | Island sandbox — same island settings as Classic now (islands are on everywhere). |
 | Hard Mode | GameMode_Hard | Reach 12m | Classic + pressure: fall 2.6 → cap 6.5, ramp 0.04/block, 7-column floor, peak 0.65, buffer 2, power-ups every 15, ambient **Ice 8% / Heavy 6% / Dizzy 4% / Stubborn 4%**. Physics contract untouched. |
 | Laser Limit | GameMode_LaserLimit | Place 52 | **Height-limit waves type** (above). No speed ramp, no power-up pauses, 2 lives, classic 9-column floor. |
 
@@ -176,7 +176,7 @@ while climbing, streak clouds, rolling dunes at ground level
 | Placement | gridSpacing **1** · placement buffer **3 columns** |
 | Floor | 1 segment: center **0**, **9 columns** (Narrow: ~5) |
 | Power-ups | choice every **10** blocks · pool: Extra Life, Slow Time, Anchor Brick, Cement Tower · slowMotionScale **0.5** |
-| Islands | **disabled** (Sky mode: interval 4, chance 0.9, first 4, ahead 7–8, shapes weighted wide) |
+| Islands | **enabled** · row interval 1 · chance 0.25 per side (floor-distance weighted) · first 9 · camera lead 2 · columns ±6, center clear 3 · shapes Single 12 / Two Wide 2 / Two Tall 2 / Corner 1 (details: §3 islands) |
 | Camera | peak **0.5** · spawn **0.9** · zoom **15–24** · smooth **0.28 / 0.35** · padding **1.5** · safe area **0.78** · min Y **0** |
 | Physics ⚠️ contract — identical in every mode | grounded **0.03** · impact cap **2** · settle **0.08 / 8°s / 0.35s** · sleepOnLock **on** · microAlign **on, 0.08 / 4°** · maxControlTime **12** |
 
@@ -230,14 +230,35 @@ invertHorizontalControls, tint) are pure assets: right-click
 small subclass in `Scripts/Blocks/Variants/` overriding `OnApplied`/`OnLocked` — AnchorBlockData
 is the 8-line template.
 
-### Sky platforms (static support islands)
+### Floating support islands (sky blocks)
+**On in every campaign level.** Static 1x1 themed cells flanking the tower (Tricky
+Towers' sky stones). Generation is **camera-driven**: every grid row up to
+`spawnAheadHeight` above the visible screen top is rolled exactly once
+(`StaticSupportIslandManager`), so islands always exist before they scroll into
+view — no pop-in during endless play. Each row rolls **independently per side band**
+(the columns between the center clear lane and min/max column), producing the two
+flanking stone lines from Tricky Towers.
+
+Under a height-limit waves level, generation is capped **1.5 cells below the line**
+(`TowerHeightLimit.CeilingY`, published by HeightLimitWavesModifier once the line
+settles; the margin means a block placed ON an island can't cross the line). When a
+wave clears and the line finishes rising, the newly legal band **materializes on
+screen**: staggered scale-in pops (`IslandPopFx` — visual child only, colliders are
+full-size from frame one) + the `pop_01` sound.
+
 | Setting | What it does |
 |---|---|
-| `staticSupportIslandsEnabled` | Master switch per level. |
-| `staticSupportIslandHeightInterval` / `SpawnChance` / `FirstHeight` | How often platforms roll as the tower grows. |
-| `staticSupportIslandSpawnAheadHeight` | How far above the tower peak they appear. Keep below the spawn line (~12 units with default camera) so they're landable immediately. |
-| `staticSupportIslandMin/MaxColumn`, `CenterClearColumns` | Where they may appear; keeps the main lane open. |
-| `staticSupportIslandShapes` | Weighted shape list (Single, Two/Three Wide, Corner...). Authorable inline per mode. |
+| `staticSupportIslandsEnabled` | Master switch per level. **On in Classic, LaserLimit, Spire, SkyPlatforms.** |
+| `staticSupportIslandHeightInterval` | Meters between spawn rows (snapped to grid). Canonical **1** = every row. |
+| `staticSupportIslandSpawnChance` | Chance per row PER SIDE, before floor-distance weighting. Canonical **0.25** ≈ a few stones per screen, almost all on the flanks (≈ half the Tricky Towers reference density out there). ⚠️ Playtested: 0.4 cluttered the narrow phone screen, 0.05 felt empty (whole games with 0–1 stones). |
+| `staticSupportIslandFirstHeight` | Meters above the floor where generation starts (**9**) — the first screens of building stay completely clean. |
+| `staticSupportIslandSpawnAheadHeight` | Generation lead above the camera's top edge (**2**). |
+| `staticSupportIslandMin/MaxColumn`, `CenterClearColumns` | **±6, clear 3** → side bands of 5 columns each (2–6 from center): nothing in the falling lane, nothing far out. Off-screen columns are fine — the camera zooms out as the tower widens. |
+| *(code)* floor-width weighting | Within a band, columns are weighted by distance past the **floor's edge** (derived per mode from `floorSegments`): over the floor **×0.12**, first column beyond the edge **×0.5**, clear of it **×1**. Islands exist to grow wider than the floor — above the floor they'd just block the landing lane. A narrow Spire floor therefore keeps full side density automatically. Constants: `StaticSupportIslandManager.OverFloorWeight` / `FloorEdgePlusOneWeight`. |
+| `staticSupportIslandShapes` | Weighted clusters, authorable inline per mode. Canonical: **Single 12, Two Wide 2, Two Tall 2, Corner 1** — mostly lone stones, occasional pairs, rare 3-cell corner. |
+
+Visuals: `Skins/<Theme>/island_1..3.png` (see ART.md) — plateau-material 1x1 cells;
+each spawn picks a random variant + random 90° rotation = 12 looks per theme.
 
 ### Power-up choices
 | Setting | What it does |

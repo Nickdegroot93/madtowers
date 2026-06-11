@@ -63,27 +63,28 @@ public class GameModeConfig : ScriptableObject
 
     [Header("Static Support Islands")]
     [SerializeField] private bool staticSupportIslandsEnabled = true;
-    [Tooltip("Every N meters of max tower height, the level rolls once for a support island.")]
+    [Tooltip("Vertical spacing in meters between island spawn rows (snapped to the grid; one roll per row per side band).")]
     [Min(0.1f)]
-    [SerializeField] private float staticSupportIslandHeightInterval = 8f;
-    [Tooltip("Chance that a support island appears when the interval is reached.")]
+    [SerializeField] private float staticSupportIslandHeightInterval = 1f;
+    [Tooltip("Chance that a cluster spawns on a given row, rolled independently PER SIDE band (then weighted by floor distance). Canonical 0.25 ≈ a few stones per screen, almost all on the flanks - playtested between 0.05 (felt empty) and 0.4 (cluttered the phone screen).")]
     [Range(0f, 1f)]
-    [SerializeField] private float staticSupportIslandSpawnChance = 0.35f;
-    [Tooltip("Max tower height required before the first support island roll can happen.")]
+    [SerializeField] private float staticSupportIslandSpawnChance = 0.25f;
+    [Tooltip("Meters above the floor where island generation starts. Canonical 9: the first screens of building stay completely clean.")]
     [Min(0f)]
-    [SerializeField] private float staticSupportIslandFirstHeight = 6f;
-    [Tooltip("How far above the current max tower height the island is placed.")]
+    [SerializeField] private float staticSupportIslandFirstHeight = 9f;
+    [Tooltip("How far above the camera's top edge generation stays ahead, so islands always exist before they scroll into view.")]
     [Min(0f)]
-    [SerializeField] private float staticSupportIslandSpawnAheadHeight = 8f;
-    [SerializeField] private int staticSupportIslandMinColumn = -5;
-    [SerializeField] private int staticSupportIslandMaxColumn = 5;
-    [Tooltip("How many center columns must stay clear so the default falling lane is never blocked by support islands.")]
+    [SerializeField] private float staticSupportIslandSpawnAheadHeight = 2f;
+    [SerializeField] private int staticSupportIslandMinColumn = -6;
+    [SerializeField] private int staticSupportIslandMaxColumn = 6;
+    [Tooltip("How many center columns must stay clear so the default falling lane is never blocked by support islands. The columns between this lane and min/max column form the two side bands.")]
     [Min(0)]
-    [SerializeField] private int staticSupportIslandCenterClearColumns = 5;
+    [SerializeField] private int staticSupportIslandCenterClearColumns = 3;
+    // Tricky-Towers distribution: overwhelmingly singles, occasional pairs, rare corner.
     [SerializeField] private StaticSupportIslandShapeConfig[] staticSupportIslandShapes =
     {
-        new StaticSupportIslandShapeConfig("Single", 6, new[] { Vector2Int.zero }),
-        new StaticSupportIslandShapeConfig("Two Wide", 3, new[] { Vector2Int.zero, Vector2Int.right }),
+        new StaticSupportIslandShapeConfig("Single", 12, new[] { Vector2Int.zero }),
+        new StaticSupportIslandShapeConfig("Two Wide", 2, new[] { Vector2Int.zero, Vector2Int.right }),
         new StaticSupportIslandShapeConfig("Two Tall", 2, new[] { Vector2Int.zero, Vector2Int.up }),
         new StaticSupportIslandShapeConfig("Corner", 1, new[] { Vector2Int.zero, Vector2Int.right, Vector2Int.up })
     };

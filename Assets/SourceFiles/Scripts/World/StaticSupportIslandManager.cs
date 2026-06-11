@@ -1,13 +1,24 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+/// <summary>
+/// Spawns the floating support islands (Tricky Towers' "sky stones"): static 1x1 cells,
+/// alone or in small clusters, that pieces can land on. Generation is CAMERA-driven, not
+/// tower-driven: every row up to just above the visible screen top is rolled exactly
+/// once, so in endless play islands always exist before they scroll into view. Rows roll
+/// independently per SIDE BAND (the columns flanking the center clear lane), which gives
+/// the Tricky-Towers look: stones lining both flanks, none in the falling lane.
+///
+/// Under a height-limit level (TowerHeightLimit.CeilingY), generation is capped a safe
+/// margin below the line; when the line rises, the newly legal band materializes with a
+/// staggered pop animation + sound (IslandPopFx) - visuals only, colliders are full-size
+/// from frame one. Visuals are themed (ThemeSkins.LoadIsland, random variant + 90-degree
+/// rotation); all per-level dials live on GameModeConfig (see LEVELS.md).
+/// </summary>
 public class StaticSupportIslandManager : MonoBehaviour
 {
     [SerializeField] private GameModeConfig gameModeConfig;
     [SerializeField] private GameObject _staticBlockPrefab;
-    [SerializeField] private float _spawnInterval = 5f;
-    [SerializeField] private float _spawnOffset = 5f;
-    [SerializeField] private float _xRange = 4f;
     [Tooltip("Surface friction of support islands. Matches the block friction so pieces grip the island instead of shearing off it.")]
     [Range(0f, 1f)]
     [SerializeField] private float _islandFriction = 0.95f;
@@ -18,12 +29,31 @@ public class StaticSupportIslandManager : MonoBehaviour
     [Range(0.85f, 1f)]
     [SerializeField] private float _islandFootprintScale = 0.94f;
 
+    // An island's top must leave room for one landed block below the limit line,
+    // or every island near the line would be a zap trap (in cells).
+    private const float LineHeadroomCells = 1.5f;
+    private const float PopStaggerSeconds = 0.07f;
+    private const int ColumnAttemptsPerSpawn = 4;
+
+    // Islands exist to let the tower grow WIDER than the floor - directly above the
+    // floor they're just obstacles in the landing lane. Per-column weights, scaled by
+    // how far the column sits past the floor's edge: over the floor almost never, the
+    // first column beyond the edge sparingly, properly clear of it at full density.
+    private const float OverFloorWeight = 0.12f;
+    private const float FloorEdgePlusOneWeight = 0.5f;
+
     private readonly RuntimeObjectPool _pool = new RuntimeObjectPool();
     private readonly Collider2D[] _overlapResults = new Collider2D[8];
     private PhysicsMaterial2D _islandMaterial;
     private ContactFilter2D _solidFilter;
-    private readonly List<int> _validBaseColumns = new List<int>(16);
-    private float _nextSpawnRollHeight;
+    private Sprite[] _islandSprites;
+    private Camera _camera;
+    private float _generatedUpToY;
+    private bool _initialFillDone;
+    private bool _initialFill;
+    private int _popsThisBurst;
+    private int _floorMinColumn; // resolved once per generation burst (see ColumnWeight)
+    private int _floorMaxColumn;
     private GameModeConfig ActiveGameModeConfig => LevelSelectionState.ResolveGameMode(gameModeConfig);
 
     private void Start()
@@ -34,137 +64,240 @@ public class StaticSupportIslandManager : MonoBehaviour
             useLayerMask = false
         };
 
+        // The themed looks, loaded once (GameManager.Awake applied the skin already).
+        // Only non-null variants are kept, so a random pick can never come up empty.
+        var sprites = new List<Sprite>(ThemeSkins.IslandVariantCount);
+        for (int i = 1; i <= ThemeSkins.IslandVariantCount; i++)
+        {
+            Sprite sprite = ThemeSkins.LoadIsland(i);
+            if (sprite != null) sprites.Add(sprite);
+        }
+        _islandSprites = sprites.ToArray();
+
         GameModeConfig activeConfig = ActiveGameModeConfig;
-        _nextSpawnRollHeight = activeConfig != null
-            ? activeConfig.StaticSupportIslandFirstHeight
-            : _spawnInterval;
+        float grid = activeConfig != null ? activeConfig.GridSpacing : 1f;
+        float floorY = GameManager.Instance != null ? GameManager.Instance.floorOriginY : 0f;
+        float firstHeight = activeConfig != null ? activeConfig.StaticSupportIslandFirstHeight : 3f;
+        _generatedUpToY = Mathf.Round((floorY + firstHeight) / grid) * grid;
     }
 
     private void Update()
     {
-        if (GameManager.Instance == null) return;
-        GameModeConfig activeConfig = ActiveGameModeConfig;
-        if (activeConfig != null && !activeConfig.StaticSupportIslandsEnabled) return;
-
-        float currentMaxHeight = GameManager.Instance.maxHeight;
-        float interval = activeConfig != null
-            ? activeConfig.StaticSupportIslandHeightInterval
-            : _spawnInterval;
-
-        while (currentMaxHeight >= _nextSpawnRollHeight)
+        // The initial fill waits for the FIRST Update: all Start()s have run by then, so
+        // a height-limit modifier has published its ceiling (Start order across components
+        // is undefined - filling in our own Start could put islands above the laser line).
+        // Still before the first rendered frame: everything visible simply already exists.
+        if (!_initialFillDone)
         {
-            RollSupportIsland(currentMaxHeight);
-            _nextSpawnRollHeight += interval;
+            _initialFillDone = true;
+            _initialFill = true;
+            GenerateUpToTarget();
+            _initialFill = false;
+            return;
+        }
+
+        GenerateUpToTarget();
+    }
+
+    // Roll every ungenerated row up to the current target (each row exactly once,
+    // _generatedUpToY is monotonic). The target is the camera top plus a lead - or the
+    // height-limit ceiling while a laser line is active, whichever is lower; a rising
+    // line therefore reveals the next band, and those rows pop in on screen.
+    private void GenerateUpToTarget()
+    {
+        GameModeConfig activeConfig = ActiveGameModeConfig;
+        if (activeConfig == null || !activeConfig.StaticSupportIslandsEnabled) return;
+        if (_staticBlockPrefab == null) return;
+        if (GameManager.Instance == null || GameManager.Instance.isGameOver) return;
+
+        float cameraTop = CameraTopY();
+        float grid = activeConfig.GridSpacing;
+        float rowStep = Mathf.Max(grid, Mathf.Round(activeConfig.StaticSupportIslandHeightInterval / grid) * grid);
+        float target = Mathf.Min(
+            cameraTop + activeConfig.StaticSupportIslandSpawnAheadHeight,
+            TowerHeightLimit.CeilingY - LineHeadroomCells * grid);
+
+        _popsThisBurst = 0;
+        GetFloorColumnSpan(activeConfig, out _floorMinColumn, out _floorMaxColumn);
+        while (_generatedUpToY <= target)
+        {
+            GenerateRow(activeConfig, _generatedUpToY, cameraTop, grid);
+            _generatedUpToY += rowStep;
         }
     }
 
-    private void RollSupportIsland(float currentMaxHeight)
+    // Each side band rolls independently: per row, per side, one chance for one cluster.
+    private void GenerateRow(GameModeConfig config, float rowY, float cameraTop, float grid)
     {
-        if (_staticBlockPrefab == null) return;
+        int clearColumns = config.StaticSupportIslandCenterClearColumns;
+        int clearMin = -(clearColumns / 2);
+        int clearMax = clearMin + clearColumns - 1;
 
-        GameModeConfig activeConfig = ActiveGameModeConfig;
-        float spawnChance = activeConfig != null
-            ? activeConfig.StaticSupportIslandSpawnChance
-            : 1f;
-
-        if (Random.value > spawnChance) return;
-        if (!TryChooseShape(out StaticSupportIslandShapeConfig shape)) return;
-
-        SpawnSupportIsland(currentMaxHeight, shape);
+        TrySpawnInBand(config, rowY, cameraTop, grid, config.StaticSupportIslandMinColumn, clearMin - 1);
+        TrySpawnInBand(config, rowY, cameraTop, grid, clearMax + 1, config.StaticSupportIslandMaxColumn);
     }
 
-    private bool TryChooseShape(out StaticSupportIslandShapeConfig shape)
+    private void TrySpawnInBand(GameModeConfig config, float rowY, float cameraTop, float grid,
+        int bandMinColumn, int bandMaxColumn)
+    {
+        if (bandMinColumn > bandMaxColumn) return;
+
+        // Per-column density = spawnChance / bandSize * columnWeight: scaling the row roll
+        // by the band's average weight keeps the far columns at exactly the configured
+        // density while the columns over the floor contribute almost nothing.
+        float weightSum = 0f;
+        int bandSize = bandMaxColumn - bandMinColumn + 1;
+        for (int column = bandMinColumn; column <= bandMaxColumn; column++)
+        {
+            weightSum += ColumnWeight(column);
+        }
+        if (Random.value > config.StaticSupportIslandSpawnChance * (weightSum / bandSize)) return;
+
+        // Tall shapes may not fit under the height-limit ceiling; pick among those that do.
+        int rowsAboveAllowed = float.IsPositiveInfinity(TowerHeightLimit.CeilingY)
+            ? int.MaxValue
+            : Mathf.FloorToInt((TowerHeightLimit.CeilingY - LineHeadroomCells * grid - rowY) / grid);
+        if (!TryChooseShape(config, rowsAboveAllowed, out StaticSupportIslandShapeConfig shape)) return;
+
+        // The whole cluster must stay inside the band (off the clear lane AND the outer limit).
+        GetShapeExtents(shape, out int minOffsetX, out int maxOffsetX);
+        int baseMin = bandMinColumn - minOffsetX;
+        int baseMax = bandMaxColumn - maxOffsetX;
+        if (baseMin > baseMax) return;
+
+        // Never materialize inside the falling piece, the tower, or another island - a few
+        // weighted column attempts; on a crowded row the island simply doesn't appear.
+        for (int attempt = 0; attempt < ColumnAttemptsPerSpawn; attempt++)
+        {
+            int baseColumn = WeightedColumnPick(baseMin, baseMax);
+            if (!IsIslandAreaClear(shape, baseColumn, rowY, grid)) continue;
+
+            SpawnCluster(shape, baseColumn, rowY, grid, popIn: !_initialFill && rowY < cameraTop);
+            return;
+        }
+    }
+
+    // How welcome an island is at this column, by distance past the FLOOR's edge (not the
+    // screen, not the clear lane; span cached per burst in GenerateUpToTarget). Derived per
+    // mode from its floor segments, so a narrow Spire floor keeps full side density while
+    // Classic's wide floor stays clean above.
+    private float ColumnWeight(int column)
+    {
+        int beyondEdge = column > _floorMaxColumn ? column - _floorMaxColumn
+            : column < _floorMinColumn ? _floorMinColumn - column
+            : 0;
+        if (beyondEdge == 0) return OverFloorWeight;
+        return beyondEdge == 1 ? FloorEdgePlusOneWeight : 1f;
+    }
+
+    private static void GetFloorColumnSpan(GameModeConfig config, out int floorMin, out int floorMax)
+    {
+        floorMin = 0;
+        floorMax = 0;
+        IReadOnlyList<FloorSegmentConfig> segments = config.FloorSegments;
+        if (segments == null || segments.Count == 0) return;
+
+        floorMin = int.MaxValue;
+        floorMax = int.MinValue;
+        for (int i = 0; i < segments.Count; i++)
+        {
+            if (segments[i] == null) continue;
+            floorMin = Mathf.Min(floorMin, segments[i].LeftColumn);
+            floorMax = Mathf.Max(floorMax, segments[i].RightColumn);
+        }
+        if (floorMin > floorMax) { floorMin = 0; floorMax = 0; }
+    }
+
+    private int WeightedColumnPick(int baseMin, int baseMax)
+    {
+        float total = 0f;
+        for (int column = baseMin; column <= baseMax; column++)
+        {
+            total += ColumnWeight(column);
+        }
+
+        float roll = Random.value * total;
+        for (int column = baseMin; column <= baseMax; column++)
+        {
+            roll -= ColumnWeight(column);
+            if (roll <= 0f) return column;
+        }
+        return baseMax;
+    }
+
+    private bool TryChooseShape(GameModeConfig config, int maxRowsAbove, out StaticSupportIslandShapeConfig shape)
     {
         shape = null;
-
-        GameModeConfig activeConfig = ActiveGameModeConfig;
-        IReadOnlyList<StaticSupportIslandShapeConfig> shapes = activeConfig != null
-            ? activeConfig.StaticSupportIslandShapes
-            : null;
-
+        IReadOnlyList<StaticSupportIslandShapeConfig> shapes = config.StaticSupportIslandShapes;
         if (shapes == null || shapes.Count == 0) return false;
 
         int totalWeight = 0;
         for (int i = 0; i < shapes.Count; i++)
         {
-            StaticSupportIslandShapeConfig candidate = shapes[i];
-            if (candidate == null || !candidate.HasCells) continue;
-            totalWeight += candidate.Weight;
+            if (IsShapeEligible(shapes[i], maxRowsAbove)) totalWeight += shapes[i].Weight;
         }
-
         if (totalWeight <= 0) return false;
 
         int roll = Random.Range(0, totalWeight);
         for (int i = 0; i < shapes.Count; i++)
         {
-            StaticSupportIslandShapeConfig candidate = shapes[i];
-            if (candidate == null || !candidate.HasCells || candidate.Weight <= 0) continue;
-
-            if (roll < candidate.Weight)
+            if (!IsShapeEligible(shapes[i], maxRowsAbove)) continue;
+            if (roll < shapes[i].Weight)
             {
-                shape = candidate;
+                shape = shapes[i];
                 return true;
             }
-
-            roll -= candidate.Weight;
+            roll -= shapes[i].Weight;
         }
-
         return false;
     }
 
-    private void SpawnSupportIsland(float currentMaxHeight, StaticSupportIslandShapeConfig shape)
+    private static bool IsShapeEligible(StaticSupportIslandShapeConfig shape, int maxRowsAbove)
     {
-        GameModeConfig activeConfig = ActiveGameModeConfig;
-        float gridSpacing = activeConfig != null ? activeConfig.GridSpacing : 1f;
-        int minColumn = activeConfig != null
-            ? activeConfig.StaticSupportIslandMinColumn
-            : Mathf.RoundToInt(-_xRange);
-        int maxColumn = activeConfig != null
-            ? activeConfig.StaticSupportIslandMaxColumn
-            : Mathf.RoundToInt(_xRange);
-
-        if (!TryBuildValidBaseColumns(shape, minColumn, maxColumn)) return;
-
-        float spawnAhead = activeConfig != null
-            ? activeConfig.StaticSupportIslandSpawnAheadHeight
-            : _spawnOffset;
-        float baseY = Mathf.Round((currentMaxHeight + spawnAhead) / gridSpacing) * gridSpacing;
-
-        // Never materialize a platform inside the falling piece, the tower, or another island —
-        // a piece overlapping a platform can't land on it and ghosts straight through.
-        int baseColumn = 0;
-        bool foundClearColumn = false;
-        while (_validBaseColumns.Count > 0)
-        {
-            int candidateIndex = Random.Range(0, _validBaseColumns.Count);
-            int candidate = _validBaseColumns[candidateIndex];
-            if (IsIslandAreaClear(shape, candidate, baseY, gridSpacing))
-            {
-                baseColumn = candidate;
-                foundClearColumn = true;
-                break;
-            }
-
-            _validBaseColumns.RemoveAt(candidateIndex);
-        }
-
-        if (!foundClearColumn) return;
-
-        GameObject islandRoot = new GameObject($"Static Support Island - {shape.DisplayName}");
-        islandRoot.transform.SetParent(transform);
-        islandRoot.transform.position = Vector3.zero;
+        if (shape == null || !shape.HasCells || shape.Weight <= 0) return false;
 
         IReadOnlyList<Vector2Int> offsets = shape.CellOffsets;
         for (int i = 0; i < offsets.Count; i++)
         {
-            Vector2Int offset = offsets[i];
+            if (offsets[i].y > maxRowsAbove) return false;
+        }
+        return true;
+    }
+
+    private static void GetShapeExtents(StaticSupportIslandShapeConfig shape, out int minOffsetX, out int maxOffsetX)
+    {
+        minOffsetX = int.MaxValue;
+        maxOffsetX = int.MinValue;
+        IReadOnlyList<Vector2Int> offsets = shape.CellOffsets;
+        for (int i = 0; i < offsets.Count; i++)
+        {
+            minOffsetX = Mathf.Min(minOffsetX, offsets[i].x);
+            maxOffsetX = Mathf.Max(maxOffsetX, offsets[i].x);
+        }
+    }
+
+    private void SpawnCluster(StaticSupportIslandShapeConfig shape, int baseColumn, float baseY,
+        float grid, bool popIn)
+    {
+        GameObject islandRoot = new GameObject($"Static Support Island - {shape.DisplayName}");
+        islandRoot.transform.SetParent(transform);
+        islandRoot.transform.position = Vector3.zero;
+
+        float popDelay = PopStaggerSeconds * _popsThisBurst;
+        if (popIn) _popsThisBurst++;
+
+        IReadOnlyList<Vector2Int> offsets = shape.CellOffsets;
+        for (int i = 0; i < offsets.Count; i++)
+        {
             Vector3 cellPosition = new Vector3(
-                (baseColumn + offset.x) * gridSpacing,
-                baseY + offset.y * gridSpacing,
+                (baseColumn + offsets[i].x) * grid,
+                baseY + offsets[i].y * grid,
                 0f);
 
             GameObject cell = _pool.Get(_staticBlockPrefab, cellPosition, Quaternion.identity, islandRoot.transform);
-            ConfigureIslandCellPhysics(cell, gridSpacing);
+            ConfigureIslandCellPhysics(cell, grid);
+            // A multi-cell cluster pops as one: all cells animate, only the first one sounds.
+            ConfigureIslandCellVisual(cell, popIn, popDelay, withSound: i == 0);
         }
     }
 
@@ -225,60 +358,45 @@ public class StaticSupportIslandManager : MonoBehaviour
         }
     }
 
-    private bool TryBuildValidBaseColumns(
-        StaticSupportIslandShapeConfig shape,
-        int allowedMinColumn,
-        int allowedMaxColumn)
+    // Themed look on a VISUAL CHILD (random variant, random 90-degree rotation - the art is
+    // rotation-safe, giving 12 looks per theme), so the pop animation can scale the sprite
+    // while the collider stays full-size. The prefab's own gray renderer becomes the
+    // fallback for a (never-shipped) theme with no island art at all.
+    private void ConfigureIslandCellVisual(GameObject cell, bool popIn, float popDelay, bool withSound)
     {
-        _validBaseColumns.Clear();
+        if (cell == null) return;
 
-        IReadOnlyList<Vector2Int> offsets = shape.CellOffsets;
-        if (offsets == null || offsets.Count == 0) return false;
+        Sprite sprite = _islandSprites != null && _islandSprites.Length > 0
+            ? _islandSprites[Random.Range(0, _islandSprites.Length)]
+            : null;
 
-        int minOffsetX = int.MaxValue;
-        int maxOffsetX = int.MinValue;
+        SpriteRenderer rootRenderer = cell.GetComponent<SpriteRenderer>();
+        if (rootRenderer != null) rootRenderer.enabled = sprite == null;
+        if (sprite == null) return;
 
-        for (int i = 0; i < offsets.Count; i++)
+        Transform visual = cell.transform.Find("IslandVisual");
+        if (visual == null)
         {
-            minOffsetX = Mathf.Min(minOffsetX, offsets[i].x);
-            maxOffsetX = Mathf.Max(maxOffsetX, offsets[i].x);
+            visual = new GameObject("IslandVisual").transform;
+            visual.SetParent(cell.transform, false);
+            visual.gameObject.AddComponent<SpriteRenderer>();
+            visual.gameObject.AddComponent<IslandPopFx>();
         }
 
-        int minBaseColumn = allowedMinColumn - minOffsetX;
-        int maxBaseColumn = allowedMaxColumn - maxOffsetX;
-        if (minBaseColumn > maxBaseColumn) return false;
+        SpriteRenderer renderer = visual.GetComponent<SpriteRenderer>();
+        renderer.sprite = sprite;
+        renderer.sortingOrder = 0; // world level, same plane as the blocks
+        visual.localRotation = Quaternion.Euler(0f, 0f, 90f * Random.Range(0, 4));
 
-        for (int baseColumn = minBaseColumn; baseColumn <= maxBaseColumn; baseColumn++)
-        {
-            if (IsShapeInsideCenterClearLane(shape, baseColumn)) continue;
-            _validBaseColumns.Add(baseColumn);
-        }
-
-        return _validBaseColumns.Count > 0;
+        IslandPopFx pop = visual.GetComponent<IslandPopFx>();
+        if (popIn) pop.Play(popDelay, withSound);
+        else pop.Skip();
     }
 
-    private bool IsShapeInsideCenterClearLane(StaticSupportIslandShapeConfig shape, int baseColumn)
+    private float CameraTopY()
     {
-        GameModeConfig activeConfig = ActiveGameModeConfig;
-        int clearColumns = activeConfig != null
-            ? activeConfig.StaticSupportIslandCenterClearColumns
-            : 0;
-
-        if (clearColumns <= 0) return false;
-
-        int clearMinColumn = -(clearColumns / 2);
-        int clearMaxColumn = clearMinColumn + clearColumns - 1;
-        IReadOnlyList<Vector2Int> offsets = shape.CellOffsets;
-
-        for (int i = 0; i < offsets.Count; i++)
-        {
-            int cellColumn = baseColumn + offsets[i].x;
-            if (cellColumn >= clearMinColumn && cellColumn <= clearMaxColumn)
-            {
-                return true;
-            }
-        }
-
-        return false;
+        if (_camera == null || !_camera.isActiveAndEnabled) _camera = Camera.main;
+        if (_camera == null) return float.NegativeInfinity; // no camera: generate nothing
+        return _camera.transform.position.y + (_camera.orthographic ? _camera.orthographicSize : 10f);
     }
 }

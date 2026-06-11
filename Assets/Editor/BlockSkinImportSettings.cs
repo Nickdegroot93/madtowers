@@ -6,11 +6,12 @@ using UnityEngine;
 // - piece_*.png  : whole-tetromino sprites (256 px/cell)
 // - plateau*.png : the landable strip from Tools/generate_ground_sprite.py (128 px/unit)
 // - laser*.png   : optional themed limit-line strip (128 px/unit)
+// - island_*.png : 1x1 floating support-island cells (128 px/unit)
 public sealed class BlockSkinImportSettings : AssetPostprocessor
 {
     // Bump whenever the import logic changes so already-imported skin textures reimport
     // with the new settings instead of keeping cached results.
-    public override uint GetVersion() => 6;
+    public override uint GetVersion() => 7;
 
     private void OnPreprocessTexture()
     {
@@ -20,7 +21,8 @@ public sealed class BlockSkinImportSettings : AssetPostprocessor
         string fileName = System.IO.Path.GetFileName(path);
         float pixelsPerUnit;
         if (fileName.StartsWith("piece_")) pixelsPerUnit = 256f;
-        else if (fileName.StartsWith("plateau") || fileName.StartsWith("laser")) pixelsPerUnit = 128f;
+        else if (fileName.StartsWith("plateau") || fileName.StartsWith("laser") ||
+                 fileName.StartsWith("island_")) pixelsPerUnit = 128f;
         else return;
 
         TextureImporter importer = (TextureImporter)assetImporter;

@@ -101,7 +101,16 @@ collider width exactly — what you see is what you can land on. There are
 deliberately **no buildings under the floor**: anything decorative near the
 platform risks reading as a landing surface, and it's invisible once the
 tower climbs anyway. Theme scenery (hills, dunes, mountains, props) lives in
-the backdrop system (§3) instead. Hand-made
+the backdrop system (§3) instead.
+
+**Floating support islands** — the same script renders `island_1..3.png`
+(128×128 px = one 1×1 cell, 128 px/unit) per theme: the sky stones pieces can
+land on (LEVELS.md has the spawn rules). Same material language as the plateau
+(base color, edge-line border ring, grain) but deliberately **symmetric — no
+"top"**: the spawner rotates each cell in random 90° steps, so 3 variants give
+12 looks per theme. Variants stay subtle: 1 plain, 2 hairline crack, 3 pebble
+flecks. The spawner picks variant + rotation randomly per cell
+(`StaticSupportIslandManager.ConfigureIslandCellVisual`). Hand-made
 override: transparent PNG at 128 px/unit whose flat top spans exactly the
 **middle 85%** of the canvas width, surface at the exact top edge. Shared
 style rules: see STYLE.md.
@@ -133,7 +142,7 @@ White/grayscale; code tints them.
 A theme = one folder with the same file names:
 
 ```
-Assets/Resources/Skins/Classic/   piece_I..Z, ground, (optional) laser
+Assets/Resources/Skins/Classic/   piece_I..Z, plateau, island_1..3, (optional) laser
 Assets/Art/Classic/               bg_sky, bg_far, clouds, ...
 (<Theme2>: same file names in sibling folders, different art)
 ```
@@ -168,8 +177,10 @@ into `Assets/Resources/Audio/Sfx/`; playback goes through `SfxPlayer`
 (pooled, cached, pitch-jittered one-shots). Iterate by tweaking the parameter dicts,
 rerunning, and previewing with `afplay` — no Unity needed. Current set: two
 flick-drop impact variants (the picked "round 2" recipe), a softer landing
-(not yet wired), and `swoosh_01` — the corner-nudge dash (band-swept noise
-through a falling crude bandpass, swell-then-die envelope; `synth_swoosh`).
+(not yet wired), `swoosh_01` — the corner-nudge dash (band-swept noise
+through a falling crude bandpass, swell-then-die envelope; `synth_swoosh`) —
+and `pop_01` — a support island materializing under a risen laser line
+(the impact recipe with f_end > f_start: a friendly rising blip).
 Hand-made/downloaded WAVs (prefer **CC0**, e.g. Kenney packs)
 drop into the same folder and play through the same system. Background music
 is a separate future system (per-theme tracks, ducking).
@@ -190,6 +201,9 @@ What happens when a level loads, in order:
 3. **Blocks** — each spawned piece (`BlockController.ApplyBlockSkin`) loads
    `ThemeSkins.LoadPiece(shape)` with the same fallback chain; the HUD's "next" ghost
    (`UIManager`) builds a desaturated copy of the same sprite (cached per folder+shape).
+   **Support islands** load `ThemeSkins.LoadIsland(1..3)` once at level start
+   (`StaticSupportIslandManager.Start`); each spawned cell gets a random variant and a
+   random 90° rotation on a visual child (the cell collider never rotates or scales).
 4. **Backdrop** — `LevelPresentationController` (on the scene's Background object,
    `[ExecuteAlways]`; world elements split into `LevelPresentationController.Elements`):
    - Resolves `theme.Backdrop` (a `BackdropPreset`), or `BackdropPreset.Defaults`

@@ -100,6 +100,11 @@ SOUNDS = {
     "impact_soft_01": dict(seed="soft1", duration=0.16, f_start=95, f_end=55,
                            body_amp=0.8, noise_amp=0.1, noise_cutoff=350,
                            body_tau=0.05, noise_tau=0.025, attack=0.008, peak_level=0.45),
+    # support island materializing (laser-wave reveal): a friendly RISING blip -
+    # f_end > f_start flips the usual pitch drop into a bubbly "pop"
+    "pop_01": dict(seed="pop1", duration=0.11, f_start=150, f_end=330,
+                   body_amp=1.0, noise_amp=0.04, noise_cutoff=900,
+                   body_tau=0.05, noise_tau=0.02, attack=0.004, peak_level=0.5),
 }
 
 SWOOSHES = {

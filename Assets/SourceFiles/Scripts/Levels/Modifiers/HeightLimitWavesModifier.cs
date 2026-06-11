@@ -80,6 +80,7 @@ public class HeightLimitWavesModifier : LevelModifier
         _context = context;
         _floorY = context.GameManager != null ? context.GameManager.floorOriginY : 0f;
         _waveIndex = 0;
+        _blocksPlaced = 0; // ScriptableObject state survives scene reloads; a retry starts at wave 1
         _finished = waves.Length == 0;
 
         // The win comes from the level's PlaceBlocks goal; catch a mismatched wiring early.
@@ -94,6 +95,9 @@ public class HeightLimitWavesModifier : LevelModifier
         }
 
         _lineY = _lineTargetY = CurrentLineWorldY();
+        // Publish the build ceiling so support islands only generate below the line
+        // (GameManager.Awake reset it to infinity at scene load).
+        if (!_finished) TowerHeightLimit.Set(_lineY);
         CreateLineVisual();
     }
 
@@ -115,8 +119,10 @@ public class HeightLimitWavesModifier : LevelModifier
         if (reachedWave >= waves.Length)
         {
             // All waves cleared: the limit disappears; the PlaceBlocks target completes the
-            // level, and "Keep Building" continues as a free endless run.
+            // level, and "Keep Building" continues as a free endless run (islands resume
+            // following the camera once the ceiling lifts).
             _finished = true;
+            TowerHeightLimit.Reset();
             if (_line != null) _line.gameObject.SetActive(false);
             if (_counter != null) _counter.gameObject.SetActive(false);
             return;
@@ -147,6 +153,10 @@ public class HeightLimitWavesModifier : LevelModifier
         // Glide toward the current wave's height, pulse, and track the camera horizontally.
         float riseSpeed = Mathf.Abs(_lineTargetY - _lineY) / Mathf.Max(0.05f, lineRiseSeconds);
         _lineY = Mathf.MoveTowards(_lineY, _lineTargetY, Mathf.Max(riseSpeed, 2f) * deltaTime);
+
+        // The ceiling follows the SETTLED line, so the freshly revealed island band pops
+        // in after the rise completes, not while the line is still gliding through it.
+        if (Mathf.Approximately(_lineY, _lineTargetY)) TowerHeightLimit.Set(_lineY);
 
         Camera cam = Camera.main;
         float x = cam != null ? cam.transform.position.x : 0f;

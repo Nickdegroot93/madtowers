@@ -42,6 +42,19 @@ public static class ThemeSkins
     /// <summary>Optional themed art for the height-limit laser line, or null.</summary>
     public static Sprite LoadLaser() => LoadWithFallback("laser");
 
+    /// <summary>
+    /// One floating support-island cell (1x1, rotation-safe; variant 1..3 per theme,
+    /// see generate_ground_sprite.py). Out-of-range variants clamp to 1.
+    /// </summary>
+    public static Sprite LoadIsland(int variant)
+    {
+        if (variant < 1 || variant > IslandVariantCount) variant = 1;
+        return LoadWithFallback($"island_{variant}");
+    }
+
+    /// <summary>How many island looks each theme supplies (x4 rotations at the spawner).</summary>
+    public const int IslandVariantCount = 3;
+
     // Partial skins are legal (ART.md: "only supply what should differ"): a theme folder
     // overrides file-by-file and everything else falls back to the Classic skin.
     private static Sprite LoadWithFallback(string fileName)
