@@ -13,7 +13,8 @@ needed** unless a row says "needs code". Physics tuning dials have their own con
 ThemeDefinition  (Assets/Resources/Themes/  — an Archero-style chapter)
  ├─ sortOrder (themes play lowest-first; leave gaps: 10, 20, 30...)
  ├─ presentation shared by its levels: backdrop (BackdropPreset: layered sky/clouds/
- │   hills/particles - see ART.md §3), musicPlaylist (looped in order: A → B → A …),
+ │   hills/particles - see ART.md §3), musicPlaylist (random opener, then rotating;
+ │   stops on game over),
  │   skinFolder (generated art; missing files fall back to Classic)
  ├─ featuredUnlocks: power-ups introduced by this theme (messaging; availability is
  │   authored per level pool)
@@ -283,7 +284,8 @@ a theme's `levels` array at the position it should play. The menu groups by them
    `skinFolder`. Missing files fall back to Classic file-by-file, so a ground-only skin
    is fine.
 4. Music: 1–2 tracks in `Assets/Audio/Music/`, dragged onto `musicPlaylist`
-   (looped in order; survives level restarts within the theme). Specs in ART.md.
+   (random opener, then rotating; survives level restarts, stops on game over).
+   Specs in ART.md.
 5. Levels: per the "New level" recipe, each with a one-sentence `instruction`.
    Locks/unlocks and menu placement come automatically from `sortOrder` + completion.
 

@@ -20,7 +20,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 7eda6a283e544188857116da0fcf2960, type: 2}
   backdrop: {fileID: 11400000, guid: 31e96611fa81425c95f969c4555b64ef, type: 2}
   music: {fileID: 0}
-  musicPlaylist: []
+  musicPlaylist:
+  - {fileID: 8300000, guid: d9f552169c04445bbd1fef5d7b1bf100, type: 3}
+  - {fileID: 8300000, guid: 5355854078be47c1b1ccd62602d4c27a, type: 3}
   skinFolder: Skins/Desert
   alwaysUnlocked: 0
   featuredUnlocks: []

@@ -33,7 +33,21 @@ THEME_PRESETS = {
         },
         "outline": 0.32,
     },
-    # "Desert": { ... desaturated/warm-shifted hues, softer outline ... },
+    # Sun-baked sand family: heavily desaturated, warm-cast, hue identities preserved
+    # in muted form (cool I/J vs warm Z/L stay distinguishable). Softer outline to
+    # match the theme's soft-shading language.
+    "Desert": {
+        "colors": {
+            "I": (199, 190, 162),  # bleached bone (cool cast)
+            "O": (231, 191, 112),  # golden sand
+            "T": (188, 136, 146),  # dusty clay-rose
+            "S": (166, 172, 118),  # desert sage
+            "Z": (209, 112, 88),   # terracotta
+            "J": (152, 150, 172),  # slate sand (cool cast)
+            "L": (223, 148, 82),   # burnt orange
+        },
+        "outline": 0.42,
+    },
 }
 
 SHAPES = {  # (col,row), row 0 = top of canvas, matches prefab spawn orientation

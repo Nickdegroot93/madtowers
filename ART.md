@@ -152,11 +152,14 @@ just "fill the folder again."
 
 ## 8. Music
 
-Per theme: 1–2 tracks (**OGG or MP3, 44.1kHz**, matched loudness), dropped in
-`Assets/Audio/Music/` and assigned to the theme's `musicPlaylist` (played in
-order, looped as a whole: A → B → A …). Music survives level restarts within a
-theme and only changes when the theme changes. License: CC0, CC-BY (credits
-screen later), or owned.
+Per theme: 1–N tracks (**OGG preferred**, MP3 fine; convert WAV→OGG from
+lossless, never lossy→lossy; matched loudness between tracks), dropped in
+`Assets/Audio/Music/` and assigned to the theme's `musicPlaylist`. Playback:
+a **random track opens**, then the rotation is fixed (A → B → A …) while the
+level is alive; music survives level restarts within a theme, **stops on game
+over** (a shared game-over jingle is planned), and a retry starts fresh.
+Music imports as *streaming* automatically (memory-friendly on phones).
+License: CC0, CC-BY (credits screen later), or owned.
 
 ## 9. Sound effects
 
