@@ -36,10 +36,17 @@ public class HeightLimitWavesModifier : LevelModifier
     [Tooltip("Seconds the line takes to glide to the next wave's height.")]
     [SerializeField] private float lineRiseSeconds = 1.2f;
 
+    [Header("Laser Style (per level; themes can override the art)")]
     [SerializeField] private Color lineColor = new Color(1f, 0.27f, 0.2f, 1f);
+    [Tooltip("World thickness of the default code-built line (ignored when a theme supplies laser.png).")]
+    [SerializeField] private float lineThickness = 0.12f;
+    [Range(0f, 1f)]
+    [SerializeField] private float lineBaseAlpha = 0.55f;
+    [Range(0f, 1f)]
+    [SerializeField] private float linePulseAmount = 0.18f;
+    [SerializeField] private float linePulseSpeed = 6f;
 
     private const float ZapCooldownSeconds = 0.75f; // a collapse can't chain-drain lives in one beat
-    private const float LineThickness = 0.12f;
     private const float LineLength = 90f;
 
     private LevelModifierContext _context;
@@ -127,7 +134,7 @@ public class HeightLimitWavesModifier : LevelModifier
 
         _flash = Mathf.Max(0f, _flash - deltaTime * 2.5f);
         Color c = lineColor;
-        c.a = Mathf.Clamp01(0.55f + 0.18f * Mathf.Sin(Time.time * 6f) + _flash);
+        c.a = Mathf.Clamp01(lineBaseAlpha + linePulseAmount * Mathf.Sin(Time.time * linePulseSpeed) + _flash);
         _line.color = c;
 
         _zapCooldown -= deltaTime;
@@ -147,10 +154,11 @@ public class HeightLimitWavesModifier : LevelModifier
             if (!block.TryGetWorldBounds(out Bounds bounds)) continue;
             if (bounds.max.y <= _lineY + 0.02f) continue;
 
+            BlockShatterFx.Spawn(bounds, lineColor);
             Object.Destroy(block.gameObject);
             _zapCooldown = ZapCooldownSeconds;
             _flash = 0.6f;
-            TowerCameraController.Impact(0.12f, 0.18f);
+            TowerCameraController.Impact(0.15f, 0.2f);
             _context?.GameManager?.GameOver();
             return;
         }
@@ -162,11 +170,16 @@ public class HeightLimitWavesModifier : LevelModifier
         return _floorY + waves[Mathf.Clamp(_waveIndex, 0, waves.Length - 1)].lineHeightAboveFloor;
     }
 
+    // The line art follows the active theme's skin folder when it provides laser.png
+    // (same convention as piece_*.png and ground.png); otherwise a code-built soft bar.
+    // A themed sprite keeps its authored height - only its length is stretched.
     private void CreateLineVisual()
     {
+        Sprite themed = ThemeSkins.LoadLaser();
+
         GameObject go = new GameObject("HeightLimitLine");
         _line = go.AddComponent<SpriteRenderer>();
-        _line.sprite = RuntimeSprites.SoftHorizontalBar(LineThickness);
+        _line.sprite = themed != null ? themed : RuntimeSprites.SoftHorizontalBar(lineThickness);
         _line.sortingOrder = 50; // in front of blocks (0), behind UI
         _line.transform.position = new Vector3(0f, _lineY, 0f);
         _line.transform.localScale = new Vector3(LineLength / _line.sprite.bounds.size.x, 1f, 1f);

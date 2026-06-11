@@ -120,17 +120,8 @@ public class UIManager : MonoBehaviour
         EnsureNextPreview();
         if (_nextPreview == null) return;
 
-        Sprite ghost = null;
-        if (!string.IsNullOrWhiteSpace(blockName))
-        {
-            string shape = blockName.Trim();
-            int underscoreIndex = shape.LastIndexOf('_');
-            if (underscoreIndex >= 0 && underscoreIndex < shape.Length - 1)
-            {
-                shape = shape.Substring(underscoreIndex + 1);
-            }
-            ghost = GetGhostSprite(shape);
-        }
+        string shape = ThemeSkins.ExtractShapeToken(blockName);
+        Sprite ghost = string.IsNullOrEmpty(shape) ? null : GetGhostSprite(shape);
 
         _nextPreview.sprite = ghost;
         _nextPreview.enabled = ghost != null;
@@ -141,10 +132,10 @@ public class UIManager : MonoBehaviour
     // brick already in play. Cached per shape and skin folder.
     private Sprite GetGhostSprite(string shape)
     {
-        string cacheKey = $"{BlockController.SkinResourcesFolder}:{shape}";
+        string cacheKey = $"{ThemeSkins.Folder}:{shape}";
         if (_ghostSprites.TryGetValue(cacheKey, out Sprite cached)) return cached;
 
-        Sprite source = Resources.Load<Sprite>($"{BlockController.SkinResourcesFolder}/piece_{shape}");
+        Sprite source = ThemeSkins.LoadPiece(shape);
         Sprite ghost = source;
         if (source != null && source.texture.isReadable)
         {
@@ -327,8 +318,6 @@ public class UIManager : MonoBehaviour
         _nextPreview.enabled = false;
         _nextPanel.SetActive(false);
     }
-
-
 
     private void StyleGameOverText()
     {

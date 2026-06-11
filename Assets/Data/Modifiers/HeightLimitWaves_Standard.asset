@@ -23,3 +23,7 @@ MonoBehaviour:
     lineHeightAboveFloor: 26
   lineRiseSeconds: 1.2
   lineColor: {r: 1, g: 0.27, b: 0.2, a: 1}
+  lineThickness: 0.12
+  lineBaseAlpha: 0.55
+  linePulseAmount: 0.18
+  linePulseSpeed: 6

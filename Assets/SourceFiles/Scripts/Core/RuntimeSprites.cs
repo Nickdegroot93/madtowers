@@ -117,6 +117,25 @@ public static class RuntimeSprites
         return _softBar = Finish(tex, H / Mathf.Max(0.01f, worldThickness));
     }
 
+    // ---- plain white square (shard particles etc.; tint via color) ------------------------
+    private static Sprite _square;
+
+    public static Sprite Square()
+    {
+        if (_square != null) return _square;
+
+        const int S = 4;
+        Texture2D tex = NewTexture(S, S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                tex.SetPixel(x, y, Color.white);
+            }
+        }
+        return _square = Finish(tex, S); // 1x1 world unit; scale to size
+    }
+
     // ---- vertical gradient ---------------------------------------------------------------
     // NOT cached: returns a fresh sprite the caller owns (and should DestroyImmediate,
     // texture included, when replacing - see LevelPresentationController).

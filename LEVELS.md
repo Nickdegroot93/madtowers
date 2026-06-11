@@ -95,9 +95,14 @@ touch engine code.
   harder puzzle. Mode dials and other modifiers stack on top (icy laser level, earthquake
   laser level...).
 - Tuning knobs on the asset: `waves[]` (blockCount + lineHeightAboveFloor), `lineRiseSeconds`,
-  `lineColor`. Defaults: **6 @ 5m → 10 @ 10m → 15 @ 17m → 21 @ 26m** (52 blocks total).
+  and the laser style — `lineColor`, `lineThickness`, `lineBaseAlpha`, `linePulseAmount`,
+  `linePulseSpeed`. Defaults: **6 @ 5m → 10 @ 10m → 15 @ 17m → 21 @ 26m** (52 blocks total).
   Heights assume ~8 usable cells of width per meter of height incl. overhang and gaps —
   retune if the floor width changes.
+- Laser **art** follows the active theme automatically: drop a `laser.png` into
+  `Resources/Skins/<Theme>/` (see ART.md) and every laser level in that theme uses it;
+  no file = the code-built bar. Zapped blocks burst via the reusable `BlockShatterFx`
+  (shards tinted to the laser color) plus a subtle camera impact.
 
 ### Current level inventory (Testing Grounds theme)
 

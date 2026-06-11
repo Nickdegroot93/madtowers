@@ -4,11 +4,12 @@ using UnityEditor;
 // so regenerating art stays a pure file-drop with no manual setup:
 // - piece_*.png : whole-tetromino sprites from Tools/generate_piece_sprites.py (256 px/cell)
 // - ground*.png : floor/mountain sprites from Tools/generate_ground_sprite.py (128 px/unit)
+// - laser*.png  : optional themed limit-line strip for HeightLimitWavesModifier (128 px/unit)
 public sealed class BlockSkinImportSettings : AssetPostprocessor
 {
     // Bump whenever the import logic changes so already-imported skin textures reimport
     // with the new settings instead of keeping cached results.
-    public override uint GetVersion() => 2;
+    public override uint GetVersion() => 3;
 
     private void OnPreprocessTexture()
     {
@@ -19,6 +20,7 @@ public sealed class BlockSkinImportSettings : AssetPostprocessor
         float pixelsPerUnit;
         if (fileName.StartsWith("piece_")) pixelsPerUnit = 256f;
         else if (fileName.StartsWith("ground")) pixelsPerUnit = 128f;
+        else if (fileName.StartsWith("laser")) pixelsPerUnit = 128f;
         else return;
 
         TextureImporter importer = (TextureImporter)assetImporter;

@@ -110,10 +110,15 @@ White/grayscale; code tints them.
 A theme = one folder with the same file names:
 
 ```
-Assets/Resources/BlockSkins/Classic/   piece_I..Z
-Assets/Art/Classic/                    bg_sky, bg_far, clouds, ground, ...
+Assets/Resources/Skins/Classic/   piece_I..Z, ground, (optional) laser
+Assets/Art/Classic/               bg_sky, bg_far, clouds, ...
 (<Theme2>: same file names in sibling folders, different art)
 ```
+
+Optional per-theme `laser.png`: the height-limit line for puzzle levels. Horizontal
+strip, ~1024×32–64 px (128 px/unit — height is kept as authored, length is stretched),
+transparent PNG, glow baked in light tones (the level tints and pulses it). Without it,
+a clean code-built bar is used.
 
 Code loads the matching skin when a theme starts. Emblems, HUD, particles can
 be shared across themes or overridden per theme — only supply what should
