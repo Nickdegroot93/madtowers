@@ -8,6 +8,7 @@ public sealed class LevelModifierContext
 {
     public GameManager GameManager;
     public Spawner Spawner;
+    public LevelDefinition Level;
 }
 
 /// <summary>

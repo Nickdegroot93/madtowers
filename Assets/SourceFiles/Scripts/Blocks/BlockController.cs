@@ -323,42 +323,11 @@ public class BlockController : MonoBehaviour
 
         GameObject beam = new GameObject($"{name}_PlacementBeam");
         _placementBeamRenderer = beam.AddComponent<SpriteRenderer>();
-        _placementBeamRenderer.sprite = GetPlacementBeamSprite();
+        _placementBeamRenderer.sprite = RuntimeSprites.PlacementBeam();
         _placementBeamRenderer.drawMode = SpriteDrawMode.Sliced;
         _placementBeamRenderer.sortingLayerID = sourceRenderer.sortingLayerID;
         _placementBeamRenderer.sortingOrder = PlacementBeamSortingOrder;
         _placementBeamRenderer.enabled = false;
-    }
-
-    // Subtle guide column built in code (no asset dependency): a faint borderless wash
-    // that fades out toward the top so the landing end reads strongest.
-    private static Sprite _beamSprite;
-
-    private static Sprite GetPlacementBeamSprite()
-    {
-        if (_beamSprite != null) return _beamSprite;
-
-        const int W = 8, H = 256;
-        Texture2D tex = new Texture2D(W, H, TextureFormat.RGBA32, false)
-        {
-            wrapMode = TextureWrapMode.Clamp,
-            filterMode = FilterMode.Bilinear,
-            hideFlags = HideFlags.HideAndDontSave
-        };
-        for (int y = 0; y < H; y++)
-        {
-            float fade = Mathf.Lerp(1f, 0.25f, (float)y / (H - 1)); // y=0 = landing end
-            for (int x = 0; x < W; x++)
-            {
-                tex.SetPixel(x, y, new Color(1f, 1f, 1f, 0.05f * fade));
-            }
-        }
-        tex.Apply();
-
-        _beamSprite = Sprite.Create(tex, new Rect(0, 0, W, H), new Vector2(0.5f, 0.5f), 64f,
-            0, SpriteMeshType.FullRect, Vector4.zero);
-        _beamSprite.hideFlags = HideFlags.HideAndDontSave;
-        return _beamSprite;
     }
 
     private void DestroyPlacementBeam()

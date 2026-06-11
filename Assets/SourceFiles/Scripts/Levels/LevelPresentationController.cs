@@ -104,6 +104,8 @@ public class LevelPresentationController : MonoBehaviour
         }
     }
 
+    // Caches the generated gradient per tint; the previous sprite is destroyed on change
+    // (RuntimeSprites.VerticalGradient returns caller-owned sprites).
     private Sprite _gradientSprite;
     private Color _gradientTopTint;
 
@@ -118,23 +120,7 @@ public class LevelPresentationController : MonoBehaviour
             DestroyImmediate(_gradientSprite);
         }
 
-        const int H = 256;
-        Texture2D tex = new Texture2D(1, H, TextureFormat.RGBA32, false)
-        {
-            wrapMode = TextureWrapMode.Clamp,
-            filterMode = FilterMode.Bilinear,
-            hideFlags = HideFlags.HideAndDontSave
-        };
-        top.a = 1f;
-        bottom.a = 1f;
-        for (int y = 0; y < H; y++)
-        {
-            tex.SetPixel(0, y, Color.Lerp(bottom, top, (float)y / (H - 1)));
-        }
-        tex.Apply();
-
-        _gradientSprite = Sprite.Create(tex, new Rect(0, 0, 1, H), new Vector2(0.5f, 0.5f), 16f);
-        _gradientSprite.hideFlags = HideFlags.HideAndDontSave;
+        _gradientSprite = RuntimeSprites.VerticalGradient(top, bottom);
         return _gradientSprite;
     }
 

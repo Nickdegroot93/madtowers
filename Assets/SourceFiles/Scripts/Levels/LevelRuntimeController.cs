@@ -22,7 +22,8 @@ public class LevelRuntimeController : MonoBehaviour
         _modifierContext = new LevelModifierContext
         {
             GameManager = GameManager.Instance,
-            Spawner = FindAnyObjectByType<Spawner>()
+            Spawner = FindAnyObjectByType<Spawner>(),
+            Level = _level
         };
 
         StartModifiers();

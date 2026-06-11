@@ -261,7 +261,7 @@ public class UIManager : MonoBehaviour
             heartRect.sizeDelta = new Vector2(HeartSize, HeartSize);
 
             Image image = heart.GetComponent<Image>();
-            image.sprite = GetHeartSprite();
+            image.sprite = RuntimeSprites.Heart();
             image.color = HeartColor;
             image.raycastTarget = false;
             image.enabled = false;
@@ -285,7 +285,7 @@ public class UIManager : MonoBehaviour
         panelRect.sizeDelta = new Vector2(224f, 132f);
 
         Image panelImage = _nextPanel.GetComponent<Image>();
-        panelImage.sprite = GetRoundedPanelSprite();
+        panelImage.sprite = RuntimeSprites.RoundedPanel();
         panelImage.type = Image.Type.Sliced;
         panelImage.color = NextPanelColor;
         panelImage.raycastTarget = false;
@@ -328,79 +328,7 @@ public class UIManager : MonoBehaviour
         _nextPanel.SetActive(false);
     }
 
-    // Rounded-rect panel sprite built in code, 9-sliced so corners stay crisp at any size.
-    private static Sprite _panelSprite;
 
-    private static Sprite GetRoundedPanelSprite()
-    {
-        if (_panelSprite != null) return _panelSprite;
-
-        const int S = 64;
-        const float R = 14f;
-        Texture2D tex = new Texture2D(S, S, TextureFormat.RGBA32, false)
-        {
-            wrapMode = TextureWrapMode.Clamp,
-            filterMode = FilterMode.Bilinear,
-            hideFlags = HideFlags.HideAndDontSave
-        };
-        for (int y = 0; y < S; y++)
-        {
-            for (int x = 0; x < S; x++)
-            {
-                float qx = Mathf.Abs(x + 0.5f - S * 0.5f) - (S * 0.5f - R);
-                float qy = Mathf.Abs(y + 0.5f - S * 0.5f) - (S * 0.5f - R);
-                float d = new Vector2(Mathf.Max(qx, 0f), Mathf.Max(qy, 0f)).magnitude
-                          + Mathf.Min(Mathf.Max(qx, qy), 0f) - R;
-                tex.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Clamp01(0.5f - d)));
-            }
-        }
-        tex.Apply();
-
-        _panelSprite = Sprite.Create(tex, new Rect(0, 0, S, S), new Vector2(0.5f, 0.5f), 100f,
-            0, SpriteMeshType.FullRect, new Vector4(24f, 24f, 24f, 24f));
-        _panelSprite.hideFlags = HideFlags.HideAndDontSave;
-        return _panelSprite;
-    }
-
-    // Heart icon built in code (no asset dependency), using the classic implicit
-    // heart curve, supersampled for smooth edges. White; tinted via Image.color.
-    private static Sprite _heartSprite;
-
-    private static Sprite GetHeartSprite()
-    {
-        if (_heartSprite != null) return _heartSprite;
-
-        const int S = 64;
-        Texture2D tex = new Texture2D(S, S, TextureFormat.RGBA32, false)
-        {
-            wrapMode = TextureWrapMode.Clamp,
-            filterMode = FilterMode.Bilinear,
-            hideFlags = HideFlags.HideAndDontSave
-        };
-        for (int y = 0; y < S; y++)
-        {
-            for (int x = 0; x < S; x++)
-            {
-                float coverage = 0f;
-                for (int sy = 0; sy < 3; sy++)
-                {
-                    for (int sx = 0; sx < 3; sx++)
-                    {
-                        float u = ((x + (sx + 0.5f) / 3f) / S) * 2.6f - 1.3f;
-                        float v = ((y + (sy + 0.5f) / 3f) / S) * 2.6f - 1.5f;
-                        float f = u * u + v * v - 1f;
-                        if (f * f * f - u * u * v * v * v <= 0f) coverage += 1f;
-                    }
-                }
-                tex.SetPixel(x, y, new Color(1f, 1f, 1f, coverage / 9f));
-            }
-        }
-        tex.Apply();
-
-        _heartSprite = Sprite.Create(tex, new Rect(0, 0, S, S), new Vector2(0.5f, 0.5f), S);
-        _heartSprite.hideFlags = HideFlags.HideAndDontSave;
-        return _heartSprite;
-    }
 
     private void StyleGameOverText()
     {

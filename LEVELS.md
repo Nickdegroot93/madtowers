@@ -58,6 +58,57 @@ belong here.
 Rule of thumb: if two levels could ever want it with different numbers, it's a modifier with
 serialized fields, not a one-off hack.
 
+### Level types (the catalog)
+
+A level *type* is a different way to play — not just harder numbers. Mechanically, a type
+is **a GameModeConfig flavour + (optionally) a LevelModifier that owns the special rule and
+its visuals**, with winning expressed through the standard goal system. New types never
+touch engine code.
+
+| Type | Assembled from | Win condition |
+|---|---|---|
+| **Classic stacking** | any mode, no modifiers — the base game | `Endless` (free play), `ReachHeight` (climb to X m), or `PlaceBlocks` (stack N) — three sub-flavours for free |
+| **Height-Limit Waves** ("Laser Limit" — Tricky Towers' puzzle mode) | `HeightLimitWavesModifier` asset on the level | `PlaceBlocks` = sum of wave counts |
+| *future: rising water, timed rush, wind gauntlet…* | one modifier subclass each, same recipe | standard goals |
+
+**Building a new type** (the recipe Height-Limit Waves followed):
+1. Subclass `LevelModifier` in `Scripts/Levels/Modifiers/`; the modifier owns ALL the
+   rule logic *and* its visuals (use `RuntimeSprites` for code-built shapes).
+2. Serialize every tunable (counts, heights, colors…) so per-level variants are pure assets.
+3. Express winning through the existing `targetType` — never invent a parallel win path.
+4. Validate wiring in `OnLevelStart` (warn loudly if the level's goal doesn't match).
+5. Document it here and add a catalog row.
+
+#### Height-Limit Waves details
+
+- Blocks arrive in **waves**; the whole tower must stay under a glowing **limit line**.
+- Clearing a wave's block count makes the line **glide up** and the next, bigger wave begins.
+- A **landed** block crossing the line is **zapped** (destroyed) and costs a life through the
+  normal lives/GameOver flow. The falling piece passes the line freely (it spawns above it).
+- Wire-up: pair the modifier with `targetType: PlaceBlocks`, `targetValue: <sum of wave
+  counts>` — clearing the last wave completes the level via the normal goal system, and
+  "Keep Building" continues as a free endless run (line disappears). A console warning
+  fires at level start if the goal doesn't match the waves.
+- **Per-level difficulty = per-level modifier assets**: duplicate
+  `Data/Modifiers/HeightLimitWaves_Standard`, change its waves (count, sizes, line
+  heights), assign to another level. Lower starting line / smaller rises / bigger waves =
+  harder puzzle. Mode dials and other modifiers stack on top (icy laser level, earthquake
+  laser level...).
+- Tuning knobs on the asset: `waves[]` (blockCount + lineHeightAboveFloor), `lineRiseSeconds`,
+  `lineColor`. Defaults: **6 @ 5m → 10 @ 10m → 15 @ 17m → 21 @ 26m** (52 blocks total).
+  Heights assume ~8 usable cells of width per meter of height incl. overhang and gaps —
+  retune if the floor width changes.
+
+### Current level inventory (Testing Grounds theme)
+
+| Level | Mode asset | Goal | What's different |
+|---|---|---|---|
+| Classic | GameMode_Classic | Reach 10m | The baseline (canonical values in §2). |
+| Narrow Tower | GameMode_Narrow | Endless | ~5-column floor, slightly faster, stricter camera. |
+| Sky Platforms | GameMode_SkyPlatforms | Endless | Support islands on (interval 4, chance 0.9, wide shapes). |
+| Hard Mode | GameMode_Hard | Reach 12m | Classic + pressure: fall 2.6 → cap 6.5, ramp 0.04/block, 7-column floor, peak 0.65, buffer 2, power-ups every 15, ambient **Ice 8% / Heavy 6% / Dizzy 4% / Stubborn 4%**. Physics contract untouched. |
+| Laser Limit | GameMode_LaserLimit | Place 52 | **Height-limit waves type** (above). No speed ramp, no power-up pauses, 2 lives, classic 9-column floor. |
+
 | Path | Contents |
 |---|---|
 | `Assets/Resources/Themes/` | ThemeDefinition assets. **Must stay here** (loaded by path at runtime). |
@@ -74,6 +125,19 @@ serialized fields, not a one-off hack.
 ---
 
 ## 2. Every level dial (GameModeConfig)
+
+### Canonical Classic values (GameMode_Classic.asset — the "works perfectly" baseline)
+
+| Group | Values |
+|---|---|
+| Round | lives **0** · fall speed **2** → cap **5** · scaling **PerBlock, Additive, +0.025/block** (OverTime alt: +0.1 per 60s) · spawnDelay **0** |
+| Spawning | bag: **all 7 tetrominoes ×1 copy** · fallback variants: Normal, Heavy · ambient variant rolls: **none** |
+| Placement | gridSpacing **1** · placement buffer **3 columns** |
+| Floor | 1 segment: center **0**, **9 columns** (Narrow: ~5) |
+| Power-ups | choice every **10** blocks · pool: Extra Life, Slow Time, Anchor Brick, Cement Tower · slowMotionScale **0.5** |
+| Islands | **disabled** (Sky mode: interval 4, chance 0.9, first 4, ahead 7–8, shapes weighted wide) |
+| Camera | peak **0.5** · spawn **0.9** · zoom **15–24** · smooth **0.28 / 0.35** · padding **1.5** · safe area **0.78** · min Y **0** |
+| Physics ⚠️ contract — identical in every mode | grounded **0.03** · impact cap **2** · settle **0.08 / 8°s / 0.35s** · sleepOnLock **on** · microAlign **on, 0.08 / 4°** · maxControlTime **12** |
 
 ### Difficulty & pacing
 | Setting | What it does |
@@ -209,7 +273,7 @@ Needs code (rough effort, all fit the existing hooks):
   levels are beaten (PlayerPrefs or a save file) and locking later themes in the menu is the
   next milestone before this becomes a real campaign.
 - **Wind gusts** (small) — a LevelModifier like Earthquake but with telegraphed directional pushes. Watch PHYSICS.md I1: forces only, never positions.
-- **Bomb brick** (small) — `OnLocked`: apply explosion impulse to neighbours, destroy self. Negative ambient chance or cursed power-up.
+- ~~**Bomb brick**~~ — done: Bomb variant (1s fuse, chain-deletes touching blocks). Use via ambient chance or a cursed power-up.
 - **Brittle brick** (medium) — breaks into single cells when load exceeds a threshold.
 - ~~**Earthquake events**~~ — done: `EarthquakeModifier` (interval, jolt strength, grace blocks). Add its asset to any level.
 - ~~**Win conditions**~~ — done: per-level targets (PlaceBlocks / ReachHeight) with completion screen and next-level progression.
