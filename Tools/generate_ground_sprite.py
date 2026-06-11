@@ -115,7 +115,8 @@ if __name__ == "__main__":
                    blocks=1, top=(118, 180, 98))
     remove_legacy("TrainingWheels")
 
-    # Desert: broad sandstone slabs, soft tonal joints
-    render_plateau("Desert", (226, 142, 84),
-                   blocks=2, bevel=0.10, tone_steps=(1.0, 0.95))
+    # Desert: sun-baked terracotta capped with wind-blown sand - the floor belongs to
+    # the dunes the same way Training Wheels' grass cap belongs to its hills
+    render_plateau("Desert", (206, 118, 82),
+                   blocks=1, top=(243, 190, 132))
     remove_legacy("Desert")
