@@ -170,6 +170,21 @@ public class BlockController : MonoBehaviour
         ShiftTargetColumn(direction > 0 ? 1 : -1);
     }
 
+    // The corner-zone nudge: a one-tap precision dash of EXACTLY one column - same grid
+    // rules as StepColumn (so it can never do anything a drag couldn't), but a dash that
+    // actually moves gets sold with wind + a swoosh. A blocked dash stays silent, like a
+    // blocked drag step.
+    public void Nudge(int direction)
+    {
+        float before = _targetColumnX;
+        StepColumn(direction); // ALL gating (control, pause, grid, obstacles) lives there
+        if (Mathf.Approximately(_targetColumnX, before)) return; // gated or blocked: silent
+
+        int moved = _targetColumnX > before ? 1 : -1; // actual direction (Dizzy may invert)
+        if (TryGetWorldBounds(out Bounds bounds)) DashWindFx.Spawn(bounds, moved);
+        SfxPlayer.Play("swoosh_01", 0.45f, 0.08f);
+    }
+
     // falling, so they stay on the same grid rules as horizontal movement.
     public void RotateLeft()
     {

@@ -12,6 +12,8 @@ using TouchPhase = UnityEngine.InputSystem.TouchPhase;
 ///   - tap: rotate - left half of the screen = counter-clockwise, right half = clockwise
 ///   - drag down past a threshold and hold: fast drop until the finger lifts
 ///   - quick short downward flick: latched full-speed auto-drop
+///   - tap in a bottom CORNER zone: nudge - a precision dash of exactly one column
+///     toward that side (consumed immediately; never becomes a drag or rotate)
 /// A second finger can tap to rotate while the first is dragging. Self-installs at
 /// startup (no scene wiring). On desktop the left mouse button acts as one finger -
 /// deliberately NOT via TouchSimulation, which suppresses the mouse device and killed
@@ -26,6 +28,11 @@ public class TouchGestureInput : MonoBehaviour
     private const float FlickMinInches = 0.18f;        // ... at least this far down ...
     private const float FlickDominance = 1.5f;         // ... and clearly vertical = latched auto-drop
     private const float HudTopIgnoreFraction = 0.10f;  // touches starting in the HUD strip are ignored
+
+    // Bottom-corner nudge zones. Public: UIManager draws its faint markers from these
+    // same fractions, so the on-screen hint always matches the real hitbox.
+    public const float NudgeZoneWidthFraction = 0.22f;
+    public const float NudgeZoneHeightFraction = 0.16f;
     private const float FallbackDpi = 160f;
     private const int MouseId = -1;
 
@@ -132,12 +139,26 @@ public class TouchGestureInput : MonoBehaviour
     {
         if (pos.y > Screen.height * (1f - HudTopIgnoreFraction)) return; // HUD strip
 
+        // Corner nudge: fires on touch DOWN (last-second tucks can't wait for a tap to
+        // end) and consumes the touch - one tap, one dash, never a drag/rotate.
+        if (pos.y < Screen.height * NudgeZoneHeightFraction)
+        {
+            if (pos.x < Screen.width * NudgeZoneWidthFraction) { Nudge(-1); return; }
+            if (pos.x > Screen.width * (1f - NudgeZoneWidthFraction)) { Nudge(1); return; }
+        }
+
         _touches[id] = new TouchState
         {
             StartPos = pos,
             LastPos = pos,
             StartTime = Time.unscaledTime
         };
+    }
+
+    private static void Nudge(int direction)
+    {
+        BlockController active = BlockController.ActiveControlled;
+        if (active != null) active.Nudge(direction); // pause/control checks live in Nudge
     }
 
     private void PointerHeld(int id, Vector2 pos, BlockController active)

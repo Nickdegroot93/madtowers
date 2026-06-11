@@ -29,6 +29,8 @@ public class UIManager : MonoBehaviour
     private const float HeartSize = 44f;
     private const float HeartGap = 10f;
     private const int MaxHearts = 12;
+    private static readonly Color NudgeMarkerColor = new Color(1f, 1f, 1f, 0.14f);
+    private const float NudgeMarkerThickness = 3f;
 
     private Spawner _spawner;
     private RectTransform _heartsContainer;
@@ -212,7 +214,43 @@ public class UIManager : MonoBehaviour
         if (livesText != null) livesText.gameObject.SetActive(false);
         if (nextBlockText != null) nextBlockText.gameObject.SetActive(false);
 
+        EnsureNudgeMarkers();
         StyleGameOverText();
+    }
+
+    // Faint L-shaped outlines tracing the bottom-corner nudge zones. The touch handling
+    // lives in TouchGestureInput; these are pure hints, anchored at the SAME screen
+    // fractions as the gesture constants so the marker never lies about the hitbox.
+    private void EnsureNudgeMarkers()
+    {
+        if (HudRoot() == null) return;
+
+        const float w = TouchGestureInput.NudgeZoneWidthFraction;
+        const float h = TouchGestureInput.NudgeZoneHeightFraction;
+
+        // left corner: inner vertical edge + top horizontal edge; right corner mirrored
+        CreateNudgeMarkerLine("NudgeMarkLV", new Vector2(w, 0f), new Vector2(w, h), true);
+        CreateNudgeMarkerLine("NudgeMarkLH", new Vector2(0f, h), new Vector2(w, h), false);
+        CreateNudgeMarkerLine("NudgeMarkRV", new Vector2(1f - w, 0f), new Vector2(1f - w, h), true);
+        CreateNudgeMarkerLine("NudgeMarkRH", new Vector2(1f - w, h), new Vector2(1f, h), false);
+    }
+
+    private void CreateNudgeMarkerLine(string name, Vector2 anchorMin, Vector2 anchorMax, bool vertical)
+    {
+        GameObject line = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        RectTransform rect = (RectTransform)line.transform;
+        rect.SetParent(HudRoot(), false);
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.anchoredPosition = Vector2.zero;
+        // anchors span the line's length; sizeDelta only adds thickness across it
+        rect.sizeDelta = vertical
+            ? new Vector2(NudgeMarkerThickness, 0f)
+            : new Vector2(0f, NudgeMarkerThickness);
+
+        Image image = line.GetComponent<Image>();
+        image.color = NudgeMarkerColor;
+        image.raycastTarget = false;
     }
 
     private void PlaceCornerText(TextMeshProUGUI text, Vector2 corner, Vector2 offset, TextAlignmentOptions alignment)

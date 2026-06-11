@@ -48,6 +48,31 @@ def synth_impact(seed, duration, f_start, f_end, body_amp, noise_amp, noise_cuto
     return [s / peak * peak_level for s in samples]
 
 
+def synth_swoosh(seed, duration, cutoff_start, cutoff_end, band_ratio=0.35,
+                 swell=0.35, gain=3.0, peak_level=0.5):
+    """Band-swept noise 'whoosh' (the nudge dash). Two one-pole lowpasses make a
+    crude bandpass whose center falls over the sound; a swell-then-die envelope
+    (peaking `swell` of the way through) reads as air being pushed aside."""
+    rng = random.Random(seed)
+    n = int(SR * duration)
+    lp_hi = lp_lo = 0.0
+    samples = []
+    for i in range(n):
+        u = (i / SR) / duration
+        cutoff = cutoff_start * (cutoff_end / cutoff_start) ** u
+        k_hi = min(1.0, 2.0 * math.pi * cutoff / SR)
+        k_lo = min(1.0, 2.0 * math.pi * cutoff * band_ratio / SR)
+        noise = rng.random() * 2.0 - 1.0
+        lp_hi += k_hi * (noise - lp_hi)
+        lp_lo += k_lo * (noise - lp_lo)
+        env = u / swell if u < swell else 1.0 - (u - swell) / (1.0 - swell)
+        env = env * env * (3.0 - 2.0 * env)  # smoothstep: no clicky corners
+        samples.append(math.tanh((lp_hi - lp_lo) * gain) * env)
+
+    peak = max(abs(s) for s in samples) or 1.0
+    return [s / peak * peak_level for s in samples]
+
+
 def write_wav(path, samples):
     with wave.open(path, "wb") as w:
         w.setnchannels(1)
@@ -77,8 +102,17 @@ SOUNDS = {
                            body_tau=0.05, noise_tau=0.025, attack=0.008, peak_level=0.45),
 }
 
+SWOOSHES = {
+    # nudge dash: short airy whoosh - quick swell, falling band, no tonal body
+    "swoosh_01": dict(seed="swoosh1", duration=0.20, cutoff_start=2400, cutoff_end=420,
+                      swell=0.30, peak_level=0.5),
+}
+
 if __name__ == "__main__":
     os.makedirs(OUT_DIR, exist_ok=True)
     for name, params in SOUNDS.items():
         write_wav(os.path.abspath(os.path.join(OUT_DIR, f"{name}.wav")),
                   synth_impact(**params))
+    for name, params in SWOOSHES.items():
+        write_wav(os.path.abspath(os.path.join(OUT_DIR, f"{name}.wav")),
+                  synth_swoosh(**params))

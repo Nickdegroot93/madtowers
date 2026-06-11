@@ -117,6 +117,30 @@ public static partial class RuntimeSprites
         return _softBar = Finish(tex, H / Mathf.Max(0.01f, worldThickness));
     }
 
+    // ---- wind streak (nudge dash air) -----------------------------------------------------
+    // Soft-ended horizontal motion line: alpha peaks in the middle and fades to nothing at
+    // both tips and the long edges. 1 world unit long x 0.125 tall at scale 1.
+    private static Sprite _windStreak;
+
+    public static Sprite WindStreak()
+    {
+        if (_windStreak != null) return _windStreak;
+
+        const int W = 64, H = 8;
+        Texture2D tex = NewTexture(W, H);
+        for (int y = 0; y < H; y++)
+        {
+            float v = 1f - Mathf.Abs((y + 0.5f) / H * 2f - 1f); // 0 at edges, 1 in middle
+            for (int x = 0; x < W; x++)
+            {
+                float u = 1f - Mathf.Abs((x + 0.5f) / W * 2f - 1f);
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f,
+                    Mathf.SmoothStep(0f, 1f, Mathf.Min(1f, u * 1.8f)) * v * v));
+            }
+        }
+        return _windStreak = Finish(tex, W);
+    }
+
     // ---- plain white square (shard particles etc.; tint via color) ------------------------
     private static Sprite _square;
 

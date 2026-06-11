@@ -167,8 +167,10 @@ License: CC0, CC-BY (credits screen later), or owned.
 into `Assets/Resources/Audio/Sfx/`; playback goes through `SfxPlayer`
 (pooled, cached, pitch-jittered one-shots). Iterate by tweaking the parameter dicts,
 rerunning, and previewing with `afplay` — no Unity needed. Current set: two
-flick-drop impact variants (the picked "round 2" recipe) + a softer landing
-(not yet wired). Hand-made/downloaded WAVs (prefer **CC0**, e.g. Kenney packs)
+flick-drop impact variants (the picked "round 2" recipe), a softer landing
+(not yet wired), and `swoosh_01` — the corner-nudge dash (band-swept noise
+through a falling crude bandpass, swell-then-die envelope; `synth_swoosh`).
+Hand-made/downloaded WAVs (prefer **CC0**, e.g. Kenney packs)
 drop into the same folder and play through the same system. Background music
 is a separate future system (per-theme tracks, ducking).
 
@@ -219,10 +221,12 @@ What happens when a level loads, in order:
 
 **Sorting orders** (back → front): sky −100 · sky-high overlay −99 · sun −95 ·
 clouds −90 · hill base −86 · hills −85/−84/−83 · props −82 · particles −80 ·
-placement beam −60 · plateau −50 · blocks 0 · laser line 50 · shatter shards 60.
+placement beam −60 · plateau −50 · blocks 0 · nudge wind streaks 40 ·
+laser line 50 · shatter shards 60.
 
-**Sprite factory** — `RuntimeSprites` (core: beam, heart, panel, soft bar, square,
-gradient) + `RuntimeSprites.Backdrop` (clouds, hills, mesas, streaks, cacti, dots):
+**Sprite factory** — `RuntimeSprites` (core: beam, heart, panel, soft bar, wind
+streak, square, gradient) + `RuntimeSprites.Backdrop` (clouds, hills, mesas,
+streaks, cacti, dots):
 fixed shapes cached per session, parameterized builders caller-owned; everything
 HideAndDontSave. Generators in `Tools/` own all themed PNGs (pieces, plateau, sfx).
 
