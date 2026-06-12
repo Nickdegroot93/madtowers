@@ -33,7 +33,7 @@ public class ThemeDefinition : ScriptableObject
 
     [Header("Unlocks")]
     [Tooltip("Power-ups that become part of the game from this theme onward. Shown as 'NEW!' when the theme unlocks; actual availability is authored in each level's power-up pool.")]
-    [SerializeField] private PowerUpDefinition[] featuredUnlocks;
+    [SerializeField] private AbilityDefinition[] featuredUnlocks;
 
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public int SortOrder => sortOrder;
@@ -47,7 +47,7 @@ public class ThemeDefinition : ScriptableObject
             : (music != null ? new[] { music } : System.Array.Empty<AudioClip>());
     public string SkinFolder => string.IsNullOrWhiteSpace(skinFolder) ? "Skins/Classic" : skinFolder;
     public bool AlwaysUnlocked => alwaysUnlocked;
-    public IReadOnlyList<PowerUpDefinition> FeaturedUnlocks => featuredUnlocks;
+    public IReadOnlyList<AbilityDefinition> FeaturedUnlocks => featuredUnlocks;
 
     /// <summary>The level after the given one within this theme, or null if it was the last.</summary>
     public LevelDefinition GetNextLevel(LevelDefinition current)

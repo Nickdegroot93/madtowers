@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1cd8c3154db84818899eaf2073e519de, type: 3}
+  m_Name: RecoveryWindow
+  m_EditorClassIdentifier:
+  displayName: Recovery Window
+  description: After losing a life, the next 2 blocks fall at half speed. Stacks lengthen the window.
+  rarity: 0
+  unique: 0
+  maxStacks: 3
+  requiresVariantsInLevel: []
+  charges: 0
+  slowFactor: 0.5
+  blocksPerTrigger: 2

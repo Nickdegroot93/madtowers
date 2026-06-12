@@ -1,0 +1,105 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0fe95161ec248308119ac199c73fdda, type: 3}
+  m_Name: GameMode_AbilityTest
+  m_EditorClassIdentifier:
+  startingLives: 0
+  initialFallSpeed: 2
+  maxFallSpeed: 5
+  difficultyScalingMode: 1
+  difficultyAdjustmentMode: 0
+  speedIncreasePerBlock: 0.025
+  speedIncreaseIntervalSeconds: 60
+  speedIncreasePerInterval: 0.1
+  blockBag:
+  - {fileID: 11400000, guid: 399bae529a5644488f2583a430caa834, type: 2}
+  - {fileID: 11400000, guid: 02ed6b9bb4d34cfea6a86b09df8598be, type: 2}
+  - {fileID: 11400000, guid: 76d6700acbdc4b2791222d3bc24f2d98, type: 2}
+  - {fileID: 11400000, guid: 8c2807b281774ad7a04617c108654dbe, type: 2}
+  - {fileID: 11400000, guid: 2163ab145d2748509c37da320f7ef2f8, type: 2}
+  - {fileID: 11400000, guid: 2a34b69853aa48a3bdb72edbe7ad549f, type: 2}
+  - {fileID: 11400000, guid: 3be6106228ed4acea64c37519f7bb64e, type: 2}
+  fallbackBlockDataVariants:
+  - {fileID: 11400000, guid: d47f69c0549f64a78b7a3dde80d0f06a, type: 2}
+  - {fileID: 11400000, guid: 7704ea0a0cb0b4d94b1c5a90200dab18, type: 2}
+  ambientBlockVariantChances: []
+  spawnDelay: 0
+  gridSpacing: 1
+  horizontalPlacementBufferColumns: 3
+  groundedCheckDistance: 0.03
+  maxLandingImpactSpeed: 2
+  settleLinearThreshold: 0.08
+  settleAngularThreshold: 8
+  settleTime: 0.35
+  sleepSettledBlocksOnLock: 1
+  microAlignSettledBlocks: 1
+  microAlignMaxColumnFraction: 0.08
+  microAlignMaxRotationDegrees: 4
+  maxControlTime: 12
+  powerUpChoiceEveryBlocks: 3
+  powerUpChoicePool:
+  - {fileID: 11400000, guid: 29562a5c071a4abc8cdefbc3e6a3a260, type: 2}
+  - {fileID: 11400000, guid: e28f154f7fe04e8c804cb5e2e8f4b35b, type: 2}
+  - {fileID: 11400000, guid: e0574457da574a17ae2231d605f6254e, type: 2}
+  - {fileID: 11400000, guid: cfdb7beb7e9043199bac80f5d8b7e1a9, type: 2}
+  - {fileID: 11400000, guid: ae0ce8266bce4680b028c7bbd8bbf799, type: 2}
+  - {fileID: 11400000, guid: 6f8e54c503fd42b4b7d7ff3363937e1a, type: 2}
+  slowMotionScale: 0.5
+  staticSupportIslandsEnabled: 1
+  staticSupportIslandHeightInterval: 1
+  staticSupportIslandSpawnChance: 0.25
+  staticSupportIslandFirstHeight: 9
+  staticSupportIslandSpawnAheadHeight: 6
+  staticSupportIslandMinColumn: -6
+  staticSupportIslandMaxColumn: 6
+  staticSupportIslandCenterClearColumns: 3
+  staticSupportIslandShapes:
+  - displayName: Single
+    weight: 12
+    cellOffsets:
+    - x: 0
+      y: 0
+  - displayName: Two Wide
+    weight: 2
+    cellOffsets:
+    - x: 0
+      y: 0
+    - x: 1
+      y: 0
+  - displayName: Two Tall
+    weight: 2
+    cellOffsets:
+    - x: 0
+      y: 0
+    - x: 0
+      y: 1
+  - displayName: Corner
+    weight: 1
+    cellOffsets:
+    - x: 0
+      y: 0
+    - x: 1
+      y: 0
+    - x: 0
+      y: 1
+  floorSegments:
+  - centerColumn: 0
+    columnCount: 9
+  minimumCameraY: 0
+  towerPeakScreenY: 0.5
+  spawnPointScreenY: 0.9
+  cameraSmoothTime: 0.28
+  minimumCameraSize: 15
+  maximumCameraSize: 24
+  horizontalCameraPadding: 1.5
+  horizontalCameraSafeArea: 0.78
+  cameraZoomSmoothTime: 0.35

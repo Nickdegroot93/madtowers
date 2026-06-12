@@ -13,6 +13,8 @@ public static class RuntimeUiKit
     public static readonly Color PanelColor = new Color(0.075f, 0.105f, 0.125f, 0.96f);
     public static readonly Color ButtonColor = new Color(0.13f, 0.19f, 0.22f, 1f);
     public static readonly Color TitleColor = new Color(0.92f, 0.97f, 1f, 1f);
+    public static readonly Color BodyTextColor = new Color(0.82f, 0.88f, 0.92f, 1f);
+    public static readonly Color ModalBackdropColor = new Color(0.02f, 0.04f, 0.05f, 0.82f);
 
     public static void EnsureEventSystem()
     {
@@ -36,6 +38,14 @@ public static class RuntimeUiKit
         scaler.referenceResolution = new Vector2(1080f, 1920f);
         scaler.matchWidthOrHeight = 0.5f;
         root.AddComponent<GraphicRaycaster>();
+        return root;
+    }
+
+    /// <summary>Full-screen modal scaffold: overlay canvas + the standard dim backdrop.</summary>
+    public static GameObject CreateModal(string name, int sortingOrder)
+    {
+        GameObject root = CreateOverlayCanvas(name, sortingOrder);
+        CreateBackdrop(root.transform, ModalBackdropColor);
         return root;
     }
 

@@ -157,6 +157,7 @@ while climbing, streak clouds, rolling dunes at ground level
 | Hard Mode | GameMode_Hard | Reach 12m | Classic + pressure: fall 2.6 → cap 6.5, ramp 0.04/block, 7-column floor, peak 0.65, buffer 2, power-ups every 15, ambient **Ice 8% / Heavy 6% / Dizzy 4% / Stubborn 4%**. Physics contract untouched. |
 | Laser Limit | GameMode_LaserLimit | Place 52 | **Height-limit waves type** (above). No speed ramp, no power-up pauses, 2 lives, classic 9-column floor. |
 | 10 Blocks | GameMode_Classic | Place 10 | Minimal goal sandbox for exercising the win-verification countdown quickly. |
+| Ability Range | GameMode_AbilityTest | Place 30 | Ability-system proving ground: picker every **3** blocks, pool = one ability of every kind (see ABILITIES.md §12). |
 
 | Path | Contents |
 |---|---|
@@ -272,7 +273,7 @@ each spawn picks a random variant + random 90° rotation = 12 looks per theme.
 | Setting | What it does |
 |---|---|
 | `powerUpChoiceEveryBlocks` | Every N placed blocks: full pause + pick 1 of 3. 0 disables for the level. |
-| `powerUpChoicePool` | Which PowerUpDefinitions can be offered. Per level — hard levels can ban Cement Tower, gift levels can offer only Legendaries. Rarity weighting (Common 100 / Rare 40 / Epic 15 / Legendary 5) lives in `PowerUpRarityInfo`. |
+| `powerUpChoicePool` | Which AbilityDefinitions can be offered (see **ABILITIES.md** for the full ability architecture: kinds, stacking, conditions, status effects, combo triggers). Per level — hard levels can ban abilities via `LevelDefinition.bannedAbilities`, gift levels can offer only Legendaries. Rarity weighting (Common 100 / Rare 40 / Epic 15 / Legendary 5) lives in `AbilityRarityInfo`. |
 
 Current power-ups: Extra Life (Common), Slow Time (Common), Anchor Brick (Rare — your NEXT
 brick becomes an Anchor, one brick only), Cement Tower (Epic). Adding more: see the doc

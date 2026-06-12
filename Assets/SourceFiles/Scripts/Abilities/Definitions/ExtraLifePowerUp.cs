@@ -1,12 +1,12 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "ExtraLife", menuName = "Stacking/Power Ups/Extra Life")]
-public class ExtraLifePowerUp : PowerUpDefinition
+[CreateAssetMenu(fileName = "ExtraLife", menuName = "Stacking/Abilities/Extra Life")]
+public class ExtraLifePowerUp : InstantAbility
 {
     [Min(1)]
     [SerializeField] private int lives = 1;
 
-    public override void Apply(PowerUpContext context)
+    public override void Apply(AbilityContext context)
     {
         if (context.GameManager == null) return;
 

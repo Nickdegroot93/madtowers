@@ -52,6 +52,7 @@ public class LossZone : MonoBehaviour
         {
             BlockController block = blocks[i];
             if (block == null || !block.IsLostBelow(cullY)) continue;
+            if (TryInterceptLoss(block)) continue;
 
             block.HandleLostBelowScreen(); // Destroy is deferred, so the list stays stable here
 
@@ -59,6 +60,23 @@ public class LossZone : MonoBehaviour
             if (GameManager.Instance.isGameOver) return;
         }
     }
+
+    // An armed ability (e.g. a one-shot Safety Net) may handle a loss instead of the
+    // life charge. LANDED blocks only: saving the active piece would strand the
+    // spawner's ActiveControlled gate (control can't be ended from outside) - the
+    // active piece always takes the normal loss path.
+    private bool TryInterceptLoss(BlockController block)
+    {
+        if (!block.HasLanded) return false;
+
+        if (_abilities == null && GameManager.Instance != null)
+        {
+            _abilities = GameManager.Instance.GetComponent<AbilityRuntime>();
+        }
+        return _abilities != null && _abilities.TryInterceptLoss(block);
+    }
+
+    private AbilityRuntime _abilities;
 
     private void OnTriggerEnter2D(Collider2D other)
     {
@@ -71,6 +89,7 @@ public class LossZone : MonoBehaviour
         BlockController block = rb.GetComponent<BlockController>();
         if (block != null)
         {
+            if (TryInterceptLoss(block)) return;
             block.HandleLostBelowScreen(); // same accounting as the screen-bottom cull
             return;
         }

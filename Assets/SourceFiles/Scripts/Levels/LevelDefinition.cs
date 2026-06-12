@@ -22,10 +22,25 @@ public class LevelDefinition : ScriptableObject
     [Tooltip("Optional composable behaviours beyond settings (earthquakes, wind, ...). See LevelModifier.")]
     [SerializeField] private LevelModifier[] modifiers;
 
+    [Header("Abilities")]
+    [Tooltip("Abilities that must never be offered on this level (deliberate design lockouts). Content-dependent conditions are automatic and live on the ability itself.")]
+    [SerializeField] private AbilityDefinition[] bannedAbilities;
+
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public GameModeConfig GameModeConfig => gameModeConfig;
     public LevelTargetType TargetType => targetType;
     public float TargetValue => Mathf.Max(1f, targetValue);
     public string Instruction => instruction;
     public IReadOnlyList<LevelModifier> Modifiers => modifiers;
+
+    public bool IsAbilityBanned(AbilityDefinition ability)
+    {
+        if (bannedAbilities == null || ability == null) return false;
+
+        for (int i = 0; i < bannedAbilities.Length; i++)
+        {
+            if (bannedAbilities[i] == ability) return true;
+        }
+        return false;
+    }
 }

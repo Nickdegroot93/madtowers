@@ -111,7 +111,7 @@ public class Spawner : MonoBehaviour
         PrepareNextBlock();
 
         GameObject blockObj = Instantiate(prefab, spawnPoint.position, Quaternion.identity);
-        
+
         _currentBlock = blockObj.GetComponent<BlockController>();
         if (_currentBlock != null)
         {
@@ -130,6 +130,11 @@ public class Spawner : MonoBehaviour
             {
                 _currentBlock.fallSpeed = GameManager.Instance.currentFallSpeed;
             }
+
+            // The block's identity (shape + rolled variant) travels with it - combo
+            // triggers match against this, never against GameObject names.
+            blockObj.AddComponent<BlockIdentity>().Assign(definition, data);
+            GameEvents.RaiseBlockSpawned(_currentBlock, data);
         }
     }
 

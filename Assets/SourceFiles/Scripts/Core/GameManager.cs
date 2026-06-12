@@ -26,13 +26,19 @@ public class GameManager : MonoBehaviour
     public float floorOriginY => _heightOriginY;
     public int score => _score;
     public int lives => _lives;
-    public float currentFallSpeed => _currentFallSpeed;
+    // The difficulty ramp owns _currentFallSpeed (and the cap applies to it); ability
+    // effects compose as a multiplier IN THE GETTER, never by mutating the ramp value -
+    // a mutate-then-restore multiplier is unrecoverable once the ramp writes again.
+    // The Spawner stamps this onto each piece at spawn, so changes apply next piece.
+    public float currentFallSpeed => _currentFallSpeed * _abilityFallSpeedMultiplier;
     public GameModeConfig ActiveConfig => ActiveGameModeConfig;
 
     private Coroutine _slowMotionCoroutine;
     private float _speedTimer;
     private float _heightOriginY;
     private float _gameplayTimeScale = 1f;
+    private float _abilityFallSpeedMultiplier = 1f;
+    private StatusEffects _statusEffects;
     private GameModeConfig ActiveGameModeConfig => LevelSelectionState.ResolveGameMode(gameModeConfig);
 
     private void Awake()
@@ -62,9 +68,29 @@ public class GameManager : MonoBehaviour
             ApplyConfig();
             PublishState();
 
-            if (GetComponent<PowerUpChoiceController>() == null)
+            // Ability stack: status effects and the runtime must exist before anything
+            // that resolves them via GetComponent in Awake (detector, HUD, controller).
+            // Never ?? on a UnityEngine.Object: the editor's fake-null wrapper passes a
+            // reference-null check and would silently skip the AddComponent.
+            if (!TryGetComponent(out _statusEffects))
             {
-                gameObject.AddComponent<PowerUpChoiceController>();
+                _statusEffects = gameObject.AddComponent<StatusEffects>();
+            }
+            if (GetComponent<AbilityRuntime>() == null)
+            {
+                gameObject.AddComponent<AbilityRuntime>();
+            }
+            if (GetComponent<ComboDetector>() == null)
+            {
+                gameObject.AddComponent<ComboDetector>();
+            }
+            if (GetComponent<AbilityHud>() == null)
+            {
+                gameObject.AddComponent<AbilityHud>();
+            }
+            if (GetComponent<AbilityChoiceController>() == null)
+            {
+                gameObject.AddComponent<AbilityChoiceController>();
             }
             if (GetComponent<PauseMenuController>() == null)
             {
@@ -143,11 +169,21 @@ public class GameManager : MonoBehaviour
     public void GameOver()
     {
         if (isGameOver) return;
-        
+
+        // A LifeLossImmunity status (ability-granted "game state") absorbs every life
+        // charge while active - a whole-tower collapse during the window costs nothing
+        // beyond whatever opened it. Checked before the final-death branch too: immune
+        // means immune.
+        if (_statusEffects != null && _statusEffects.IsActive(StatusEffectKind.LifeLossImmunity))
+        {
+            return;
+        }
+
         if (_lives > 0)
         {
             _lives--;
             GameEvents.RaiseLivesChanged(_lives);
+            GameEvents.RaiseLifeLost();
             Debug.Log($"Life lost! Remaining: {_lives}");
             return;
         }
@@ -212,13 +248,32 @@ public class GameManager : MonoBehaviour
         _slowMotionCoroutine = null;
     }
 
+    /// <summary>Composed multiplier from abilities/status effects; pushed by AbilityRuntime
+    /// on inventory/lives/status changes, never per frame.</summary>
+    public void SetAbilityFallSpeedMultiplier(float multiplier)
+    {
+        _abilityFallSpeedMultiplier = Mathf.Clamp(multiplier, 0.1f, 3f);
+    }
+
     public void AddScore(int amount = 1)
     {
         if (isGameOver) return;
+
+        // Overdrive-style states amplify EVERY score grant while active. Score is the
+        // progression currency (win targets, picker milestones, wave counts) - that
+        // amplification accelerating them all is the designed effect.
+        int baseAmount = amount;
+        if (_statusEffects != null)
+        {
+            amount += _statusEffects.ExtraScorePerBlock;
+        }
+
         _score += amount;
         if (_difficultyScalingMode == DifficultyScalingMode.PerBlock)
         {
-            IncreaseDifficulty(_speedIncreasePerBlock * amount);
+            // Difficulty ramps on the UNAMPLIFIED amount: Overdrive accelerates the
+            // player's progression, never the game's speed against them.
+            IncreaseDifficulty(_speedIncreasePerBlock * baseAmount);
         }
         GameEvents.RaiseScoreChanged(_score);
     }

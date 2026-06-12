@@ -61,6 +61,41 @@ public class TouchGestureInput : MonoBehaviour
     private Camera _camera;
     private BlockController _lastActive;
 
+    // Screen regions owned by interactive UI (ability slot buttons): touches STARTING
+    // inside one never become gestures - the same publish-the-zones idea as the nudge
+    // constants above, inverted. Providers return their rect in screen pixels each call
+    // (rects move with resolution/safe-area changes). Purely additive to the gesture
+    // logic: nothing else in this class changes.
+    private static readonly List<System.Func<Rect>> UiExclusionRects = new List<System.Func<Rect>>();
+
+    public static void RegisterUiExclusionRect(System.Func<Rect> screenRectProvider)
+    {
+        if (screenRectProvider != null && !UiExclusionRects.Contains(screenRectProvider))
+        {
+            UiExclusionRects.Add(screenRectProvider);
+        }
+    }
+
+    public static void UnregisterUiExclusionRect(System.Func<Rect> screenRectProvider)
+    {
+        UiExclusionRects.Remove(screenRectProvider);
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetUiExclusionRects()
+    {
+        UiExclusionRects.Clear();
+    }
+
+    private static bool IsInsideUiExclusionRect(Vector2 pos)
+    {
+        for (int i = 0; i < UiExclusionRects.Count; i++)
+        {
+            if (UiExclusionRects[i]().Contains(pos)) return true;
+        }
+        return false;
+    }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Install()
     {
@@ -147,6 +182,7 @@ public class TouchGestureInput : MonoBehaviour
     private void PointerBegan(int id, Vector2 pos)
     {
         if (pos.y > Screen.height * (1f - HudTopIgnoreFraction)) return; // HUD strip
+        if (IsInsideUiExclusionRect(pos)) return; // ability slots etc. own their touches
 
         // Corner nudge: fires on touch DOWN (last-second tucks can't wait for a tap to
         // end) and consumes the touch - one tap, one dash, never a drag/rotate.

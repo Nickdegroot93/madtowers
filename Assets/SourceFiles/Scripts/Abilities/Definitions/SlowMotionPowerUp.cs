@@ -1,12 +1,12 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "SlowMotion", menuName = "Stacking/Power Ups/Slow Motion")]
-public class SlowMotionPowerUp : PowerUpDefinition
+[CreateAssetMenu(fileName = "SlowMotion", menuName = "Stacking/Abilities/Slow Motion")]
+public class SlowMotionPowerUp : InstantAbility
 {
     [Min(1f)]
     [SerializeField] private float duration = 15f;
 
-    public override void Apply(PowerUpContext context)
+    public override void Apply(AbilityContext context)
     {
         if (context.GameManager == null) return;
 

@@ -57,8 +57,8 @@ public class GameModeConfig : ScriptableObject
     [Tooltip("Every this many placed blocks the game pauses and offers a pick of power-ups. 0 disables choices for this mode.")]
     [Min(0)]
     [SerializeField] private int powerUpChoiceEveryBlocks = 10;
-    [Tooltip("Power-ups that can appear in choice offers. Rarity weighting comes from each definition.")]
-    [SerializeField] private PowerUpDefinition[] powerUpChoicePool;
+    [Tooltip("Abilities that can appear in choice offers. Rarity weighting comes from each definition; availability conditions filter per level/run.")]
+    [SerializeField] private AbilityDefinition[] powerUpChoicePool;
     [SerializeField] private float slowMotionScale = 0.5f;
 
     [Header("Static Support Islands")]
@@ -137,7 +137,7 @@ public class GameModeConfig : ScriptableObject
     public float MicroAlignMaxRotationDegrees => Mathf.Clamp(microAlignMaxRotationDegrees, 0f, 15f);
     public float MaxControlTime => maxControlTime;
     public int PowerUpChoiceEveryBlocks => Mathf.Max(0, powerUpChoiceEveryBlocks);
-    public IReadOnlyList<PowerUpDefinition> PowerUpChoicePool => powerUpChoicePool;
+    public IReadOnlyList<AbilityDefinition> PowerUpChoicePool => powerUpChoicePool;
     public float SlowMotionScale => slowMotionScale;
     public bool StaticSupportIslandsEnabled => staticSupportIslandsEnabled;
     public float StaticSupportIslandHeightInterval => Mathf.Max(0.1f, staticSupportIslandHeightInterval);
