@@ -183,7 +183,7 @@ while climbing, streak clouds, rolling dunes at ground level
 ### Difficulty & pacing
 | Setting | What it does |
 |---|---|
-| `startingLives` | Lives before game over. |
+| `startingLives` | Lives before game over. A life is charged the moment a falling block fully leaves the screen at the bottom (camera-relative cull in `LossZone` + `BlockController.IsLostBelow`) — never when it eventually reaches the world floor, and never for resting tower blocks below the camera. |
 | `initialFallSpeed` | Descent speed at level start. |
 | `speedIncreasePerBlock` / `difficultyScalingMode` | Ramp per placed block (or over time). |
 | `maxFallSpeed` | Hard ceiling for the ramp — keeps long games playable. |

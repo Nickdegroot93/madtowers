@@ -567,6 +567,35 @@ public class BlockController : MonoBehaviour
         return _cellGeometry.TryGetWorldBounds(out bounds);
     }
 
+    // ---- Off-screen loss (driven by LossZone's camera-relative cull) -----------------------
+
+    // "Falling" for the cull test. An unlocked piece can't be judged by velocity (steering
+    // zeroes the kinematic body's velocity every step) - but an unlocked piece below the
+    // line is descending by definition. A landed block must be dynamic, awake and genuinely
+    // moving down: resting/sleeping/frozen tower blocks below the camera are the NORMAL
+    // state at altitude and must never count as lost.
+    private const float LostFallingSpeed = -1f;
+
+    public bool IsLostBelow(float cullY)
+    {
+        if (!TryGetWorldBounds(out Bounds bounds) || bounds.max.y >= cullY) return false;
+        if (!HasLanded) return true;
+        return _rb != null && _rb.bodyType == RigidbodyType2D.Dynamic &&
+               !_rb.IsSleeping() && _rb.linearVelocity.y < LostFallingSpeed;
+    }
+
+    // A block that left the screen at the bottom: the life is charged the moment it leaves
+    // view - whether it would have wedged into the tower 100 m further down must not matter.
+    // GameOver runs BEFORE the control handoff so a final-life loss reaches the spawner's
+    // game-over gate first (no replacement piece spawns into a dead game), and AddScore's
+    // own gate keeps the lost piece from scoring posthumously.
+    public void HandleLostBelowScreen()
+    {
+        if (GameManager.Instance != null) GameManager.Instance.GameOver();
+        if (!HasLanded) LockBlock(); // end control cleanly so (lives permitting) the next piece spawns
+        Destroy(gameObject);
+    }
+
     private void Update()
     {
         if (!_isControlEnabled) return;
