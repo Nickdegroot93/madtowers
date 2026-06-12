@@ -20,6 +20,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 04a41c27091c48c5808cd0d6043f4822, type: 2}
   - {fileID: 11400000, guid: 9c1d3c9c74ff4156805efaf42aecf0a0, type: 2}
   - {fileID: 11400000, guid: d1d7b23c2d48411985fbedf8ba38d297, type: 2}
+  - {fileID: 11400000, guid: 9619c9101dc7454ab2382d956eee18d2, type: 2}
   music: {fileID: 0}
   skinFolder: 
   alwaysUnlocked: 1

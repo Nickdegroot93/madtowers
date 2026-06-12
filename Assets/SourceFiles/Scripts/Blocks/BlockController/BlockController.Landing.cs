@@ -184,7 +184,8 @@ public partial class BlockController
         GameManager.Instance.UpdateMaxHeight(GetHighestCellY());
     }
 
-    private float GetHighestCellY()
+    // Public: the win-verification live-height check reads this for every standing block.
+    public float GetHighestCellY()
     {
         _cellGeometry.Refresh();
         float highestY = transform.position.y;

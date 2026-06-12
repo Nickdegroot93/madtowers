@@ -72,9 +72,24 @@ public class Spawner : MonoBehaviour
         GameEvents.RaiseNextBlockChanged(GetNextBlockName());
     }
 
+    // Restarts the lock->spawn chain after an external gate (win verification) suppressed
+    // it - the chain is event-driven, so a suppressed spawn never retries on its own.
+    public void ResumeSpawning()
+    {
+        if (BlockController.ActiveControlled != null) return; // a piece is already live
+        SpawnNextBlock();
+    }
+
     private void SpawnNextBlock()
     {
         if (GameManager.Instance != null && GameManager.Instance.isGameOver)
+        {
+            return;
+        }
+
+        // Hold-steady countdown after the win target is met: nothing spawns until the
+        // tower has proven itself (LevelRuntimeController restarts spawning if it fails).
+        if (LevelRuntimeController.IsVerifyingWin)
         {
             return;
         }

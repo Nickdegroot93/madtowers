@@ -24,8 +24,14 @@ LevelDefinition  (Assets/Resources/Levels/  — one per level)
  ├─ identity: display name (presentation lives on the theme)
  ├─ instruction: one-sentence goal banner shown (fade in/out) at level start
  ├─ GOAL: targetType (Endless | PlaceBlocks | ReachHeight) + targetValue.
- │   Reaching it pauses and shows Level Complete with "Next: <level>" (next in theme),
- │   Keep Building, and Replay.
+ │   Reaching it arms a 5 s "Hold steady!" countdown (LevelRuntimeController): nothing
+ │   spawns, physics and the loss rules stay live, and only a tower that survives the
+ │   window wins — rapid-dropping the last blocks buys nothing. ReachHeight is also
+ │   re-checked against the LIVE standing tower during the countdown (the recorded max
+ │   is monotonic); a collapse below the target aborts the countdown and play resumes.
+ │   Surviving to zero pauses and shows Level Complete with "Next: <level>" (next in
+ │   theme), Keep Building, and Replay. Losing the last life mid-countdown is a normal
+ │   game over; losing a non-final life is survivable ("lucky") by design.
  ├─ modifiers: LevelModifier assets — custom behaviour beyond settings (see below)
  └─ GameModeConfig  (Assets/Resources/GameModes/  — the entire rule set)
      ├─ Difficulty: fall speed start/ramp/cap, lives, spawn delay
@@ -149,6 +155,7 @@ while climbing, streak clouds, rolling dunes at ground level
 | Sky Platforms | GameMode_SkyPlatforms | Endless | Island sandbox — same island settings as Classic now (islands are on everywhere). |
 | Hard Mode | GameMode_Hard | Reach 12m | Classic + pressure: fall 2.6 → cap 6.5, ramp 0.04/block, 7-column floor, peak 0.65, buffer 2, power-ups every 15, ambient **Ice 8% / Heavy 6% / Dizzy 4% / Stubborn 4%**. Physics contract untouched. |
 | Laser Limit | GameMode_LaserLimit | Place 52 | **Height-limit waves type** (above). No speed ramp, no power-up pauses, 2 lives, classic 9-column floor. |
+| 10 Blocks | GameMode_Classic | Place 10 | Minimal goal sandbox for exercising the win-verification countdown quickly. |
 
 | Path | Contents |
 |---|---|
