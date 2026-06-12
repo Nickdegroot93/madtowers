@@ -72,9 +72,9 @@ public class GameModeConfig : ScriptableObject
     [Tooltip("Meters above the floor where island generation starts. Canonical 9: the first screens of building stay completely clean.")]
     [Min(0f)]
     [SerializeField] private float staticSupportIslandFirstHeight = 9f;
-    [Tooltip("How far above the camera's top edge generation stays ahead, so islands always exist before they scroll into view.")]
+    [Tooltip("How far above the tower's peak islands materialize (with the pop reveal). The sky stays clean until the build gets near; keep below the spawn-line offset (~12 above the peak) so revealed islands are immediately landable.")]
     [Min(0f)]
-    [SerializeField] private float staticSupportIslandSpawnAheadHeight = 2f;
+    [SerializeField] private float staticSupportIslandSpawnAheadHeight = 6f;
     [SerializeField] private int staticSupportIslandMinColumn = -6;
     [SerializeField] private int staticSupportIslandMaxColumn = 6;
     [Tooltip("How many center columns must stay clear so the default falling lane is never blocked by support islands. The columns between this lane and min/max column form the two side bands.")]

@@ -29,12 +29,21 @@ public class UIManager : MonoBehaviour
     private const float HeartSize = 44f;
     private const float HeartGap = 10f;
     private const int MaxHearts = 12;
-    private static readonly Color NudgeMarkerColor = new Color(1f, 1f, 1f, 0.14f);
-    private const float NudgeMarkerThickness = 3f;
+    private static readonly Color NudgePillColor = new Color(1f, 1f, 1f, 0.09f);
+    private static readonly Color NudgeChevronColor = new Color(0.95f, 0.98f, 1f, 0.32f);
+    private const float NudgePillInset = 10f;
+    private const float NudgeChevronSize = 30f;
+
+    // Dimmed while a failed nudge's rebound lockout runs, so a dead corner button reads
+    // as "rebounding", never as unresponsive UI.
+    private const float NudgeLockoutDimFactor = 0.3f;
 
     private Spawner _spawner;
     private RectTransform _heartsContainer;
     private Image[] _hearts = System.Array.Empty<Image>();
+    private readonly System.Collections.Generic.List<Image> _nudgePillImages =
+        new System.Collections.Generic.List<Image>(4);
+    private bool _nudgePillsDimmed;
     private GameObject _nextPanel;
     private Image _nextPreview;
     private readonly System.Collections.Generic.Dictionary<string, Sprite> _ghostSprites =
@@ -214,43 +223,75 @@ public class UIManager : MonoBehaviour
         if (livesText != null) livesText.gameObject.SetActive(false);
         if (nextBlockText != null) nextBlockText.gameObject.SetActive(false);
 
-        EnsureNudgeMarkers();
+        EnsureNudgeButtons();
         StyleGameOverText();
     }
 
-    // Faint L-shaped outlines tracing the bottom-corner nudge zones. The touch handling
-    // lives in TouchGestureInput; these are pure hints, anchored at the SAME screen
-    // fractions as the gesture constants so the marker never lies about the hitbox.
-    private void EnsureNudgeMarkers()
+    // The nudge zones' "ghost buttons": a soft rounded translucent pill filling each
+    // bottom-corner zone with a faint chevron pointing the dash direction - reads as a
+    // touchable glass surface instead of stray grid lines. Pure hints (raycast off; the
+    // touch handling lives in TouchGestureInput), anchored at the SAME screen fractions
+    // as the gesture constants so the visual never lies about the hitbox.
+    private void EnsureNudgeButtons()
     {
         if (HudRoot() == null) return;
 
         const float w = TouchGestureInput.NudgeZoneWidthFraction;
         const float h = TouchGestureInput.NudgeZoneHeightFraction;
 
-        // left corner: inner vertical edge + top horizontal edge; right corner mirrored
-        CreateNudgeMarkerLine("NudgeMarkLV", new Vector2(w, 0f), new Vector2(w, h), true);
-        CreateNudgeMarkerLine("NudgeMarkLH", new Vector2(0f, h), new Vector2(w, h), false);
-        CreateNudgeMarkerLine("NudgeMarkRV", new Vector2(1f - w, 0f), new Vector2(1f - w, h), true);
-        CreateNudgeMarkerLine("NudgeMarkRH", new Vector2(1f - w, h), new Vector2(1f, h), false);
+        CreateNudgeButton("NudgeHintL", new Vector2(0f, 0f), new Vector2(w, h), pointsLeft: true);
+        CreateNudgeButton("NudgeHintR", new Vector2(1f - w, 0f), new Vector2(1f, h), pointsLeft: false);
     }
 
-    private void CreateNudgeMarkerLine(string name, Vector2 anchorMin, Vector2 anchorMax, bool vertical)
+    private void CreateNudgeButton(string name, Vector2 anchorMin, Vector2 anchorMax, bool pointsLeft)
     {
-        GameObject line = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform rect = (RectTransform)line.transform;
+        GameObject pill = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        RectTransform rect = (RectTransform)pill.transform;
         rect.SetParent(HudRoot(), false);
         rect.anchorMin = anchorMin;
         rect.anchorMax = anchorMax;
-        rect.anchoredPosition = Vector2.zero;
-        // anchors span the line's length; sizeDelta only adds thickness across it
-        rect.sizeDelta = vertical
-            ? new Vector2(NudgeMarkerThickness, 0f)
-            : new Vector2(0f, NudgeMarkerThickness);
+        // the glass sits just inside the touch zone: generous hitbox, calmer look
+        rect.offsetMin = new Vector2(NudgePillInset, NudgePillInset);
+        rect.offsetMax = new Vector2(-NudgePillInset, -NudgePillInset);
 
-        Image image = line.GetComponent<Image>();
-        image.color = NudgeMarkerColor;
-        image.raycastTarget = false;
+        Image fill = pill.GetComponent<Image>();
+        fill.sprite = RuntimeSprites.RoundedPanel();
+        fill.type = Image.Type.Sliced;
+        fill.color = NudgePillColor;
+        fill.raycastTarget = false;
+        _nudgePillImages.Add(fill);
+
+        GameObject icon = new GameObject("Chevron", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        RectTransform iconRect = (RectTransform)icon.transform;
+        iconRect.SetParent(rect, false);
+        iconRect.sizeDelta = new Vector2(NudgeChevronSize, NudgeChevronSize);
+        // the chevron sprite points left; the right button is the same sprite rotated
+        // (vertically symmetric, so a 180-degree turn is a clean mirror)
+        if (!pointsLeft) iconRect.localEulerAngles = new Vector3(0f, 0f, 180f);
+
+        Image chevron = icon.GetComponent<Image>();
+        chevron.sprite = RuntimeSprites.Chevron();
+        chevron.color = NudgeChevronColor;
+        chevron.raycastTarget = false;
+        _nudgePillImages.Add(chevron);
+    }
+
+    private void Update()
+    {
+        bool dim = BlockController.NudgeLockoutRemaining > 0f;
+        if (dim == _nudgePillsDimmed) return;
+        _nudgePillsDimmed = dim;
+
+        float factor = dim ? NudgeLockoutDimFactor : 1f;
+        for (int i = 0; i < _nudgePillImages.Count; i++)
+        {
+            Image image = _nudgePillImages[i];
+            if (image == null) continue;
+
+            // both pill and chevron carry their identity in alpha; scale it, keep the tint
+            Color baseColor = image.sprite == RuntimeSprites.Chevron() ? NudgeChevronColor : NudgePillColor;
+            image.color = new Color(baseColor.r, baseColor.g, baseColor.b, baseColor.a * factor);
+        }
     }
 
     private void PlaceCornerText(TextMeshProUGUI text, Vector2 corner, Vector2 offset, TextAlignmentOptions alignment)

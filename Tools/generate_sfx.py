@@ -105,6 +105,12 @@ SOUNDS = {
     "pop_01": dict(seed="pop1", duration=0.11, f_start=150, f_end=330,
                    body_amp=1.0, noise_amp=0.04, noise_cutoff=900,
                    body_tau=0.05, noise_tau=0.02, attack=0.004, peak_level=0.5),
+    # failed nudge: a dry knuckle-on-wood KNOCK - higher and shorter than the landing
+    # thumps so the ear learns "that was a refusal", with a hard click for the sting
+    "nudge_thud_01": dict(seed="nudgethud1", duration=0.13, f_start=210, f_end=80,
+                          body_amp=0.9, noise_amp=0.5, noise_cutoff=700,
+                          body_tau=0.035, noise_tau=0.02, click_amp=0.25,
+                          drive=1.4, attack=0.001, warmth=0.2, peak_level=0.7),
 }
 
 SWOOSHES = {

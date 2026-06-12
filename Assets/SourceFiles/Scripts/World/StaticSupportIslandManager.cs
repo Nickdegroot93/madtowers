@@ -3,17 +3,19 @@ using System.Collections.Generic;
 
 /// <summary>
 /// Spawns the floating support islands (Tricky Towers' "sky stones"): static 1x1 cells,
-/// alone or in small clusters, that pieces can land on. Generation is CAMERA-driven, not
-/// tower-driven: every row up to just above the visible screen top is rolled exactly
-/// once, so in endless play islands always exist before they scroll into view. Rows roll
-/// independently per SIDE BAND (the columns flanking the center clear lane), which gives
-/// the Tricky-Towers look: stones lining both flanks, none in the falling lane.
+/// alone or in small clusters, that pieces can land on. Generation is TOWER-driven:
+/// every row up to a lead above the tower's peak is rolled exactly once, so islands form
+/// a frontier that materializes (staggered pop + sound, IslandPopFx) just ahead of the
+/// build instead of cluttering sky nobody can reach yet. Each block lock raises the peak;
+/// the newly-in-range rows pop on the next Update. Rows roll independently per SIDE BAND
+/// (the columns flanking the center clear lane), which gives the Tricky-Towers look:
+/// stones lining both flanks, none in the falling lane.
 ///
-/// Under a height-limit level (TowerHeightLimit.CeilingY), generation is capped a safe
-/// margin below the line; when the line rises, the newly legal band materializes with a
-/// staggered pop animation + sound (IslandPopFx) - visuals only, colliders are full-size
-/// from frame one. Visuals are themed (ThemeSkins.LoadIsland, random variant + 90-degree
-/// rotation); all per-level dials live on GameModeConfig (see LEVELS.md).
+/// Under a height-limit level (TowerHeightLimit.CeilingY), generation is additionally
+/// capped a safe margin below the line, so a rising laser line reveals the next band the
+/// same way. Pops are visuals only - colliders are full-size from frame one. Visuals are
+/// themed (ThemeSkins.LoadIsland, random variant + 90-degree rotation); all per-level
+/// dials live on GameModeConfig (see LEVELS.md).
 /// </summary>
 public class StaticSupportIslandManager : MonoBehaviour
 {
@@ -100,9 +102,11 @@ public class StaticSupportIslandManager : MonoBehaviour
     }
 
     // Roll every ungenerated row up to the current target (each row exactly once,
-    // _generatedUpToY is monotonic). The target is the camera top plus a lead - or the
-    // height-limit ceiling while a laser line is active, whichever is lower; a rising
-    // line therefore reveals the next band, and those rows pop in on screen.
+    // _generatedUpToY is monotonic). The target is the tower's peak plus a lead - or the
+    // height-limit ceiling while a laser line is active, whichever is lower. A lock that
+    // raises the peak (or a rising line) brings the next rows into range, and those rows
+    // pop in on screen. The camera no longer drives generation - it only decides whether
+    // a reveal is visible (pop + sound) or silently pre-exists (initial fill, off-screen).
     private void GenerateUpToTarget()
     {
         GameModeConfig activeConfig = ActiveGameModeConfig;
@@ -111,10 +115,11 @@ public class StaticSupportIslandManager : MonoBehaviour
         if (GameManager.Instance == null || GameManager.Instance.isGameOver) return;
 
         float cameraTop = CameraTopY();
+        float towerPeakY = GameManager.Instance.maxHeight; // floor top until the first block lands
         float grid = activeConfig.GridSpacing;
         float rowStep = Mathf.Max(grid, Mathf.Round(activeConfig.StaticSupportIslandHeightInterval / grid) * grid);
         float target = Mathf.Min(
-            cameraTop + activeConfig.StaticSupportIslandSpawnAheadHeight,
+            towerPeakY + activeConfig.StaticSupportIslandSpawnAheadHeight,
             TowerHeightLimit.CeilingY - LineHeadroomCells * grid);
 
         _popsThisBurst = 0;

@@ -55,7 +55,7 @@ MonoBehaviour:
   staticSupportIslandHeightInterval: 8
   staticSupportIslandSpawnChance: 0.35
   staticSupportIslandFirstHeight: 6
-  staticSupportIslandSpawnAheadHeight: 8
+  staticSupportIslandSpawnAheadHeight: 4
   staticSupportIslandMinColumn: -5
   staticSupportIslandMaxColumn: 5
   staticSupportIslandCenterClearColumns: 5

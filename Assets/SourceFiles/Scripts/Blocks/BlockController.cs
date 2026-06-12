@@ -121,6 +121,7 @@ public class BlockController : MonoBehaviour
     private float _dasTimer;
     private int _lastInputDirection = 0;
     private bool _dasActive = false;
+    private System.Action<int> _dasStep;
 
     // Tricky Towers dynamic-control state
     private float _targetAngleZ;
@@ -150,6 +151,7 @@ public class BlockController : MonoBehaviour
     {
         TrackedBlocks.Clear();
         _sharedFallbackMaterial = null;
+        _nudgeLockedUntilTime = 0f;
     }
 
     // Rotation nudges the target angle by a quarter turn. Active pieces snap to that target while
@@ -160,29 +162,99 @@ public class BlockController : MonoBehaviour
     /// <summary>Width of one placement column in world units (for gesture distance mapping).</summary>
     public float GridSpacing => gridSpacing;
 
+    // Why a sideways step was (or wasn't) taken. Drag steps ignore this (a blocked drag
+    // stays silent); the nudge dash reads it to decide between wind and a slam.
+    private enum ColumnStepResult { Moved, Gated, OutOfBounds, BlockedByBlocks, BlockedByStatic }
+
     // External (touch) horizontal step. Funnels into ShiftTargetColumn, so all grid,
     // placement-buffer and obstacle rules apply exactly as for keyboard movement.
     public void StepColumn(int direction)
     {
-        if (!_isControlEnabled || direction == 0) return;
-        if (GameManager.Instance != null && GameManager.Instance.IsGamePaused) return;
-        if (_appliedData != null && _appliedData.InvertHorizontalControls) direction = -direction;
-        ShiftTargetColumn(direction > 0 ? 1 : -1);
+        TryStepColumn(direction);
     }
 
+    private ColumnStepResult TryStepColumn(int direction)
+    {
+        if (!_isControlEnabled || direction == 0) return ColumnStepResult.Gated;
+        if (GameManager.Instance != null && GameManager.Instance.IsGamePaused) return ColumnStepResult.Gated;
+        if (_appliedData != null && _appliedData.InvertHorizontalControls) direction = -direction;
+        return ShiftTargetColumn(direction > 0 ? 1 : -1);
+    }
+
+    // The nudge dash is a timing skill: mistime it and the piece slams into whatever
+    // blocked it - the impact shoves those bricks (loose ones can fall) and the rebound
+    // locks further nudges out long enough that spamming can never be the optimal play.
+    private const float NudgeFailLockoutSeconds = 0.5f;
+    private const float NudgeSlamImpulse = 2f; // per blocking brick; Heavy (mass 3) barely budges
+
+    // Shared across pieces on purpose: a rebound must not reset just because the old
+    // piece locked and a fresh one spawned. UIManager dims the corner pills from this.
+    private static float _nudgeLockedUntilTime;
+    public static float NudgeLockoutRemaining => Mathf.Max(0f, _nudgeLockedUntilTime - Time.time);
+
     // The corner-zone nudge: a one-tap precision dash of EXACTLY one column - same grid
-    // rules as StepColumn (so it can never do anything a drag couldn't), but a dash that
-    // actually moves gets sold with wind + a swoosh. A blocked dash stays silent, like a
-    // blocked drag step.
+    // rules as StepColumn (so it can never do anything a drag couldn't). A dash that
+    // moves gets sold with wind + a swoosh; a dash into bricks or rock is a failed
+    // nudge: thud, shoved bricks, and a rebound lockout. Steps refused for non-physical
+    // reasons (no control, paused, off the play area) stay silent - there is nothing
+    // there to hit.
     public void Nudge(int direction)
     {
-        float before = _targetColumnX;
-        StepColumn(direction); // ALL gating (control, pause, grid, obstacles) lives there
-        if (Mathf.Approximately(_targetColumnX, before)) return; // gated or blocked: silent
+        if (NudgeLockoutRemaining > 0f) return; // still rebounding from a failed nudge
 
-        int moved = _targetColumnX > before ? 1 : -1; // actual direction (Dizzy may invert)
-        if (TryGetWorldBounds(out Bounds bounds)) DashWindFx.Spawn(bounds, moved);
-        SfxPlayer.Play("swoosh_01", 0.45f, 0.08f);
+        float before = _targetColumnX;
+        ColumnStepResult result = TryStepColumn(direction);
+        switch (result)
+        {
+            case ColumnStepResult.Moved:
+                int moved = _targetColumnX > before ? 1 : -1; // actual direction (Dizzy may invert)
+                if (TryGetWorldBounds(out Bounds bounds)) DashWindFx.Spawn(bounds, moved);
+                SfxPlayer.Play("swoosh_01", 0.45f, 0.08f);
+                break;
+
+            case ColumnStepResult.BlockedByBlocks:
+            case ColumnStepResult.BlockedByStatic:
+                FailNudge(result == ColumnStepResult.BlockedByBlocks, AttemptedStepDirection(direction));
+                break;
+        }
+    }
+
+    // The direction the piece actually dashed toward (Dizzy inverts the input) - the
+    // slam impulse and impact FX must match the physical hit, not the button pressed.
+    private int AttemptedStepDirection(int inputDirection)
+    {
+        int direction = inputDirection > 0 ? 1 : -1;
+        if (_appliedData != null && _appliedData.InvertHorizontalControls) direction = -direction;
+        return direction;
+    }
+
+    private void FailNudge(bool hitBricks, int direction)
+    {
+        _nudgeLockedUntilTime = Time.time + NudgeFailLockoutSeconds;
+
+        if (hitBricks) SlamBlockingBricks(direction);
+
+        if (TryGetWorldBounds(out Bounds bounds)) NudgeImpactFx.Spawn(bounds, direction);
+        TowerCameraController.Impact(0.08f, 0.15f);
+        SfxPlayer.Play("nudge_thud_01", 0.6f, 0.07f);
+    }
+
+    // The failed dash hits the blocking bricks with real force. Invariant I1: landed
+    // bodies are only ever influenced through velocity - an impulse via the solver is
+    // the sanctioned mechanism. Well-supported bricks absorb it through friction; a
+    // loose or overhanging brick can genuinely be knocked off.
+    private void SlamBlockingBricks(int direction)
+    {
+        Vector2 impulse = new Vector2(direction * NudgeSlamImpulse, 0f);
+        for (int i = 0; i < _stepBlockers.Count; i++)
+        {
+            BlockController block = _stepBlockers[i];
+            if (block == null || block._rb == null) continue;
+            if (block._rb.bodyType != RigidbodyType2D.Dynamic) continue; // anchored/cemented stay rock
+
+            block._rb.WakeUp();
+            block._rb.AddForce(impulse, ForceMode2D.Impulse);
+        }
     }
 
     // falling, so they stay on the same grid rules as horizontal movement.
@@ -513,7 +585,9 @@ public class BlockController : MonoBehaviour
             _isFastDrop = _inputs.Gameplay.FastDrop.IsPressed() || _externalFastDrop;
         }
 
-        ProcessHorizontalDas(ShiftTargetColumn);
+        // cached: a fresh delegate every Update is a per-frame allocation
+        _dasStep ??= direction => ShiftTargetColumn(direction); // DAS ignores the step result
+        ProcessHorizontalDas(_dasStep);
     }
 
     private void FixedUpdate()
@@ -669,11 +743,14 @@ public class BlockController : MonoBehaviour
         SetRotationZPreservingGridPivot(_targetAngleZ);
         _rb.angularVelocity = 0f;
 
+        Vector3 preStepPosition = transform.position;
         ApplyControlledHorizontalMovement(velocityX * Time.fixedDeltaTime);
 
         // Transforms are synced manually (auto-sync is off), so the down-cast below sees the
         // horizontal/rotation moves made this step instead of last step's collider poses.
         Physics2D.SyncTransforms();
+
+        if (Mathf.Abs(columnDelta) > 0.001f) TuckIntoStaticPocket(preStepPosition);
 
         _lastControlledFallSpeed = GetActiveFallSpeed();
         float fallDistance = _lastControlledFallSpeed * Time.fixedDeltaTime;
@@ -693,6 +770,72 @@ public class BlockController : MonoBehaviour
         ApplyControlledVerticalMovement(fallDistance);
         ClearControlledLinearVelocity();
         ClampHorizontalToCameraBounds();
+    }
+
+    // A sidestep allowed on snapped-row forgiveness (see ClassifyGridPlacementAtColumn) may
+    // seat the piece slightly off the pocket's row, overlapping the static cells above or
+    // below it. The piece is kinematic and pre-landing, so Y is still descent-authored -
+    // slide it vertically until clear (never sideways: the grid owns X). Bricks are left to
+    // the solver as before; this only separates from static geometry, which has no solver
+    // to mediate (a kinematic piece would simply interpenetrate rock forever). If the piece
+    // genuinely doesn't fit within half a cell of travel, revert the whole step instead of
+    // leaving it inside an island.
+    private const float TuckMaxTravelFraction = 0.55f;
+
+    private Collider2D[] _ownSolidColliders;
+
+    private void TuckIntoStaticPocket(Vector3 preStepPosition)
+    {
+        float maxTravel = TuckMaxTravelFraction * gridSpacing;
+        float totalY = 0f;
+
+        for (int iteration = 0; iteration < 3; iteration++)
+        {
+            float correction = ComputeStaticOverlapCorrectionY();
+            if (Mathf.Abs(correction) <= 0.0005f) return;
+
+            totalY += correction;
+            if (Mathf.Abs(totalY) > maxTravel) break; // doesn't fit - revert below
+
+            Vector3 position = transform.position;
+            position.y += correction;
+            SetPosition(position);
+            Physics2D.SyncTransforms();
+        }
+
+        if (Mathf.Abs(ComputeStaticOverlapCorrectionY()) <= 0.0005f) return;
+
+        SetPosition(preStepPosition);
+        Physics2D.SyncTransforms();
+        _targetColumnX = SnapValue(_cellGeometry.GetPrimaryWorldX(transform.position.x), gridSpacing);
+    }
+
+    private float ComputeStaticOverlapCorrectionY()
+    {
+        if (_ownSolidColliders == null) _ownSolidColliders = GetComponentsInChildren<Collider2D>();
+
+        float correctionY = 0f;
+        for (int ownIndex = 0; ownIndex < _ownSolidColliders.Length; ownIndex++)
+        {
+            Collider2D ownCollider = _ownSolidColliders[ownIndex];
+            if (ownCollider == null || ownCollider.isTrigger) continue;
+
+            int count = ownCollider.Overlap(_contactFilter, _overlapResults);
+            for (int hitIndex = 0; hitIndex < count; hitIndex++)
+            {
+                Collider2D other = _overlapResults[hitIndex];
+                if (other == null || other.isTrigger) continue;
+                if (other.attachedRigidbody == _rb) continue;
+                if (other.GetComponentInParent<BlockController>() != null) continue;
+
+                ColliderDistance2D distance = Physics2D.Distance(ownCollider, other);
+                if (!distance.isOverlapped) continue;
+
+                correctionY += distance.normal.y * distance.distance;
+            }
+        }
+
+        return correctionY;
     }
 
     private void ApplyControlledHorizontalMovement(float deltaX)
@@ -878,17 +1021,24 @@ public class BlockController : MonoBehaviour
 
     // Nudges the target column by one (driven by ProcessHorizontalDas). SteerWhileFalling then
     // slides the piece to that column over a few frames, so it stays in a lane but isn't instant.
-    private void ShiftTargetColumn(int direction)
+    private ColumnStepResult ShiftTargetColumn(int direction)
     {
         float candidate = _targetColumnX + direction * gridSpacing;
-        if (IsColumnTargetWithinBounds(candidate) && IsGridPlacementFreeAtColumn(candidate))
-        {
-            _targetColumnX = candidate;
-        }
+        if (!IsColumnTargetWithinBounds(candidate)) return ColumnStepResult.OutOfBounds;
+
+        ColumnStepResult result = ClassifyGridPlacementAtColumn(candidate);
+        if (result == ColumnStepResult.Moved) _targetColumnX = candidate;
+        return result;
     }
 
-    private bool IsGridPlacementFreeAtColumn(float candidatePrimaryX)
+    // The landed bricks that refused the last sidestep - a failed nudge slams exactly these.
+    private readonly List<BlockController> _stepBlockers = new List<BlockController>(4);
+
+    private ColumnStepResult ClassifyGridPlacementAtColumn(float candidatePrimaryX)
     {
+        _stepBlockers.Clear();
+        bool staticBlocked = false;
+
         _cellGeometry.Refresh();
         float currentPrimaryX = _cellGeometry.GetPrimaryWorldX(transform.position.x);
         float deltaX = candidatePrimaryX - currentPrimaryX;
@@ -897,7 +1047,20 @@ public class BlockController : MonoBehaviour
         for (int i = 0; i < _cellGeometry.CellCenters.Count; i++)
         {
             Vector2 activeCell = _cellGeometry.CellCenters[i];
-            if (IsCellBlockedByStaticObstacle(new Vector2(activeCell.x + deltaX, activeCell.y))) return false;
+
+            // Static geometry gets the same half-cell row forgiveness landed blocks get from
+            // the snapped-row check below: a destination cell is blocked only if BOTH its
+            // current (descent) Y and its snapped row are obstructed. With only the continuous
+            // probe, a one-cell pocket between island cells demanded near-perfect vertical
+            // alignment (~0.13 of a cell) and was effectively impossible to enter; tower
+            // pockets with identical geometry have always allowed half a cell of slack. The
+            // off-row seating this permits is resolved by the vertical tuck in SteerWhileFalling.
+            Vector2 destination = new Vector2(activeCell.x + deltaX, activeCell.y);
+            Vector2 destinationOnRow = new Vector2(destination.x, SnapValue(activeCell.y, gridSpacing));
+            if (IsCellBlockedByStaticObstacle(destination) && IsCellBlockedByStaticObstacle(destinationOnRow))
+            {
+                staticBlocked = true;
+            }
 
             float activeColumn = SnapValue(activeCell.x + deltaX, gridSpacing);
             float activeRow = SnapValue(activeCell.y, gridSpacing);
@@ -906,6 +1069,7 @@ public class BlockController : MonoBehaviour
             {
                 BlockController block = TrackedBlocks[blockIndex];
                 if (block == null || block == this || !block.HasLanded) continue;
+                if (_stepBlockers.Contains(block)) continue;
 
                 block._cellGeometry.Refresh();
                 for (int cellIndex = 0; cellIndex < block._cellGeometry.CellCenters.Count; cellIndex++)
@@ -916,13 +1080,15 @@ public class BlockController : MonoBehaviour
                     if (Mathf.Abs(placedColumn - activeColumn) <= GridMatchTolerance &&
                         Mathf.Abs(placedRow - activeRow) < rowTolerance)
                     {
-                        return false;
+                        _stepBlockers.Add(block);
+                        break;
                     }
                 }
             }
         }
 
-        return true;
+        if (_stepBlockers.Count > 0) return ColumnStepResult.BlockedByBlocks;
+        return staticBlocked ? ColumnStepResult.BlockedByStatic : ColumnStepResult.Moved;
     }
 
     // Placed tetrominoes are handled by the grid-snapped check above (the grid stays the sole X

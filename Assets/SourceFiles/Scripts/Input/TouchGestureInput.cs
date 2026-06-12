@@ -29,10 +29,10 @@ public class TouchGestureInput : MonoBehaviour
     private const float FlickDominance = 1.5f;         // ... and clearly vertical = latched auto-drop
     private const float HudTopIgnoreFraction = 0.10f;  // touches starting in the HUD strip are ignored
 
-    // Bottom-corner nudge zones. Public: UIManager draws its faint markers from these
+    // Bottom-corner nudge zones. Public: UIManager draws its ghost buttons from these
     // same fractions, so the on-screen hint always matches the real hitbox.
     public const float NudgeZoneWidthFraction = 0.22f;
-    public const float NudgeZoneHeightFraction = 0.16f;
+    public const float NudgeZoneHeightFraction = 0.144f;
     private const float FallbackDpi = 160f;
     private const int MouseId = -1;
 

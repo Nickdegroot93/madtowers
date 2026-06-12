@@ -124,8 +124,24 @@ Code-level details that are part of the contract (not inspector values):
 - Landed `gravityScale` is normalized to a constant 1.0 (`ResolveLandedGravityScale`).
   The escalating-gravity difficulty path was deleted; do not reintroduce it — tower load
   must not grow with block count or collapse becomes a function of time, not skill.
-- Sideways DAS steps are blocked by static obstacles (islands) via an overlap probe
-  (`IsCellBlockedByStaticObstacle`) but block-vs-block stays grid-based (I5).
+- Sideways steps are blocked by static obstacles (islands) via an overlap probe
+  (`IsCellBlockedByStaticObstacle`), but with the same half-cell row forgiveness the
+  landed-block grid check grants: a destination cell is blocked only if BOTH its
+  continuous (descent) Y and its grid-snapped row are obstructed
+  (`ClassifyGridPlacementAtColumn`). The off-row seating this permits is resolved by
+  `TuckIntoStaticPocket()` right after the sidestep: the still-kinematic piece slides
+  **vertically only** until clear of static geometry (grid keeps owning X; pre-landing
+  Y is descent-authored, so this does not touch I5), bounded to ~half a cell — if it
+  still overlaps, the whole step is reverted. History: with only the continuous probe,
+  a one-cell pocket between island cells demanded ~0.13-cell vertical alignment and was
+  effectively unenterable, while an identical pocket between tower blocks allowed half
+  a cell ("islands act differently from blocks", June 2026). Block-vs-block stays
+  grid-based (I5); bricks overlapped by a step are still mediated by the solver.
+- A failed **nudge** (the corner-zone dash refused by bricks or islands) shoves the
+  blocking landed bricks with a horizontal **velocity impulse** (`SlamBlockingBricks` —
+  I1-sanctioned: never positions) and arms a 0.5 s nudge lockout (`NudgeFailLockoutSeconds`,
+  static across pieces). Anchored/cemented (non-Dynamic) bricks and islands never move.
+  Drag steps stay silent on refusal — only the nudge is high-stakes.
 - Cast/overlap buffers are reused instance arrays — no per-FixedUpdate allocations
   (GC spikes read as physics stutter).
 - Anchored/cemented blocks (`FreezeInPlace()`, used by the anchor-brick variant and the
@@ -174,7 +190,7 @@ These are the *designer* dials — safe to vary per level. Current defaults:
 | `maxLandingImpactSpeed` | 2 | 2 | See I-section; difficulty must never make landings harder. |
 | `towerPeakScreenY` | 0.5 | 0.58 | **The leniency dial.** Lower = more room between tower peak and spawn = more reaction time. Range widened to 0.35–0.9; raise for hard levels. |
 | `spawnPointScreenY` | 0.9 | 0.9 | Where pieces spawn on screen. |
-| `staticSupportIslandSpawnAheadHeight` | 7–8 | — | Keep **below** the spawn-line offset ((spawnY−peakY)·2·cameraSize ≈ 12 at min zoom) so platforms appear under the falling piece and are immediately landable. |
+| `staticSupportIslandSpawnAheadHeight` | 6 / 8 (Sky) | — | Lead above the **tower peak** at which islands materialize, with the pop reveal (June 2026: was camera-top-relative, which kept islands permanently littering sky nobody could build to yet). Keep **below** the spawn-line offset ((spawnY−peakY)·2·cameraSize ≈ 12 at min zoom) so revealed platforms appear under the falling piece and are immediately landable. |
 | Sky platform frequency | interval 4, chance 0.9, first at 4 | — | Sky mode: wide shapes (Two/Three Wide) dominate the weights — platforms are "floor pieces", not pebbles. |
 | `spawnDelay` | 0 | 0 | Correct. Don't gate spawning on settling — fix ringing at its source instead (that's what the geometry work was for). |
 | `settle*`, `microAlign*`, `sleepSettledBlocksOnLock` | mirror §2 values | — | These exist per-level but should normally stay identical to the script defaults. |
@@ -192,6 +208,7 @@ These are the *designer* dials — safe to vary per level. Current defaults:
 | Tower collapses by itself late game | Escalating load came back (gravity scaling per block) or landing impact got coupled to fall speed again. |
 | Falls through sky platforms | Platform spawned overlapping the piece (clearance check), or spawn-ahead vs spawn-line relation broke (§5). |
 | Landings detected at wrong column edge | A `SyncTransforms()` call before a cast was removed (AutoSyncTransforms is off). |
+| Can't nudge/steer into a pocket between islands, or a sidestep wedges the piece inside an island | The snapped-row forgiveness or `TuckIntoStaticPocket()` was removed/weakened (§2 code details). |
 | Stutter under load | Per-frame allocations returned, or CCD re-enabled on landed bodies. |
 
 ---

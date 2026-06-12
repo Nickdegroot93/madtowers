@@ -117,6 +117,40 @@ public static partial class RuntimeSprites
         return _softBar = Finish(tex, H / Mathf.Max(0.01f, worldThickness));
     }
 
+    // ---- chevron (nudge ghost-button glyph) ------------------------------------------------
+    // Left-pointing "<" drawn as two soft-edged strokes. White; tint via color; rotate the
+    // Image 180 degrees for the right-pointing twin (the shape is vertically symmetric).
+    private static Sprite _chevron;
+
+    public static Sprite Chevron()
+    {
+        if (_chevron != null) return _chevron;
+
+        const int S = 64;
+        const float HalfStroke = 3.2f;
+        Vector2 top = new Vector2(40f, 50f), mid = new Vector2(25f, 32f), bottom = new Vector2(40f, 14f);
+
+        Texture2D tex = NewTexture(S, S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float d = Mathf.Min(DistanceToSegment(p, top, mid), DistanceToSegment(p, mid, bottom));
+                float a = Mathf.Clamp01((HalfStroke - d + 0.75f) / 1.5f); // 1.5px soft edge
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+            }
+        }
+        return _chevron = Finish(tex, S);
+    }
+
+    private static float DistanceToSegment(Vector2 p, Vector2 a, Vector2 b)
+    {
+        Vector2 ab = b - a;
+        float t = Mathf.Clamp01(Vector2.Dot(p - a, ab) / ab.sqrMagnitude);
+        return Vector2.Distance(p, a + ab * t);
+    }
+
     // ---- wind streak (nudge dash air) -----------------------------------------------------
     // Soft-ended horizontal motion line: alpha peaks in the middle and fades to nothing at
     // both tips and the long edges. 1 world unit long x 0.125 tall at scale 1.
