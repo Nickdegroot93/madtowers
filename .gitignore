@@ -56,3 +56,8 @@ Assets/Tutorials/Media/
 *_BackUpThisFolder_ButDontShipItWithYourGame/
 *_BurstDebugInformation_DoNotShip/
 .utmp/
+
+# ---- Unity editor crash-recovery snapshots (transient, never project content) ----
+# (placed after the meta-unignore above so the folder .meta is ignored too)
+/[Aa]ssets/_[Rr]ecovery/
+/[Aa]ssets/_[Rr]ecovery.meta
