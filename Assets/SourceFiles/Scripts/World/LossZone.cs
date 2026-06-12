@@ -17,6 +17,13 @@ public class LossZone : MonoBehaviour
     // out of the last visible pixels is not "gone".
     private const float CullMarginBelowScreen = 1f;
 
+    // The sweep reads collider bounds for every tracked block; at late-game scale that is
+    // hundreds of native calls, so it runs at 10 Hz instead of per frame. A block a full
+    // margin below the screen cannot un-lose itself in 100 ms, and the timer uses scaled
+    // time so it naturally freezes with the physics it observes.
+    private const float SweepInterval = 0.1f;
+    private float _nextSweepTime;
+
     private Camera _camera;
 
     private void Awake()
@@ -31,6 +38,9 @@ public class LossZone : MonoBehaviour
     {
         if (GameManager.Instance == null || GameManager.Instance.isGameOver) return;
         if (GameManager.Instance.IsGamePaused) return; // no verdicts under the pause menu
+
+        if (Time.time < _nextSweepTime) return;
+        _nextSweepTime = Time.time + SweepInterval;
 
         if (_camera == null || !_camera.isActiveAndEnabled) _camera = Camera.main;
         if (_camera == null || !_camera.orthographic) return;

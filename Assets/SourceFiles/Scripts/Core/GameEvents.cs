@@ -8,7 +8,6 @@ public static class GameEvents
     public static event Action<float> HeightChanged;
     public static event Action<string> NextBlockChanged;
     public static event Action<int, float> GameOver;
-    public static event Action<LevelDefinition> LevelCompleted;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void Reset()
@@ -18,7 +17,6 @@ public static class GameEvents
         HeightChanged = null;
         NextBlockChanged = null;
         GameOver = null;
-        LevelCompleted = null;
     }
 
     public static void RaiseScoreChanged(int score) => ScoreChanged?.Invoke(score);
@@ -26,5 +24,4 @@ public static class GameEvents
     public static void RaiseHeightChanged(float height) => HeightChanged?.Invoke(height);
     public static void RaiseNextBlockChanged(string blockName) => NextBlockChanged?.Invoke(blockName);
     public static void RaiseGameOver(int score, float maxHeight) => GameOver?.Invoke(score, maxHeight);
-    public static void RaiseLevelCompleted(LevelDefinition level) => LevelCompleted?.Invoke(level);
 }

@@ -153,6 +153,17 @@ public class GameManager : MonoBehaviour
         }
 
         isGameOver = true;
+
+        // A run can end mid slow-motion: without this the wreckage plays out at 0.5x and
+        // then visibly snaps to full speed when the effect's timer expires under the panel.
+        if (_slowMotionCoroutine != null)
+        {
+            StopCoroutine(_slowMotionCoroutine);
+            _slowMotionCoroutine = null;
+        }
+        _gameplayTimeScale = 1f;
+        RefreshTimeScale();
+
         GameEvents.RaiseGameOver(_score, towerHeight);
         Debug.Log("Game Over");
     }
@@ -185,7 +196,17 @@ public class GameManager : MonoBehaviour
         GameModeConfig activeConfig = ActiveGameModeConfig;
         _gameplayTimeScale = activeConfig != null ? activeConfig.SlowMotionScale : 0.5f;
         RefreshTimeScale();
-        yield return new WaitForSecondsRealtime(duration);
+
+        // The duration is seconds of PLAYED time at the slowed rate: a realtime wait burned
+        // the whole effect while the game sat paused (pause menu, power-up picker), consuming
+        // the power-up with zero slowed gameplay. Tick only while actually playing.
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            if (!IsGamePaused) elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
         _gameplayTimeScale = 1f;
         RefreshTimeScale();
         _slowMotionCoroutine = null;

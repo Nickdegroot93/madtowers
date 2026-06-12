@@ -76,12 +76,18 @@ public class Spawner : MonoBehaviour
     // it - the chain is event-driven, so a suppressed spawn never retries on its own.
     public void ResumeSpawning()
     {
-        if (BlockController.ActiveControlled != null) return; // a piece is already live
         SpawnNextBlock();
     }
 
     private void SpawnNextBlock()
     {
+        // Never two controlled pieces: a pending SpawnWithDelay coroutine and an external
+        // ResumeSpawning can otherwise race (latent today - every config uses SpawnDelay 0).
+        if (BlockController.ActiveControlled != null)
+        {
+            return;
+        }
+
         if (GameManager.Instance != null && GameManager.Instance.isGameOver)
         {
             return;

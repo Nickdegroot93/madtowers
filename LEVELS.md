@@ -125,8 +125,9 @@ A theme with `alwaysUnlocked: true` is a sandbox — always playable, never gate
 campaign (that's Testing Grounds, parked at sortOrder 1000). The menu shows campaign
 themes as a carousel (one theme per screen, arrows cycle); sandbox + unthemed levels
 live behind the "Test Levels" button.
-⚠️ `Campaign.UnlockAllForTesting` is currently **true** (everything playable while
-building content) — flip to false before release.
+`Campaign.UnlockAllForTesting` is compile-gated: **true** in the editor and development
+builds (everything playable while building content), automatically **false** in release
+builds — nothing to remember to flip.
 Each theme's `skinFolder` drives all generated art (blocks/ground/laser) via
 `ThemeSkins`; empty = Classic skin.
 

@@ -51,8 +51,20 @@ public class LevelRuntimeController : MonoBehaviour
 
         if (_level != null && !string.IsNullOrWhiteSpace(_level.Instruction))
         {
-            StartCoroutine(ShowInstructionBanner(_level.Instruction));
+            ShowBanner(_level.Instruction);
         }
+    }
+
+    // Only one banner at a time: the verification abort/re-arm cycle can fire repeatedly
+    // (a wobbling peak), and stacked translucent strips render as doubled text.
+    private GameObject _bannerRoot;
+    private Coroutine _bannerCoroutine;
+
+    private void ShowBanner(string text)
+    {
+        if (_bannerCoroutine != null) StopCoroutine(_bannerCoroutine);
+        if (_bannerRoot != null) Destroy(_bannerRoot);
+        _bannerCoroutine = StartCoroutine(ShowInstructionBanner(text));
     }
 
     // One-sentence goal banner in the upper third at level start: fade in, hold, fade out.
@@ -60,6 +72,7 @@ public class LevelRuntimeController : MonoBehaviour
     private System.Collections.IEnumerator ShowInstructionBanner(string text)
     {
         GameObject root = RuntimeUiKit.CreateOverlayCanvas("Level Instruction", 3000);
+        _bannerRoot = root;
 
         GameObject strip = new GameObject("Strip");
         strip.transform.SetParent(root.transform, false);
@@ -180,13 +193,21 @@ public class LevelRuntimeController : MonoBehaviour
         }
 
         // After a collapse aborted a height verification, the monotonic HeightChanged event
-        // can never re-fire for the same peak - re-arm from the live tower instead.
-        if (_targetReachedOnce && _level.TargetType == LevelTargetType.ReachHeight &&
-            LiveTowerHeight() >= _level.TargetValue)
+        // can never re-fire for the same peak - re-arm from the live tower instead. Polled
+        // at 5 Hz, not per frame: LiveTowerHeight walks every landed block's cells, and this
+        // watch can stay on for minutes while the player rebuilds a tall tower.
+        if (_targetReachedOnce && _level.TargetType == LevelTargetType.ReachHeight)
         {
-            TryBeginVerification();
+            _rearmPollTimer -= Time.deltaTime;
+            if (_rearmPollTimer > 0f) return;
+            _rearmPollTimer = RearmPollInterval;
+
+            if (LiveTowerHeight() >= _level.TargetValue) TryBeginVerification();
         }
     }
+
+    private const float RearmPollInterval = 0.2f;
+    private float _rearmPollTimer;
 
     private void TryBeginVerification()
     {
@@ -204,7 +225,7 @@ public class LevelRuntimeController : MonoBehaviour
     {
         IsVerifyingWin = false;
         DestroyCountdownUi();
-        StartCoroutine(ShowInstructionBanner("The tower fell - keep building!"));
+        ShowBanner("The tower fell - keep building!");
 
         // The lock->spawn chain is event-driven and was suppressed while verifying;
         // nothing would ever spawn again without an explicit restart.
@@ -359,7 +380,6 @@ public class LevelRuntimeController : MonoBehaviour
         {
             ProgressStore.ReportResult(_level, GameManager.Instance.score, GameManager.Instance.towerHeight);
         }
-        GameEvents.RaiseLevelCompleted(_level);
 
         if (GameManager.Instance.IsGamePaused)
         {

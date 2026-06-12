@@ -15,6 +15,12 @@ public class PowerUpChoiceController : MonoBehaviour
     private GameObject _panelRoot;
     private Spawner _spawner;
     private int _lastHandledScore;
+    // Milestones are RECORDED in the score event but PRESENTED from Update, only when
+    // nothing more important is happening. This decouples the offer from event-subscriber
+    // order: when the same block both hits a picker milestone and meets the win target,
+    // the hold-steady verification always wins the race - the earned pick appears after
+    // the countdown resolves (after "Keep Building" on success, or right after an abort).
+    private bool _offerPending;
 
     private void Awake()
     {
@@ -35,8 +41,6 @@ public class PowerUpChoiceController : MonoBehaviour
     private void HandleScoreChanged(int score)
     {
         if (GameManager.Instance == null || GameManager.Instance.isGameOver) return;
-        // Don't offer on top of another full-screen pause (e.g. the level-complete panel).
-        if (GameManager.Instance.IsGamePaused) return;
         if (_panelRoot != null || score <= 0 || score == _lastHandledScore) return;
 
         GameModeConfig config = GameManager.Instance.ActiveConfig;
@@ -47,6 +51,33 @@ public class PowerUpChoiceController : MonoBehaviour
         if (pool == null || pool.Count == 0) return;
 
         _lastHandledScore = score;
+        _offerPending = true;
+    }
+
+    private void Update()
+    {
+        if (!_offerPending || _panelRoot != null) return;
+        if (GameManager.Instance == null) return;
+
+        if (GameManager.Instance.isGameOver)
+        {
+            _offerPending = false; // the run ended before the reward could be presented
+            return;
+        }
+
+        // Wait out the win-verification countdown and any other full-screen pause
+        // (level-complete panel, pause menu) - the offer keeps, it doesn't vanish.
+        if (LevelRuntimeController.IsVerifyingWin || GameManager.Instance.IsGamePaused) return;
+
+        GameModeConfig config = GameManager.Instance.ActiveConfig;
+        IReadOnlyList<PowerUpDefinition> pool = config != null ? config.PowerUpChoicePool : null;
+        if (pool == null || pool.Count == 0)
+        {
+            _offerPending = false;
+            return;
+        }
+
+        _offerPending = false;
         RollChoices(pool);
         if (_rollBuffer.Count == 0) return;
 

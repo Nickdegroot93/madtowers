@@ -13,15 +13,38 @@ public static class Campaign
 {
     // DEV ONLY: short-circuits every lock so all themes/levels are playable while building
     // content. Progress and personal bests still record normally (the save stays honest).
-    // Flip to false for release - or wire to a settings toggle when one exists.
+    // Compile-gated so a release build can never ship with it true; development builds and
+    // the editor keep it on.
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
     public static readonly bool UnlockAllForTesting = true;
+#else
+    public static readonly bool UnlockAllForTesting = false;
+#endif
 
-    /// <summary>All themes, sorted by play order. Loaded fresh per call site (menu build).</summary>
+    // Theme assets never change at runtime; load once instead of re-hitting Resources on
+    // every lookup (scene loads, backdrop resolves, completion panels all call in here).
+    private static ThemeDefinition[] _cachedThemes;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetCache()
+    {
+        _cachedThemes = null;
+    }
+
+    private static ThemeDefinition[] LoadThemes()
+    {
+        if (_cachedThemes == null)
+        {
+            _cachedThemes = Resources.LoadAll<ThemeDefinition>("Themes");
+            Array.Sort(_cachedThemes, (a, b) => a.SortOrder.CompareTo(b.SortOrder));
+        }
+        return _cachedThemes;
+    }
+
+    /// <summary>All themes, sorted by play order.</summary>
     public static ThemeDefinition[] LoadThemesInOrder()
     {
-        ThemeDefinition[] themes = Resources.LoadAll<ThemeDefinition>("Themes");
-        Array.Sort(themes, (a, b) => a.SortOrder.CompareTo(b.SortOrder));
-        return themes;
+        return LoadThemes();
     }
 
     /// <summary>The theme whose level list contains the given level, or null.</summary>
@@ -29,7 +52,7 @@ public static class Campaign
     {
         if (level == null) return null;
 
-        ThemeDefinition[] themes = Resources.LoadAll<ThemeDefinition>("Themes");
+        ThemeDefinition[] themes = LoadThemes();
         for (int t = 0; t < themes.Length; t++)
         {
             IReadOnlyList<LevelDefinition> levels = themes[t].Levels;
