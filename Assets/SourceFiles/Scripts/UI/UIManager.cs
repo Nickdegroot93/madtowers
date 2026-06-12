@@ -41,8 +41,10 @@ public class UIManager : MonoBehaviour
     private Spawner _spawner;
     private RectTransform _heartsContainer;
     private Image[] _hearts = System.Array.Empty<Image>();
-    private readonly System.Collections.Generic.List<Image> _nudgePillImages =
-        new System.Collections.Generic.List<Image>(4);
+    // base color is captured at creation, where it is actually known - the dim must not
+    // have to guess an image's identity back from its sprite
+    private readonly System.Collections.Generic.List<(Image image, Color baseColor)> _nudgePillImages =
+        new System.Collections.Generic.List<(Image, Color)>(4);
     private bool _nudgePillsDimmed;
     private GameObject _nextPanel;
     private Image _nextPreview;
@@ -259,7 +261,7 @@ public class UIManager : MonoBehaviour
         fill.type = Image.Type.Sliced;
         fill.color = NudgePillColor;
         fill.raycastTarget = false;
-        _nudgePillImages.Add(fill);
+        _nudgePillImages.Add((fill, NudgePillColor));
 
         GameObject icon = new GameObject("Chevron", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         RectTransform iconRect = (RectTransform)icon.transform;
@@ -273,7 +275,7 @@ public class UIManager : MonoBehaviour
         chevron.sprite = RuntimeSprites.Chevron();
         chevron.color = NudgeChevronColor;
         chevron.raycastTarget = false;
-        _nudgePillImages.Add(chevron);
+        _nudgePillImages.Add((chevron, NudgeChevronColor));
     }
 
     private void Update()
@@ -285,11 +287,10 @@ public class UIManager : MonoBehaviour
         float factor = dim ? NudgeLockoutDimFactor : 1f;
         for (int i = 0; i < _nudgePillImages.Count; i++)
         {
-            Image image = _nudgePillImages[i];
+            (Image image, Color baseColor) = _nudgePillImages[i];
             if (image == null) continue;
 
-            // both pill and chevron carry their identity in alpha; scale it, keep the tint
-            Color baseColor = image.sprite == RuntimeSprites.Chevron() ? NudgeChevronColor : NudgePillColor;
+            // identity lives in alpha; scale it, keep the tint
             image.color = new Color(baseColor.r, baseColor.g, baseColor.b, baseColor.a * factor);
         }
     }

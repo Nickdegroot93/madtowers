@@ -114,7 +114,12 @@ public class StaticSupportIslandManager : MonoBehaviour
         if (_staticBlockPrefab == null) return;
         if (GameManager.Instance == null || GameManager.Instance.isGameOver) return;
 
+        // No camera means no popIn decision: defer entirely rather than spending rows
+        // (they roll exactly once) on silent, invisible reveals. Keeps CameraTopY()'s
+        // "no camera: generate nothing" contract true.
         float cameraTop = CameraTopY();
+        if (float.IsNegativeInfinity(cameraTop)) return;
+
         float towerPeakY = GameManager.Instance.maxHeight; // floor top until the first block lands
         float grid = activeConfig.GridSpacing;
         float rowStep = Mathf.Max(grid, Mathf.Round(activeConfig.StaticSupportIslandHeightInterval / grid) * grid);

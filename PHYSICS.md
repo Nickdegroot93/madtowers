@@ -128,11 +128,15 @@ Code-level details that are part of the contract (not inspector values):
   (`IsCellBlockedByStaticObstacle`), but with the same half-cell row forgiveness the
   landed-block grid check grants: a destination cell is blocked only if BOTH its
   continuous (descent) Y and its grid-snapped row are obstructed
-  (`ClassifyGridPlacementAtColumn`). The off-row seating this permits is resolved by
-  `TuckIntoStaticPocket()` right after the sidestep: the still-kinematic piece slides
+  (`ClassifyGridPlacementAtColumn`; drag/DAS steps take an early-out fast path — only
+  the nudge pays for collecting blockers). The off-row seating this permits is resolved
+  by `TuckIntoStaticPocket()` right after the sidestep: the still-kinematic piece slides
   **vertically only** until clear of static geometry (grid keeps owning X; pre-landing
-  Y is descent-authored, so this does not touch I5), bounded to ~half a cell — if it
-  still overlaps, the whole step is reverted. History: with only the continuous probe,
+  Y is descent-authored, so this does not touch I5), bounded to ~half a cell. Per-contact
+  pushes combine as **extremes, never sums** (two cells on the same island row need the
+  push once; opposing pushes mean "doesn't fit", not zero), and a tucked step must end
+  fully clear of rock AND bricks or the whole step is reverted — the tuck may never hand
+  the solver a brick interpenetration it created itself. History: with only the continuous probe,
   a one-cell pocket between island cells demanded ~0.13-cell vertical alignment and was
   effectively unenterable, while an identical pocket between tower blocks allowed half
   a cell ("islands act differently from blocks", June 2026). Block-vs-block stays

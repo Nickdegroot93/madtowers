@@ -8,6 +8,11 @@ public sealed class BlockCellGeometry
 
     public IReadOnlyList<Vector2> CellCenters => _cellCenters;
 
+    /// <summary>The block's non-trigger colliders, cached at Cache() time - the single
+    /// source for "this body's solid shapes" so overlap routines don't re-query.</summary>
+    public IReadOnlyList<Collider2D> SolidColliders =>
+        _solidColliders ?? (IReadOnlyList<Collider2D>)System.Array.Empty<Collider2D>();
+
     public void Cache(GameObject root)
     {
         Collider2D[] colliders = root.GetComponentsInChildren<Collider2D>();
