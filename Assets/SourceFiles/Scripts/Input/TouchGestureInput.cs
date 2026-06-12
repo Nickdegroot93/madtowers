@@ -10,8 +10,11 @@ using TouchPhase = UnityEngine.InputSystem.TouchPhase;
 /// (so every move obeys the same grid/physics rules as the keyboard):
 ///   - horizontal drag: position-based column steps (one column of world width per step)
 ///   - tap: rotate - left half of the screen = counter-clockwise, right half = clockwise
-///   - drag down past a threshold and hold: fast drop until the finger lifts
-///   - quick short downward flick: latched full-speed auto-drop
+///   - drag down past a threshold and hold: fast drop until the finger lifts. A column
+///     step cancels it back to normal speed for the rest of that touch (steering wins
+///     over speed); lift and pull down again to fast-drop once more.
+///   - quick short downward flick: latched full-speed auto-drop, COMMITTED to its column
+///     (no steering or nudging mid-plunge; rotation stays available)
 ///   - tap in a bottom CORNER zone: nudge - a precision dash of exactly one column
 ///     toward that side (consumed immediately; never becomes a drag or rotate)
 /// A second finger can tap to rotate while the first is dragging. Self-installs at
@@ -44,6 +47,11 @@ public class TouchGestureInput : MonoBehaviour
         public bool IsDrag;
         public bool OwnsDrag;
         public bool FastDropEngaged;
+        // A column step during an engaged fast drop cancels it for the REST of this touch:
+        // steering wins over speed, and speed needs a fresh deliberate pull (finger lifted,
+        // dragged down again) - otherwise accidental diagonal drags steer fast-falling
+        // pieces or keep them plunging through an intended sidestep.
+        public bool FastDropSpentByStep;
         public int StepsApplied;
     }
 
@@ -86,6 +94,7 @@ public class TouchGestureInput : MonoBehaviour
                 state.StartPos = state.LastPos;
                 state.StepsApplied = 0;
                 state.FastDropEngaged = false;
+                state.FastDropSpentByStep = false; // new piece, new decision context
             }
         }
 
@@ -185,6 +194,7 @@ public class TouchGestureInput : MonoBehaviour
         // Position-based column stepping: pointer offset maps 1:1 to grid columns.
         float columnPixels = ColumnWidthPixels(active);
         int desiredSteps = Mathf.RoundToInt(delta.x / columnPixels);
+        bool steppedThisFrame = state.StepsApplied != desiredSteps;
         while (state.StepsApplied < desiredSteps)
         {
             active.StepColumn(1);
@@ -196,8 +206,17 @@ public class TouchGestureInput : MonoBehaviour
             state.StepsApplied--;
         }
 
+        // Steering cancels speed: a sidestep during an engaged fast drop drops the piece
+        // back to normal speed, and this touch can't re-engage it (see TouchState).
+        if (steppedThisFrame && state.FastDropEngaged)
+        {
+            state.FastDropEngaged = false;
+            state.FastDropSpentByStep = true;
+        }
+
         // Held fast drop: a clear downward pull (dominant axis) engages it until release.
-        if (!state.FastDropEngaged &&
+        // Never on the same frame as a sidestep - on a simultaneous diagonal, steering wins.
+        if (!state.FastDropEngaged && !state.FastDropSpentByStep && !steppedThisFrame &&
             -delta.y > DropEngageInches * dpi &&
             Mathf.Abs(delta.y) > Mathf.Abs(delta.x))
         {

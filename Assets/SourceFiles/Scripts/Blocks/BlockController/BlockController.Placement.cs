@@ -10,6 +10,13 @@ public partial class BlockController
     // slides the piece to that column over a few frames, so it stays in a lane but isn't instant.
     private ColumnStepResult ShiftTargetColumn(int direction, bool collectBlockers = false)
     {
+        // A flick-drop is a committed plunge: the column is chosen at flick time and can
+        // never change mid-fall (hard-drop convention; swipe drift during the plunge was
+        // steering pieces off their intended column). This is the one chokepoint every
+        // horizontal step funnels through, so touch drags, the nudge dash and keyboard
+        // DAS are all locked out together. Gated = silent: nothing physical was hit.
+        if (_autoDrop) return ColumnStepResult.Gated;
+
         float candidate = _targetColumnX + direction * gridSpacing;
         if (!IsColumnTargetWithinBounds(candidate)) return ColumnStepResult.OutOfBounds;
 

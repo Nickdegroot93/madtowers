@@ -126,7 +126,9 @@ public partial class BlockController
     public void SetFastDrop(bool active) => _externalFastDrop = active;
 
     // Latched full-speed descent (triggered by a quick downward flick): stays on until the
-    // piece lands, no held finger required. Steering stays available for last-second tucks.
+    // piece lands, no held finger required. The plunge is COMMITTED - all horizontal steps
+    // are gated off in ShiftTargetColumn for its duration (hard-drop convention); rotation
+    // stays available. Flicking means deciding the column first.
     private bool _autoDrop;
     public void StartAutoDrop()
     {
