@@ -1,5 +1,8 @@
 using UnityEngine;
 
+// Adding a rarity? Fan-out points: AbilityRarityInfo.GetColor, RarityWeightStage's
+// named weight fields + GetWeight, AbilityRarityProfile.DefaultStages. The offer roll
+// itself sizes its buckets from this enum and needs no change.
 public enum AbilityRarity
 {
     Common,
@@ -10,18 +13,8 @@ public enum AbilityRarity
 
 public static class AbilityRarityInfo
 {
-    // Relative chance of appearing in a choice roll. Tune freely; only ratios matter.
-    public static int GetRollWeight(AbilityRarity rarity)
-    {
-        switch (rarity)
-        {
-            case AbilityRarity.Legendary: return 5;
-            case AbilityRarity.Epic: return 15;
-            case AbilityRarity.Rare: return 40;
-            default: return 100;
-        }
-    }
-
+    // Rarity ODDS live in AbilityRarityProfile (offers are single-rarity, weights scale
+    // with run progress); this class only owns the rarity's look.
     public static Color GetColor(AbilityRarity rarity)
     {
         switch (rarity)

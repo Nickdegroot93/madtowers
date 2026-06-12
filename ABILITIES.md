@@ -37,8 +37,14 @@ the top of every card: Instant / Consumable / Passive / One-Time Passive. It is
 **derived, never authored** - kind from the class, "one-time" from charges - so the
 badge can never contradict what the ability does. Labels/colors in `AbilityTypeInfo`.
 
-Consumption today: choice cards show type badge + rarity + icon + title + "Owned xN" +
-short + a **Details** button; Details opens the detail view (type + rarity, icon,
+Consumption today: choice cards are the mockup chrome - a dark cut-corner plate + a
+rarity-tinted glowing frame (both SDF sprites in `RuntimeSprites.AbilityCards`), title,
+a badge plate with a generated type glyph (infinity = passive, ring-and-one =
+one-time, flask = consumable, spark = instant), the icon (a spark placeholder until
+real icons land), "Owned xN", short description and an outlined rarity-tinted
+**Details** button; titles render in Rajdhani (Resources/Fonts, OFL) best-fit to one
+line; legendary cards get an animated
+shine sweep (`AbilityCardShine`). Details opens the detail view (type + rarity, icon,
 title, LONG description, Choose/Back - Back returns to the same three cards, no
 reroll). HUD slots show the icon (title text if none); the swap dialog shows title +
 short. The detail view is the future home of per-ability explainer videos - the icon
@@ -145,6 +151,17 @@ roll. The default enforces, in order:
 Exotic conditions: override `IsAvailable`, call `base` for the standard rules. An
 offer whose candidates all filter out is quietly skipped (by design).
 
+**Offers are SINGLE-RARITY**: the roll first picks the offer's rarity, then samples
+all three cards uniformly (without replacement) from that rarity's available
+candidates — a mixed common/legendary offer would be a non-choice. Rarity odds come
+from an `AbilityRarityProfile`: stages of (progress threshold → 4 weights), where
+progress = score-or-height vs the level target (0 on endless). Built-in defaults
+escalate toward the goal: base 100/40/15/5, past 50% → 70/40/25/12, past 80% →
+45/35/30/25. A level can override with its own profile asset
+(`LevelDefinition.abilityRarityProfile`) for anything from gentle retuning to a
+"legendaries only" gimmick (weights 0/0/0/1). Rarities with no available candidates
+are excluded from the roll, so an offer never comes up blank while others exist.
+
 Where things live: pools on `GameModeConfig` assets (`Assets/Resources/GameModes/`),
 bans on `LevelDefinition` assets (`Assets/Resources/Levels/`). Bans require a selected
 level — direct-scene/quick play has no ban list (conditions still apply).
@@ -221,10 +238,11 @@ at the source, add a virtual handler on `PassiveAbility`, fan out in `AbilityRun
   it, never method signatures): `GameManager`, `Spawner`, `Runtime` (AbilityRuntime),
   `Status` (StatusEffects), `Config` (active GameModeConfig), `Level` (null in quick
   play), plus `LevelHasVariant(BlockData)`.
-- **Rarity = roll weight** (`AbilityRarityInfo`): Common 100 / Rare 40 / Epic 15 /
-  Legendary 5. Offers draw **3 cards, weighted, without replacement** from the filtered
-  pool. An offer earned during a pause/win-verification is deferred, not dropped; the
-  milestone check is crossing-based so bonus score can't skip one.
+- **Rarity odds** live in `AbilityRarityProfile` stages (see §7); `AbilityRarityInfo`
+  owns only the rarity colors. Offers are single-rarity: rarity rolled by profile
+  weights, then 3 uniform picks without replacement within it. An offer earned during
+  a pause/win-verification is deferred, not dropped; the milestone check is
+  crossing-based so bonus score can't skip one.
 - **Consumable gates** (blanket, before per-ability `CanActivate`): not paused, not game
   over, not during win verification.
 - All ability components live on the GameManager's object (added in `GameManager.Awake`,
@@ -233,7 +251,11 @@ at the source, add a virtual handler on `PassiveAbility`, fan out in `AbilityRun
 
 ## 12. Current proof content (Testing Grounds → "Ability Range" level)
 
-Picker every 3 blocks, PlaceBlocks 30 target. Pool: Extra Life (instant), Cement
-Tower (consumable), Recovery Window (stackable passive, max 3), Sacrificial Safety
-(one-shot passive), Overdrive (unique combo: two upright I-pieces → +1 score per
-block for 15 s), Stasis (consumable: 10 s life-loss immunity).
+Picker every 3 blocks, PlaceBlocks 30 target, rarity profile = `RarityProfile_TestEqual`
+(every offer rolls Common/Rare/Epic/Legendary at equal odds — UI testing across all
+four chromes). Pool: the six real abilities — Extra Life (instant), Cement Tower
+(consumable), Recovery Window (stackable passive, max 3), Sacrificial Safety (one-shot
+passive), Overdrive (unique combo: two upright I-pieces → +1 score per block for 15 s),
+Stasis (consumable: 10 s life-loss immunity) — plus 12 inert dummies
+(`Data/PowerUps/Dummies/`, three per rarity covering passive/one-time/consumable
+badges). Dummies are test-only; never add them to real level pools.

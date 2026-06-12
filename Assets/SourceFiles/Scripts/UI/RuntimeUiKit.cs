@@ -10,6 +10,22 @@ public static class RuntimeUiKit
 {
     public static Font DefaultFont => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
+    // Display font for titles/buttons (Rajdhani, OFL - Resources/Fonts). Falls back to
+    // the built-in font if the asset is ever missing, so UI never hard-fails.
+    private static Font _titleFont;
+    public static Font TitleFont
+    {
+        get
+        {
+            if (_titleFont == null)
+            {
+                _titleFont = Resources.Load<Font>("Fonts/Rajdhani-Bold");
+                if (_titleFont == null) _titleFont = DefaultFont;
+            }
+            return _titleFont;
+        }
+    }
+
     public static readonly Color PanelColor = new Color(0.075f, 0.105f, 0.125f, 0.96f);
     public static readonly Color ButtonColor = new Color(0.13f, 0.19f, 0.22f, 1f);
     public static readonly Color TitleColor = new Color(0.92f, 0.97f, 1f, 1f);
@@ -39,6 +55,26 @@ public static class RuntimeUiKit
         scaler.matchWidthOrHeight = 0.5f;
         root.AddComponent<GraphicRaycaster>();
         return root;
+    }
+
+    /// <summary>Stretched outline child over a panel fill (RoundedOutline matches
+    /// RoundedPanel's geometry, so the pair reads as one bordered shape).</summary>
+    public static Image AddOutline(Transform parent, Color color)
+    {
+        GameObject outlineObject = new GameObject("Outline", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        RectTransform rect = (RectTransform)outlineObject.transform;
+        rect.SetParent(parent, false);
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+
+        Image outline = outlineObject.GetComponent<Image>();
+        outline.sprite = RuntimeSprites.RoundedOutline();
+        outline.type = Image.Type.Sliced;
+        outline.color = color;
+        outline.raycastTarget = false;
+        return outline;
     }
 
     /// <summary>Full-screen modal scaffold: overlay canvas + the standard dim backdrop.</summary>

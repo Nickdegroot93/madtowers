@@ -25,6 +25,8 @@ public class LevelDefinition : ScriptableObject
     [Header("Abilities")]
     [Tooltip("Abilities that must never be offered on this level (deliberate design lockouts). Content-dependent conditions are automatic and live on the ability itself.")]
     [SerializeField] private AbilityDefinition[] bannedAbilities;
+    [Tooltip("Overrides the rarity odds of ability offers for this level (e.g. a legendaries-only gimmick). Empty = the built-in progress-scaled defaults.")]
+    [SerializeField] private AbilityRarityProfile abilityRarityProfile;
 
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public GameModeConfig GameModeConfig => gameModeConfig;
@@ -32,6 +34,7 @@ public class LevelDefinition : ScriptableObject
     public float TargetValue => Mathf.Max(1f, targetValue);
     public string Instruction => instruction;
     public IReadOnlyList<LevelModifier> Modifiers => modifiers;
+    public AbilityRarityProfile AbilityRarityProfile => abilityRarityProfile;
 
     public bool IsAbilityBanned(AbilityDefinition ability)
     {

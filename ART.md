@@ -187,6 +187,29 @@ Hand-made/downloaded WAVs (prefer **CC0**, e.g. Kenney packs)
 drop into the same folder and play through the same system. Background music
 is a separate future system (per-theme tracks, ducking).
 
+## 10. Fonts
+
+UI display font: **Rajdhani Bold** (Indian Type Foundry, **SIL OFL 1.1** — license
+text ships beside the font at `Assets/Resources/Fonts/OFL.txt`; credit on the future
+credits screen). Loaded via `RuntimeUiKit.TitleFont` with a built-in fallback, so a
+missing font degrades instead of breaking. HUD numbers stay on TMP's default face.
+
+## 11. HUD top bar (code-built, UIManager)
+
+The in-game top bar is built at runtime in `UIManager.BuildTopBar` — non-obvious
+mechanics a future change must respect:
+- **Two bar segments**, not one: nothing may render behind the translucent NEXT card
+  (it must show the game, not UI). Segments use `RoundedPanelSquareRight` (rounded
+  outer corners, square inner edge; the right segment's fill is the sprite rotated
+  180°) and tuck `BarSeamTuck` (1px ≈ the card border's half-width) under the card.
+- **Safe-area aware**: positioned below `Screen.safeArea`'s top inset (clamped to 10%
+  of screen height — the raw value can be garbage during early Awake) and re-applied
+  whenever screen geometry changes.
+- The scene's `scoreText`/`heightText` TMPs are **reparented** into the bar's stat
+  cards (that's why `UIManager.HudRoot()` caches its root before the bar builds).
+- The pause button lives in the bar; `PauseMenuController` owns only the menu and the
+  `PauseAvailable` visibility predicate.
+
 ## Under the hood: how theming works at runtime (exact pipeline)
 
 What happens when a level loads, in order:

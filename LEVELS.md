@@ -33,6 +33,8 @@ LevelDefinition  (Assets/Resources/Levels/  — one per level)
  │   theme), Keep Building, and Replay. Losing the last life mid-countdown is a normal
  │   game over; losing a non-final life is survivable ("lucky") by design.
  ├─ modifiers: LevelModifier assets — custom behaviour beyond settings (see below)
+ ├─ abilities: bannedAbilities (per-level lockouts) + abilityRarityProfile (override
+ │   the progress-scaled rarity odds of offers; see ABILITIES.md §7)
  └─ GameModeConfig  (Assets/Resources/GameModes/  — the entire rule set)
      ├─ Difficulty: fall speed start/ramp/cap, lives, spawn delay
      ├─ Floor: segments (position + width — gaps and multiple towers possible)

@@ -19,3 +19,4 @@ MonoBehaviour:
   instruction: Ability test range - a pick every 3 blocks!
   modifiers: []
   bannedAbilities: []
+  abilityRarityProfile: {fileID: 11400000, guid: a410a0e2074743419c9a585135c3cfc8, type: 2}

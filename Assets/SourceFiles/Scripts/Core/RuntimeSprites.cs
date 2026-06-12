@@ -91,16 +91,18 @@ public static partial class RuntimeSprites
         return _roundedPanel = Finish(tex, 100f, new Vector4(24f, 24f, 24f, 24f));
     }
 
-    // ---- soft horizontal bar (laser line etc.) -------------------------------------------
+    // ---- soft horizontal bar (laser line, HUD flourishes, card shine) ----------------------
     // Thin full-width bar, soft-edged vertically. PPU encodes the requested world
-    // thickness; scale X to the desired length. Cached per thickness bucket would be
-    // overkill - cached for the single thickness in use, rebuilt if it changes.
-    private static Sprite _softBar;
-    private static float _softBarThickness;
+    // thickness; scale X to the desired length. Cached PER THICKNESS: multiple live
+    // callers use different values (laser 0.12 vs UI 0.1) - a single-slot cache
+    // thrashed between them and leaked each replaced HideAndDontSave texture.
+    private static readonly System.Collections.Generic.Dictionary<int, Sprite> _softBars =
+        new System.Collections.Generic.Dictionary<int, Sprite>();
 
     public static Sprite SoftHorizontalBar(float worldThickness)
     {
-        if (_softBar != null && Mathf.Approximately(_softBarThickness, worldThickness)) return _softBar;
+        int key = Mathf.RoundToInt(worldThickness * 1000f);
+        if (_softBars.TryGetValue(key, out Sprite cached) && cached != null) return cached;
 
         const int W = 4, H = 16;
         Texture2D tex = NewTexture(W, H);
@@ -113,8 +115,9 @@ public static partial class RuntimeSprites
                 tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
             }
         }
-        _softBarThickness = worldThickness;
-        return _softBar = Finish(tex, H / Mathf.Max(0.01f, worldThickness));
+        Sprite sprite = Finish(tex, H / Mathf.Max(0.01f, worldThickness));
+        _softBars[key] = sprite;
+        return sprite;
     }
 
     // ---- chevron (nudge ghost-button glyph) ------------------------------------------------

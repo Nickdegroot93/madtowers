@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 27854dbbc9c44a3d8c73a356f80753dc, type: 3}
+  m_Name: Dummy_Rare_Two
+  m_EditorClassIdentifier:
+  displayName: Rare Two
+  shortDescription: Dummy short description for the Rare Two card.
+  description: Dummy long description. This is where the detailed explanation of the ability lives - several sentences describing exactly what it does, when it triggers, and how it stacks. Later a tutorial video joins it here.
+  rarity: 1
+  unique: 0
+  maxStacks: 0
+  requiresVariantsInLevel: []
+  charges: 1

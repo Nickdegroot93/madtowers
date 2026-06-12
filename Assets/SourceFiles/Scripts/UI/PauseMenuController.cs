@@ -11,43 +11,19 @@ using UnityEngine.UI;
 /// </summary>
 public class PauseMenuController : MonoBehaviour
 {
-    private GameObject _buttonCanvas;
     private GameObject _menuCanvas;
     private RenderTexture _blurTexture;
 
-    private void Start()
-    {
-        BuildPauseButton();
-    }
+    /// <summary>True while live play should show a pause affordance - the HUD's pause
+    /// button (UIManager top bar) drives its visibility from this.</summary>
+    public static bool PauseAvailable =>
+        GameManager.Instance != null
+        && !GameManager.Instance.isGameOver
+        && !GameManager.Instance.IsGamePaused
+        && !LevelSelectionState.IsSelectionPending;
 
-    private void Update()
-    {
-        if (_buttonCanvas == null) return;
-
-        // Visible only during live play: not over the level-select, not over other
-        // pause-driven overlays (power-up choice, completion), not after game over.
-        bool show = GameManager.Instance != null
-            && !GameManager.Instance.isGameOver
-            && !GameManager.Instance.IsGamePaused
-            && !LevelSelectionState.IsSelectionPending;
-        if (_buttonCanvas.activeSelf != show) _buttonCanvas.SetActive(show);
-    }
-
-    private void BuildPauseButton()
-    {
-        _buttonCanvas = RuntimeUiKit.CreateOverlayCanvas("Pause Button", 4000);
-        RuntimeUiKit.EnsureEventSystem();
-
-        Button button = RuntimeUiKit.CreateButton(_buttonCanvas.transform, "II", 0f, ShowPauseMenu);
-        RectTransform rect = (RectTransform)button.transform;
-        rect.anchorMin = Vector2.one;
-        rect.anchorMax = Vector2.one;
-        rect.pivot = Vector2.one;
-        rect.anchoredPosition = new Vector2(-18f, -14f);
-        rect.sizeDelta = new Vector2(86f, 72f);
-    }
-
-    private void ShowPauseMenu()
+    /// <summary>Open the pause menu; the button itself lives in the HUD top bar.</summary>
+    public void ShowPauseMenu()
     {
         if (GameManager.Instance == null || GameManager.Instance.isGameOver ||
             GameManager.Instance.IsGamePaused) return;
@@ -62,7 +38,7 @@ public class PauseMenuController : MonoBehaviour
     // timeScale is 0, so WaitForEndOfFrame still fires.
     private System.Collections.IEnumerator CaptureBlurThenShowMenu()
     {
-        yield return null;                    // let Update hide the pause button first
+        yield return null;                    // let the HUD hide its pause button first
         yield return new WaitForEndOfFrame(); // grab the fully rendered still frame
 
         int width = Mathf.Max(16, Screen.width);
