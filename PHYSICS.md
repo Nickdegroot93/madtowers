@@ -6,7 +6,7 @@ before this one. **Read the Invariants section before touching anything** — ev
 them was learned by shipping the bug it forbids.
 
 Sister file locations:
-- [BlockController.cs](Assets/SourceFiles/Scripts/Blocks/BlockController.cs) — descent, landing, settling, sleep
+- [BlockController/](Assets/SourceFiles/Scripts/Blocks/BlockController/) — descent, landing, settling, sleep. One class split into focused partials: core (fields/lifecycle), Input, Setup, Steering, Placement, Landing, Settling, PlacementBeam — all the same `BlockController`, so everything in this document applies across them.
 - [StaticSupportIslandManager.cs](Assets/SourceFiles/Scripts/World/StaticSupportIslandManager.cs) — sky platforms
 - [PlayAreaController.cs](Assets/SourceFiles/Scripts/Levels/PlayAreaController.cs) — floor
 - [GameModeConfig.cs](Assets/SourceFiles/Scripts/Levels/GameModeConfig.cs) + `Assets/Data/GameModes/` + `Assets/Resources/GameModes/` — per-level tuning
