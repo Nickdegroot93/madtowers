@@ -190,6 +190,7 @@ when unusable, same affordance as the nudge pills.
    | `BlockVariantChancePowerUp` | Passive (stackable) | variant, chancePerBlock | "% chance blocks spawn as variant V" |
    | `BlockDefinitionChancePowerUp` | Passive (stackable) | definition, firstStackChance, additionalStackChance | "shape X appears a little more often" |
    | `BlockFrictionPowerUp` | Passive (stackable) | firstStackIncrease, additionalStackIncrease | "standard blocks grip a little harder" |
+   | `FallSpeedReductionPowerUp` | Passive (stackable) | reductionPerStack | "future pieces fall a little slower" |
    | `NextBlockVariantPowerUp` | Instant | variant | "next block becomes variant V" |
    | `ExtraLifePowerUp` | Instant | lives | flat life grant |
    | `SlowMotionPowerUp` | Instant | duration | timed timescale effect |
@@ -272,9 +273,13 @@ at the source, add a virtual handler on `PassiveAbility`, fan out in `AbilityRun
 
 Picker every 3 blocks, PlaceBlocks 30 target, rarity profile = `RarityProfile_TestEqual`.
 The mode's pool (`GameMode_AbilityTest`) is intentionally tiny and hand-edited to the
-abilities currently under test (today: Bullet + Spike Supply + Cube Supply + Vector
-Guide + High Friction), so offers stay focused while still exercising multiple-card
-presentation and pick/re-pick paths.
+abilities currently under test. Today it is **exactly three always-available commons**
+(Bullet + High Friction + Air Brake): because every member is common and the offer draws
+three uniformly without replacement, all three are shown every time — so the ability under
+test (Air Brake) is *always* on the card screen. Keep the pool at three unconditional,
+non-`unique` commons to preserve that guarantee (conditional or unique members can shrink
+the candidate set below three and break it). An ability hits `maxStacks` and drops out of
+the offer once fully stacked — expected on a bench.
 Building a new ability = temporarily add it here. The 12 inert dummies (`Data/PowerUps/Dummies/`) and the migrated
 proof abilities still exist as assets for chrome/regression testing; never add
 dummies to real level pools.
@@ -291,6 +296,16 @@ is a perceptible first pick, `additionalStackIncrease` (0.1) tops up later stack
 Friction governs sliding/shearing, not tipping, so even maxed it can't trivialize a
 top-heavy tower; and the floor/islands stay un-boosted (0.95), so √-mixing halves the
 benefit on the base layer — a natural governor. `maxStacks = 3`.
+
+### Air Brake (Common, passive)
+`FallSpeedReductionPowerUp` overrides `GetFallSpeedFactor` to return `1 − reductionPerStack
+× stacks` (0.08/stack), which `AbilityRuntime` folds into `GameManager`'s spawn-speed
+multiplier. It is the *pull-style* hook the fall-speed getter was built for ([GameManager](Assets/SourceFiles/Scripts/Core/GameManager.cs)
+comment: ability effects compose as a multiplier IN THE GETTER, never by mutating the
+ramp). It scales the whole speed curve down, so a given speed is reached at a later block
+AND the effective top speed comes down — the brake persists on long/endless runs instead
+of evaporating at the cap. It is deliberately NOT a `FallSpeedMultiplier` status (those are
+timed; this is permanent and stack-scaled). `maxStacks = 3` (×0.76 at full, ~24% slower).
 
 ### Vector Guide (Common, passive, unique)
 `VectorGuideAbility` toggles a run-local landing ghost on `BlockController`. The active

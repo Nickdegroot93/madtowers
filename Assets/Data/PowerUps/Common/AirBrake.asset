@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7b3f445386e4151b81f481b117d4222, type: 3}
+  m_Name: AirBrake
+  m_EditorClassIdentifier: Assembly-CSharp::FallSpeedReductionPowerUp
+  displayName: Air Brake
+  icon: {fileID: 21300000, guid: 44242bb76d434f86aa02cc643078857d, type: 3}
+  shortDescription: Slightly reduces overall block falling speed.
+  description: Eases the relentless speed-up that builds over a long run, letting future
+    pieces fall a little more gently so the late game stays within reach. Each pick
+    leans a bit harder on the brake.
+  rarity: 0
+  unique: 0
+  maxStacks: 3
+  requiresVariantsInLevel: []
+  charges: 0
+  reductionPerStack: 0.08

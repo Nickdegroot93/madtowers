@@ -304,6 +304,48 @@ def render_icon_high_friction(path):
     write_png(path, S, S, c.to_bytes())
 
 
+def draw_brake_bar(c, cx, cy, half_w, half_h, base, outline_px=14, bevel_px=16):
+    """Bold horizontal rounded plate - the brake the falling block eases onto."""
+    top, bottom = cy - half_h, cy + half_h
+    radius = half_h * 0.55
+    spec_x = cx - half_w * 0.4
+    spec_w = half_w * 0.5
+    for y in range(c.h):
+        for x in range(c.w):
+            d = rounded_box_distance(x, y, cx, cy, half_w, half_h, radius)
+            s = shade(d, y, top, bottom, base, outline_px, bevel_px)
+            if s is None: continue
+            r, g, b, cov = s
+            if d <= -outline_px:
+                k = math.exp(-((x - spec_x) / spec_w) ** 2) * 0.24
+                r, g, b = r + (255 - r) * k, g + (255 - g) * k, b + (255 - b) * k
+            c.blend(x, y, r, g, b, cov)
+
+
+def render_icon_air_brake(path):
+    """Card artwork: a falling block easing onto a bold brake plate, motion streaks
+    above tapering as it slows."""
+    S = 512
+    c = Canvas(S, S)
+    pearl = (224, 232, 235)
+    plate = (208, 218, 225)
+    streak = (108, 124, 152)                 # muted slate - reads as motion on the white card
+    draw_glow(c, S / 2, S / 2, 205, (232, 238, 240), peak=0.24)
+
+    for lx, ly0, ly1, w, a in ((S / 2, 30, 156, 13, 0.9),
+                               (S / 2 - 78, 60, 168, 9, 0.62),
+                               (S / 2 + 78, 60, 168, 9, 0.62)):
+        draw_speed_line(c, lx, ly0, ly1, w, streak, alpha=a)
+
+    draw_square_piece(c, S / 2, 256, 90, pearl, outline_px=14, bevel_px=20)
+    draw_brake_bar(c, S / 2, 398, 152, 30, plate, outline_px=14, bevel_px=16)
+
+    for sx, sy, sz in ((142, 196, 22), (372, 300, 24), (348, 214, 14)):
+        draw_sparkle(c, sx, sy, sz, color=(252, 255, 255), alpha=0.88)
+
+    write_png(path, S, S, c.to_bytes())
+
+
 def render_block_bullet(path):
     """The in-game 1x1 projectile piece: aged bronze shell, pointy bottom,
     same lighting language as the tetromino block sprites (PPU 256)."""
@@ -336,6 +378,7 @@ ARTWORK = {
     "icon_cube_supply.png": render_icon_cube_supply,
     "icon_vector_guide.png": render_icon_vector_guide,
     "icon_high_friction.png": render_icon_high_friction,
+    "icon_air_brake.png": render_icon_air_brake,
     "block_bullet.png": render_block_bullet,
 }
 SKIN_ARTWORK = {
