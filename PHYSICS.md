@@ -111,6 +111,9 @@ Inspector in debug mode if behaviour diverges between pieces.
 | Collision detection | Continuous while falling, **Discrete once landed** | CCD on resting bodies only adds speculative-contact noise and cost; descent is cast-driven anyway. |
 
 Code-level details that are part of the contract (not inspector values):
+- The High Friction ability may raise the runtime shared fallback material used by
+  standard blocks. It must not mutate `BlockData` or authored `PhysicsMaterial2D`
+  assets; explicit-material variants such as Ice keep their authored surface.
 - `Physics2D.SyncTransforms()` is called before every landing cast (`SteerWhileFalling`,
   `SettleOntoContact`) because **AutoSyncTransforms is off** project-wide. Without it,
   casts see last step's collider poses → landings measured at the wrong X.

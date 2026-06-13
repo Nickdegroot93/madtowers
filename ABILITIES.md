@@ -189,6 +189,7 @@ when unusable, same affordance as the nudge pills.
    | `StatusComboAbility` | Combo | trigger, status (+ charges) | "pattern lands: enter state X" |
    | `BlockVariantChancePowerUp` | Passive (stackable) | variant, chancePerBlock | "% chance blocks spawn as variant V" |
    | `BlockDefinitionChancePowerUp` | Passive (stackable) | definition, firstStackChance, additionalStackChance | "shape X appears a little more often" |
+   | `BlockFrictionPowerUp` | Passive (stackable) | firstStackIncrease, additionalStackIncrease | "standard blocks grip a little harder" |
    | `NextBlockVariantPowerUp` | Instant | variant | "next block becomes variant V" |
    | `ExtraLifePowerUp` | Instant | lives | flat life grant |
    | `SlowMotionPowerUp` | Instant | duration | timed timescale effect |
@@ -271,13 +272,33 @@ at the source, add a virtual handler on `PassiveAbility`, fan out in `AbilityRun
 
 Picker every 3 blocks, PlaceBlocks 30 target, rarity profile = `RarityProfile_TestEqual`.
 The mode's pool (`GameMode_AbilityTest`) is intentionally tiny and hand-edited to the
-abilities currently under test (today: Bullet + Spike Supply + Cube Supply), so offers
-stay focused while still exercising multiple-card presentation and pick/re-pick paths.
+abilities currently under test (today: Bullet + Spike Supply + Cube Supply + Vector
+Guide + High Friction), so offers stay focused while still exercising multiple-card
+presentation and pick/re-pick paths.
 Building a new ability = temporarily add it here. The 12 inert dummies (`Data/PowerUps/Dummies/`) and the migrated
 proof abilities still exist as assets for chrome/regression testing; never add
 dummies to real level pools.
 
 ## 13. Shipped abilities
+
+### High Friction (Common, passive)
+`BlockFrictionPowerUp` adds a run-local multiplier delta to the shared standard-block
+fallback physics material. Existing and future standard blocks share that runtime
+material, so each stack immediately makes ordinary block-on-block contact grippier.
+Variants with explicit physics materials keep their authored behaviour (for example,
+Ice stays slippery). Front-loaded like the supply passives: `firstStackIncrease` (0.3)
+is a perceptible first pick, `additionalStackIncrease` (0.1) tops up later stacks.
+Friction governs sliding/shearing, not tipping, so even maxed it can't trivialize a
+top-heavy tower; and the floor/islands stay un-boosted (0.95), so √-mixing halves the
+benefit on the base layer — a natural governor. `maxStacks = 3`.
+
+### Vector Guide (Common, passive, unique)
+`VectorGuideAbility` toggles a run-local landing ghost on `BlockController`. The active
+piece still shows the normal placement beam; once owned, the beam also gets a
+translucent copy of the current piece at the first straight-down support contact. The
+preview uses the active block's real colliders and the same landing-support filter as
+controlled landing, but it is visual-only and intentionally does not simulate
+post-contact tipping. `unique = true`, so the picker filters it out after one pickup.
 
 ### Spike Supply (Common, passive)
 `BlockDefinitionChancePowerUp` asset targeting `Block_I`. The first pickup registers

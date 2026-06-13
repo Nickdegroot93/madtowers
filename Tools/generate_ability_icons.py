@@ -192,7 +192,7 @@ def draw_straight_piece(c, cx, top, bottom, half_w, base, outline_px=14, bevel_p
             c.blend(x, y, r, g, b, cov)
 
 
-def draw_square_piece(c, cx, cy, half_size, base, outline_px=14, bevel_px=18):
+def draw_square_piece(c, cx, cy, half_size, base, outline_px=14, bevel_px=18, alpha=1.0):
     """2x2 square piece emblem with a cross seam, matching the generated block style."""
     top = cy - half_size
     bottom = cy + half_size
@@ -213,7 +213,7 @@ def draw_square_piece(c, cx, cy, half_size, base, outline_px=14, bevel_px=18):
                 horizontal = math.exp(-((y - cy) / 3.8) ** 2)
                 seam = max(vertical, horizontal)
                 r, g, b = r * (1.0 - 0.28 * seam), g * (1.0 - 0.28 * seam), b * (1.0 - 0.28 * seam)
-            c.blend(x, y, r, g, b, cov)
+            c.blend(x, y, r, g, b, cov * alpha)
 
 
 # ---------------------------------------------------------------- renderers
@@ -265,6 +265,45 @@ def render_icon_cube_supply(path):
     write_png(path, S, S, c.to_bytes())
 
 
+def render_icon_vector_guide(path):
+    """Card artwork: active block, projection line, translucent landing ghost."""
+    S = 512
+    c = Canvas(S, S)
+    pearl = (224, 232, 235)
+    guide = (248, 252, 255)
+    draw_glow(c, S / 2, S / 2, 210, (232, 238, 240), peak=0.24)
+
+    draw_square_piece(c, S / 2, 146, 76, pearl, outline_px=13, bevel_px=18)
+    draw_speed_line(c, S / 2, 215, 312, 8, guide, alpha=0.62)
+    draw_speed_line(c, S / 2 - 42, 238, 296, 4, guide, alpha=0.28)
+    draw_speed_line(c, S / 2 + 42, 238, 296, 4, guide, alpha=0.28)
+    draw_square_piece(c, S / 2, 370, 102, pearl, outline_px=13, bevel_px=18, alpha=0.42)
+
+    for sx, sy, sz in ((140, 142, 20), (374, 352, 24), (356, 182, 14)):
+        draw_sparkle(c, sx, sy, sz, color=(252, 255, 255), alpha=0.88)
+
+    write_png(path, S, S, c.to_bytes())
+
+
+def render_icon_high_friction(path):
+    """Card artwork: two pale blocks gripping at a bright contact seam."""
+    S = 512
+    c = Canvas(S, S)
+    pearl = (224, 232, 235)
+    guide = (248, 252, 255)
+    draw_glow(c, S / 2, S / 2, 205, (232, 238, 240), peak=0.24)
+
+    draw_square_piece(c, S / 2 - 46, 190, 96, pearl, outline_px=14, bevel_px=20)
+    draw_square_piece(c, S / 2 + 46, 322, 96, pearl, outline_px=14, bevel_px=20)
+
+    for x in (188, 222, 256, 290, 324):
+        draw_speed_line(c, x, 238, 278, 5, guide, alpha=0.52)
+    for sx, sy, sz in ((144, 170, 22), (368, 340, 24), (340, 200, 14)):
+        draw_sparkle(c, sx, sy, sz, color=(252, 255, 255), alpha=0.88)
+
+    write_png(path, S, S, c.to_bytes())
+
+
 def render_block_bullet(path):
     """The in-game 1x1 projectile piece: aged bronze shell, pointy bottom,
     same lighting language as the tetromino block sprites (PPU 256)."""
@@ -295,6 +334,8 @@ ARTWORK = {
     "icon_bullet.png": render_icon_bullet,
     "icon_spike_supply.png": render_icon_spike_supply,
     "icon_cube_supply.png": render_icon_cube_supply,
+    "icon_vector_guide.png": render_icon_vector_guide,
+    "icon_high_friction.png": render_icon_high_friction,
     "block_bullet.png": render_block_bullet,
 }
 SKIN_ARTWORK = {

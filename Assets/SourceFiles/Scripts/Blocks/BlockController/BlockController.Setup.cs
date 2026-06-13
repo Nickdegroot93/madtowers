@@ -105,14 +105,27 @@ public partial class BlockController
 
         if (_sharedFallbackMaterial == null)
         {
+            _sharedFallbackBaseFriction = Mathf.Max(0f, defaultBlockFriction);
             _sharedFallbackMaterial = new PhysicsMaterial2D("BlockFallbackMaterial")
             {
-                friction = defaultBlockFriction,
+                friction = ResolveStandardBlockFriction(),
                 bounciness = defaultBlockBounciness
             };
         }
 
         return _sharedFallbackMaterial;
+    }
+
+    private static void RefreshStandardBlockFriction()
+    {
+        if (_sharedFallbackMaterial == null) return;
+
+        _sharedFallbackMaterial.friction = ResolveStandardBlockFriction();
+    }
+
+    private static float ResolveStandardBlockFriction()
+    {
+        return Mathf.Max(0f, _sharedFallbackBaseFriction * _standardBlockFrictionMultiplier);
     }
 
     public void ApplyConfig(GameModeConfig config)

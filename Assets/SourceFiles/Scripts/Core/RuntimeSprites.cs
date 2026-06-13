@@ -197,6 +197,51 @@ public static partial class RuntimeSprites
         return _square = Finish(tex, S); // 1x1 world unit; scale to size
     }
 
+    // ---- vector guide ghost --------------------------------------------------------------
+    // Soft white primitives for the landing preview. The fill stays barely visible while
+    // the line strip carries the silhouette; tint alpha controls final intensity.
+    private static Sprite _vectorGuideGhostFill;
+    private static Sprite _vectorGuideGhostLine;
+
+    public static Sprite VectorGuideGhostFill()
+    {
+        if (_vectorGuideGhostFill != null) return _vectorGuideGhostFill;
+
+        const int S = 64;
+        Texture2D tex = NewTexture(S, S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                float d = RoundedBoxDistance(x + 0.5f, y + 0.5f, S * 0.5f, S * 0.5f, 27f, 27f, 7f);
+                float coverage = Mathf.Clamp01(0.5f - d / 2.5f);
+                float u = Mathf.Abs((x + 0.5f) / S * 2f - 1f);
+                float v = Mathf.Abs((y + 0.5f) / S * 2f - 1f);
+                float centerFade = 1f - Mathf.Clamp01(Mathf.Max(u, v));
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, coverage * (0.35f + centerFade * 0.25f)));
+            }
+        }
+        return _vectorGuideGhostFill = Finish(tex, S);
+    }
+
+    public static Sprite VectorGuideGhostLine()
+    {
+        if (_vectorGuideGhostLine != null) return _vectorGuideGhostLine;
+
+        const int S = 32;
+        Texture2D tex = NewTexture(S, S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                float d = RoundedBoxDistance(x + 0.5f, y + 0.5f, S * 0.5f, S * 0.5f, 14f, 14f, 5f);
+                float coverage = Mathf.Clamp01(0.5f - d / 2f);
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, coverage));
+            }
+        }
+        return _vectorGuideGhostLine = Finish(tex, S);
+    }
+
     // ---- vertical gradient ---------------------------------------------------------------
     // NOT cached: returns a fresh sprite the caller owns (and should DestroyImmediate,
     // texture included, when replacing - see LevelPresentationController).
@@ -228,6 +273,15 @@ public static partial class RuntimeSprites
             filterMode = FilterMode.Bilinear,
             hideFlags = HideFlags.HideAndDontSave
         };
+    }
+
+    private static float RoundedBoxDistance(float x, float y, float cx, float cy,
+        float halfWidth, float halfHeight, float radius)
+    {
+        float qx = Mathf.Abs(x - cx) - (halfWidth - radius);
+        float qy = Mathf.Abs(y - cy) - (halfHeight - radius);
+        return new Vector2(Mathf.Max(qx, 0f), Mathf.Max(qy, 0f)).magnitude
+               + Mathf.Min(Mathf.Max(qx, qy), 0f) - radius;
     }
 
     private static Sprite Finish(Texture2D tex, float pixelsPerUnit, Vector4 border = default)

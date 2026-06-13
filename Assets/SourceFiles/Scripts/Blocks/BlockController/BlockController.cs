@@ -49,6 +49,8 @@ public partial class BlockController : MonoBehaviour
     // the beam reads as part of the backdrop and visually stops at whatever it passes
     // behind. Code-owned (not serialized) so it can't go stale in prefab import caches.
     private const int PlacementBeamSortingOrder = -60;
+    private const int VectorGuideGhostSortingOrder = -5;
+    private static bool _vectorGuideEnabled;
 
     [Header("Active Piece Control (fallback; GameModeConfig overrides these per level)")]
     [Tooltip("How close (world units) support must be below the piece before steering control is handed to physics. Keep small so players can make last-second tuck moves.")]
@@ -96,6 +98,8 @@ public partial class BlockController : MonoBehaviour
     [SerializeField] private float quietGridPullMaxSpeedFraction = 0.02f;
 
     private static PhysicsMaterial2D _sharedFallbackMaterial;
+    private static float _sharedFallbackBaseFriction = 0.95f;
+    private static float _standardBlockFrictionMultiplier = 1f;
 
     private const float RotationStep = 90f;
     private const float GridMatchTolerance = 0.05f;
@@ -119,6 +123,10 @@ public partial class BlockController : MonoBehaviour
     private IReadOnlyList<FloorSegmentConfig> _floorSegments;
     private Camera _mainCamera;
     private SpriteRenderer _placementBeamRenderer;
+    private Transform _vectorGuideGhostRoot;
+    private readonly List<SpriteRenderer> _vectorGuideFillRenderers = new List<SpriteRenderer>(4);
+    private readonly List<SpriteRenderer> _vectorGuideLineRenderers = new List<SpriteRenderer>(16);
+    private SpriteRenderer _vectorGuideSourceRenderer;
     private float _gravityScaleMultiplier = 1f;
 
     private float _dasTimer;
@@ -154,7 +162,23 @@ public partial class BlockController : MonoBehaviour
     {
         TrackedBlocks.Clear();
         _sharedFallbackMaterial = null;
+        _sharedFallbackBaseFriction = 0.95f;
+        _standardBlockFrictionMultiplier = 1f;
         _nudgeLockedUntilTime = 0f;
+        _vectorGuideEnabled = false;
+    }
+
+    public static void AddStandardBlockFrictionMultiplier(float multiplierDelta)
+    {
+        if (multiplierDelta <= 0f) return;
+
+        _standardBlockFrictionMultiplier += multiplierDelta;
+        RefreshStandardBlockFriction();
+    }
+
+    public static void SetVectorGuideEnabled(bool enabled)
+    {
+        _vectorGuideEnabled = enabled;
     }
 
     // Rotation nudges the target angle by a quarter turn. Active pieces snap to that target while

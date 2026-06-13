@@ -51,6 +51,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 6d3401c19dfd45e78cb61cfe19dcd22d, type: 2}
   - {fileID: 11400000, guid: 5fbde9516a7c498f9c96bf8222a8bc48, type: 2}
   - {fileID: 11400000, guid: e28f154f7fe04e8c804cb5e2e8f4b35b, type: 2}
+  - {fileID: 11400000, guid: c32e1c21722b4300b40e69ceb0b6d101, type: 2}
+  - {fileID: 11400000, guid: c6b3edea5bf84c4eba83f986fc74d091, type: 2}
   slowMotionScale: 0.5
   staticSupportIslandsEnabled: 1
   staticSupportIslandHeightInterval: 1

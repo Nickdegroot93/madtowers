@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7782d151594640138535a000be015f8d, type: 3}
+  m_Name: HighFriction
+  m_EditorClassIdentifier: Assembly-CSharp::BlockFrictionPowerUp
+  displayName: High Friction
+  icon: {fileID: 21300000, guid: 51cf56c709b64cf5ac633131804278ad, type: 3}
+  shortDescription: Helps standard blocks grip better.
+  description: Standard blocks gain a little extra grip, helping new pieces slide less
+    when they land on angled or uneven layers.
+  rarity: 0
+  unique: 0
+  maxStacks: 3
+  requiresVariantsInLevel: []
+  charges: 0
+  firstStackIncrease: 0.3
+  additionalStackIncrease: 0.1
