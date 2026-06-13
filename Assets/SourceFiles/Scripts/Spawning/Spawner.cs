@@ -79,6 +79,43 @@ public class Spawner : MonoBehaviour
         SpawnNextBlock();
     }
 
+    /// <summary>
+    /// Replaces the ACTIVE falling piece with another definition's piece at the same
+    /// position, mid-fall (the Bullet consumable). The old piece is destroyed without
+    /// locking (no score, no spawn trigger); the replacement rejoins the normal
+    /// lock->spawn chain exactly like a spawned piece. Validates the replacement
+    /// FULLY before touching the old piece - a misconfigured prefab must leave the
+    /// game untouched (the lock->spawn chain has no retry; losing the active piece
+    /// without a wired successor soft-locks the run).
+    /// </summary>
+    public bool ReplaceActivePiece(BlockDefinition definition)
+    {
+        if (definition == null || definition.Prefab == null) return false;
+
+        BlockController active = BlockController.ActiveControlled;
+        if (active == null || active != _currentBlock || active.HasLanded) return false;
+
+        GameObject blockObj = Instantiate(definition.Prefab, active.transform.position, Quaternion.identity);
+        BlockController replacement = blockObj.GetComponent<BlockController>();
+        if (replacement == null)
+        {
+            Debug.LogError($"ReplaceActivePiece: '{definition.name}' prefab has no BlockController.", definition);
+            Destroy(blockObj);
+            return false;
+        }
+
+        active.OnBlockLocked -= HandleBlockLocked;
+        Destroy(active.gameObject);
+        _currentBlock = replacement;
+        WireBlock(replacement, definition, definition.DefaultData);
+
+        // BlockSpawned is deliberately NOT re-raised: the swap is the same logical
+        // turn, and per-spawn passives (recovery windows, charge consumers) must not
+        // pay twice for one piece. Revisit if a transform ability ever produces a
+        // piece that should join combos (ComboDetector hooks locks via this event).
+        return true;
+    }
+
     private void SpawnNextBlock()
     {
         // Never two controlled pieces: a pending SpawnWithDelay coroutine and an external
@@ -115,27 +152,37 @@ public class Spawner : MonoBehaviour
         _currentBlock = blockObj.GetComponent<BlockController>();
         if (_currentBlock != null)
         {
-            _currentBlock.OnBlockLocked += HandleBlockLocked;
-            _currentBlock.ApplyConfig(ActiveGameModeConfig);
-
             BlockData data = RollVariantChances(GetBlockData(definition));
-            if (data != null)
-            {
-                _currentBlock.ApplyData(data);
-            }
-
-            // Difficulty scales the controlled descent speed only. Landed gravity stays constant
-            // (BlockController normalizes it), so tower load never grows with block count.
-            if (GameManager.Instance != null)
-            {
-                _currentBlock.fallSpeed = GameManager.Instance.currentFallSpeed;
-            }
-
-            // The block's identity (shape + rolled variant) travels with it - combo
-            // triggers match against this, never against GameObject names.
-            blockObj.AddComponent<BlockIdentity>().Assign(definition, data);
+            WireBlock(_currentBlock, definition, data);
             GameEvents.RaiseBlockSpawned(_currentBlock, data);
         }
+    }
+
+    // Everything a new controlled piece needs to participate in the game - shared by
+    // the normal spawn and ReplaceActivePiece so the two paths can never drift apart.
+    private void WireBlock(BlockController block, BlockDefinition definition, BlockData data)
+    {
+        block.OnBlockLocked += HandleBlockLocked;
+        block.ApplyConfig(ActiveGameModeConfig);
+        if (data != null)
+        {
+            block.ApplyData(data);
+        }
+
+        // Difficulty scales the controlled descent speed only. Landed gravity stays constant
+        // (BlockController normalizes it), so tower load never grows with block count.
+        if (GameManager.Instance != null)
+        {
+            block.fallSpeed = GameManager.Instance.currentFallSpeed;
+        }
+
+        // The block's identity (shape + rolled variant) travels with it - combo
+        // triggers match against this, never against GameObject names.
+        block.gameObject.AddComponent<BlockIdentity>().Assign(definition, data);
+
+        // Tell scoring which piece is now in play (covers mid-fall replacements like the
+        // Bullet, which never re-raise BlockSpawned) so its lock counts - or doesn't.
+        if (GameManager.Instance != null) GameManager.Instance.SetActivePiece(block, data);
     }
 
     private bool HasConfiguredBlocks()
@@ -199,6 +246,17 @@ public class Spawner : MonoBehaviour
         if (_currentBlock != null && !_currentBlock.HasLanded)
         {
             _currentBlock.ApplyData(variant);
+
+            // Keep the block's identity AND the accounting context in sync with the
+            // swapped-in variant - exactly what WireBlock does for spawned/replaced
+            // pieces. Without this, a variant with non-default count/life flags applied
+            // to the in-air piece would be scored/lost against the ORIGINAL flags (the
+            // identity component and GameManager's active-piece cache stay stale).
+            if (_currentBlock.TryGetComponent(out BlockIdentity identity))
+            {
+                identity.Assign(identity.Definition, variant);
+            }
+            if (GameManager.Instance != null) GameManager.Instance.SetActivePiece(_currentBlock, variant);
             return;
         }
 

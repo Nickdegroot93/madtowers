@@ -187,6 +187,8 @@ public class HeightLimitWavesModifier : LevelModifier
             if (bounds.max.y <= _lineY + 0.02f) continue;
 
             BlockShatterFx.Spawn(bounds, lineColor);
+            // The zapped block leaves the board - drop it from the live placed-block total.
+            _context?.GameManager?.RemovePlacedBlock(block);
             Object.Destroy(block.gameObject);
             _zapCooldown = ZapCooldownSeconds;
             _flash = 0.6f;

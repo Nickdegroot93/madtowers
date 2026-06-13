@@ -115,6 +115,7 @@ public class LevelRuntimeController : MonoBehaviour
     private void OnEnable()
     {
         GameEvents.ScoreChanged += HandleScoreChanged;
+        GameEvents.StandingBlocksChanged += HandleStandingBlocksChanged;
         GameEvents.HeightChanged += HandleHeightChanged;
         GameEvents.GameOver += HandleGameOver;
     }
@@ -122,6 +123,7 @@ public class LevelRuntimeController : MonoBehaviour
     private void OnDisable()
     {
         GameEvents.ScoreChanged -= HandleScoreChanged;
+        GameEvents.StandingBlocksChanged -= HandleStandingBlocksChanged;
         GameEvents.HeightChanged -= HandleHeightChanged;
         GameEvents.GameOver -= HandleGameOver;
         IsVerifyingWin = false; // static: must not leak a stale gate into the next scene
@@ -176,6 +178,15 @@ public class LevelRuntimeController : MonoBehaviour
             // A height win must still be STANDING; a collapse hands the level back.
             if (_level.TargetType == LevelTargetType.ReachHeight &&
                 LiveTowerHeight() < _level.TargetValue - VerificationAbortTolerance)
+            {
+                AbortVerification();
+                return;
+            }
+
+            // Same for PlaceBlocks: a block destroyed or dropped during the hold drops the
+            // live count below target, so the win is no longer earned - hand it back.
+            if (_level.TargetType == LevelTargetType.PlaceBlocks && GameManager.Instance != null &&
+                GameManager.Instance.placedBlocks < _level.TargetValue)
             {
                 AbortVerification();
                 return;
@@ -349,13 +360,20 @@ public class LevelRuntimeController : MonoBehaviour
 
     private void HandleScoreChanged(int score)
     {
+        // Cumulative progression - modifiers ramp per real placement.
         for (int i = 0; i < _activeModifiers.Count; i++)
         {
             _activeModifiers[i].OnBlockLocked(_modifierContext, score);
         }
+    }
 
+    // PlaceBlocks wins on the LIVE standing count, not cumulative score - so destroying
+    // or dropping placed blocks genuinely sets the goal back. Re-arms for free: this event
+    // fires on every increment too, so re-crossing the target re-triggers verification.
+    private void HandleStandingBlocksChanged(int placedBlocks)
+    {
         if (_level != null && _level.TargetType == LevelTargetType.PlaceBlocks &&
-            score >= _level.TargetValue)
+            placedBlocks >= _level.TargetValue)
         {
             TryBeginVerification();
         }

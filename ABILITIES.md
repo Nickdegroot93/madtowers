@@ -195,7 +195,24 @@ when unusable, same affordance as the nudge pills.
    Otherwise subclass the kind in `Definitions/` — one file.
 2. Create the asset (Create > Stacking > Abilities > …) under `Assets/Data/PowerUps/`.
    Set rarity, unique/maxStacks, charges, conditions.
-3. Add it to a mode's Power Up Choice Pool. Done.
+3. Add it to a mode's Power Up Choice Pool.
+4. **Presentation is part of done** (the Bullet is the reference): card icon via
+   `Tools/generate_ability_icons.py` per ART.md §12, and the §13 juice standard
+   (slot punch is free; the ability owes its own transform/impact moment — pick
+   Cartoon FX `CFXR…` prefabs into serialized effect fields and play them via
+   `Vfx.Spawn`, layered with hit-stop / camera kick / a custom sfx).
+
+**Transform-style consumable** (changes the active falling piece — the Bullet
+pattern): the projectile/replacement is a full block variant — `BlockData`
+subclass + behaviour in `Blocks/Variants/`, a 1-cell prefab cribbed from
+`Block_Bullet.prefab`, a `BlockDefinition` + data asset, a `piece_<Name>.png`
+skin sprite in `Skins/Classic/` (or ApplyBlockSkin warns per swap) — wired into
+the ability asset and swapped in via `Spawner.ReplaceActivePiece` (validates
+before destroying; does NOT re-raise `BlockSpawned` — same logical turn).
+`CanActivate` must pre-check every way `Activate` could fail (the slot is
+consumed first): config wired, piece in the air and not already transformed,
+piece not below `LossZone.CullY`. Never replace the piece outside the Spawner —
+the lock→spawn chain has no retry.
 
 **New shared effect helper** (used by more than one kind): static method in
 `Effects/AbilityEffects.cs`. Effects touching the world follow PHYSICS.md: velocity or
@@ -249,13 +266,90 @@ at the source, add a virtual handler on `PassiveAbility`, fan out in `AbilityRun
   order matters: StatusEffects → AbilityRuntime → ComboDetector → AbilityHud →
   AbilityChoiceController).
 
-## 12. Current proof content (Testing Grounds → "Ability Range" level)
+## 12. The ability test bench (Testing Grounds → "Ability Range" level)
 
-Picker every 3 blocks, PlaceBlocks 30 target, rarity profile = `RarityProfile_TestEqual`
-(every offer rolls Common/Rare/Epic/Legendary at equal odds — UI testing across all
-four chromes). Pool: the six real abilities — Extra Life (instant), Cement Tower
-(consumable), Recovery Window (stackable passive, max 3), Sacrificial Safety (one-shot
-passive), Overdrive (unique combo: two upright I-pieces → +1 score per block for 15 s),
-Stasis (consumable: 10 s life-loss immunity) — plus 12 inert dummies
-(`Data/PowerUps/Dummies/`, three per rarity covering passive/one-time/consumable
-badges). Dummies are test-only; never add them to real level pools.
+Picker every 3 blocks, PlaceBlocks 30 target, rarity profile = `RarityProfile_TestEqual`.
+The mode's pool (`GameMode_AbilityTest`) holds ONLY the ability currently under
+test — every offer shows that one card, so each new ability gets exercised in
+isolation (pick → re-pick → stack/swap paths). Building a new ability = swap the
+pool to it. The 12 inert dummies (`Data/PowerUps/Dummies/`) and the migrated
+proof abilities still exist as assets for chrome/regression testing; never add
+dummies to real level pools.
+
+## 13. Shipped abilities
+
+### Bullet (Common, consumable)
+`BulletAbility` — the active falling piece transforms into a 1×1 shell
+(`Block_Bullet` prefab + `BulletBlockData`) via `Spawner.ReplaceActivePiece`,
+which keeps the lock→spawn chain intact: the projectile IS a normal piece
+(steering, fast drop, flick, rotation all free). On lock, `BulletBlockData
+.OnLocked` runs `BulletImpact.Run` (static — no lifecycle): a downward BoxCast
+finds the block it landed on; only a **dynamic, landed `BlockController`**
+counts — the floor,
+support islands, and frozen (Static-body) blocks are bulletproof, the shot is
+wasted. Victim + bullet are destroyed (the authored `impactEffect` plays on the
+victim — a Cartoon FX CFXR prefab — plus `impact_shatter_01`, a micro hit-stop,
+and a camera kick); a wasted shot gets the `wastedEffect` dud + soft thud. The old piece is replaced
+without locking (no score, no extra spawn). The bullet is flagged
+`countsAsPlacedBlock:false` + `costsLifeWhenLost:false` (it isn't a real block), so
+it never adds to the block total and never costs a life if pushed off; its victim
+drops the live total by one (see [BLOCKS.md](BLOCKS.md)). Guards: no detonation
+after game over or below the loss line (off-screen locks fizzle silently), and
+`CanActivate` refuses without a piece in the air, on a piece that is already a
+bullet, on a doomed below-screen piece, or with the projectile unwired.
+
+Known quirks (accepted, by design or frozen-code constraint): bulleting the very
+top block can briefly record a phantom max height (the bullet locks atop the
+victim before both vanish — monotonic `_maxHeight` lives in frozen BlockController
+code, and UpdateMaxHeight isn't suppressed the way scoring is);
+a milestone variant applied directly to the falling piece dies with it if the
+player then bullets that piece (their choice to sacrifice it).
+
+**Juice standard (applies to every future ability):** activating must FEEL
+like something happened. The Bullet sets the bar:
+- **Authored VFX prefabs**, played through `Vfx.Spawn(prefab, position, scale)`.
+  The effects come from the **Cartoon FX Remaster** packs (`Assets/JMO Assets/`,
+  prefab prefix `CFXR…`); each ability references its effects as **serialized
+  prefab fields** on its asset (Bullet: `transformEffect` on the ability,
+  `impactEffect`/`wastedEffect` on `BulletData`) so swapping a look is a
+  drag-and-drop in the Inspector, never a code change. Prefer **Unlit + HDR**
+  CFXR variants (consistent in 2D, glow through the global bloom). CFXR prefabs
+  self-destroy (`CFXR_Effect`), so `Vfx.Spawn` only instantiates.
+  - **Break from the whole body, not one point.** A block shatters across all its
+    cells: `AbilityEffects.BurstFromEveryCell` spawns the effect at each cell
+    collider's centre (a 1×4 I-piece erupts from four origins, a square from one),
+    each burst sized to a single cell. A single centre-burst scaled up reads as a
+    detached explosion in the middle — spawn per cell instead. The asset's
+    `effectScale` is a *multiplier* on the per-cell size (1 ≈ cell-sized). This is
+    code, not the prefab: **swapping the effect keeps the per-cell behaviour**.
+  - **Gotcha — base vs variant prefabs:** many CFXR effects (the colored
+    recolors: `SLASH`/`FIRE`/`ICE`/… sword hits, etc.) are prefab *variants*.
+    A variant's root isn't a real object in its own file, so a hand-authored
+    YAML reference to it resolves to null and the effect silently doesn't play.
+    Assign variants **only by drag-drop in the editor** (Unity computes the
+    reference). Effects wired by editing the `.asset` text must be **base
+    prefabs** (e.g. `CFXR4 Sword Hit PLAIN (Cross)`, not the `SLASH` variant).
+- **The bits the pack doesn't do are still ours:** the slot-button elastic
+  punch (`AbilityHud` via `FxKit.Elastic`), and `AbilityEffects.ImpactPunch` —
+  the shared "this hit had weight" combo of a pause-safe micro hit-stop
+  (`HitStop.Trigger`) + a camera kick (`TowerCameraController.Impact`). Layer
+  these + a custom sfx *with* the prefab — that combination is what reads as
+  "expensive."
+- Never scale or move the physics piece for effect — spawn overlays/prefabs at
+  its position instead (PHYSICS.md).
+
+**Shared building blocks (use these, don't re-roll them).** The reusable verbs
+behind the standard, so the next consumable composes instead of copy-pasting:
+
+| Helper | Use |
+|---|---|
+| `Vfx.Spawn(prefab, position, scale)` | play any authored effect prefab (null-safe; forces z=0) |
+| `AbilityEffects.BurstFromEveryCell(block, prefab, scale)` | shatter an effect across every cell of a block |
+| `AbilityEffects.ImpactPunch(stop?, shakeAmp?, shakeDur?)` | hit-stop + camera kick |
+| `AbilityEffects.DestroyBlockWithShatter(block, tint)` | destroy a block with the standard shatter |
+| `BlockQuery.SupportBlockBelow(block)` | nearest dynamic, landed block beneath (statics/frozen excluded) |
+| `FxKit.Elastic(t, amp, damp, freq)` | the game's one elastic settle curve |
+
+`BulletImpact` is the reference composition: `SupportBlockBelow` → `BurstFromEveryCell`
++ `ImpactPunch` + sfx → destroy. ~45 lines, all of it Bullet's own decisions
+(guards, which sounds); every reusable mechanic is one of the calls above.

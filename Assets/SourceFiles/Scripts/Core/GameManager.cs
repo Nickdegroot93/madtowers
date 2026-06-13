@@ -15,6 +15,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float _speedIncreasePerInterval = 0.1f;
     [SerializeField] private float _maxHeight = 0f;
     [SerializeField] private int _score = 0;
+    [SerializeField] private int _standingBlocks = 0;
     [SerializeField] private int _lives = 1;
 
     public bool isGameOver { get; private set; }
@@ -25,6 +26,9 @@ public class GameManager : MonoBehaviour
     /// <summary>World Y of the floor surface.</summary>
     public float floorOriginY => _heightOriginY;
     public int score => _score;
+    /// <summary>Live count of real placed blocks still standing - the HUD total and the
+    /// PlaceBlocks win metric. Goes down when a counting block is destroyed or falls off.</summary>
+    public int placedBlocks => _standingBlocks;
     public int lives => _lives;
     // The difficulty ramp owns _currentFallSpeed (and the cap applies to it); ability
     // effects compose as a multiplier IN THE GETTER, never by mutating the ramp value -
@@ -39,6 +43,17 @@ public class GameManager : MonoBehaviour
     private float _gameplayTimeScale = 1f;
     private float _abilityFallSpeedMultiplier = 1f;
     private StatusEffects _statusEffects;
+    // The piece currently in play + its flags, reported by the Spawner as it's wired
+    // (both fresh spawns and mid-fall variant swaps). The lock-time AddScore call from
+    // BlockController is param-less and fires after ActiveControlled has already cleared,
+    // so this is how scoring learns which piece is locking and whether it counts.
+    private BlockController _activeBlock;
+    private BlockData _activeBlockData;
+    // Loss context, scoped by DuringBlockLoss around the frozen HandleLostBelowScreen call:
+    // GameOver() reads whether the lost piece costs a life, and AddScore() suppresses the
+    // posthumous lock-score of a piece that fell off (it was lost, not placed).
+    private bool _losingBlockCostsLife = true;
+    private bool _inBlockLoss;
     private GameModeConfig ActiveGameModeConfig => LevelSelectionState.ResolveGameMode(gameModeConfig);
 
     private void Awake()
@@ -107,6 +122,15 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    /// <summary>The Spawner reports each piece as it's wired up (both normal spawns and
+    /// mid-fall replacements/variant swaps), so the param-less lock-score call from
+    /// BlockController can tell which piece is locking and whether it counts.</summary>
+    public void SetActivePiece(BlockController block, BlockData data)
+    {
+        _activeBlock = block;
+        _activeBlockData = data;
+    }
+
     /// <summary>Full pause used by the choice/completion screens.</summary>
     public void SetGamePaused(bool paused)
     {
@@ -162,6 +186,7 @@ public class GameManager : MonoBehaviour
     private void PublishState()
     {
         GameEvents.RaiseScoreChanged(_score);
+        GameEvents.RaiseStandingBlocksChanged(_standingBlocks);
         GameEvents.RaiseLivesChanged(_lives);
         GameEvents.RaiseHeightChanged(towerHeight);
     }
@@ -169,6 +194,13 @@ public class GameManager : MonoBehaviour
     public void GameOver()
     {
         if (isGameOver) return;
+
+        // A block flagged "free to lose" (e.g. the Bullet projectile) never costs a life
+        // when it falls off - it isn't a real block. Set per-loss by ReportBlockLost.
+        if (!_losingBlockCostsLife)
+        {
+            return;
+        }
 
         // A LifeLossImmunity status (ability-granted "game state") absorbs every life
         // charge while active - a whole-tower collapse during the window costs nothing
@@ -259,6 +291,13 @@ public class GameManager : MonoBehaviour
     {
         if (isGameOver) return;
 
+        // A piece lost off the bottom locks "posthumously" (frozen BlockController calls
+        // this on the way out) - that is a loss, not a placement, so it never scores.
+        if (_inBlockLoss) return;
+
+        // Pieces that aren't real blocks (the Bullet projectile) don't score or count.
+        if (_activeBlockData != null && !_activeBlockData.CountsAsPlacedBlock) return;
+
         // Overdrive-style states amplify EVERY score grant while active. Score is the
         // progression currency (win targets, picker milestones, wave counts) - that
         // amplification accelerating them all is the designed effect.
@@ -276,6 +315,62 @@ public class GameManager : MonoBehaviour
             IncreaseDifficulty(_speedIncreasePerBlock * baseAmount);
         }
         GameEvents.RaiseScoreChanged(_score);
+
+        // The live standing count tracks PHYSICAL blocks (one per placed piece), so it is
+        // never amplified - Overdrive is a progression bonus, not extra real blocks. Record
+        // the count on the block itself so its eventual -1 fires exactly once when it leaves.
+        AdjustStandingBlocks(1);
+        if (_activeBlock != null && _activeBlock.TryGetComponent(out BlockIdentity identity))
+        {
+            identity.MarkCountedAsPlaced();
+        }
+    }
+
+    // The live count of real placed blocks present (HUD total + PlaceBlocks win). Clamped
+    // at zero so a stray double-remove can never drive the displayed total negative.
+    private void AdjustStandingBlocks(int delta)
+    {
+        int next = Mathf.Max(0, _standingBlocks + delta);
+        if (next == _standingBlocks) return;
+        _standingBlocks = next;
+        GameEvents.RaiseStandingBlocksChanged(_standingBlocks);
+    }
+
+    /// <summary>A placed block has left the board by destruction (a Bullet hit now; the
+    /// puzzle laser later). Drops it from the live total exactly once if its placement was
+    /// counted (idempotent - a double-call is a no-op). The caller still destroys it.</summary>
+    public void RemovePlacedBlock(BlockController block)
+    {
+        if (block != null && block.TryGetComponent(out BlockIdentity identity) && identity.TryConsumeCounted())
+        {
+            AdjustStandingBlocks(-1);
+        }
+    }
+
+    /// <summary>Runs the (frozen) per-block loss inside the loss policy: GameOver() learns
+    /// whether this block costs a life, the posthumous lock-score is suppressed, and a
+    /// counted block is dropped from the live total - exactly once. The try/finally keeps
+    /// a throw in the frozen call from stranding the flags (which would silently disable
+    /// all future scoring and life charges). The only entry point - callers never touch
+    /// the loss flags directly, so the global side-channel can't be mis-scoped.</summary>
+    public void DuringBlockLoss(BlockController block, System.Action lossAction)
+    {
+        _inBlockLoss = true;
+        _losingBlockCostsLife = BlockData.CostsLife(block);
+
+        // A landed, counted block leaving costs the board one block; an active piece pushed
+        // off was never counted (TryConsumeCounted returns false), so nothing is subtracted.
+        if (block != null && block.TryGetComponent(out BlockIdentity identity) && identity.TryConsumeCounted())
+        {
+            AdjustStandingBlocks(-1);
+        }
+
+        try { lossAction?.Invoke(); }
+        finally
+        {
+            _inBlockLoss = false;
+            _losingBlockCostsLife = true;
+        }
     }
 
     private void IncreaseDifficulty(float fallSpeedAmount)

@@ -95,7 +95,7 @@ public class UIManager : MonoBehaviour
 
     private void OnEnable()
     {
-        GameEvents.ScoreChanged += HandleScoreChanged;
+        GameEvents.StandingBlocksChanged += HandleStandingBlocksChanged;
         GameEvents.HeightChanged += HandleHeightChanged;
         GameEvents.LivesChanged += HandleLivesChanged;
         GameEvents.NextBlockChanged += HandleNextBlockChanged;
@@ -104,7 +104,7 @@ public class UIManager : MonoBehaviour
 
     private void OnDisable()
     {
-        GameEvents.ScoreChanged -= HandleScoreChanged;
+        GameEvents.StandingBlocksChanged -= HandleStandingBlocksChanged;
         GameEvents.HeightChanged -= HandleHeightChanged;
         GameEvents.LivesChanged -= HandleLivesChanged;
         GameEvents.NextBlockChanged -= HandleNextBlockChanged;
@@ -134,7 +134,7 @@ public class UIManager : MonoBehaviour
     {
         if (GameManager.Instance != null)
         {
-            HandleScoreChanged(GameManager.Instance.score);
+            HandleStandingBlocksChanged(GameManager.Instance.placedBlocks);
             // towerHeight (meters above the floor), not maxHeight (world Y - the floor sits
             // at -11.5 world, which briefly showed as "-11.5m" before the first block).
             HandleHeightChanged(GameManager.Instance.towerHeight);
@@ -144,9 +144,11 @@ public class UIManager : MonoBehaviour
         if (_spawner != null) HandleNextBlockChanged(_spawner.GetNextBlockName());
     }
 
-    private void HandleScoreChanged(int score)
+    // The HUD total is the LIVE count of placed blocks still standing (drops when a block
+    // is destroyed or falls off), not the cumulative progression score.
+    private void HandleStandingBlocksChanged(int placedBlocks)
     {
-        if (scoreText != null) scoreText.text = score.ToString();
+        if (scoreText != null) scoreText.text = placedBlocks.ToString();
     }
 
     private void HandleHeightChanged(float height)

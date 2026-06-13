@@ -26,6 +26,7 @@ public class AbilityHud : MonoBehaviour
     private readonly Text[] _slotLabels = new Text[AbilityRuntime.ConsumableSlotCount];
     private readonly CanvasGroup[] _slotGroups = new CanvasGroup[AbilityRuntime.ConsumableSlotCount];
     private readonly bool[] _slotShownUsable = new bool[AbilityRuntime.ConsumableSlotCount];
+    private readonly float[] _punchAge = new float[AbilityRuntime.ConsumableSlotCount];
     private System.Func<Rect> _exclusionRect;
 
     private void Start()
@@ -92,7 +93,11 @@ public class AbilityHud : MonoBehaviour
         Button button = slot.AddComponent<Button>();
         button.targetGraphic = frame;
         int captured = index;
-        button.onClick.AddListener(() => _runtime.TryActivateSlot(captured));
+        button.onClick.AddListener(() =>
+        {
+            // Successful fire = elastic punch on the slot (game-feel ack of the tap).
+            if (_runtime.TryActivateSlot(captured)) _punchAge[captured] = 0f;
+        });
 
         // Icon fills the slot when the ability has one; the text label is the fallback.
         GameObject iconObject = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
@@ -120,6 +125,7 @@ public class AbilityHud : MonoBehaviour
 
         _slotGroups[index] = slot.AddComponent<CanvasGroup>();
         _slotShownUsable[index] = true;
+        _punchAge[index] = -1f;
     }
 
     private void RefreshSlots()
@@ -145,6 +151,30 @@ public class AbilityHud : MonoBehaviour
         for (int i = 0; i < AbilityRuntime.ConsumableSlotCount; i++)
         {
             if (_slotGroups[i] == null) continue;
+
+            // Elastic tap punch - unscaled time so the hit-stop never freezes UI feel.
+            // Activation empties the slot BEFORE this runs (TryActivateSlot fires
+            // InventoryChanged synchronously), so the punch alone would scale a
+            // near-invisible empty frame: a white flash settling into the slot's
+            // final color carries the "consumed!" read instead.
+            if (_punchAge[i] >= 0f)
+            {
+                _punchAge[i] += Time.unscaledDeltaTime;
+                float t = _punchAge[i];
+                Color settled = _runtime.GetSlotSource(i) != null ? SlotFilledColor : SlotEmptyColor;
+                if (t >= 0.45f)
+                {
+                    _punchAge[i] = -1f;
+                    _slotFrames[i].rectTransform.localScale = Vector3.one;
+                    _slotFrames[i].color = settled;
+                }
+                else
+                {
+                    float scale = FxKit.Elastic(t, amplitude: 0.28f, damping: 6f, frequency: 18f);
+                    _slotFrames[i].rectTransform.localScale = new Vector3(scale, scale, 1f);
+                    _slotFrames[i].color = Color.Lerp(new Color(1f, 1f, 1f, 0.9f), settled, t / 0.45f);
+                }
+            }
 
             bool filled = _runtime.GetSlotSource(i) != null;
             bool usable = !filled || _runtime.CanActivateSlot(i);

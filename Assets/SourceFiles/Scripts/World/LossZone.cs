@@ -17,6 +17,14 @@ public class LossZone : MonoBehaviour
     // out of the last visible pixels is not "gone".
     private const float CullMarginBelowScreen = 1f;
 
+    /// <summary>The world-space line below which a block counts as lost, for the given
+    /// camera - the single definition both the sweep and abilities consult (a doomed
+    /// piece must not accept a consumable spent on it).</summary>
+    public static float CullY(Camera camera)
+    {
+        return camera.transform.position.y - camera.orthographicSize - CullMarginBelowScreen;
+    }
+
     // The sweep reads collider bounds for every tracked block; at late-game scale that is
     // hundreds of native calls, so it runs at 10 Hz instead of per frame. A block a full
     // margin below the screen cannot un-lose itself in 100 ms, and the timer uses scaled
@@ -45,7 +53,7 @@ public class LossZone : MonoBehaviour
         if (_camera == null || !_camera.isActiveAndEnabled) _camera = Camera.main;
         if (_camera == null || !_camera.orthographic) return;
 
-        float cullY = _camera.transform.position.y - _camera.orthographicSize - CullMarginBelowScreen;
+        float cullY = CullY(_camera);
 
         var blocks = BlockController.AllBlocks;
         for (int i = 0; i < blocks.Count; i++)
@@ -54,7 +62,10 @@ public class LossZone : MonoBehaviour
             if (block == null || !block.IsLostBelow(cullY)) continue;
             if (TryInterceptLoss(block)) continue;
 
-            block.HandleLostBelowScreen(); // Destroy is deferred, so the list stays stable here
+            // DuringBlockLoss owns the per-block loss policy around the frozen call:
+            // life charge (per CostsLifeWhenLost), live-total decrement, posthumous-score
+            // suppression, and the try/finally that keeps a throw from stranding state.
+            GameManager.Instance.DuringBlockLoss(block, block.HandleLostBelowScreen);
 
             // The final life may just have gone - leave the wreckage in peace.
             if (GameManager.Instance.isGameOver) return;
@@ -90,7 +101,8 @@ public class LossZone : MonoBehaviour
         if (block != null)
         {
             if (TryInterceptLoss(block)) return;
-            block.HandleLostBelowScreen(); // same accounting as the screen-bottom cull
+            // Same per-block accounting as the screen-bottom cull (count + life policy).
+            GameManager.Instance.DuringBlockLoss(block, block.HandleLostBelowScreen);
             return;
         }
 

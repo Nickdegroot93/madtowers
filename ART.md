@@ -176,13 +176,18 @@ License: CC0, CC-BY (credits screen later), or owned.
 into `Assets/Resources/Audio/Sfx/`; playback goes through `SfxPlayer`
 (pooled, cached, pitch-jittered one-shots). Iterate by tweaking the parameter dicts,
 rerunning, and previewing with `afplay` — no Unity needed. Current set: two
-flick-drop impact variants (the picked "round 2" recipe), a softer landing
-(not yet wired), `swoosh_01` — the corner-nudge dash (band-swept noise
-through a falling crude bandpass, swell-then-die envelope; `synth_swoosh`),
-`pop_01` — a support island materializing under a risen laser line
-(the impact recipe with f_end > f_start: a friendly rising blip) — and
+flick-drop impact variants (the picked "round 2" recipe), `impact_soft_01` —
+the quiet dull thud (now wired as the Bullet's wasted-shot feedback; must stay
+clearly duller than the shatter), `swoosh_01` — the corner-nudge dash
+(band-swept noise through a falling crude bandpass, swell-then-die envelope;
+`synth_swoosh`), `pop_01` — a support island materializing under a risen laser
+line (the impact recipe with f_end > f_start: a friendly rising blip),
 `nudge_thud_01` — a failed nudge's knock (short, higher-pitched than the
-landing thumps, hard click: reads as a dry refusal, not a landing).
+landing thumps, hard click: reads as a dry refusal, not a landing),
+`impact_shatter_01` — the Bullet destroying a block (bright sharp stone crack),
+and `gun_cock_01` — the Bullet transform (a single gun cock: pull-back click,
+slide scrape, slam-home clack; `synth_gun_cock`, the multi-stage mechanical
+recipe to copy for future weapon-like abilities).
 Hand-made/downloaded WAVs (prefer **CC0**, e.g. Kenney packs)
 drop into the same folder and play through the same system. Background music
 is a separate future system (per-theme tracks, ducking).
@@ -209,6 +214,40 @@ mechanics a future change must respect:
   cards (that's why `UIManager.HudRoot()` caches its root before the bar builds).
 - The pause button lives in the bar; `PauseMenuController` owns only the menu and the
   `PauseAvailable` visibility predicate.
+
+## 12. Ability icons (the house style — binding for ALL ability art)
+
+Every ability-card illustration comes from `Tools/generate_ability_icons.py`
+(pure stdlib, like the piece/sfx generators) into `Assets/Art/Abilities/`
+(`icon_<ability>.png`). One render function + one `ARTWORK` entry per ability;
+rerun the script to regenerate. The style rules below are a contract — every
+future icon follows them so the card grid reads as one set:
+
+- **One bold emblem, centered.** A single readable object that says what the
+  ability does (the Bullet = a shell plunging down). No scenes, no text, no
+  tiny detail — it must read at HUD-slot size (~96 px).
+- **512×512, transparent background**, emblem within the middle ~70% — cards
+  and HUD render the sprite untouched, the margin IS the breathing room.
+- **Same lighting language as the block sprites** (§1): thick rounded
+  silhouette, dark outline (~30% of base color), vertical gradient (lighter
+  top), soft top bevel highlight. The shared `shade()` helper in the generator
+  does exactly this — use it for every emblem so lighting never drifts.
+- **Soft radial glow behind the emblem** (`draw_glow`): quadratic falloff to
+  TRUE zero well inside the texture bounds (a clipped tail shows as a square
+  halo on dark cards — the same bug the card frame once had).
+- **Motion/accents, sparingly:** 4-point sparkles (`draw_sparkle`) and motion
+  streaks (`draw_speed_line`) in near-white; 2–3 accents max.
+- **Palette is the ability's own**, not its rarity — rarity is already the
+  card chrome/header. Neutral silver suits physical objects; saturate only
+  when the ability is inherently colored (fire, vines...).
+- Icons are wired into the ability `.asset` via the sprite sub-asset ref
+  (`fileID: 21300000` + the png's meta guid). PNG metas: copy the island
+  template (spriteMode 1, textureType Sprite), PPU irrelevant for UI.
+
+In-game **ability block sprites** (the Bullet projectile piece) live in the
+same generator/folder as `block_<name>.png`, 256×256 at PPU 256 (one cell),
+reusing the same `shade()` lighting so they sit naturally next to the
+tetromino pieces.
 
 ## Under the hood: how theming works at runtime (exact pipeline)
 

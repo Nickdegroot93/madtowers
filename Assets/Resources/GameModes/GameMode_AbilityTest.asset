@@ -47,24 +47,7 @@ MonoBehaviour:
   maxControlTime: 12
   powerUpChoiceEveryBlocks: 3
   powerUpChoicePool:
-  - {fileID: 11400000, guid: 29562a5c071a4abc8cdefbc3e6a3a260, type: 2}
-  - {fileID: 11400000, guid: e28f154f7fe04e8c804cb5e2e8f4b35b, type: 2}
-  - {fileID: 11400000, guid: e0574457da574a17ae2231d605f6254e, type: 2}
-  - {fileID: 11400000, guid: cfdb7beb7e9043199bac80f5d8b7e1a9, type: 2}
-  - {fileID: 11400000, guid: ae0ce8266bce4680b028c7bbd8bbf799, type: 2}
-  - {fileID: 11400000, guid: 6f8e54c503fd42b4b7d7ff3363937e1a, type: 2}
-  - {fileID: 11400000, guid: 51c9859a4edd4c5a8e351517a209da39, type: 2}
-  - {fileID: 11400000, guid: f8db9ea129e0462a90baa7ad7cff4eac, type: 2}
-  - {fileID: 11400000, guid: 3efed9d57f13400dab32690542761a4e, type: 2}
-  - {fileID: 11400000, guid: d9422451873e4b7cb4794a9a481d2b18, type: 2}
-  - {fileID: 11400000, guid: 72b007e41b434c2389677edf753eab5a, type: 2}
-  - {fileID: 11400000, guid: 78cf16c9573c4a5493e8ba243e7f8927, type: 2}
-  - {fileID: 11400000, guid: 7e3577d89dbf4862bf7ac74085ff5743, type: 2}
-  - {fileID: 11400000, guid: d8a59e9a8edf4877a18dd5d79b2c69cf, type: 2}
-  - {fileID: 11400000, guid: 9d1000d2c7614d039607b09ede8d0ece, type: 2}
-  - {fileID: 11400000, guid: c4f04685af2840b8ac839282e3d7574f, type: 2}
-  - {fileID: 11400000, guid: b9967c46b0bf4268b10068bf68597101, type: 2}
-  - {fileID: 11400000, guid: 219b615c0bdb487eb3d272491bcea8ab, type: 2}
+  - {fileID: 11400000, guid: ab3b38f4ef6c4ee09db11741e7fab0d9, type: 2}
   slowMotionScale: 0.5
   staticSupportIslandsEnabled: 1
   staticSupportIslandHeightInterval: 1

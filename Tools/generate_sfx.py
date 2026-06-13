@@ -73,6 +73,46 @@ def synth_swoosh(seed, duration, cutoff_start, cutoff_end, band_ratio=0.35,
     return [s / peak * peak_level for s in samples]
 
 
+def synth_gun_cock(seed, duration=0.34, gap=0.115, peak_level=0.7):
+    """Single gun cock: two mechanical stages - the slide pulled back (bright metallic
+    CLICK) then slammed home (deeper CLACK with body). Each stage = a sharp noise
+    transient + damped metallic ring partials; a faint slide-scrape connects them."""
+    rng = random.Random(seed)
+    n = int(SR * duration)
+    samples = [0.0] * n
+
+    def click(t0, length, rings, noise_amp, noise_tau, body=0.0):
+        start = int(t0 * SR)
+        for i in range(start, min(n, start + int(length * SR))):
+            t = (i - start) / SR
+            v = (rng.random() * 2.0 - 1.0) * noise_amp * math.exp(-t / noise_tau)
+            for freq, amp, tau in rings:           # damped metal partials
+                v += amp * math.sin(2.0 * math.pi * freq * t) * math.exp(-t / tau)
+            if body > 0.0:                         # low mechanical thump
+                v += body * math.sin(2.0 * math.pi * 130.0 * t) * math.exp(-t / 0.025)
+            samples[i] += v * min(1.0, t / 0.0012)  # hair of attack, no digital edge
+
+    # stage 1: pull back - bright, thin, high metal
+    click(0.0, 0.07, rings=((2600, 0.30, 0.010), (3900, 0.18, 0.007), (1700, 0.16, 0.014)),
+          noise_amp=0.8, noise_tau=0.006)
+    # slide scrape between the stages - quiet filtered rattle
+    scr0, scr1 = int(0.03 * SR), int(gap * SR)
+    lp = 0.0
+    for i in range(scr0, min(n, scr1)):
+        t = (i - scr0) / SR
+        noise = rng.random() * 2.0 - 1.0
+        lp += 0.25 * (noise - lp)
+        u = (i - scr0) / max(1, scr1 - scr0)
+        samples[i] += (noise - lp) * 0.10 * math.sin(u * math.pi)
+    # stage 2: slam home - deeper, heavier, with a thump
+    click(gap, 0.16, rings=((1250, 0.34, 0.016), (820, 0.26, 0.022), (2100, 0.16, 0.009)),
+          noise_amp=1.0, noise_tau=0.009, body=0.5)
+
+    out = [math.tanh(v * 1.4) for v in samples]
+    peak = max(abs(v) for v in out) or 1.0
+    return [v / peak * peak_level for v in out]
+
+
 def write_wav(path, samples):
     with wave.open(path, "wb") as w:
         w.setnchannels(1)
@@ -96,7 +136,8 @@ SOUNDS = {
                             body_amp=1.0, noise_amp=0.45, noise_cutoff=360,
                             body_tau=0.10, noise_tau=0.040, click_amp=0.06,
                             drive=1.1, attack=0.0, warmth=0.0, peak_level=0.85),
-    # normal landings (quieter, shorter - wired up later if it feels right)
+    # the quiet dull thud: the Bullet's wasted-shot feedback (BulletImpact); must
+    # stay clearly softer/duller than impact_shatter_01 so "no effect" reads by ear
     "impact_soft_01": dict(seed="soft1", duration=0.16, f_start=95, f_end=55,
                            body_amp=0.8, noise_amp=0.1, noise_cutoff=350,
                            body_tau=0.05, noise_tau=0.025, attack=0.008, peak_level=0.45),
@@ -105,12 +146,24 @@ SOUNDS = {
     "pop_01": dict(seed="pop1", duration=0.11, f_start=150, f_end=330,
                    body_amp=1.0, noise_amp=0.04, noise_cutoff=900,
                    body_tau=0.05, noise_tau=0.02, attack=0.004, peak_level=0.5),
+    # bullet impact: a sharp stone CRACK - bright, short, with real bite; reads as
+    # "something broke", clearly apart from the soft landing thumps
+    "impact_shatter_01": dict(seed="shatter1", duration=0.18, f_start=320, f_end=90,
+                              body_amp=0.7, noise_amp=0.85, noise_cutoff=2600,
+                              body_tau=0.03, noise_tau=0.035, click_amp=0.35,
+                              drive=1.6, attack=0.001, warmth=0.1, peak_level=0.8),
     # failed nudge: a dry knuckle-on-wood KNOCK - higher and shorter than the landing
     # thumps so the ear learns "that was a refusal", with a hard click for the sting
     "nudge_thud_01": dict(seed="nudgethud1", duration=0.13, f_start=210, f_end=80,
                           body_amp=0.9, noise_amp=0.5, noise_cutoff=700,
                           body_tau=0.035, noise_tau=0.02, click_amp=0.25,
                           drive=1.4, attack=0.001, warmth=0.2, peak_level=0.7),
+}
+
+MECHANICAL = {
+    # bullet transform: a single gun cock (pull back, slam home) - replaced the
+    # rising zap after playtest feedback ("awful"); mechanical reads as "weapon ready"
+    "gun_cock_01": dict(seed="cock1", duration=0.34, gap=0.115, peak_level=0.7),
 }
 
 SWOOSHES = {
@@ -127,3 +180,6 @@ if __name__ == "__main__":
     for name, params in SWOOSHES.items():
         write_wav(os.path.abspath(os.path.join(OUT_DIR, f"{name}.wav")),
                   synth_swoosh(**params))
+    for name, params in MECHANICAL.items():
+        write_wav(os.path.abspath(os.path.join(OUT_DIR, f"{name}.wav")),
+                  synth_gun_cock(**params))

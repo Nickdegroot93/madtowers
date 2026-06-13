@@ -61,11 +61,15 @@ public class BombBlockBehaviour : MonoBehaviour
             victims.Add(other);
         }
 
+        // Each destroyed block (and the bomb itself) leaves the board, so drop it from the
+        // live placed-block total - same accounting as a Bullet hit or a fall-off.
         foreach (BlockController victim in victims)
         {
+            if (GameManager.Instance != null) GameManager.Instance.RemovePlacedBlock(victim);
             Destroy(victim.gameObject);
         }
 
+        if (GameManager.Instance != null && self != null) GameManager.Instance.RemovePlacedBlock(self);
         Destroy(gameObject);
     }
 }
