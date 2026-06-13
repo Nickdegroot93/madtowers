@@ -14,8 +14,15 @@ public class Spawner : MonoBehaviour
         public float Chance;
     }
 
+    private struct DefinitionChance
+    {
+        public BlockDefinition Definition;
+        public float Chance;
+    }
+
     private BlockController _currentBlock;
     private readonly List<BlockDefinition> _definitionBag = new List<BlockDefinition>();
+    private readonly List<DefinitionChance> _definitionChances = new List<DefinitionChance>();
     private readonly List<VariantChance> _variantChances = new List<VariantChance>();
     private BlockData _queuedVariantOverride;
     private BlockDefinition _nextDefinition;
@@ -59,13 +66,20 @@ public class Spawner : MonoBehaviour
     {
         if (HasConfiguredBlocks())
         {
-            if (_definitionBag.Count == 0) RefillDefinitionBag();
-
-            if (_definitionBag.Count > 0)
+            if (TryRollDefinitionChance(out BlockDefinition boostedDefinition))
             {
-                int bagIndex = Random.Range(0, _definitionBag.Count);
-                _nextDefinition = _definitionBag[bagIndex];
-                _definitionBag.RemoveAt(bagIndex);
+                _nextDefinition = boostedDefinition;
+            }
+            else
+            {
+                if (_definitionBag.Count == 0) RefillDefinitionBag();
+
+                if (_definitionBag.Count > 0)
+                {
+                    int bagIndex = Random.Range(0, _definitionBag.Count);
+                    _nextDefinition = _definitionBag[bagIndex];
+                    _definitionBag.RemoveAt(bagIndex);
+                }
             }
         }
 
@@ -212,6 +226,23 @@ public class Spawner : MonoBehaviour
         }
     }
 
+    public bool CanSpawnDefinition(BlockDefinition definition)
+    {
+        if (definition == null || definition.Prefab == null) return false;
+
+        GameModeConfig activeConfig = ActiveGameModeConfig;
+        IReadOnlyList<BlockDefinition> configuredBlocks = activeConfig != null
+            ? activeConfig.BlockBag
+            : null;
+        if (configuredBlocks == null) return false;
+
+        for (int i = 0; i < configuredBlocks.Count; i++)
+        {
+            if (configuredBlocks[i] == definition) return true;
+        }
+        return false;
+    }
+
     private GameObject GetPreparedPrefab()
     {
         return _nextDefinition != null ? _nextDefinition.Prefab : null;
@@ -285,6 +316,65 @@ public class Spawner : MonoBehaviour
         }
 
         _variantChances.Add(new VariantChance { Variant = variant, Chance = Mathf.Clamp01(chance) });
+    }
+
+    /// <summary>
+    /// Registers a run-local chance to inject an extra shape before drawing from the
+    /// normal bag. This never mutates BlockDefinition.bagCopies (asset data) and never
+    /// removes cards from the authored bag; it simply makes the chosen shape appear a
+    /// little more often for the rest of this run.
+    /// </summary>
+    public void AddDefinitionChance(BlockDefinition definition, float chance)
+    {
+        if (!CanSpawnDefinition(definition) || chance <= 0f) return;
+
+        for (int i = 0; i < _definitionChances.Count; i++)
+        {
+            if (_definitionChances[i].Definition != definition) continue;
+
+            _definitionChances[i] = new DefinitionChance
+            {
+                Definition = definition,
+                Chance = Mathf.Clamp01(_definitionChances[i].Chance + chance)
+            };
+            return;
+        }
+
+        _definitionChances.Add(new DefinitionChance { Definition = definition, Chance = Mathf.Clamp01(chance) });
+    }
+
+    private bool TryRollDefinitionChance(out BlockDefinition definition)
+    {
+        float totalChance = 0f;
+        for (int i = 0; i < _definitionChances.Count; i++)
+        {
+            DefinitionChance entry = _definitionChances[i];
+            if (!CanSpawnDefinition(entry.Definition)) continue;
+
+            totalChance += entry.Chance;
+        }
+
+        if (Random.value >= Mathf.Clamp01(totalChance))
+        {
+            definition = null;
+            return false;
+        }
+
+        float pick = Random.Range(0f, totalChance);
+        for (int i = 0; i < _definitionChances.Count; i++)
+        {
+            DefinitionChance entry = _definitionChances[i];
+            if (!CanSpawnDefinition(entry.Definition)) continue;
+
+            pick -= entry.Chance;
+            if (pick > 0f) continue;
+
+            definition = entry.Definition;
+            return true;
+        }
+
+        definition = null;
+        return false;
     }
 
     private BlockData RollVariantChances(BlockData baseData)

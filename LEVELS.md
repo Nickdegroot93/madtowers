@@ -159,7 +159,7 @@ while climbing, streak clouds, rolling dunes at ground level
 | Hard Mode | GameMode_Hard | Reach 12m | Classic + pressure: fall 2.6 → cap 6.5, ramp 0.04/block, 7-column floor, peak 0.65, buffer 2, power-ups every 15, ambient **Ice 8% / Heavy 6% / Dizzy 4% / Stubborn 4%**. Physics contract untouched. |
 | Laser Limit | GameMode_LaserLimit | Place 52 | **Height-limit waves type** (above). No speed ramp, no power-up pauses, 2 lives, classic 9-column floor. |
 | 10 Blocks | GameMode_Classic | Place 10 | Minimal goal sandbox for exercising the win-verification countdown quickly. |
-| Ability Range | GameMode_AbilityTest | Place 30 | Ability-system proving ground: picker every **3** blocks, pool = one ability of every kind (see ABILITIES.md §12). |
+| Ability Range | GameMode_AbilityTest | Place 30 | Ability-system proving ground: picker every **3** blocks, tiny hand-edited pool for the abilities currently under test (see ABILITIES.md §12). |
 
 | Path | Contents |
 |---|---|

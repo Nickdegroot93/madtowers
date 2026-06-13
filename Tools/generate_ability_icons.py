@@ -156,6 +156,66 @@ def draw_speed_line(c, cx, y0, y1, width, color, alpha=0.8):
             c.blend(x, y, *color, alpha * t * cov)
 
 
+# ---------------------------------------------------------------- block-piece shapes
+
+def rounded_box_distance(x, y, cx, cy, half_w, half_h, radius):
+    qx = abs(x - cx) - (half_w - radius)
+    qy = abs(y - cy) - (half_h - radius)
+    ox, oy = max(qx, 0.0), max(qy, 0.0)
+    outside = math.hypot(ox, oy)
+    inside = min(max(qx, qy), 0.0)
+    return outside + inside - radius
+
+
+def draw_straight_piece(c, cx, top, bottom, half_w, base, outline_px=14, bevel_px=18):
+    """Vertical 1x4 straight piece emblem: one bold rounded bar with subtle
+    cell seams, matching the generated block lighting language."""
+    cy = (top + bottom) * 0.5
+    half_h = (bottom - top) * 0.5
+    radius = half_w * 0.32
+    spec_x = cx - half_w * 0.38
+    spec_w = half_w * 0.22
+    seam_ys = [top + (bottom - top) * u for u in (0.25, 0.5, 0.75)]
+
+    for y in range(c.h):
+        for x in range(c.w):
+            d = rounded_box_distance(x, y, cx, cy, half_w, half_h, radius)
+            s = shade(d, y, top, bottom, base, outline_px, bevel_px)
+            if s is None: continue
+            r, g, b, cov = s
+            if d <= -outline_px:
+                k = math.exp(-((x - spec_x) / spec_w) ** 2) * 0.22
+                r, g, b = r + (255 - r) * k, g + (255 - g) * k, b + (255 - b) * k
+                for seam_y in seam_ys:
+                    seam = math.exp(-((y - seam_y) / 3.8) ** 2)
+                    r, g, b = r * (1.0 - 0.28 * seam), g * (1.0 - 0.28 * seam), b * (1.0 - 0.28 * seam)
+            c.blend(x, y, r, g, b, cov)
+
+
+def draw_square_piece(c, cx, cy, half_size, base, outline_px=14, bevel_px=18):
+    """2x2 square piece emblem with a cross seam, matching the generated block style."""
+    top = cy - half_size
+    bottom = cy + half_size
+    radius = half_size * 0.18
+    spec_x = cx - half_size * 0.36
+    spec_w = half_size * 0.24
+
+    for y in range(c.h):
+        for x in range(c.w):
+            d = rounded_box_distance(x, y, cx, cy, half_size, half_size, radius)
+            s = shade(d, y, top, bottom, base, outline_px, bevel_px)
+            if s is None: continue
+            r, g, b, cov = s
+            if d <= -outline_px:
+                k = math.exp(-((x - spec_x) / spec_w) ** 2) * 0.20
+                r, g, b = r + (255 - r) * k, g + (255 - g) * k, b + (255 - b) * k
+                vertical = math.exp(-((x - cx) / 3.8) ** 2)
+                horizontal = math.exp(-((y - cy) / 3.8) ** 2)
+                seam = max(vertical, horizontal)
+                r, g, b = r * (1.0 - 0.28 * seam), g * (1.0 - 0.28 * seam), b * (1.0 - 0.28 * seam)
+            c.blend(x, y, r, g, b, cov)
+
+
 # ---------------------------------------------------------------- renderers
 
 def render_icon_bullet(path):
@@ -170,6 +230,38 @@ def render_icon_bullet(path):
     rng = random.Random("bullet-icon")
     for sx, sy, sz in ((118, 312, 26), (398, 286, 20), (352, 410, 15)):
         draw_sparkle(c, sx + rng.randint(-4, 4), sy + rng.randint(-4, 4), sz)
+    write_png(path, S, S, c.to_bytes())
+
+
+def render_icon_spike_supply(path):
+    """Card artwork: a clean white straight piece appearing more often."""
+    S = 512
+    c = Canvas(S, S)
+    pearl = (224, 232, 235)
+    draw_glow(c, S / 2, S / 2, 185, (232, 238, 240), peak=0.24)
+    draw_straight_piece(c, S / 2, 82, 440, 68, pearl, outline_px=15, bevel_px=22)
+
+    for lx, ly0, ly1, w in ((158, 320, 408, 7), (354, 104, 202, 7)):
+        draw_speed_line(c, lx, ly0, ly1, w, (248, 252, 255), alpha=0.36)
+    for sx, sy, sz in ((154, 122, 22), (360, 350, 26), (332, 154, 14)):
+        draw_sparkle(c, sx, sy, sz, color=(252, 255, 255), alpha=0.9)
+
+    write_png(path, S, S, c.to_bytes())
+
+
+def render_icon_cube_supply(path):
+    """Card artwork: a clean white square piece appearing more often."""
+    S = 512
+    c = Canvas(S, S)
+    pearl = (224, 232, 235)
+    draw_glow(c, S / 2, S / 2, 185, (232, 238, 240), peak=0.24)
+    draw_square_piece(c, S / 2, S / 2, 132, pearl, outline_px=15, bevel_px=22)
+
+    for lx, ly0, ly1, w in ((142, 314, 404, 7), (370, 96, 190, 7)):
+        draw_speed_line(c, lx, ly0, ly1, w, (248, 252, 255), alpha=0.34)
+    for sx, sy, sz in ((146, 130, 22), (372, 348, 26), (342, 152, 14)):
+        draw_sparkle(c, sx, sy, sz, color=(252, 255, 255), alpha=0.9)
+
     write_png(path, S, S, c.to_bytes())
 
 
@@ -201,6 +293,8 @@ SKINS_DIR = os.path.join(os.path.dirname(__file__), "..",
 
 ARTWORK = {
     "icon_bullet.png": render_icon_bullet,
+    "icon_spike_supply.png": render_icon_spike_supply,
+    "icon_cube_supply.png": render_icon_cube_supply,
     "block_bullet.png": render_block_bullet,
 }
 SKIN_ARTWORK = {

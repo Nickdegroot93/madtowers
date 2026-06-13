@@ -48,6 +48,8 @@ MonoBehaviour:
   powerUpChoiceEveryBlocks: 3
   powerUpChoicePool:
   - {fileID: 11400000, guid: ab3b38f4ef6c4ee09db11741e7fab0d9, type: 2}
+  - {fileID: 11400000, guid: 982abbadbb5b4913b7242de34dc9028e, type: 2}
+  - {fileID: 11400000, guid: 6470a3ad296e48478c6cb9447a928492, type: 2}
   slowMotionScale: 0.5
   staticSupportIslandsEnabled: 1
   staticSupportIslandHeightInterval: 1

@@ -188,6 +188,7 @@ when unusable, same affordance as the nudge pills.
    | `StatusPassiveAbility` | Passive | triggerEvent, status (+ charges) | "on life lost / on spawn: enter state X" |
    | `StatusComboAbility` | Combo | trigger, status (+ charges) | "pattern lands: enter state X" |
    | `BlockVariantChancePowerUp` | Passive (stackable) | variant, chancePerBlock | "% chance blocks spawn as variant V" |
+   | `BlockDefinitionChancePowerUp` | Passive (stackable) | definition, firstStackChance, additionalStackChance | "shape X appears a little more often" |
    | `NextBlockVariantPowerUp` | Instant | variant | "next block becomes variant V" |
    | `ExtraLifePowerUp` | Instant | lives | flat life grant |
    | `SlowMotionPowerUp` | Instant | duration | timed timescale effect |
@@ -269,14 +270,28 @@ at the source, add a virtual handler on `PassiveAbility`, fan out in `AbilityRun
 ## 12. The ability test bench (Testing Grounds → "Ability Range" level)
 
 Picker every 3 blocks, PlaceBlocks 30 target, rarity profile = `RarityProfile_TestEqual`.
-The mode's pool (`GameMode_AbilityTest`) holds ONLY the ability currently under
-test — every offer shows that one card, so each new ability gets exercised in
-isolation (pick → re-pick → stack/swap paths). Building a new ability = swap the
-pool to it. The 12 inert dummies (`Data/PowerUps/Dummies/`) and the migrated
+The mode's pool (`GameMode_AbilityTest`) is intentionally tiny and hand-edited to the
+abilities currently under test (today: Bullet + Spike Supply + Cube Supply), so offers
+stay focused while still exercising multiple-card presentation and pick/re-pick paths.
+Building a new ability = temporarily add it here. The 12 inert dummies (`Data/PowerUps/Dummies/`) and the migrated
 proof abilities still exist as assets for chrome/regression testing; never add
 dummies to real level pools.
 
 ## 13. Shipped abilities
+
+### Spike Supply (Common, passive)
+`BlockDefinitionChancePowerUp` asset targeting `Block_I`. The first pickup registers
+a stronger run-local definition chance with `Spawner.AddDefinitionChance`; later
+stacks add smaller deltas. This injects extra straight pieces before the normal
+authored shape bag is drawn. It never mutates `BlockDefinition.bagCopies`, so authored
+mode data stays immutable. `maxStacks = 5`, so the picker filters it out after the
+fifth pickup.
+
+### Cube Supply (Common, passive)
+Same `BlockDefinitionChancePowerUp` pattern as Spike Supply, targeting `Block_O`.
+The first pickup adds the larger run-local definition chance and later stacks add
+smaller deltas, making square pieces appear more often without mutating authored
+shape-bag assets. `maxStacks = 5`.
 
 ### Bullet (Common, consumable)
 `BulletAbility` — the active falling piece transforms into a 1×1 shell
