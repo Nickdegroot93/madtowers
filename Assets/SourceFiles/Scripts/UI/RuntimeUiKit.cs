@@ -238,4 +238,112 @@ public static class RuntimeUiKit
 
         return button;
     }
+
+    // ---- form controls (Custom Game setup, and any future settings screen) -----------------
+
+    private static readonly Color CheckOnColor = new Color(0.27f, 0.62f, 0.55f, 1f);
+    private static readonly Color CheckOffColor = new Color(0.16f, 0.2f, 0.24f, 1f);
+
+    private static GameObject CreateControlRow(Transform parent, float height, out Text labelText, string label)
+    {
+        GameObject row = new GameObject("Row", typeof(RectTransform));
+        row.transform.SetParent(parent, false);
+        row.AddComponent<LayoutElement>().preferredHeight = height;
+        HorizontalLayoutGroup layout = row.AddComponent<HorizontalLayoutGroup>();
+        layout.spacing = 10f;
+        layout.childAlignment = TextAnchor.MiddleLeft;
+        layout.childControlWidth = true;
+        layout.childControlHeight = true;
+        layout.childForceExpandWidth = false;
+        layout.childForceExpandHeight = true;
+
+        labelText = CreateLabel(row.transform, label, 26, height, FontStyle.Bold, BodyTextColor, TextAnchor.MiddleLeft);
+        LayoutElement labelLayout = labelText.GetComponent<LayoutElement>();
+        labelLayout.flexibleWidth = 1f;
+        return row;
+    }
+
+    private static Button CreateMiniButton(Transform parent, string text, float width, float height,
+        UnityEngine.Events.UnityAction onClick)
+    {
+        Button button = CreateButton(parent, text, height, onClick);
+        LayoutElement layout = button.GetComponent<LayoutElement>();
+        layout.preferredWidth = width;
+        layout.flexibleWidth = 0f;
+        Text label = button.GetComponentInChildren<Text>();
+        if (label != null)
+        {
+            label.fontSize = 30;
+            RectTransform rect = label.rectTransform;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+        }
+        return button;
+    }
+
+    /// <summary>Label + a checkbox that flips on tap. Returns the row; calls onChanged(bool).</summary>
+    public static GameObject CreateToggleRow(Transform parent, string label, bool initial,
+        System.Action<bool> onChanged)
+    {
+        GameObject row = CreateControlRow(parent, 56f, out Text _, label);
+
+        bool state = initial;
+        Image box = null;
+        Button button = CreateMiniButton(row.transform, "", 56f, 56f, () =>
+        {
+            state = !state;
+            if (box != null) box.color = state ? CheckOnColor : CheckOffColor;
+            onChanged?.Invoke(state);
+        });
+        box = button.GetComponent<Image>();
+        box.color = state ? CheckOnColor : CheckOffColor;
+        Text mark = button.GetComponentInChildren<Text>();
+        if (mark != null) mark.text = ""; // colour alone reads as on/off
+        return row;
+    }
+
+    /// <summary>Label + [-] value [+]. Steps within [min,max]; calls onChanged(value).</summary>
+    public static GameObject CreateStepperRow(Transform parent, string label, float value, float min,
+        float max, float step, string format, System.Action<float> onChanged)
+    {
+        GameObject row = CreateControlRow(parent, 56f, out Text _, label);
+
+        float current = Mathf.Clamp(value, min, max);
+        Text valueText = null;
+
+        void Apply(float v)
+        {
+            current = Mathf.Clamp(Mathf.Round(v / step) * step, min, max);
+            if (valueText != null) valueText.text = current.ToString(format);
+            onChanged?.Invoke(current);
+        }
+
+        CreateMiniButton(row.transform, "−", 56f, 56f, () => Apply(current - step));
+        valueText = CreateLabel(row.transform, current.ToString(format), 28, 56f, FontStyle.Bold, TitleColor);
+        LayoutElement valueLayout = valueText.GetComponent<LayoutElement>();
+        valueLayout.preferredWidth = 130f;
+        valueLayout.flexibleWidth = 0f;
+        CreateMiniButton(row.transform, "+", 56f, 56f, () => Apply(current + step));
+        return row;
+    }
+
+    /// <summary>Label + a button that cycles through options on tap; calls onChanged(index).</summary>
+    public static GameObject CreateCycleRow(Transform parent, string label, string[] options, int index,
+        System.Action<int> onChanged)
+    {
+        GameObject row = CreateControlRow(parent, 56f, out Text _, label);
+
+        int current = options.Length > 0 ? Mathf.Clamp(index, 0, options.Length - 1) : 0;
+        Text valueLabel = null;
+        Button button = CreateMiniButton(row.transform, options.Length > 0 ? options[current] : "", 240f, 56f, null);
+        valueLabel = button.GetComponentInChildren<Text>();
+        button.onClick.AddListener(() =>
+        {
+            if (options.Length == 0) return;
+            current = (current + 1) % options.Length;
+            if (valueLabel != null) valueLabel.text = options[current];
+            onChanged?.Invoke(current);
+        });
+        return row;
+    }
 }

@@ -18,14 +18,12 @@ public static class LevelSelectRuntimeMenu
 
     private static GameObject _root;
     private static int _themeIndex;      // carousel position, remembered for the session
-    private static bool _showTestPage;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetForPlayMode()
     {
         LevelSelectionState.ClearSelection();
         _root = null;
-        _showTestPage = false;
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -78,38 +76,37 @@ public static class LevelSelectRuntimeMenu
     {
         if (_root != null) UnityEngine.Object.Destroy(_root);
 
-        ThemeDefinition[] allThemes = Campaign.LoadThemesInOrder();
-        var campaignThemes = new List<ThemeDefinition>();
-        var sandboxThemes = new List<ThemeDefinition>();
-        var claimed = new HashSet<LevelDefinition>();
-        foreach (ThemeDefinition theme in allThemes)
+        var themes = new List<ThemeDefinition>();
+        foreach (ThemeDefinition theme in Campaign.LoadThemesInOrder())
         {
-            if (theme.Levels == null || theme.Levels.Count == 0) continue;
-            (theme.AlwaysUnlocked ? sandboxThemes : campaignThemes).Add(theme);
-            foreach (LevelDefinition level in theme.Levels)
-            {
-                if (level != null) claimed.Add(level);
-            }
+            if (theme.Levels != null && theme.Levels.Count > 0) themes.Add(theme);
         }
-
-        // One-off levels not in any theme also live on the test page.
-        var unthemed = new List<LevelDefinition>(
-            Array.FindAll(Resources.LoadAll<LevelDefinition>(LevelsResourcesPath),
-                level => !claimed.Contains(level)));
-        unthemed.Sort((a, b) => string.Compare(a.DisplayName, b.DisplayName, StringComparison.Ordinal));
-
-        bool hasTestContent = sandboxThemes.Count > 0 || unthemed.Count > 0;
-        if (campaignThemes.Count == 0) _showTestPage = true;
 
         _root = RuntimeUiKit.CreateOverlayCanvas("Level Select", 5000);
         RuntimeUiKit.CreateBackdrop(_root.transform, new Color(0.04f, 0.06f, 0.08f, 0.96f));
 
-        if (_showTestPage) BuildTestPage(sandboxThemes, unthemed, campaignThemes.Count > 0);
-        else BuildThemePage(campaignThemes, hasTestContent);
+        BuildThemePage(themes);
     }
 
-    private static void BuildThemePage(List<ThemeDefinition> themes, bool hasTestContent)
+    // The sandbox/test levels were replaced by the Custom Game setup screen (CustomGameMenu).
+    private static void OpenCustomGame()
     {
+        if (_root != null) UnityEngine.Object.Destroy(_root);
+        _root = null;
+        CustomGameMenu.Show(BuildMenu);
+    }
+
+    private static void BuildThemePage(List<ThemeDefinition> themes)
+    {
+        if (themes.Count == 0)
+        {
+            // No campaign content at all - go straight into free play / Custom Game.
+            if (ContentCatalog.IsAvailable) { OpenCustomGame(); return; }
+            LevelSelectionState.SelectLevel(null);
+            Time.timeScale = 1f;
+            return;
+        }
+
         _themeIndex = Mathf.Clamp(_themeIndex, 0, themes.Count - 1);
         ThemeDefinition theme = themes[_themeIndex];
         ThemeDefinition[] orderedThemes = themes.ToArray();
@@ -137,16 +134,15 @@ public static class LevelSelectRuntimeMenu
             }
         }
 
-        if (hasTestContent)
+        if (ContentCatalog.IsAvailable)
         {
             RuntimeUiKit.CreateLabel(panel, "", 10, 18f, FontStyle.Normal, Color.clear); // spacer
-            Button testButton = RuntimeUiKit.CreateButton(panel, "Test Levels", 64f,
-                () => { _showTestPage = true; BuildMenu(); });
-            Text testLabel = testButton.GetComponentInChildren<Text>();
-            if (testLabel != null)
+            Button customButton = RuntimeUiKit.CreateButton(panel, "Custom Game", 64f, OpenCustomGame);
+            Text customLabel = customButton.GetComponentInChildren<Text>();
+            if (customLabel != null)
             {
-                testLabel.fontSize = 24;
-                testLabel.color = SubtleColor;
+                customLabel.fontSize = 24;
+                customLabel.color = SubtleColor;
             }
         }
     }
@@ -199,39 +195,6 @@ public static class LevelSelectRuntimeMenu
         LayoutElement layout = button.GetComponent<LayoutElement>();
         layout.preferredWidth = 90f;
         layout.flexibleWidth = 0f;
-    }
-
-    private static void BuildTestPage(List<ThemeDefinition> sandboxThemes, List<LevelDefinition> unthemed,
-        bool hasCampaign)
-    {
-        RuntimeUiKit.CreateScrollColumn(_root.transform, new Vector2(620f, 1100f), out Transform panel);
-
-        RuntimeUiKit.CreateLabel(panel, "Test Levels", 42, 70f, FontStyle.Bold, RuntimeUiKit.TitleColor);
-
-        foreach (ThemeDefinition theme in sandboxThemes)
-        {
-            RuntimeUiKit.CreateLabel(panel, theme.DisplayName, 30, 44f, FontStyle.Bold, SubtleColor);
-            for (int i = 0; i < theme.Levels.Count; i++)
-            {
-                if (theme.Levels[i] == null) continue;
-                CreateLevelButton(panel, theme.Levels[i], unlocked: true);
-            }
-        }
-
-        if (unthemed.Count > 0)
-        {
-            RuntimeUiKit.CreateLabel(panel, "Other", 30, 44f, FontStyle.Bold, SubtleColor);
-            foreach (LevelDefinition level in unthemed)
-            {
-                CreateLevelButton(panel, level, unlocked: true);
-            }
-        }
-
-        if (hasCampaign)
-        {
-            RuntimeUiKit.CreateLabel(panel, "", 10, 18f, FontStyle.Normal, Color.clear); // spacer
-            RuntimeUiKit.CreateButton(panel, "< Back", 64f, () => { _showTestPage = false; BuildMenu(); });
-        }
     }
 
     // ---- shared --------------------------------------------------------------------------

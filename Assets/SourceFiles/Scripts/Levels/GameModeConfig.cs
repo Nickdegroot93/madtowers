@@ -152,6 +152,9 @@ public class GameModeConfig : ScriptableObject
     public float FloorWidth => floorSegments != null && floorSegments.Length > 0
         ? floorSegments[0].GetWidth(gridSpacing)
         : gridSpacing;
+    public int FloorColumnCount => floorSegments != null && floorSegments.Length > 0
+        ? floorSegments[0].ColumnCount
+        : 9;
     public float MinimumCameraY => minimumCameraY;
     public float TowerPeakScreenY => towerPeakScreenY;
     public float SpawnPointScreenY => spawnPointScreenY;
@@ -161,6 +164,34 @@ public class GameModeConfig : ScriptableObject
     public float HorizontalCameraPadding => Mathf.Max(0f, horizontalCameraPadding);
     public float HorizontalCameraSafeArea => Mathf.Clamp(horizontalCameraSafeArea, 0.5f, 1f);
     public float CameraZoomSmoothTime => Mathf.Max(0.01f, cameraZoomSmoothTime);
+
+    /// <summary>Runtime only (Custom Game screen): overwrite the curated gameplay knobs on a
+    /// CLONED config from the setup screen's settings. Everything not listed here keeps the
+    /// preset's value (physics tuning, camera smoothing, ambient variants, ...). Call on an
+    /// Instantiate() copy, never on a project asset.</summary>
+    public void ApplyCustomGameOverrides(CustomGameSettings s)
+    {
+        if (s == null) return;
+
+        startingLives = Mathf.Max(0, s.StartingLives);
+        initialFallSpeed = s.InitialFallSpeed;
+        maxFallSpeed = s.MaxFallSpeed;
+        difficultyScalingMode = s.DifficultyScalingMode;
+        difficultyAdjustmentMode = s.DifficultyAdjustmentMode;
+        speedIncreasePerBlock = s.SpeedIncreasePerBlock;
+        speedIncreaseIntervalSeconds = s.SpeedIncreaseIntervalSeconds;
+        speedIncreasePerInterval = s.SpeedIncreasePerInterval;
+
+        floorSegments = new[] { new FloorSegmentConfig(0, Mathf.Max(1, s.FloorColumns)) };
+
+        spawnDelay = Mathf.Max(0f, s.SpawnDelay);
+        powerUpChoiceEveryBlocks = Mathf.Max(0, s.PowerUpChoiceEveryBlocks);
+        staticSupportIslandsEnabled = s.StaticIslandsEnabled;
+        staticSupportIslandSpawnChance = Mathf.Clamp01(s.StaticIslandSpawnChance);
+
+        blockBag = new List<BlockDefinition>(s.EnabledBlocks).ToArray();
+        powerUpChoicePool = new List<AbilityDefinition>(s.EnabledAbilities).ToArray();
+    }
 }
 
 [System.Serializable]
@@ -208,6 +239,16 @@ public sealed class FloorSegmentConfig
     [SerializeField] private int centerColumn = 0;
     [Min(1)]
     [SerializeField] private int columnCount = 9;
+
+    public FloorSegmentConfig()
+    {
+    }
+
+    public FloorSegmentConfig(int centerColumn, int columnCount)
+    {
+        this.centerColumn = centerColumn;
+        this.columnCount = Mathf.Max(1, columnCount);
+    }
 
     public int CenterColumn => centerColumn;
     public int ColumnCount => Mathf.Max(1, columnCount);

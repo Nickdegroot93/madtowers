@@ -36,6 +36,20 @@ public class LevelDefinition : ScriptableObject
     public IReadOnlyList<LevelModifier> Modifiers => modifiers;
     public AbilityRarityProfile AbilityRarityProfile => abilityRarityProfile;
 
+    /// <summary>Runtime only (Custom Game screen): build a throwaway level around a runtime
+    /// GameModeConfig. Held alive by LevelSelectionState across the scene load; never an asset.</summary>
+    public static LevelDefinition CreateRuntime(string name, GameModeConfig config,
+        LevelTargetType targetType, float targetValue, AbilityRarityProfile rarityProfile)
+    {
+        LevelDefinition level = CreateInstance<LevelDefinition>();
+        level.displayName = name;
+        level.gameModeConfig = config;
+        level.targetType = targetType;
+        level.targetValue = Mathf.Max(1f, targetValue);
+        level.abilityRarityProfile = rarityProfile;
+        return level;
+    }
+
     public bool IsAbilityBanned(AbilityDefinition ability)
     {
         if (bannedAbilities == null || ability == null) return false;
