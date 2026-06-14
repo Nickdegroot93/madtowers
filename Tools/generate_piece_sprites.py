@@ -30,10 +30,11 @@ THEME_PRESETS = {
             "Z": (228, 88, 88),    # red
             "J": (95, 125, 225),   # blue
             "L": (238, 152, 66),   # orange
-            "Pip": (156, 166, 180),    # neutral slate - the special shrink brick
-            "Domino": (156, 166, 180), # same material as Pip
+            "Pip": (232, 100, 180),    # special brick - bright magenta
+            "Domino": (200, 82, 184),  # special brick - deeper violet-magenta (paired, visibly distinct from Pip)
         },
         "outline": 0.32,
+        "edgeShine": {"Pip": 0.15, "Domino": 0.15},  # faint extra top-edge highlight
     },
     # Sun-baked sand family: heavily desaturated, warm-cast, hue identities preserved
     # in muted form (cool I/J vs warm Z/L stay distinguishable). Softer outline to
@@ -47,10 +48,11 @@ THEME_PRESETS = {
             "Z": (209, 112, 88),   # terracotta
             "J": (152, 150, 172),  # slate sand (cool cast)
             "L": (223, 148, 82),   # burnt orange
-            "Pip": (200, 180, 150),    # warm sandstone - the special shrink brick
-            "Domino": (200, 180, 150), # same material as Pip
+            "Pip": (210, 186, 152),    # special brick - light sandstone
+            "Domino": (188, 164, 134), # special brick - deeper sandstone (paired, distinct from Pip)
         },
         "outline": 0.42,
+        "edgeShine": {"Pip": 0.15, "Domino": 0.15},  # faint extra top-edge highlight
     },
 }
 
@@ -190,6 +192,7 @@ def render(shape, preset, out_dir):
     sdf = make_sdf(RECTS[shape])
     base = preset["colors"][shape]
     outline_col = tuple(v * preset["outline"] for v in base)
+    edge_shine = preset.get("edgeShine", {}).get(shape, 0.0)  # extra top-edge highlight (special bricks)
     cell_bright = {cr: 1.0 + (rng.random() - 0.5) * 0.09 for cr in cells}
 
     seams, hairlines = seam_polylines(cells, rng)
@@ -216,7 +219,7 @@ def render(shape, preset, out_dir):
                 gy = sdf(x, y + 1.5) - sdf(x, y - 1.5)
                 band = min(1.0, (d + OUTLINE + BEVEL) / 6.0)
                 if gy < -0.4:
-                    f = 1.0 + 0.22 * band
+                    f = 1.0 + (0.22 + edge_shine) * band
                 elif gy > 0.4:
                     f = 1.0 - 0.16 * band
                 else:
