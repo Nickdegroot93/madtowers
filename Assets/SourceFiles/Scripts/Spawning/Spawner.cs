@@ -127,6 +127,18 @@ public class Spawner : MonoBehaviour
         GameEvents.RaiseNextBlockChanged(_upcomingNames);
     }
 
+    /// <summary>Put a shape back at the FRONT of the look-ahead queue so it spawns next
+    /// (the Rebound ability "teleports" a saved block back to the top of the queue). Only
+    /// the shape returns - the variant is re-rolled at spawn like any queued piece. The
+    /// queue is transiently one longer than the visible depth; it drains on the next spawn.</summary>
+    public void RequeueDefinition(BlockDefinition definition)
+    {
+        if (definition == null || definition.Prefab == null) return;
+
+        _upcoming.Insert(0, definition);
+        AnnounceUpcoming();
+    }
+
     // Restarts the lock->spawn chain after an external gate (win verification) suppressed
     // it - the chain is event-driven, so a suppressed spawn never retries on its own.
     public void ResumeSpawning()

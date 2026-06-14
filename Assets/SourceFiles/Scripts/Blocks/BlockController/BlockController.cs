@@ -156,6 +156,12 @@ public partial class BlockController : MonoBehaviour
     public bool HasLanded { get; private set; }
     public static IReadOnlyList<BlockController> AllBlocks => TrackedBlocks;
 
+    /// <summary>Stop counting this block as a live tower member right now, before it is
+    /// destroyed - used while a rescue animation (Rebound) plays it out. Removes it from
+    /// AllBlocks so height/camera/ability sweeps that filter on HasLanded stop seeing a block
+    /// that has already left the board. OnDestroy's own removal then becomes a no-op.</summary>
+    public void DetachFromTracking() => TrackedBlocks.Remove(this);
+
     public event System.Action OnBlockLocked;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]

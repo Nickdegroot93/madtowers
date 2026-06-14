@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d283ef99061c474aad4c62e782ee684d, type: 3}
+  m_Name: Rebound
+  m_EditorClassIdentifier: Assembly-CSharp::ReboundAbility
+  displayName: Rebound
+  icon: {fileID: 21300000, guid: f8f5a1bfe5f744da96a5cde3a39d7dc7, type: 3}
+  shortDescription: 20% chance a fallen block is saved back to the queue.
+  description: When a placed block topples off the screen, there is a 20% chance it is
+    teleported back to the top of your queue instead of costing a life - no structural
+    blocks are destroyed. Only the shape returns; it does not save a piece you drop off
+    yourself.
+  rarity: 1
+  unique: 1
+  maxStacks: 0
+  requiresVariantsInLevel: []
+  charges: 0
+  saveChance: 0.2
+  cellBurstEffect: {fileID: 3618318350582324276, guid: 8a828aab65104924d91f2a3a6cf90efd, type: 3}
+  effectScale: 1

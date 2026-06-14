@@ -197,6 +197,7 @@ when unusable, same affordance as the nudge pills.
    | `BlockFrictionPowerUp` | Passive (stackable) | firstStackIncrease, additionalStackIncrease | "standard blocks grip a little harder" |
    | `FallSpeedReductionPowerUp` | Passive (stackable) | reductionPerStack | "future pieces fall a little slower" |
    | `LastStandAbility` | Passive (unique) | reductionFraction | "on the last life: flat speed cut" |
+   | `ReboundAbility` | Passive (unique) | saveChance (+ cellBurstEffect) | "% chance a lost landed block is saved back to the queue" |
    | `BlockDropChancePowerUp` | Passive (unique) | definition, dropChance | "introduce an out-of-bag brick at a rare drop rate" |
    | `QueueVisibilityPowerUp` | Passive (unique) | visibleDepth | "see N upcoming shapes instead of 1" |
    | `EdgePortalAbility` | Passive (unique) | — | "active pieces wrap across screen edges" |
@@ -310,6 +311,22 @@ with no slow. A player who chose to go fast is never fought. **This also routes 
 multiplier through normal-descent-only** (its ~8% no longer touches fast drops — intended).
 Slo-Mo is deliberately NOT the old timescale `SlowMotionPowerUp`/`FallSpeedMultiplier` status
 (those slow the clock); this is purely per-block descent speed.
+
+### Rebound (Rare, passive, unique)
+`ReboundAbility` is a loss interceptor (the Sacrifice pattern, gentler): when a LANDED block
+crosses the loss line, a `saveChance` (0.2) roll teleports it back to the FRONT of the
+spawn queue (`Spawner.RequeueDefinition`) instead of charging a life - and unlike Sacrifice,
+nothing else is destroyed. Only the **shape** returns; its variant is re-rolled on respawn.
+On the 80% miss it returns false and the normal loss proceeds. Landed-only by contract:
+the active piece driven into the abyss is never offered to interception (it would strand the
+spawner), so it still costs a life. Permanent (charges 0) - always armed, 20% each time.
+
+The save plays `RescueLift`: the block is removed from accounting (`RemovePlacedBlock`),
+neutralised (physics off so it can't fall or shove the tower), then beamed up on a soft cyan
+light and dissolved into a per-cell CFXR magic burst (`cellBurstEffect`, swappable) before
+it's destroyed. Moving the block's transform here is allowed - it is no longer a live
+gameplay block, and the loss guard is already consumed upstream so the cull sweep never
+re-fires on it.
 
 ### Edge Portal (Common, passive, unique)
 `EdgePortalAbility` toggles run-local horizontal wrapping on `BlockController`. While a

@@ -582,6 +582,24 @@ def render_icon_last_stand(path):
     write_png(path, S, S, c.to_bytes())
 
 
+def render_icon_rebound(path):
+    """Card artwork: a block beamed back up to safety on a cyan rescue light, dissolving
+    into magic sparkles."""
+    S = 512
+    c = Canvas(S, S)
+    pearl = (224, 232, 235)
+    cyan = (96, 200, 232)
+    draw_glow(c, S / 2, S / 2, 200, (200, 238, 248), peak=0.26)
+    for lx, ly0, ly1, w, a in ((S / 2, 248, 470, 13, 0.82),
+                               (S / 2 - 66, 286, 462, 8, 0.5),
+                               (S / 2 + 66, 286, 462, 8, 0.5)):
+        draw_speed_line(c, lx, ly0, ly1, w, cyan, alpha=a)
+    draw_square_piece(c, S / 2, 168, 90, pearl, outline_px=14, bevel_px=20)
+    for sx, sy, sz in ((150, 150, 20), (366, 150, 18), (S // 2, 90, 16), (206, 250, 12), (314, 250, 12)):
+        draw_sparkle(c, sx, sy, sz, color=(220, 245, 255), alpha=0.85)
+    write_png(path, S, S, c.to_bytes())
+
+
 def render_block_bullet(path):
     """The in-game 1x1 projectile piece: aged bronze shell, pointy bottom,
     same lighting language as the tetromino block sprites (PPU 256)."""
@@ -624,6 +642,7 @@ ARTWORK = {
     "icon_slomo.png": render_icon_slomo,
     "icon_sacrifice.png": render_icon_sacrifice,
     "icon_last_stand.png": render_icon_last_stand,
+    "icon_rebound.png": render_icon_rebound,
     "block_bullet.png": render_block_bullet,
 }
 SKIN_ARTWORK = {
