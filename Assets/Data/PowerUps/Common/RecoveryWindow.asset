@@ -12,12 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1cd8c3154db84818899eaf2073e519de, type: 3}
   m_Name: RecoveryWindow
   m_EditorClassIdentifier:
-  displayName: Recovery Window
-  description: After losing a life, the next 2 blocks fall at half speed. Stacks lengthen the window.
+  displayName: Recovery
+  icon: {fileID: 21300000, guid: c7daceb7550d40a2b0745509d438b545, type: 3}
+  shortDescription: Halves the next 3 blocks' speed after a life loss.
+  description: Every time you lose a life, the falling speed of the next 3 blocks is cut
+    in half, giving you a clean window to recover your building rhythm. Fast drops still
+    fall at full speed.
   rarity: 0
-  unique: 0
-  maxStacks: 3
+  unique: 1
+  maxStacks: 0
   requiresVariantsInLevel: []
   charges: 0
   slowFactor: 0.5
-  blocksPerTrigger: 2
+  blocksPerTrigger: 3

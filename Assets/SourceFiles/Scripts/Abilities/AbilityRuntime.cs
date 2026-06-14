@@ -34,6 +34,26 @@ public class AbilityRuntime : MonoBehaviour
     private AbilityContext _context;
     private StatusEffects _status;
 
+    // Block-count slow window shared by Recovery (on life loss) and Slo-Mo (on activate):
+    // the next N spawned blocks fall at _slowWindowFactor of base speed. Folded into the
+    // normal-descent factor and counted down per spawn - never a timer (follows the player's
+    // pace). Run-local (fresh AbilityRuntime per scene).
+    private int _slowWindowBlocks;
+    private float _slowWindowFactor = 1f;
+
+    /// <summary>Slow the next <paramref name="blocks"/> spawns to <paramref name="factor"/>
+    /// of base speed (normal descent only; fast drops are unaffected). Overlapping grants
+    /// take the stronger slow and the longer remaining window.</summary>
+    public void GrantSlowWindow(int blocks, float factor)
+    {
+        if (blocks <= 0) return;
+
+        factor = Mathf.Clamp(factor, 0.05f, 1f);
+        _slowWindowFactor = _slowWindowBlocks > 0 ? Mathf.Min(_slowWindowFactor, factor) : factor;
+        _slowWindowBlocks = Mathf.Max(_slowWindowBlocks, blocks);
+        RecomputeFallSpeedMultiplier();
+    }
+
     /// <summary>Raised whenever owned abilities or slots change (HUD + picker cards listen).</summary>
     public event System.Action InventoryChanged;
 
@@ -232,6 +252,15 @@ public class AbilityRuntime : MonoBehaviour
     private void HandleBlockSpawned(BlockController block, BlockData data)
     {
         FanOutToPassives(passive => passive.OnBlockSpawned(Context, block, data));
+
+        // The block just spawned was already stamped with the current factor (in WireBlock);
+        // consume one of the window's blocks so the count is correct for the NEXT spawn.
+        if (_slowWindowBlocks > 0)
+        {
+            _slowWindowBlocks--;
+            if (_slowWindowBlocks == 0) _slowWindowFactor = 1f;
+        }
+
         RecomputeFallSpeedMultiplier(); // per-block windows count down on spawn
     }
 
@@ -297,6 +326,7 @@ public class AbilityRuntime : MonoBehaviour
             }
         }
         if (_status != null) factor *= _status.GetFallSpeedFactor();
+        if (_slowWindowBlocks > 0) factor *= _slowWindowFactor;
 
         if (GameManager.Instance != null) GameManager.Instance.SetAbilityFallSpeedMultiplier(factor);
     }

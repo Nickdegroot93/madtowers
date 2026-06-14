@@ -13,6 +13,11 @@ public partial class BlockController : MonoBehaviour
     [Header("Movement Settings")]
     [SerializeField] public float fallSpeed = 2.0f;
     [SerializeField] public float fastDropMultiplier = 10.0f;
+    // Ability fall-speed multiplier (Air Brake, recovery / slo-mo windows), stamped at spawn
+    // from GameManager.AbilityFallSpeedFactor. Applies to NORMAL descent only - fast drop /
+    // flick use the un-factored base speed (the player chose to go fast; abilities don't fight that).
+    private float _normalFallSpeedFactor = 1f;
+    public void SetNormalFallSpeedFactor(float factor) => _normalFallSpeedFactor = Mathf.Clamp(factor, 0.05f, 3f);
     [SerializeField] private LayerMask collisionLayers = 1;
 
     [Header("Grid Movement Settings")]
@@ -51,6 +56,7 @@ public partial class BlockController : MonoBehaviour
     private const int PlacementBeamSortingOrder = -60;
     private const int VectorGuideGhostSortingOrder = -5;
     private static bool _vectorGuideEnabled;
+    private static bool _edgePortalEnabled;
 
     [Header("Active Piece Control (fallback; GameModeConfig overrides these per level)")]
     [Tooltip("How close (world units) support must be below the piece before steering control is handed to physics. Keep small so players can make last-second tuck moves.")]
@@ -166,6 +172,7 @@ public partial class BlockController : MonoBehaviour
         _standardBlockFrictionMultiplier = 1f;
         _nudgeLockedUntilTime = 0f;
         _vectorGuideEnabled = false;
+        _edgePortalEnabled = false;
     }
 
     public static void AddStandardBlockFrictionMultiplier(float multiplierDelta)
@@ -179,6 +186,11 @@ public partial class BlockController : MonoBehaviour
     public static void SetVectorGuideEnabled(bool enabled)
     {
         _vectorGuideEnabled = enabled;
+    }
+
+    public static void SetEdgePortalEnabled(bool enabled)
+    {
+        _edgePortalEnabled = enabled;
     }
 
     // Rotation nudges the target angle by a quarter turn. Active pieces snap to that target while

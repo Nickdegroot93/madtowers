@@ -18,7 +18,14 @@ public partial class BlockController
         if (_autoDrop) return ColumnStepResult.Gated;
 
         float candidate = _targetColumnX + direction * gridSpacing;
-        if (!IsColumnTargetWithinBounds(candidate)) return ColumnStepResult.OutOfBounds;
+        if (_edgePortalEnabled && TryWrapColumnTarget(candidate, out float wrappedCandidate))
+        {
+            candidate = wrappedCandidate;
+        }
+        else if (!IsColumnTargetWithinBounds(candidate, includeGameplayBounds: !_edgePortalEnabled))
+        {
+            return ColumnStepResult.OutOfBounds;
+        }
 
         ColumnStepResult result = ClassifyGridPlacementAtColumn(candidate, collectBlockers);
         if (result == ColumnStepResult.Moved) _targetColumnX = candidate;
@@ -109,7 +116,7 @@ public partial class BlockController
         return false;
     }
 
-    private bool IsColumnTargetWithinBounds(float candidateColumnX)
+    private bool IsColumnTargetWithinBounds(float candidateColumnX, bool includeGameplayBounds = true)
     {
         if (!_cellGeometry.TryGetWorldBounds(out Bounds bounds)) return true;
 
@@ -119,7 +126,7 @@ public partial class BlockController
         float minX = float.NegativeInfinity;
         float maxX = float.PositiveInfinity;
 
-        if (TryGetGameplayHorizontalBounds(out float gameplayMinX, out float gameplayMaxX))
+        if (includeGameplayBounds && TryGetGameplayHorizontalBounds(out float gameplayMinX, out float gameplayMaxX))
         {
             minX = gameplayMinX;
             maxX = gameplayMaxX;
@@ -134,6 +141,62 @@ public partial class BlockController
         const float tolerance = 0.001f;
         return candidateColumnX - leftReach >= minX - tolerance &&
                candidateColumnX + rightReach <= maxX + tolerance;
+    }
+
+    private bool TryWrapColumnTarget(float candidateColumnX, out float wrappedColumnX)
+    {
+        wrappedColumnX = candidateColumnX;
+        if (!_cellGeometry.TryGetWorldBounds(out Bounds bounds)) return false;
+        if (!TryGetCameraHorizontalBounds(out float cameraMinX, out float cameraMaxX)) return false;
+
+        float primaryX = _cellGeometry.GetPrimaryWorldX(transform.position.x);
+        float leftReach = primaryX - bounds.min.x;
+        float rightReach = bounds.max.x - primaryX;
+        float candidateMinX = candidateColumnX - leftReach;
+        float candidateMaxX = candidateColumnX + rightReach;
+        float minPrimaryX = cameraMinX + leftReach;
+        float maxPrimaryX = cameraMaxX - rightReach;
+        if (minPrimaryX > maxPrimaryX) return false;
+
+        const float tolerance = 0.001f;
+        if (candidateMaxX < cameraMinX - tolerance)
+        {
+            return TryGetRightmostVisibleGridColumn(minPrimaryX, maxPrimaryX, out wrappedColumnX);
+        }
+        if (candidateMinX > cameraMaxX + tolerance)
+        {
+            return TryGetLeftmostVisibleGridColumn(minPrimaryX, maxPrimaryX, out wrappedColumnX);
+        }
+        if (candidateMinX < cameraMinX - tolerance)
+        {
+            return TryGetRightmostVisibleGridColumn(minPrimaryX, maxPrimaryX, out wrappedColumnX);
+        }
+        if (candidateMaxX > cameraMaxX + tolerance)
+        {
+            return TryGetLeftmostVisibleGridColumn(minPrimaryX, maxPrimaryX, out wrappedColumnX);
+        }
+
+        return false;
+    }
+
+    private bool TryGetRightmostVisibleGridColumn(float minPrimaryX, float maxPrimaryX, out float columnX)
+    {
+        columnX = maxPrimaryX;
+        if (gridSpacing <= 0f) return minPrimaryX <= maxPrimaryX;
+
+        const float tolerance = 0.001f;
+        columnX = Mathf.Floor((maxPrimaryX + tolerance) / gridSpacing) * gridSpacing;
+        return columnX >= minPrimaryX - tolerance;
+    }
+
+    private bool TryGetLeftmostVisibleGridColumn(float minPrimaryX, float maxPrimaryX, out float columnX)
+    {
+        columnX = minPrimaryX;
+        if (gridSpacing <= 0f) return minPrimaryX <= maxPrimaryX;
+
+        const float tolerance = 0.001f;
+        columnX = Mathf.Ceil((minPrimaryX - tolerance) / gridSpacing) * gridSpacing;
+        return columnX <= maxPrimaryX + tolerance;
     }
 
     private bool TryGetGameplayHorizontalBounds(out float minX, out float maxX)

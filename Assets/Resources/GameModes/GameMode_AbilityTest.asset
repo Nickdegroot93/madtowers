@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0fe95161ec248308119ac199c73fdda, type: 3}
   m_Name: GameMode_AbilityTest
   m_EditorClassIdentifier:
-  startingLives: 0
+  startingLives: 3
   initialFallSpeed: 2
   maxFallSpeed: 5
   difficultyScalingMode: 1
@@ -47,9 +47,9 @@ MonoBehaviour:
   maxControlTime: 12
   powerUpChoiceEveryBlocks: 3
   powerUpChoicePool:
-  - {fileID: 11400000, guid: d6be9e0c4ae44667b07078bfad5c8790, type: 2}
-  - {fileID: 11400000, guid: 7b487e5f478044db94d833da9f8ab16d, type: 2}
-  - {fileID: 11400000, guid: 25d31027b1d54da4b48db44571d07aa2, type: 2}
+  - {fileID: 11400000, guid: ab2fe7abf100443dab8293f4d68f0bf4, type: 2}
+  - {fileID: 11400000, guid: e0574457da574a17ae2231d605f6254e, type: 2}
+  - {fileID: 11400000, guid: 2c13d00250af446d935ec601b0cb1e12, type: 2}
   slowMotionScale: 0.5
   staticSupportIslandsEnabled: 1
   staticSupportIslandHeightInterval: 1

@@ -179,10 +179,12 @@ public partial class BlockController
     // held or a flick latched the auto-drop.
     private float GetActiveFallSpeed()
     {
-        float multiplier = 1f;
-        if (_autoDrop) multiplier = fastDropMultiplier * AutoDropBoost;
-        else if (_isFastDrop || _moveInput.y < -0.5f) multiplier = fastDropMultiplier;
-        return fallSpeed * multiplier;
+        // Fast paths (flick / held fast drop / down) use the BASE speed: the player chose to
+        // go fast, so ability slows (Air Brake, recovery / slo-mo) never apply. Only normal
+        // descent gets the ability factor.
+        if (_autoDrop) return fallSpeed * fastDropMultiplier * AutoDropBoost;
+        if (_isFastDrop || _moveInput.y < -0.5f) return fallSpeed * fastDropMultiplier;
+        return fallSpeed * _normalFallSpeedFactor;
     }
 
 }

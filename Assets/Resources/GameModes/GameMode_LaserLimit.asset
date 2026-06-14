@@ -45,14 +45,28 @@ MonoBehaviour:
   microAlignMaxColumnFraction: 0.08
   microAlignMaxRotationDegrees: 4
   maxControlTime: 12
-  powerUpChoiceEveryBlocks: 0
+  powerUpChoiceEveryBlocks: 10
   powerUpChoicePool:
+  - {fileID: 11400000, guid: 0dca35f837a34a25996ebab97183f7aa, type: 2}
+  - {fileID: 11400000, guid: ab3b38f4ef6c4ee09db11741e7fab0d9, type: 2}
+  - {fileID: 11400000, guid: 6470a3ad296e48478c6cb9447a928492, type: 2}
+  - {fileID: 11400000, guid: 7b487e5f478044db94d833da9f8ab16d, type: 2}
+  - {fileID: 11400000, guid: ab2fe7abf100443dab8293f4d68f0bf4, type: 2}
   - {fileID: 11400000, guid: 29562a5c071a4abc8cdefbc3e6a3a260, type: 2}
-  - {fileID: 11400000, guid: 6d3401c19dfd45e78cb61cfe19dcd22d, type: 2}
-  - {fileID: 11400000, guid: 5fbde9516a7c498f9c96bf8222a8bc48, type: 2}
-  - {fileID: 11400000, guid: e28f154f7fe04e8c804cb5e2e8f4b35b, type: 2}
-  - {fileID: 11400000, guid: c32e1c21722b4300b40e69ceb0b6d101, type: 2}
+  - {fileID: 11400000, guid: e4e5c84922e14d3e8cfae645f64aeda3, type: 2}
   - {fileID: 11400000, guid: c6b3edea5bf84c4eba83f986fc74d091, type: 2}
+  - {fileID: 11400000, guid: d6be9e0c4ae44667b07078bfad5c8790, type: 2}
+  - {fileID: 11400000, guid: e0574457da574a17ae2231d605f6254e, type: 2}
+  - {fileID: 11400000, guid: 25d31027b1d54da4b48db44571d07aa2, type: 2}
+  - {fileID: 11400000, guid: 2c13d00250af446d935ec601b0cb1e12, type: 2}
+  - {fileID: 11400000, guid: 6d3401c19dfd45e78cb61cfe19dcd22d, type: 2}
+  - {fileID: 11400000, guid: 982abbadbb5b4913b7242de34dc9028e, type: 2}
+  - {fileID: 11400000, guid: c32e1c21722b4300b40e69ceb0b6d101, type: 2}
+  - {fileID: 11400000, guid: 5fbde9516a7c498f9c96bf8222a8bc48, type: 2}
+  - {fileID: 11400000, guid: cfdb7beb7e9043199bac80f5d8b7e1a9, type: 2}
+  - {fileID: 11400000, guid: e28f154f7fe04e8c804cb5e2e8f4b35b, type: 2}
+  - {fileID: 11400000, guid: ae0ce8266bce4680b028c7bbd8bbf799, type: 2}
+  - {fileID: 11400000, guid: 6f8e54c503fd42b4b7d7ff3363937e1a, type: 2}
   slowMotionScale: 0.5
   staticSupportIslandsEnabled: 1
   staticSupportIslandHeightInterval: 1

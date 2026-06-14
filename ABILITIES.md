@@ -15,7 +15,7 @@ Code: `Assets/SourceFiles/Scripts/Abilities/` · Assets: `Assets/Data/PowerUps/`
 |---|---|---|---|
 | **Instant** | `InstantAbility` | `Apply()` once at pick, then gone | Extra Life, Slow Motion, Next-Block Variant |
 | **Consumable** | `ConsumableAbility` | Held in one of 2 HUD slots; player taps to `Activate()` | Cement Tower (Flash Freeze), Stasis |
-| **Passive** | `PassiveAbility` | Always on from pick; `charges` makes it one-shot | Recovery Window (permanent), Sacrificial Safety (charges = 1) |
+| **Passive** | `PassiveAbility` | Always on from pick; `charges` makes it one-shot | Recovery (permanent), Sacrificial Safety (charges = 1) |
 | **Combo** | `ComboAbility` | Fires `OnComboFired()` when its trigger pattern lands | Overdrive (two upright I-pieces) |
 
 A **one-shot passive is not a separate kind**: set `charges = 1` on a `PassiveAbility`
@@ -57,7 +57,8 @@ Definitions are **immutable assets**. On acquisition, `AbilityRuntime` stores
 
 - **Identity** (unique checks, stack caps, bans, "Owned ×N" on cards) compares `Source`.
 - **Callbacks** go to `Instance` — its plain instance fields are safe per-run state
-  (see `RecoveryWindowAbility._remainingSlowBlocks`).
+  (the clone-per-run pattern; an ability that must remember something across its own
+  callbacks stores it there).
 - Stacking never re-clones: `Stacks++` then `OnStackAdded(ctx, newTotal)` on the same
   instance. An instance that needs its stack count records it from those calls.
 
@@ -186,6 +187,8 @@ when unusable, same affordance as the nudge pills.
    |---|---|---|---|
    | `StatusConsumableAbility` | Consumable | status | "activate: enter state X" |
    | `TransmuteAbility` | Consumable | targetShape (+ transformEffect) | "activate: active piece becomes shape X" |
+   | `SlowWindowConsumable` | Consumable | slowFactor, blocks | "activate: next N blocks fall slower" |
+   | `RecoveryWindowAbility` | Passive (unique) | slowFactor, blocksPerTrigger | "on life lost: next N blocks fall slower" |
    | `StatusPassiveAbility` | Passive | triggerEvent, status (+ charges) | "on life lost / on spawn: enter state X" |
    | `StatusComboAbility` | Combo | trigger, status (+ charges) | "pattern lands: enter state X" |
    | `BlockVariantChancePowerUp` | Passive (stackable) | variant, chancePerBlock | "% chance blocks spawn as variant V" |
@@ -194,6 +197,7 @@ when unusable, same affordance as the nudge pills.
    | `FallSpeedReductionPowerUp` | Passive (stackable) | reductionPerStack | "future pieces fall a little slower" |
    | `BlockDropChancePowerUp` | Passive (unique) | definition, dropChance | "introduce an out-of-bag brick at a rare drop rate" |
    | `QueueVisibilityPowerUp` | Passive (unique) | visibleDepth | "see N upcoming shapes instead of 1" |
+   | `EdgePortalAbility` | Passive (unique) | — | "active pieces wrap across screen edges" |
    | `NextBlockVariantPowerUp` | Instant | variant | "next block becomes variant V" |
    | `ExtraLifePowerUp` | Instant | lives | flat life grant |
    | `SlowMotionPowerUp` | Instant | duration | timed timescale effect |
@@ -279,17 +283,40 @@ at the source, add a virtual handler on `PassiveAbility`, fan out in `AbilityRun
 
 Picker every 3 blocks, PlaceBlocks 30 target, rarity profile = `RarityProfile_TestEqual`.
 The mode's pool (`GameMode_AbilityTest`) is intentionally tiny and hand-edited to the
-abilities currently under test. Today it is **three commons** (Pip + Domino + Shrink): because every member is common and the offer draws three uniformly without
-replacement, all three are shown — so the abilities under test (Pip and Domino) are on the
-card screen every time. Note Pip and Domino are `unique`, so once picked each filters out
-and offers drop toward two cards (restart to re-test); a non-unique under-test ability keeps the
-always-three guarantee. An ability also drops out once it hits `maxStacks` — expected on
-a bench.
+latest abilities currently under test. Today it is **three commons** (Edge Portal +
+Recovery + Slo-Mo), so all three are shown on the first offer. Unique members (Edge Portal,
+Recovery) filter out once picked (restart to re-test); non-unique members reappear until
+they hit `maxStacks`. That drop-out is expected on a bench.
 Building a new ability = temporarily add it here. The 12 inert dummies (`Data/PowerUps/Dummies/`) and the migrated
 proof abilities still exist as assets for chrome/regression testing; never add
 dummies to real level pools.
 
 ## 13. Shipped abilities
+
+### Recovery (Common, passive, unique) & Slo-Mo (Common, consumable)
+A shared **slow window** on `AbilityRuntime` (`GrantSlowWindow(blocks, factor)`): the next
+N *normal-descent* spawns fall at `factor` of base speed, counted down per spawn (not a
+timer — follows the player's pace). `RecoveryWindowAbility` (Recovery) grants 3 blocks @
+0.5 on life lost; `SlowWindowConsumable` (Slo-Mo) grants 5 @ 0.5 on activate. Overlapping
+grants take the stronger slow + longer window.
+
+**Fast drops are immune (the key rule).** The slow is applied as a *normal-descent-only*
+factor: the block is stamped at spawn with the un-factored `BaseFallSpeed` plus the
+`AbilityFallSpeedFactor`, and `BlockController.GetActiveFallSpeed` applies the factor **only**
+when the player isn't fast-dropping — hold / down / flick all use `base × fastDropMultiplier`
+with no slow. A player who chose to go fast is never fought. **This also routes Air Brake's
+multiplier through normal-descent-only** (its ~8% no longer touches fast drops — intended).
+Slo-Mo is deliberately NOT the old timescale `SlowMotionPowerUp`/`FallSpeedMultiplier` status
+(those slow the clock); this is purely per-block descent speed.
+
+### Edge Portal (Common, passive, unique)
+`EdgePortalAbility` toggles run-local horizontal wrapping on `BlockController`. While a
+piece is still actively controlled (not touched down, not landed, not flick-dropping),
+a sideways step that crosses the current camera edge wraps the target column to the
+opposite camera edge. The wrapped target is then classified through the normal
+side-step collision checks, so the portal cannot intentionally place the piece inside
+blocks or static islands. The camera bounds are live, so the portal width follows the
+current zoom. `unique = true`.
 
 ### High Friction (Common, passive)
 `BlockFrictionPowerUp` adds a run-local multiplier delta to the shared standard-block

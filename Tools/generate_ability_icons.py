@@ -440,6 +440,75 @@ def render_icon_domino(path):
     write_png(path, S, S, c.to_bytes())
 
 
+def render_icon_edge_portal(path):
+    """Card artwork: side portals with a block entering left and exiting right."""
+    S = 512
+    c = Canvas(S, S)
+    pearl = (224, 232, 235)
+    rail = (248, 252, 255)
+    draw_glow(c, S / 2, S / 2, 210, (232, 238, 240), peak=0.24)
+
+    for lx in (118, 394):
+        draw_speed_line(c, lx, 80, 432, 12, rail, alpha=0.58)
+        draw_speed_line(c, lx + (10 if lx < S / 2 else -10), 106, 406, 5, rail, alpha=0.28)
+
+    draw_square_piece(c, 76, 174, 78, pearl, outline_px=13, bevel_px=18)
+    draw_square_piece(c, 436, 338, 78, pearl, outline_px=13, bevel_px=18)
+
+    for sx, sy, sz in ((156, 144, 20), (356, 368, 22), (348, 150, 14)):
+        draw_sparkle(c, sx, sy, sz, color=(252, 255, 255), alpha=0.88)
+
+    write_png(path, S, S, c.to_bytes())
+
+
+def _heart_inside(nx, ny):
+    # classic heart implicit (nx,ny normalized, y up); inside when <= 0
+    v = nx * nx + ny * ny - 1.0
+    return v * v * v - nx * nx * ny * ny * ny <= 0.0
+
+
+def draw_heart(c, cx, cy, R, base, outline=(46, 32, 38)):
+    """A chunky heart: filled with a vertical gradient and a dark outline ring."""
+    for y in range(int(cy - R * 1.7), int(cy + R * 1.8)):
+        for x in range(int(cx - R * 1.5), int(cx + R * 1.5)):
+            nx = (x - cx) / R
+            ny = (cy - y) / R + 0.30
+            if not _heart_inside(nx, ny):
+                continue
+            if _heart_inside(nx * 1.13, (ny - 0.03) * 1.13):  # smaller -> interior fill
+                t = max(0.0, min(1.0, (y - (cy - R)) / (2.2 * R)))
+                f = 1.14 - 0.42 * t
+                c.blend(x, y, base[0] * f, base[1] * f, base[2] * f, 1.0)
+            else:
+                c.blend(x, y, outline[0], outline[1], outline[2], 1.0)
+
+
+def render_icon_recovery(path):
+    """Card artwork: a heart - the life you recover; the breather after a loss."""
+    S = 512
+    c = Canvas(S, S)
+    heart = (232, 84, 96)
+    draw_glow(c, S / 2, S / 2, 200, (255, 208, 212), peak=0.26)
+    draw_heart(c, S / 2, S / 2 - 4, 118, heart)
+    for sx, sy, sz in ((150, 170, 18), (366, 170, 16), (300, 372, 13)):
+        draw_sparkle(c, sx, sy, sz, color=(255, 240, 242), alpha=0.8)
+    write_png(path, S, S, c.to_bytes())
+
+
+def render_icon_slomo(path):
+    """Card artwork: a block easing down through slow, spaced motion dashes (not the
+    long continuous streaks of a fast drop)."""
+    S = 512
+    c = Canvas(S, S)
+    pearl = (224, 232, 235)
+    slow = (120, 150, 185)
+    draw_glow(c, S / 2, S / 2, 200, (232, 238, 240), peak=0.24)
+    for y0 in (72, 132, 192):
+        draw_speed_line(c, S / 2, y0, y0 + 34, 12, slow, alpha=0.72)
+    draw_square_piece(c, S / 2, 358, 96, pearl, outline_px=14, bevel_px=20)
+    write_png(path, S, S, c.to_bytes())
+
+
 def render_block_bullet(path):
     """The in-game 1x1 projectile piece: aged bronze shell, pointy bottom,
     same lighting language as the tetromino block sprites (PPU 256)."""
@@ -477,6 +546,9 @@ ARTWORK = {
     "icon_shrink.png": render_icon_shrink,
     "icon_pip.png": render_icon_pip,
     "icon_domino.png": render_icon_domino,
+    "icon_edge_portal.png": render_icon_edge_portal,
+    "icon_recovery.png": render_icon_recovery,
+    "icon_slomo.png": render_icon_slomo,
     "block_bullet.png": render_block_bullet,
 }
 SKIN_ARTWORK = {

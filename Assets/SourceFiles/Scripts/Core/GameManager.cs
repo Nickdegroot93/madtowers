@@ -35,6 +35,12 @@ public class GameManager : MonoBehaviour
     // a mutate-then-restore multiplier is unrecoverable once the ramp writes again.
     // The Spawner stamps this onto each piece at spawn, so changes apply next piece.
     public float currentFallSpeed => _currentFallSpeed * _abilityFallSpeedMultiplier;
+    /// <summary>The difficulty-ramped descent speed WITHOUT ability factors - what fast
+    /// drops / flicks use, so an ability slow never fights a player who chose to go fast.</summary>
+    public float BaseFallSpeed => _currentFallSpeed;
+    /// <summary>The owned abilities' combined fall-speed multiplier (Air Brake, recovery /
+    /// slo-mo windows). Applied to NORMAL descent only - fast drops ignore it.</summary>
+    public float AbilityFallSpeedFactor => _abilityFallSpeedMultiplier;
     public GameModeConfig ActiveConfig => ActiveGameModeConfig;
 
     private Coroutine _slowMotionCoroutine;

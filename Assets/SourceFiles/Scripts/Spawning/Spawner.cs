@@ -229,10 +229,13 @@ public class Spawner : MonoBehaviour
         }
 
         // Difficulty scales the controlled descent speed only. Landed gravity stays constant
-        // (BlockController normalizes it), so tower load never grows with block count.
+        // (BlockController normalizes it), so tower load never grows with block count. The
+        // ability factor (Air Brake, recovery / slo-mo) is stamped SEPARATELY so it applies
+        // to normal descent only - fast drops use the un-factored base speed.
         if (GameManager.Instance != null)
         {
-            block.fallSpeed = GameManager.Instance.currentFallSpeed;
+            block.fallSpeed = GameManager.Instance.BaseFallSpeed;
+            block.SetNormalFallSpeedFactor(GameManager.Instance.AbilityFallSpeedFactor);
         }
 
         // The block's identity (shape + rolled variant) travels with it - combo
