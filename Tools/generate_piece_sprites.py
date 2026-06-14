@@ -30,6 +30,8 @@ THEME_PRESETS = {
             "Z": (228, 88, 88),    # red
             "J": (95, 125, 225),   # blue
             "L": (238, 152, 66),   # orange
+            "Pip": (156, 166, 180),    # neutral slate - the special shrink brick
+            "Domino": (156, 166, 180), # same material as Pip
         },
         "outline": 0.32,
     },
@@ -45,6 +47,8 @@ THEME_PRESETS = {
             "Z": (209, 112, 88),   # terracotta
             "J": (152, 150, 172),  # slate sand (cool cast)
             "L": (223, 148, 82),   # burnt orange
+            "Pip": (200, 180, 150),    # warm sandstone - the special shrink brick
+            "Domino": (200, 180, 150), # same material as Pip
         },
         "outline": 0.42,
     },
@@ -58,6 +62,8 @@ SHAPES = {  # (col,row), row 0 = top of canvas, matches prefab spawn orientation
     "S": [(1,0),(2,0),(0,1),(1,1)],
     "T": [(1,0),(0,1),(1,1),(2,1)],
     "Z": [(0,0),(1,0),(1,1),(2,1)],
+    "Pip": [(0,0)],            # 1x1 shrink brick
+    "Domino": [(0,0),(0,1)],   # 1x2 shrink brick (vertical)
 }
 # Maximal rectangles (col0,row0,col1,row1 inclusive) per shape. The silhouette SDF
 # is the union of these — per-cell boxes would make every internal seam read as a
@@ -71,6 +77,8 @@ RECTS = {
     "J": [(0,1,2,1), (0,0,0,1)],
     "S": [(1,0,2,0), (0,1,1,1), (1,0,1,1)],
     "Z": [(0,0,1,0), (1,1,2,1), (1,0,1,1)],
+    "Pip": [(0,0,0,0)],
+    "Domino": [(0,0,0,1)],
 }
 
 

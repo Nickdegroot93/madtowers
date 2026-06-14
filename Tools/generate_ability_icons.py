@@ -365,6 +365,27 @@ def render_icon_foresight(path):
     write_png(path, S, S, c.to_bytes())
 
 
+def render_icon_shrink(path):
+    """Card artwork: a large faded block collapsing into a small solid one (reduce),
+    with inward corner ticks for the squeeze."""
+    S = 512
+    c = Canvas(S, S)
+    pearl = (224, 232, 235)
+    guide = (130, 146, 170)
+    draw_glow(c, S / 2, S / 2, 200, (232, 238, 240), peak=0.24)
+
+    # the "before": large, faded outline ghost
+    draw_square_piece(c, S / 2, S / 2, 150, pearl, outline_px=14, bevel_px=20, alpha=0.28)
+    # the "after": small, bright, solid in the centre
+    draw_square_piece(c, S / 2, S / 2, 70, pearl, outline_px=12, bevel_px=16)
+
+    # inward compression ticks from each corner toward the centre
+    for cx, cy in ((150, 150), (362, 150), (150, 362), (362, 362)):
+        draw_sparkle(c, cx, cy, 18, color=(252, 255, 255), alpha=0.82)
+
+    write_png(path, S, S, c.to_bytes())
+
+
 def render_block_bullet(path):
     """The in-game 1x1 projectile piece: aged bronze shell, pointy bottom,
     same lighting language as the tetromino block sprites (PPU 256)."""
@@ -399,6 +420,7 @@ ARTWORK = {
     "icon_high_friction.png": render_icon_high_friction,
     "icon_air_brake.png": render_icon_air_brake,
     "icon_foresight.png": render_icon_foresight,
+    "icon_shrink.png": render_icon_shrink,
     "block_bullet.png": render_block_bullet,
 }
 SKIN_ARTWORK = {

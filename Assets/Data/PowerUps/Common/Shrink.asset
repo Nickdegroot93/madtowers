@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f0a913c2dbd4f6cb2547dabfacbdca2, type: 3}
+  m_Name: Shrink
+  m_EditorClassIdentifier: Assembly-CSharp::TransmuteAbility
+  displayName: Shrink
+  icon: {fileID: 21300000, guid: 2b8eae039bdb4df3a6a28d3e1e60469c, type: 3}
+  shortDescription: Shrink the active block to a 1x1.
+  description: Flattens and shrinks your current active block down to a single 1x1
+    piece, handy for slotting into a tight gap or topping off an uneven layer.
+  rarity: 0
+  unique: 0
+  maxStacks: 0
+  requiresVariantsInLevel: []
+  targetShape: {fileID: 11400000, guid: 33fd63a3dc394755935440d6f6849a70, type: 2}
+  transformEffect: {fileID: 8525990746615576120, guid: b85d21f3b8fed714bacf0c4fd50fa512, type: 3}
+  transformScale: 0.6

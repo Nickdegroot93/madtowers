@@ -19,27 +19,11 @@ public class BulletAbility : ConsumableAbility
     [Tooltip("Scale for the transform effect - CFXR effects are character-sized, a block usually wants < 1.")]
     [SerializeField] private float transformScale = 0.6f;
 
+    // Shared transform-consumable guard: refuses (before the slot is consumed) a missing/
+    // unwired projectile, no piece in the air or one mid-lock, a piece that is already a
+    // Bullet, or one past the loss line. See AbilityEffects.CanTransmuteActivePiece.
     public override bool CanActivate(AbilityContext context)
-    {
-        // The slot is consumed BEFORE Activate, so every way the transform could fail
-        // must be refused here or the tap silently eats the charge:
-        // - misconfigured asset (no projectile wired, or its prefab lacks a
-        //   BlockController so ReplaceActivePiece would bail after the slot is gone)
-        // - no piece in the air, or a landed piece mid-lock
-        // - the piece is already a Bullet (double-tap with Bullet in both slots)
-        // - the piece has fallen past the loss line (doomed; the sweep owns it now)
-        if (context.Spawner == null || bulletBlock == null || bulletBlock.Prefab == null) return false;
-        if (bulletBlock.Prefab.GetComponent<BlockController>() == null) return false;
-
-        BlockController active = BlockController.ActiveControlled;
-        if (active == null || active.HasLanded) return false;
-        if (active.TryGetComponent(out BlockIdentity identity) && identity.Definition == bulletBlock) return false;
-
-        Camera camera = Camera.main;
-        if (camera != null && camera.orthographic && active.transform.position.y < LossZone.CullY(camera)) return false;
-
-        return true;
-    }
+        => AbilityEffects.CanTransmuteActivePiece(context, bulletBlock);
 
     public override void Activate(AbilityContext context)
     {

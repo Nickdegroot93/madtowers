@@ -185,6 +185,7 @@ when unusable, same affordance as the nudge pills.
    | Class | Kind | Fields | Covers |
    |---|---|---|---|
    | `StatusConsumableAbility` | Consumable | status | "activate: enter state X" |
+   | `TransmuteAbility` | Consumable | targetShape (+ transformEffect) | "activate: active piece becomes shape X" |
    | `StatusPassiveAbility` | Passive | triggerEvent, status (+ charges) | "on life lost / on spawn: enter state X" |
    | `StatusComboAbility` | Combo | trigger, status (+ charges) | "pattern lands: enter state X" |
    | `BlockVariantChancePowerUp` | Passive (stackable) | variant, chancePerBlock | "% chance blocks spawn as variant V" |
@@ -206,8 +207,11 @@ when unusable, same affordance as the nudge pills.
    Cartoon FX `CFXR…` prefabs into serialized effect fields and play them via
    `Vfx.Spawn`, layered with hit-stop / camera kick / a custom sfx).
 
-**Transform-style consumable** (changes the active falling piece — the Bullet
-pattern): the projectile/replacement is a full block variant — `BlockData`
+**Transform-style consumable** — the generic `TransmuteAbility` (Consumable) already
+covers "the active piece becomes shape X": set its `targetShape` to any `BlockDefinition`
+and it swaps via `Spawner.ReplaceActivePiece` (Shrink → the 1×1 Pip is just an asset; a
+1×2 Domino Shrink would be another asset, no code). Reach for the recipe below only when
+the replacement needs its OWN behaviour on lock (the Bullet's impact): the projectile/replacement is a full block variant — `BlockData`
 subclass + behaviour in `Blocks/Variants/`, a 1-cell prefab cribbed from
 `Block_Bullet.prefab`, a `BlockDefinition` + data asset, a `piece_<Name>.png`
 skin sprite in `Skins/Classic/` (or ApplyBlockSkin warns per swap) — wired into
@@ -275,7 +279,7 @@ at the source, add a virtual handler on `PassiveAbility`, fan out in `AbilityRun
 Picker every 3 blocks, PlaceBlocks 30 target, rarity profile = `RarityProfile_TestEqual`.
 The mode's pool (`GameMode_AbilityTest`) is intentionally tiny and hand-edited to the
 abilities currently under test. Today it is **three commons** (Bullet + High Friction +
-Foresight): because every member is common and the offer draws three uniformly without
+Shrink): because every member is common and the offer draws three uniformly without
 replacement, all three are shown — so the ability under test (Foresight) is on the card
 screen every time. Note Foresight is `unique`, so once picked it filters out and offers
 drop to two cards (restart to re-test); a non-unique under-test ability keeps the
@@ -342,6 +346,28 @@ Same `BlockDefinitionChancePowerUp` pattern as Spike Supply, targeting `Block_O`
 The first pickup adds the larger run-local definition chance and later stacks add
 smaller deltas, making square pieces appear more often without mutating authored
 shape-bag assets. `maxStacks = 5`.
+
+### Shrink (Common, consumable)
+`TransmuteAbility` with `targetShape` = the **Pip** (1×1) `BlockDefinition`. Activating
+swaps the active falling piece for a Pip via `Spawner.ReplaceActivePiece` (same lock→spawn
+chain, re-reports flags), with a `swoosh` + a CFXR transform burst. The Pip is a **normal
+brick** (counts + costs a life — `Normal` data; not free like the Bullet), so a shrunk
+piece scores and is at risk exactly like any block; it's just small enough to slot into a
+tight gap. `CanActivate` mirrors the Bullet guards (piece in the air, not mid-lock, not
+already a Pip, not past the loss line, target wired). `TransmuteAbility` is generic, so a
+future 1×2 "Shrink" targeting the **Domino** is one more asset, no code.
+
+**The Pip (1×1) and Domino (1×2) bricks** are standalone `BlockDefinition`s
+(`Data/BlockDefinitions/`) skinned in Classic + Desert (other themes inherit Classic).
+They are in **no** spawn bag, so they never appear naturally — Shrink is the only way to
+get one today. A future spawn-injection ability ("The Pip") will need a small Spawner
+addition: `AddDefinitionChance` is gated by `CanSpawnDefinition` (bag membership) and
+`bagCopies` is `[Min(1)]`, so there's no "registered but never drawn" slot yet — that's
+the one mechanism to add when that ability lands. Creating the bricks now doesn't block
+it; the bricks just stay bag-less until then. (Bag membership and chance-injection are
+*separate* paths: simply adding a Pip to a mode's `blockBag` injects `bagCopies` natural
+copies every refill — not the rare drop the ability wants. Use the chance registry, not
+the bag.)
 
 ### Bullet (Common, consumable)
 `BulletAbility` — the active falling piece transforms into a 1×1 shell
