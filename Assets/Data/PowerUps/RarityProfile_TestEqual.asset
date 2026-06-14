@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   stages:
   - progressThreshold: 0
-    common: 1
+    common: 0
     rare: 1
-    epic: 1
-    legendary: 1
+    epic: 0
+    legendary: 0

@@ -509,6 +509,34 @@ def render_icon_slomo(path):
     write_png(path, S, S, c.to_bytes())
 
 
+def render_icon_sacrifice(path):
+    """Card artwork: rare-blue abyss laser taking one brick while another is paid above."""
+    S = 512
+    c = Canvas(S, S)
+    rare = (84, 155, 245)
+    pearl = (224, 232, 235)
+    draw_glow(c, S / 2, S / 2, 210, rare, peak=0.27)
+
+    # Abyss laser: thick blue-white bar with small end sparks.
+    for y in range(328, 350):
+        v = 1.0 - abs((y - 339) / 13.0)
+        alpha = max(0.0, min(1.0, v)) ** 0.45
+        for x in range(86, 426):
+            edge = min(1.0, min(x - 86, 426 - x) / 26.0)
+            c.blend(x, y, rare[0] + 60, rare[1] + 45, 255, 0.20 + 0.58 * alpha * edge)
+    for y in range(336, 342):
+        for x in range(112, 400):
+            c.blend(x, y, 245, 252, 255, 0.88)
+
+    draw_square_piece(c, S / 2, 234, 86, pearl, outline_px=13, bevel_px=18)
+    draw_square_piece(c, S / 2, 390, 70, rare, outline_px=12, bevel_px=16)
+
+    for sx, sy, sz in ((116, 338, 18), (398, 338, 18), (338, 186, 14), (174, 246, 12)):
+        draw_sparkle(c, sx, sy, sz, color=(245, 252, 255), alpha=0.88)
+
+    write_png(path, S, S, c.to_bytes())
+
+
 def render_block_bullet(path):
     """The in-game 1x1 projectile piece: aged bronze shell, pointy bottom,
     same lighting language as the tetromino block sprites (PPU 256)."""
@@ -549,6 +577,7 @@ ARTWORK = {
     "icon_edge_portal.png": render_icon_edge_portal,
     "icon_recovery.png": render_icon_recovery,
     "icon_slomo.png": render_icon_slomo,
+    "icon_sacrifice.png": render_icon_sacrifice,
     "block_bullet.png": render_block_bullet,
 }
 SKIN_ARTWORK = {

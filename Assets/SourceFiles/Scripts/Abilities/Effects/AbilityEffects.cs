@@ -2,7 +2,8 @@ using UnityEngine;
 
 /// <summary>
 /// Shared, reusable effect helpers - the home for behaviour used by MORE THAN ONE
-/// ability kind (the Safety-Net-shared-by-a-one-shot-and-a-combo case). Plain static
+/// ability kind (for example, shared block shatter or active-piece transform guards).
+/// Plain static
 /// methods, not an effect-asset graph: abilities call these from Apply/Activate/
 /// handlers with whatever parameters their definitions carry.
 ///

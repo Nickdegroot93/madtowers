@@ -135,8 +135,8 @@ public class AbilityRuntime : MonoBehaviour
         if (owned != null)
         {
             owned.Stacks++;
-            // Stacking a CHARGED ability adds its charges (two Sacrificial Safeties =
-            // two saves). Infinite (0) stays infinite. Without this, re-picking a
+            // Stacking a CHARGED ability adds its charges (two non-unique one-shot
+            // passives = two saves). Infinite (0) stays infinite. Without this, re-picking a
             // charged ability would consume the offer and change nothing.
             if (owned.ChargesLeft > 0) owned.ChargesLeft += sourceCharges;
             if (owned.Instance is PassiveAbility passive) passive.OnStackAdded(Context, owned.Stacks);

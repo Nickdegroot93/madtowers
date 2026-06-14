@@ -25,21 +25,63 @@ public class LossZone : MonoBehaviour
         return camera.transform.position.y - camera.orthographicSize - CullMarginBelowScreen;
     }
 
+    /// <summary>
+    /// The highest line that can currently charge a bottom-screen loss. Early in a run
+    /// the fixed trigger is usually the visible "hit" line; once the camera climbs, the
+    /// camera-relative cull can become higher and takes over.
+    /// </summary>
+    public static float CurrentLossLineY(Camera camera)
+    {
+        bool hasLine = false;
+        float lineY = 0f;
+
+        if (camera != null && camera.orthographic)
+        {
+            lineY = CullY(camera);
+            hasLine = true;
+        }
+
+        Collider2D activeTrigger = _active != null ? _active._triggerCollider : null;
+        if (activeTrigger != null && activeTrigger.enabled)
+        {
+            float triggerTopY = activeTrigger.bounds.max.y;
+            lineY = hasLine ? Mathf.Max(lineY, triggerTopY) : triggerTopY;
+            hasLine = true;
+        }
+
+        return hasLine ? lineY : 0f;
+    }
+
     // The sweep reads collider bounds for every tracked block; at late-game scale that is
     // hundreds of native calls, so it runs at 10 Hz instead of per frame. A block a full
     // margin below the screen cannot un-lose itself in 100 ms, and the timer uses scaled
     // time so it naturally freezes with the physics it observes.
     private const float SweepInterval = 0.1f;
+    private static LossZone _active;
+
     private float _nextSweepTime;
 
     private Camera _camera;
+    private Collider2D _triggerCollider;
 
     private void Awake()
     {
+        _triggerCollider = GetComponent<Collider2D>();
+
         // The red translucent bar on this object is an editor-only guide showing where
         // the backstop trigger sits; players should never see it.
         SpriteRenderer guide = GetComponent<SpriteRenderer>();
         if (guide != null) guide.enabled = false;
+    }
+
+    private void OnEnable()
+    {
+        _active = this;
+    }
+
+    private void OnDisable()
+    {
+        if (_active == this) _active = null;
     }
 
     private void Update()
@@ -72,7 +114,7 @@ public class LossZone : MonoBehaviour
         }
     }
 
-    // An armed ability (e.g. a one-shot Safety Net) may handle a loss instead of the
+    // An armed ability (e.g. Sacrifice) may handle a loss instead of the
     // life charge. LANDED blocks only: saving the active piece would strand the
     // spawner's ActiveControlled gate (control can't be ended from outside) - the
     // active piece always takes the normal loss path.

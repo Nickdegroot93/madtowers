@@ -15,14 +15,15 @@ Code: `Assets/SourceFiles/Scripts/Abilities/` · Assets: `Assets/Data/PowerUps/`
 |---|---|---|---|
 | **Instant** | `InstantAbility` | `Apply()` once at pick, then gone | Extra Life, Slow Motion, Next-Block Variant |
 | **Consumable** | `ConsumableAbility` | Held in one of 2 HUD slots; player taps to `Activate()` | Cement Tower (Flash Freeze), Stasis |
-| **Passive** | `PassiveAbility` | Always on from pick; `charges` makes it one-shot | Recovery (permanent), Sacrificial Safety (charges = 1) |
+| **Passive** | `PassiveAbility` | Always on from pick; `charges` makes it one-shot | Recovery (permanent), Sacrifice (charges = 1) |
 | **Combo** | `ComboAbility` | Fires `OnComboFired()` when its trigger pattern lands | Overdrive (two upright I-pieces) |
 
 A **one-shot passive is not a separate kind**: set `charges = 1` on a `PassiveAbility`
 asset. A handler that returns true ("I triggered") consumes a charge; at zero the
 ability leaves the inventory. Same convention on `ComboAbility` (0 = fires forever).
-**Stacking a charged ability adds its charges** (two Sacrificial Safeties = two saves);
-infinite stays infinite. Author abilities where a second copy means nothing as `unique`.
+**Stacking a charged ability adds its charges** (two non-unique one-shot passives = two
+saves); infinite stays infinite. Author abilities where a second copy means nothing as
+`unique`.
 
 ## 2. Presentation (every ability carries all four)
 
@@ -317,6 +318,16 @@ opposite camera edge. The wrapped target is then classified through the normal
 side-step collision checks, so the portal cannot intentionally place the piece inside
 blocks or static islands. The camera bounds are live, so the portal width follows the
 current zoom. `unique = true`.
+
+### Sacrifice (Rare, one-shot passive, unique)
+`SacrificeAbility` uses the intercepting `TryInterceptLoss` hook: the first **landed**
+block that falls below the loss line is destroyed before it can charge a life, then the
+current topmost other landed block is destroyed as the cost. Both blocks use the Bullet
+impact composition (`BurstFromEveryCell` with the authored `impactEffect`,
+`impact_shatter_01`, `ImpactPunch`) so it reads as a real detonation, not silent cleanup.
+While armed, a layered blue laser line follows `LossZone.CurrentLossLineY`: the fixed
+trigger top early in the run, or the camera-relative cull once that becomes higher.
+`charges = 1`, `unique = true`.
 
 ### High Friction (Common, passive)
 `BlockFrictionPowerUp` adds a run-local multiplier delta to the shared standard-block
