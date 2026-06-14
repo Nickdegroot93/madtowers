@@ -139,6 +139,26 @@ public class Spawner : MonoBehaviour
         AnnounceUpcoming();
     }
 
+    /// <summary>The shape of the piece currently in play, or null (used by the Hold cache).</summary>
+    public BlockDefinition ActiveDefinition =>
+        _currentBlock != null && _currentBlock.TryGetComponent(out BlockIdentity id) ? id.Definition : null;
+
+    /// <summary>Where a fresh piece spawns (the top). The Hold cache drops a banked-in piece here.</summary>
+    public Vector3 SpawnPosition => spawnPoint != null ? spawnPoint.position : Vector3.zero;
+
+    /// <summary>Pop the next queued shape off the front and refill (the Hold cache's bank case:
+    /// the banked piece leaves the field and this becomes the new active piece).</summary>
+    public BlockDefinition TakeNextQueued()
+    {
+        if (_upcoming.Count == 0) RefillQueue();
+        if (_upcoming.Count == 0) return null;
+
+        BlockDefinition next = _upcoming[0];
+        _upcoming.RemoveAt(0);
+        RefillQueue();
+        return next;
+    }
+
     // Restarts the lock->spawn chain after an external gate (win verification) suppressed
     // it - the chain is event-driven, so a suppressed spawn never retries on its own.
     public void ResumeSpawning()
@@ -155,14 +175,17 @@ public class Spawner : MonoBehaviour
     /// game untouched (the lock->spawn chain has no retry; losing the active piece
     /// without a wired successor soft-locks the run).
     /// </summary>
-    public bool ReplaceActivePiece(BlockDefinition definition)
+    public bool ReplaceActivePiece(BlockDefinition definition, Vector3? atPosition = null, bool asNewSpawn = false)
     {
         if (definition == null || definition.Prefab == null) return false;
 
         BlockController active = BlockController.ActiveControlled;
         if (active == null || active != _currentBlock || active.HasLanded) return false;
 
-        GameObject blockObj = Instantiate(definition.Prefab, active.transform.position, Quaternion.identity);
+        // Default: spawn in-place (mid-fall transmute - Bullet/Shrink/Pip). Hold passes a
+        // position to lift the swapped piece slightly, or to drop the banked-in piece at the top.
+        Vector3 spawnPos = atPosition ?? active.transform.position;
+        GameObject blockObj = Instantiate(definition.Prefab, spawnPos, Quaternion.identity);
         BlockController replacement = blockObj.GetComponent<BlockController>();
         if (replacement == null)
         {
@@ -174,12 +197,16 @@ public class Spawner : MonoBehaviour
         active.OnBlockLocked -= HandleBlockLocked;
         Destroy(active.gameObject);
         _currentBlock = replacement;
-        WireBlock(replacement, definition, definition.DefaultData);
 
-        // BlockSpawned is deliberately NOT re-raised: the swap is the same logical
-        // turn, and per-spawn passives (recovery windows, charge consumers) must not
-        // pay twice for one piece. Revisit if a transform ability ever produces a
-        // piece that should join combos (ComboDetector hooks locks via this event).
+        // asNewSpawn = a genuinely new piece entering play (the Hold cache's BANK: the old piece
+        // left the board, this is the next one). It rolls variants and raises BlockSpawned so it
+        // joins combos / slow windows / on-spawn passives exactly like a normal spawn. Without it
+        // (transmute + Hold SWAP) the piece keeps the same turn: DefaultData, no BlockSpawned, so
+        // per-spawn passives never pay twice. The per-piece lockout keys off BlockLocked, not this,
+        // so a banked-in piece raising BlockSpawned can't reopen the re-hold loophole.
+        BlockData data = asNewSpawn ? RollVariantChances(GetBlockData(definition)) : definition.DefaultData;
+        WireBlock(replacement, definition, data);
+        if (asNewSpawn) GameEvents.RaiseBlockSpawned(replacement, data);
         return true;
     }
 
@@ -479,7 +506,9 @@ public class Spawner : MonoBehaviour
         {
             _currentBlock.OnBlockLocked -= HandleBlockLocked;
         }
-        
+
+        GameEvents.RaiseBlockLocked(); // one per piece-turn; resets the Hold cache's per-piece lockout
+
         GameModeConfig activeConfig = ActiveGameModeConfig;
         float delay = activeConfig != null ? activeConfig.SpawnDelay : spawnDelay;
         if (delay <= 0f)

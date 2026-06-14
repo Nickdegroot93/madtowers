@@ -201,6 +201,7 @@ when unusable, same affordance as the nudge pills.
    | `BlockDropChancePowerUp` | Passive (unique) | definition, dropChance | "introduce an out-of-bag brick at a rare drop rate" |
    | `QueueVisibilityPowerUp` | Passive (unique) | visibleDepth | "see N upcoming shapes instead of 1" |
    | `EdgePortalAbility` | Passive (unique) | — | "active pieces wrap across screen edges" |
+   | `PocketCacheAbility` | Passive (unique) | — | "unlocks a Tetris-style hold/swap cache" |
    | `NextBlockVariantPowerUp` | Instant | variant | "next block becomes variant V" |
    | `ExtraLifePowerUp` | Instant | lives | flat life grant |
    | `SlowMotionPowerUp` | Instant | duration | timed timescale effect |
@@ -224,7 +225,10 @@ subclass + behaviour in `Blocks/Variants/`, a 1-cell prefab cribbed from
 `Block_Bullet.prefab`, a `BlockDefinition` + data asset, a `piece_<Name>.png`
 skin sprite in `Skins/Classic/` (or ApplyBlockSkin warns per swap) — wired into
 the ability asset and swapped in via `Spawner.ReplaceActivePiece` (validates
-before destroying; does NOT re-raise `BlockSpawned` — same logical turn).
+before destroying; by default `DefaultData` + does NOT re-raise `BlockSpawned`,
+i.e. the same logical turn — pass `asNewSpawn: true` only when the result is a
+genuinely new piece entering play, which rolls variants and raises `BlockSpawned`,
+as the Pocket Cache bank does).
 `CanActivate` must pre-check every way `Activate` could fail (the slot is
 consumed first): config wired, piece in the air and not already transformed,
 piece not below `LossZone.CullY`. Never replace the piece outside the Spawner —
@@ -327,6 +331,34 @@ light and dissolved into a per-cell CFXR magic burst (`cellBurstEffect`, swappab
 it's destroyed. Moving the block's transform here is allowed - it is no longer a live
 gameplay block, and the loss guard is already consumed upstream so the cull sweep never
 re-fires on it.
+
+### Pocket Cache (Rare, passive, unique)
+`PocketCacheAbility` just calls `context.Hold.Enable()`; all behaviour lives in `HoldCache`
+(a run-local component on the GameManager object) and the `HoldButton` HUD. The cache holds one
+block **shape** (variant re-rolls on respawn, like the queue) and a circular bubble button
+appears on the left, just above mid-height:
+- **Bank** (cache empty): the current shape is stored and the **next queued** piece spawns from the
+  top as a genuinely fresh piece — `Spawner.TakeNextQueued` + `ReplaceActivePiece(next, SpawnPosition,
+  asNewSpawn: true)`, which rolls variants and raises `BlockSpawned` so the banked-in piece joins
+  combos / slow windows / on-spawn passives exactly like a normal spawn. A white ghost of the banked
+  shape flies from the field into the bubble.
+- **Swap** (cache full): the cached shape returns **in place, lifted slightly** (`ReplaceActivePiece`
+  at the active piece's position + up, `asNewSpawn: false` — it's the same turn, like a transmute:
+  `DefaultData`, no `BlockSpawned`). It rises then falls again, buying a beat, and the shape you were
+  driving takes its slot. The bubble snaps to the new shape instantly with a pop.
+
+Both build on the Spawner's transmute primitive (`ReplaceActivePiece`, now with an `asNewSpawn` mode),
+so there's little new lifecycle code — `HoldCache` owns only the cached shape, the bank-vs-swap
+decision, and a **one-hold-per-piece lockout**. The lockout resets on the new `GameEvents.BlockLocked`
+(raised when a piece LANDS) rather than `BlockSpawned` — that's deliberate, because the bank raises a
+fresh `BlockSpawned` and keying the lockout off spawns would let it reset itself and re-hold for free.
+So you must LAND a piece before holding again, and a just-swapped-in piece can't be swapped straight
+back out. `CanHold` also gates on a live controllable piece (paused / win-verify / game-over have
+nothing to swap), and both paths check `ReplaceActivePiece`'s return before committing cache state.
+The held shape shows as a **white** silhouette — luminance normalised by the piece's brightest pixel
+then gamma-lifted, so cell seams survive while it reads white — with a very slight idle wave.
+`unique = true`, charges 0. The circular button uses a reusable, theme-neutral `RuntimeSprites.Bubble()`
+(glassy disc + thin rim).
 
 ### Edge Portal (Common, passive, unique)
 `EdgePortalAbility` toggles run-local horizontal wrapping on `BlockController`. While a

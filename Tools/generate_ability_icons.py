@@ -61,6 +61,18 @@ def draw_glow(c, cx, cy, radius, color, peak=0.35):
             c.blend(x, y, *color, peak * t * t)
 
 
+def draw_ring(c, cx, cy, radius, thickness, color, alpha=0.9):
+    """Soft circular rim (the 'pocket' bubble). Alpha falls off to zero at the band
+    edges so the ring reads crisp but anti-aliased."""
+    outer = radius + thickness
+    for y in range(max(0, int(cy - outer)), min(c.h, int(cy + outer) + 1)):
+        for x in range(max(0, int(cx - outer)), min(c.w, int(cx + outer) + 1)):
+            d = math.hypot(x - cx, y - cy)
+            edge = thickness - abs(d - radius)
+            if edge <= 0: continue
+            c.blend(x, y, *color, alpha * min(1.0, edge / thickness))
+
+
 def draw_sparkle(c, cx, cy, size, color=(255, 255, 255), alpha=0.95):
     """4-point star: two slim diamonds (vertical + horizontal)."""
     for y in range(int(cy - size), int(cy + size) + 1):
@@ -600,6 +612,24 @@ def render_icon_rebound(path):
     write_png(path, S, S, c.to_bytes())
 
 
+def render_icon_pocket_cache(path):
+    """Card artwork: a block tucked inside a glowing circular 'pocket' bubble, with a
+    second faded block beside it - the shape you swap in and out of the hold."""
+    S = 512
+    c = Canvas(S, S)
+    pearl = (224, 232, 235)
+    bubble = (190, 224, 255)
+    cx, cy = S / 2, S / 2 + 6
+    draw_glow(c, cx, cy, 196, bubble, peak=0.30)        # the pocket's glassy fill
+    draw_ring(c, cx, cy, 150, 14, (210, 236, 255), alpha=0.92)  # bright rim
+    draw_ring(c, cx, cy, 116, 6, (210, 236, 255), alpha=0.30)   # faint inner highlight
+    draw_square_piece(c, cx, cy, 78, pearl, outline_px=13, bevel_px=18)  # the cached block
+    draw_square_piece(c, S / 2 + 150, 150, 40, pearl, outline_px=10, bevel_px=12, alpha=0.4)  # the one swapping in
+    for sx, sy, sz in ((132, 150, 18), (360, 360, 14), (150, 372, 11)):
+        draw_sparkle(c, sx, sy, sz, color=(236, 248, 255), alpha=0.85)
+    write_png(path, S, S, c.to_bytes())
+
+
 def render_block_bullet(path):
     """The in-game 1x1 projectile piece: aged bronze shell, pointy bottom,
     same lighting language as the tetromino block sprites (PPU 256)."""
@@ -643,6 +673,7 @@ ARTWORK = {
     "icon_sacrifice.png": render_icon_sacrifice,
     "icon_last_stand.png": render_icon_last_stand,
     "icon_rebound.png": render_icon_rebound,
+    "icon_pocket_cache.png": render_icon_pocket_cache,
     "block_bullet.png": render_block_bullet,
 }
 SKIN_ARTWORK = {

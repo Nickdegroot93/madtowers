@@ -91,6 +91,44 @@ public static partial class RuntimeSprites
         return _roundedPanel = Finish(tex, 100f, new Vector4(24f, 24f, 24f, 24f));
     }
 
+    // ---- bubble (circular HUD button: Pocket Cache hold, any future round button) ----------
+    // A glassy disc: faint translucent fill + a bright soft rim ring, soft-AA outer edge.
+    // White; tint via color. Supersampled for clean curves; keep the Image square for a true circle.
+    private static Sprite _bubble;
+
+    public static Sprite Bubble()
+    {
+        if (_bubble != null) return _bubble;
+
+        const int S = 256;
+        const float Fill = 0.12f;   // translucent interior alpha
+        const float Ring = 0.93f;   // rim sits near the edge
+        const float RingW = 0.035f; // thin, clean stroke
+        Texture2D tex = NewTexture(S, S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                float inside = 0f, ring = 0f;
+                for (int sy = 0; sy < 2; sy++)
+                {
+                    for (int sx = 0; sx < 2; sx++)
+                    {
+                        float u = ((x + (sx + 0.5f) / 2f) / S) * 2f - 1f;
+                        float v = ((y + (sy + 0.5f) / 2f) / S) * 2f - 1f;
+                        float d = Mathf.Sqrt(u * u + v * v);              // 0 centre, 1 at the edge
+                        inside += Mathf.Clamp01((1f - d) * S / 3f);       // AA disc mask
+                        ring += Mathf.Exp(-((d - Ring) * (d - Ring)) / (2f * RingW * RingW));
+                    }
+                }
+                inside *= 0.25f; ring *= 0.25f;
+                float a = Mathf.Min(inside, Mathf.Max(Fill, ring));       // rim clipped to the disc
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+            }
+        }
+        return _bubble = Finish(tex, S);
+    }
+
     // ---- soft horizontal bar (laser line, HUD flourishes, card shine) ----------------------
     // Thin full-width bar, soft-edged vertically. PPU encodes the requested world
     // thickness; scale X to the desired length. Cached PER THICKNESS: multiple live

@@ -13,6 +13,7 @@ public sealed class AbilityContext
     public StatusEffects Status;
     public GameModeConfig Config;
     public LevelDefinition Level;
+    public HoldCache Hold;
 
     /// <summary>True if the level's spawn tables can produce this variant (ambient
     /// chances or fallback variants) - the automatic availability condition.</summary>

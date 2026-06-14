@@ -105,9 +105,17 @@ public class GameManager : MonoBehaviour
             {
                 gameObject.AddComponent<ComboDetector>();
             }
+            if (GetComponent<HoldCache>() == null)
+            {
+                gameObject.AddComponent<HoldCache>();
+            }
             if (GetComponent<AbilityHud>() == null)
             {
                 gameObject.AddComponent<AbilityHud>();
+            }
+            if (GetComponent<HoldButton>() == null)
+            {
+                gameObject.AddComponent<HoldButton>();
             }
             if (GetComponent<AbilityChoiceController>() == null)
             {

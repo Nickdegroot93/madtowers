@@ -105,7 +105,8 @@ public class AbilityRuntime : MonoBehaviour
             Runtime = this,
             Status = _status,
             Config = GameManager.Instance != null ? GameManager.Instance.ActiveConfig : null,
-            Level = LevelSelectionState.SelectedLevel
+            Level = LevelSelectionState.SelectedLevel,
+            Hold = GetComponent<HoldCache>()
         };
         return _context;
     }
