@@ -66,6 +66,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: e28f154f7fe04e8c804cb5e2e8f4b35b, type: 2}
   - {fileID: 11400000, guid: ae0ce8266bce4680b028c7bbd8bbf799, type: 2}
   - {fileID: 11400000, guid: 6f8e54c503fd42b4b7d7ff3363937e1a, type: 2}
+  - {fileID: 11400000, guid: 6fcbcbb0ac3a48ef88c48a93b05920fd, type: 2}
+  - {fileID: 11400000, guid: c3c22db8ce624969a88a897e9028af48, type: 2}
+  - {fileID: 11400000, guid: 62bc830e1a4c42f7a6bbbed0423dea2d, type: 2}
   slowMotionScale: 0.5
   staticSupportIslandsEnabled: 1
   staticSupportIslandHeightInterval: 1
