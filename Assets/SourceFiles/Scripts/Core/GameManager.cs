@@ -366,6 +366,7 @@ public class GameManager : MonoBehaviour
 
         // A landed, counted block leaving costs the board one block; an active piece pushed
         // off was never counted (TryConsumeCounted returns false), so nothing is subtracted.
+        // (LossZone.ResolveLostBlock guarantees this runs at most once per block.)
         if (block != null && block.TryGetComponent(out BlockIdentity identity) && identity.TryConsumeCounted())
         {
             AdjustStandingBlocks(-1);

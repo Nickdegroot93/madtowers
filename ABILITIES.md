@@ -196,6 +196,7 @@ when unusable, same affordance as the nudge pills.
    | `BlockDefinitionChancePowerUp` | Passive (stackable) | definition, firstStackChance, additionalStackChance | "shape X appears a little more often" |
    | `BlockFrictionPowerUp` | Passive (stackable) | firstStackIncrease, additionalStackIncrease | "standard blocks grip a little harder" |
    | `FallSpeedReductionPowerUp` | Passive (stackable) | reductionPerStack | "future pieces fall a little slower" |
+   | `LastStandAbility` | Passive (unique) | reductionFraction | "on the last life: flat speed cut" |
    | `BlockDropChancePowerUp` | Passive (unique) | definition, dropChance | "introduce an out-of-bag brick at a rare drop rate" |
    | `QueueVisibilityPowerUp` | Passive (unique) | visibleDepth | "see N upcoming shapes instead of 1" |
    | `EdgePortalAbility` | Passive (unique) | — | "active pieces wrap across screen edges" |
@@ -339,6 +340,18 @@ is a perceptible first pick, `additionalStackIncrease` (0.1) tops up later stack
 Friction governs sliding/shearing, not tipping, so even maxed it can't trivialize a
 top-heavy tower; and the floor/islands stay un-boosted (0.95), so √-mixing halves the
 benefit on the base layer — a natural governor. `maxStacks = 3`.
+
+### Last Stand (Rare, passive, unique)
+`LastStandAbility` slows normal descent while on the **last life** (`lives == 0` — the next
+lost block ends the run) by a **flat offset**: `reductionFraction` (0.2) of the level's
+*initial* speed, held constant as the difficulty ramp climbs (100%→80%, 200%→180%). It is
+NOT a multiplier — it deliberately does not slow acceleration; its *relative* help fades as
+the game speeds up (−20% at start → ~−4% near max). Implemented through `GetFallSpeedFactor`
+as the multiplier that yields that flat offset at the current speed, recomputed per block,
+which also makes it normal-descent-only (fast drops stay full speed). Turns off the instant a
+life is regained (next block). Note: most modes currently start at `lives == 0` (sudden
+death), so there it's active for the whole run once picked — a permanent flat cushion; in
+life-granting modes it's the genuine late-game clutch.
 
 ### Air Brake (Common, passive)
 `FallSpeedReductionPowerUp` overrides `GetFallSpeedFactor` to return `1 − reductionPerStack

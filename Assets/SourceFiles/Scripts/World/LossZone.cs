@@ -102,16 +102,25 @@ public class LossZone : MonoBehaviour
         {
             BlockController block = blocks[i];
             if (block == null || !block.IsLostBelow(cullY)) continue;
-            if (TryInterceptLoss(block)) continue;
 
-            // DuringBlockLoss owns the per-block loss policy around the frozen call:
-            // life charge (per CostsLifeWhenLost), live-total decrement, posthumous-score
-            // suppression, and the try/finally that keeps a throw from stranding state.
-            GameManager.Instance.DuringBlockLoss(block, block.HandleLostBelowScreen);
+            ResolveLostBlock(block);
 
             // The final life may just have gone - leave the wreckage in peace.
             if (GameManager.Instance.isGameOver) return;
         }
+    }
+
+    // Resolve a block that has crossed the loss line, AT MOST ONCE. The camera sweep and
+    // the backstop trigger can both catch the same falling piece (a straight drop off-screen
+    // hits both), so the first to resolve it consumes the block's one-shot loss guard;
+    // whichever arrives second skips - otherwise one block costs two lives, or a block an
+    // armed ability already saved gets charged anyway. Resolution = let an ability intercept,
+    // else charge the normal per-block loss (DuringBlockLoss owns the life/count/score policy).
+    private void ResolveLostBlock(BlockController block)
+    {
+        if (block.TryGetComponent(out BlockIdentity identity) && !identity.TryConsumeLoss()) return;
+        if (TryInterceptLoss(block)) return;
+        GameManager.Instance.DuringBlockLoss(block, block.HandleLostBelowScreen);
     }
 
     // An armed ability (e.g. Sacrifice) may handle a loss instead of the
@@ -142,9 +151,7 @@ public class LossZone : MonoBehaviour
         BlockController block = rb.GetComponent<BlockController>();
         if (block != null)
         {
-            if (TryInterceptLoss(block)) return;
-            // Same per-block accounting as the screen-bottom cull (count + life policy).
-            GameManager.Instance.DuringBlockLoss(block, block.HandleLostBelowScreen);
+            ResolveLostBlock(block); // same once-guarded path as the screen-bottom cull
             return;
         }
 

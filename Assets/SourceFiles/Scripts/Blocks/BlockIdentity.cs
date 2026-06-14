@@ -18,6 +18,12 @@ public sealed class BlockIdentity : MonoBehaviour
     // at each destroy site, and a double-remove is a no-op instead of a hidden clamp.
     private bool _countedAsPlaced;
 
+    // Whether this block has already been resolved by the loss system. Two LossZone
+    // detectors (the camera-relative sweep and the fixed backstop trigger below the floor)
+    // can both catch the same falling piece - a piece driven straight off-screen hits both -
+    // so the life charge must be guarded to fire exactly once, the same way the count -1 is.
+    private bool _lossConsumed;
+
     public void Assign(BlockDefinition definition, BlockData variant)
     {
         Definition = definition;
@@ -32,6 +38,16 @@ public sealed class BlockIdentity : MonoBehaviour
     {
         if (!_countedAsPlaced) return false;
         _countedAsPlaced = false;
+        return true;
+    }
+
+    /// <summary>Returns true at most ONCE - for the first loss detector to resolve this
+    /// block. Later detectors get false and must skip, so a single block can only ever
+    /// cost one life.</summary>
+    public bool TryConsumeLoss()
+    {
+        if (_lossConsumed) return false;
+        _lossConsumed = true;
         return true;
     }
 }

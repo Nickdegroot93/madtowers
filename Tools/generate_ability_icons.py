@@ -537,6 +537,51 @@ def render_icon_sacrifice(path):
     write_png(path, S, S, c.to_bytes())
 
 
+def _shield_inside(x, y, cx, top, bottom, half_w):
+    if y < top or y > bottom:
+        return False
+    mid = top + (bottom - top) * 0.45
+    if y <= mid:
+        w = half_w
+    else:
+        u = (y - mid) / (bottom - mid)
+        w = half_w * math.sqrt(max(0.0, 1.0 - u * u))  # taper to a point
+    return abs(x - cx) <= w
+
+
+def draw_shield(c, cx, cy, half_w, half_h, base, outline=(40, 44, 60)):
+    """A heraldic shield: flat-topped, tapering to a point, dark outline ring + top bevel."""
+    top, bottom = cy - half_h, cy + half_h
+    inset = 13
+    for y in range(int(top - 2), int(bottom + 2)):
+        for x in range(int(cx - half_w - 2), int(cx + half_w + 2)):
+            if not _shield_inside(x, y, cx, top, bottom, half_w):
+                continue
+            if _shield_inside(x, y, cx, top + inset, bottom - inset * 1.6, half_w - inset):
+                t = (y - top) / (2 * half_h)
+                f = 1.16 - 0.42 * t
+                r, g, b = base[0] * f, base[1] * f, base[2] * f
+                rise = y - (top + inset)
+                if 0 <= rise < 26:                       # top bevel highlight
+                    k = (1.0 - rise / 26.0) * 0.36
+                    r, g, b = r + (255 - r) * k, g + (255 - g) * k, b + (255 - b) * k
+                c.blend(x, y, r, g, b, 1.0)
+            else:
+                c.blend(x, y, outline[0], outline[1], outline[2], 1.0)
+
+
+def render_icon_last_stand(path):
+    """Card artwork: a steel shield - holding the line on your last life."""
+    S = 512
+    c = Canvas(S, S)
+    steel = (96, 134, 196)
+    draw_glow(c, S / 2, S / 2, 200, (210, 224, 245), peak=0.26)
+    draw_shield(c, S / 2, S / 2 - 6, 128, 150, steel)
+    for sx, sy, sz in ((146, 176, 18), (366, 176, 16)):
+        draw_sparkle(c, sx, sy, sz, color=(235, 244, 255), alpha=0.8)
+    write_png(path, S, S, c.to_bytes())
+
+
 def render_block_bullet(path):
     """The in-game 1x1 projectile piece: aged bronze shell, pointy bottom,
     same lighting language as the tetromino block sprites (PPU 256)."""
@@ -578,6 +623,7 @@ ARTWORK = {
     "icon_recovery.png": render_icon_recovery,
     "icon_slomo.png": render_icon_slomo,
     "icon_sacrifice.png": render_icon_sacrifice,
+    "icon_last_stand.png": render_icon_last_stand,
     "block_bullet.png": render_block_bullet,
 }
 SKIN_ARTWORK = {
