@@ -348,8 +348,8 @@ lost block ends the run) by a **flat offset**: `reductionFraction` (0.2) of the 
 NOT a multiplier — it deliberately does not slow acceleration; its *relative* help fades as
 the game speeds up (−20% at start → ~−4% near max). Implemented through `GetFallSpeedFactor`
 as the multiplier that yields that flat offset at the current speed, recomputed per block,
-which also makes it normal-descent-only (fast drops stay full speed). Turns off the instant a
-life is regained (next block). Note: most modes currently start at `lives == 0` (sudden
+which also makes it normal-descent-only (fast drops stay full speed). Turns off on the next
+block spawned after a life is regained (the factor is restamped per spawn). Note: most modes currently start at `lives == 0` (sudden
 death), so there it's active for the whole run once picked — a permanent flat cushion; in
 life-granting modes it's the genuine late-game clutch.
 
