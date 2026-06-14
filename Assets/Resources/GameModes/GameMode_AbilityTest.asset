@@ -47,8 +47,8 @@ MonoBehaviour:
   maxControlTime: 12
   powerUpChoiceEveryBlocks: 3
   powerUpChoicePool:
-  - {fileID: 11400000, guid: ab3b38f4ef6c4ee09db11741e7fab0d9, type: 2}
-  - {fileID: 11400000, guid: c6b3edea5bf84c4eba83f986fc74d091, type: 2}
+  - {fileID: 11400000, guid: d6be9e0c4ae44667b07078bfad5c8790, type: 2}
+  - {fileID: 11400000, guid: 7b487e5f478044db94d833da9f8ab16d, type: 2}
   - {fileID: 11400000, guid: 25d31027b1d54da4b48db44571d07aa2, type: 2}
   slowMotionScale: 0.5
   staticSupportIslandsEnabled: 1

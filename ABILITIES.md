@@ -192,6 +192,7 @@ when unusable, same affordance as the nudge pills.
    | `BlockDefinitionChancePowerUp` | Passive (stackable) | definition, firstStackChance, additionalStackChance | "shape X appears a little more often" |
    | `BlockFrictionPowerUp` | Passive (stackable) | firstStackIncrease, additionalStackIncrease | "standard blocks grip a little harder" |
    | `FallSpeedReductionPowerUp` | Passive (stackable) | reductionPerStack | "future pieces fall a little slower" |
+   | `BlockDropChancePowerUp` | Passive (unique) | definition, dropChance | "introduce an out-of-bag brick at a rare drop rate" |
    | `QueueVisibilityPowerUp` | Passive (unique) | visibleDepth | "see N upcoming shapes instead of 1" |
    | `NextBlockVariantPowerUp` | Instant | variant | "next block becomes variant V" |
    | `ExtraLifePowerUp` | Instant | lives | flat life grant |
@@ -278,11 +279,10 @@ at the source, add a virtual handler on `PassiveAbility`, fan out in `AbilityRun
 
 Picker every 3 blocks, PlaceBlocks 30 target, rarity profile = `RarityProfile_TestEqual`.
 The mode's pool (`GameMode_AbilityTest`) is intentionally tiny and hand-edited to the
-abilities currently under test. Today it is **three commons** (Bullet + High Friction +
-Shrink): because every member is common and the offer draws three uniformly without
-replacement, all three are shown — so the ability under test (Foresight) is on the card
-screen every time. Note Foresight is `unique`, so once picked it filters out and offers
-drop to two cards (restart to re-test); a non-unique under-test ability keeps the
+abilities currently under test. Today it is **three commons** (Pip + Domino + Shrink): because every member is common and the offer draws three uniformly without
+replacement, all three are shown — so the abilities under test (Pip and Domino) are on the
+card screen every time. Note Pip and Domino are `unique`, so once picked each filters out
+and offers drop toward two cards (restart to re-test); a non-unique under-test ability keeps the
 always-three guarantee. An ability also drops out once it hits `maxStacks` — expected on
 a bench.
 Building a new ability = temporarily add it here. The 12 inert dummies (`Data/PowerUps/Dummies/`) and the migrated
@@ -354,20 +354,36 @@ chain, re-reports flags), with a `swoosh` + a CFXR transform burst. The Pip is a
 brick** (counts + costs a life — `Normal` data; not free like the Bullet), so a shrunk
 piece scores and is at risk exactly like any block; it's just small enough to slot into a
 tight gap. `CanActivate` mirrors the Bullet guards (piece in the air, not mid-lock, not
-already a Pip, not past the loss line, target wired). `TransmuteAbility` is generic, so a
-future 1×2 "Shrink" targeting the **Domino** is one more asset, no code.
+already a Pip, not past the loss line, target wired) via the shared
+`AbilityEffects.CanTransmuteActivePiece` guard (also used by the Bullet). `TransmuteAbility`
+is generic, so a future 1×2 "Shrink" targeting the **Domino** is one more asset, no code.
 
 **The Pip (1×1) and Domino (1×2) bricks** are standalone `BlockDefinition`s
 (`Data/BlockDefinitions/`) skinned in Classic + Desert (other themes inherit Classic).
-They are in **no** spawn bag, so they never appear naturally — Shrink is the only way to
-get one today. A future spawn-injection ability ("The Pip") will need a small Spawner
-addition: `AddDefinitionChance` is gated by `CanSpawnDefinition` (bag membership) and
-`bagCopies` is `[Min(1)]`, so there's no "registered but never drawn" slot yet — that's
-the one mechanism to add when that ability lands. Creating the bricks now doesn't block
-it; the bricks just stay bag-less until then. (Bag membership and chance-injection are
-*separate* paths: simply adding a Pip to a mode's `blockBag` injects `bagCopies` natural
-copies every refill — not the rare drop the ability wants. Use the chance registry, not
-the bag.)
+They are in **no** spawn bag — they only enter a run when an ability introduces them:
+Shrink swaps one in (`ReplaceActivePiece`), and the Pip/Domino abilities inject them into
+the spawn roll (`AddInjectedDefinition`). Bag membership and chance-injection stay
+*separate* paths — never add these to a mode's `blockBag` expecting a rare drop (that
+injects `bagCopies` natural copies every refill); use the injection registry.
+
+### Pip (Common, passive, unique)
+`BlockDropChancePowerUp` targeting the **Pip** (1×1) `BlockDefinition`. On acquire it calls
+`Spawner.AddInjectedDefinition(Pip, 0.05)`: the brick is marked run-spawnable and registered
+in the definition-chance roll, so ~5% of spawns become a Pip — about one every ~20 pieces,
+roughly a third the rate of a normal shape in a 7-bag — without ever touching the authored
+bag (the other shapes shave proportionally, ×0.95). It is an *average*, not a strict cadence
+(the roll is per-piece independent, not a bag slot). `unique = true`. Because
+`AddInjectedDefinition` makes the brick pass `CanSpawnDefinition`, a future "more Pips"
+booster is simply a `BlockDefinitionChancePowerUp` targeting Pip — its `IsAvailable` gate
+(`CanSpawnDefinition`) is false until this ability introduces the brick, so it self-gates to
+"only offered after Pip is owned." That's conditional availability with **no new
+infrastructure**; for an arbitrary "requires ability X" prerequisite, override `IsAvailable`
+and query `context.Runtime.GetOwnedStacks(prereq) > 0`.
+
+### Domino (Common, passive, unique)
+Same `BlockDropChancePowerUp` pattern targeting the **Domino** (1×2) brick at `0.05`. Two
+injected bricks just sum their chances in the roll (Pip + Domino owned = ~10% forced, split
+between them; the bag fills the remaining ~90%). `unique = true`.
 
 ### Bullet (Common, consumable)
 `BulletAbility` — the active falling piece transforms into a 1×1 shell

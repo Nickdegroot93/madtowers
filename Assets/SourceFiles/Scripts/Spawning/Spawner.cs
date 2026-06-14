@@ -23,6 +23,10 @@ public class Spawner : MonoBehaviour
     private BlockController _currentBlock;
     private readonly List<BlockDefinition> _definitionBag = new List<BlockDefinition>();
     private readonly List<DefinitionChance> _definitionChances = new List<DefinitionChance>();
+    // Out-of-bag bricks an ability has introduced to THIS run (Pip / Domino). They drop via
+    // the definition-chance roll, never via the authored bag; CanSpawnDefinition treats them
+    // as spawnable so the roll - and any later chance-boost ability - can target them.
+    private readonly HashSet<BlockDefinition> _injectedDefinitions = new HashSet<BlockDefinition>();
     private readonly List<VariantChance> _variantChances = new List<VariantChance>();
     private BlockData _queuedVariantOverride;
 
@@ -270,6 +274,7 @@ public class Spawner : MonoBehaviour
     public bool CanSpawnDefinition(BlockDefinition definition)
     {
         if (definition == null || definition.Prefab == null) return false;
+        if (_injectedDefinitions.Contains(definition)) return true; // ability-introduced bricks
 
         GameModeConfig activeConfig = ActiveGameModeConfig;
         IReadOnlyList<BlockDefinition> configuredBlocks = activeConfig != null
@@ -377,6 +382,26 @@ public class Spawner : MonoBehaviour
         }
 
         _definitionChances.Add(new DefinitionChance { Definition = definition, Chance = Mathf.Clamp01(chance) });
+    }
+
+    /// <summary>
+    /// Introduce an OUT-OF-BAG brick to this run with a per-spawn drop chance (the Pip /
+    /// Domino abilities). Marks it spawnable first so CanSpawnDefinition recognises it -
+    /// which also lets a later chance-boost ability targeting the same brick become
+    /// available - then registers the chance through the normal accumulating registry.
+    /// Run-local; resets with the scene-fresh Spawner. Never touches the authored bag.
+    /// </summary>
+    public void AddInjectedDefinition(BlockDefinition definition, float chance)
+    {
+        if (definition == null || definition.Prefab == null) return;
+
+        // Mark spawnable FIRST (this is what unlocks a later booster ability and lets the
+        // roll target the brick), THEN register the drop chance - AddDefinitionChance gates
+        // on CanSpawnDefinition, which only passes because of the line above. A zero chance
+        // still introduces the brick (it just doesn't drop on its own until a booster adds
+        // chance), so the two effects are deliberately decoupled.
+        _injectedDefinitions.Add(definition);
+        if (chance > 0f) AddDefinitionChance(definition, chance);
     }
 
     private bool TryRollDefinitionChance(out BlockDefinition definition)

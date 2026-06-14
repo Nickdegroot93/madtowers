@@ -386,6 +386,60 @@ def render_icon_shrink(path):
     write_png(path, S, S, c.to_bytes())
 
 
+def draw_tall_brick(c, cx, cy, half_w, half_h, base, outline_px=14, bevel_px=18):
+    """A 1x2 vertical brick: rounded rect with a single horizontal mid seam (the two cells)."""
+    top, bottom = cy - half_h, cy + half_h
+    radius = half_w * 0.30
+    spec_x = cx - half_w * 0.38
+    spec_w = half_w * 0.24
+    for y in range(c.h):
+        for x in range(c.w):
+            d = rounded_box_distance(x, y, cx, cy, half_w, half_h, radius)
+            s = shade(d, y, top, bottom, base, outline_px, bevel_px)
+            if s is None: continue
+            r, g, b, cov = s
+            if d <= -outline_px:
+                k = math.exp(-((x - spec_x) / spec_w) ** 2) * 0.22
+                r, g, b = r + (255 - r) * k, g + (255 - g) * k, b + (255 - b) * k
+                seam = math.exp(-((y - cy) / 3.8) ** 2)
+                r, g, b = r * (1 - 0.28 * seam), g * (1 - 0.28 * seam), b * (1 - 0.28 * seam)
+            c.blend(x, y, r, g, b, cov)
+
+
+def render_icon_pip(path):
+    """Card artwork: a small slate 1x1 brick dropping in among the pieces."""
+    S = 512
+    c = Canvas(S, S)
+    slate = (156, 166, 180)
+    streak = (128, 144, 168)
+    draw_glow(c, S / 2, S / 2, 195, (232, 238, 240), peak=0.22)
+    for lx, ly0, ly1, w, a in ((S / 2, 58, 214, 12, 0.85),
+                               (S / 2 - 68, 94, 224, 8, 0.55),
+                               (S / 2 + 68, 94, 224, 8, 0.55)):
+        draw_speed_line(c, lx, ly0, ly1, w, streak, alpha=a)
+    draw_square_piece(c, S / 2, 334, 92, slate, outline_px=14, bevel_px=20)
+    for sx, sy, sz in ((148, 306, 18), (366, 306, 16)):
+        draw_sparkle(c, sx, sy, sz, color=(252, 255, 255), alpha=0.8)
+    write_png(path, S, S, c.to_bytes())
+
+
+def render_icon_domino(path):
+    """Card artwork: a small slate 1x2 brick dropping in among the pieces."""
+    S = 512
+    c = Canvas(S, S)
+    slate = (156, 166, 180)
+    streak = (128, 144, 168)
+    draw_glow(c, S / 2, S / 2, 200, (232, 238, 240), peak=0.22)
+    for lx, ly0, ly1, w, a in ((S / 2, 40, 150, 12, 0.85),
+                               (S / 2 - 78, 70, 156, 8, 0.52),
+                               (S / 2 + 78, 70, 156, 8, 0.52)):
+        draw_speed_line(c, lx, ly0, ly1, w, streak, alpha=a)
+    draw_tall_brick(c, S / 2, 332, 70, 136, slate, outline_px=14, bevel_px=18)
+    for sx, sy, sz in ((140, 250, 18), (374, 250, 16)):
+        draw_sparkle(c, sx, sy, sz, color=(252, 255, 255), alpha=0.8)
+    write_png(path, S, S, c.to_bytes())
+
+
 def render_block_bullet(path):
     """The in-game 1x1 projectile piece: aged bronze shell, pointy bottom,
     same lighting language as the tetromino block sprites (PPU 256)."""
@@ -421,6 +475,8 @@ ARTWORK = {
     "icon_air_brake.png": render_icon_air_brake,
     "icon_foresight.png": render_icon_foresight,
     "icon_shrink.png": render_icon_shrink,
+    "icon_pip.png": render_icon_pip,
+    "icon_domino.png": render_icon_domino,
     "block_bullet.png": render_block_bullet,
 }
 SKIN_ARTWORK = {

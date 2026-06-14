@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e9cc05d023e40a7889a7a896a5f2ff7, type: 3}
+  m_Name: Pip
+  m_EditorClassIdentifier: Assembly-CSharp::BlockDropChancePowerUp
+  displayName: Pip
+  icon: {fileID: 21300000, guid: c50847879f6f4dc1be32b9187dbcf001, type: 3}
+  shortDescription: Small 1x1 bricks start dropping now and then.
+  description: Adds the little 1x1 brick to your run. It won't show up often, but every
+    so often one drops in among the usual pieces, perfect for plugging an awkward gap.
+  rarity: 0
+  unique: 1
+  maxStacks: 0
+  requiresVariantsInLevel: []
+  charges: 0
+  definition: {fileID: 11400000, guid: 33fd63a3dc394755935440d6f6849a70, type: 2}
+  dropChance: 0.05
