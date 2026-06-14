@@ -1,28 +1,33 @@
 using UnityEngine;
 
 /// <summary>
-/// Charges a life for every block that falls off the BOTTOM OF THE SCREEN, the moment it
-/// leaves view. Camera-relative on purpose: at altitude a dropped block must not get a
-/// free 100 m plunge into the old tower below ("maybe it wedges somewhere") or a ten-second
-/// wait while it falls to the world floor - the penalty lands exactly when the player sees
-/// the block disappear. Resting tower blocks below the camera are the normal state of a
-/// tall game; only genuinely falling blocks count (see BlockController.IsLostBelow).
+/// Charges a life for every block that drops past the death line near the BOTTOM OF THE SCREEN.
+/// Camera-relative on purpose: at altitude a dropped block must not get a free 100 m plunge into
+/// the old tower below ("maybe it wedges somewhere") or a ten-second wait while it falls to the
+/// world floor - the penalty lands as the player watches the block sink past the line, which is
+/// always on screen no matter how high the camera has climbed. Resting tower blocks below the
+/// line are the normal state of a tall game; only genuinely falling blocks count (see
+/// BlockController.IsLostBelow).
 ///
 /// The object's fixed trigger collider below the floor stays as a backstop for any
 /// rigidbody the sweep can't judge.
 /// </summary>
 public class LossZone : MonoBehaviour
 {
-    // The block must be FULLY below the screen edge plus a little slack - wobbling in and
-    // out of the last visible pixels is not "gone".
-    private const float CullMarginBelowScreen = 1f;
+    // The death line sits a little ABOVE the bottom screen edge (not below it), so the beam is
+    // visible at every camera height and a block is charged as it sinks past the bottom of the
+    // view - not after dropping fully out of sight. Camera-relative, so it rises with the camera.
+    // Trade-off: at altitude the standing tower reaches the bottom edge, so roughly this many
+    // world units of it sit below the line; keep it modest. (Tunable - was 1 unit BELOW the edge,
+    // which put the line and the death itself off-screen once the camera climbed.)
+    private const float LossLineAboveScreenBottom = 2f;
 
-    /// <summary>The world-space line below which a block counts as lost, for the given
-    /// camera - the single definition both the sweep and abilities consult (a doomed
-    /// piece must not accept a consumable spent on it).</summary>
+    /// <summary>The world-space line below which a block counts as lost, for the given camera -
+    /// the single definition the sweep, the death beam and abilities all consult (a doomed piece
+    /// must not accept a consumable spent on it). Sits just inside the bottom edge of the view.</summary>
     public static float CullY(Camera camera)
     {
-        return camera.transform.position.y - camera.orthographicSize - CullMarginBelowScreen;
+        return camera.transform.position.y - camera.orthographicSize + LossLineAboveScreenBottom;
     }
 
     /// <summary>

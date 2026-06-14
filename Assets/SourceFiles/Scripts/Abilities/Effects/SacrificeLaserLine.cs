@@ -7,7 +7,12 @@ using UnityEngine;
 public sealed class SacrificeLaserLine : MonoBehaviour
 {
     private const float LineLength = 90f;
-    private const int SortingOrder = 58;
+    // Behind the tower (blocks render at sortingOrder 0) but in front of the ground/background
+    // (ground skin -50): the persistent warning line shows in the open field and to the sides of
+    // the stack, and the tower draws over it instead of the beam cutting across the stack. The
+    // layer offsets span -2..+2, so the base stays well under 0. The Sacrifice FLASH is separate
+    // and deliberately stays in front (a momentary destructive bang).
+    private const int SortingOrder = -10;
 
     private readonly BeamLayer[] _layers =
     {

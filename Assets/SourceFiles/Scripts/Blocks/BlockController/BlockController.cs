@@ -279,7 +279,11 @@ public partial class BlockController : MonoBehaviour
 
     public bool IsLostBelow(float cullY)
     {
-        if (!TryGetWorldBounds(out Bounds bounds) || bounds.max.y >= cullY) return false;
+        // Use the block's CENTRE, not its top: the death line should read as what destroys the
+        // block, so it's charged as the line passes through its middle - not after the whole
+        // block has dropped a full height below the line (which looked like it fell THROUGH the
+        // beam before dying).
+        if (!TryGetWorldBounds(out Bounds bounds) || bounds.center.y >= cullY) return false;
         if (!HasLanded) return true;
         return _rb != null && _rb.bodyType == RigidbodyType2D.Dynamic &&
                !_rb.IsSleeping() && _rb.linearVelocity.y < LostFallingSpeed;
