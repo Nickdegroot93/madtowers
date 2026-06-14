@@ -21,6 +21,7 @@ public class UIManager : MonoBehaviour
     private static readonly Color HudTextColor = new Color(0.95f, 0.98f, 1f, 1f);
     private static readonly Color HeartColor = new Color(0.93f, 0.29f, 0.34f, 1f);
     private static readonly Color NextPreviewTint = new Color(1f, 1f, 1f, 0.6f);
+    private static readonly Color NextSecondaryTint = new Color(1f, 1f, 1f, 0.32f); // dimmer next-next slot
     // Top bar: one dark rounded master card, two darker stat cards inside it, and a
     // taller NEXT card vertically centered on it (equal overhang above and below).
     // Warm near-opaque tones: translucent layers stacking over each other is what read
@@ -39,6 +40,18 @@ public class UIManager : MonoBehaviour
     private const float TopMarginBelowSafeArea = 64f;
     private const float NextCardWidth = 200f;
     private const float NextCardOverhang = 24f; // how far it sticks out above AND below
+    // Foresight widens the NEXT card DOWNWARD to a second, smaller/dimmer preview. The top
+    // (immediate-next) slot is identical to the single-preview layout, so the default card
+    // is pixel-for-pixel unchanged; only the second slot and the extra height are new.
+    private const float OneSlotCardHeight = BarHeight + NextCardOverhang * 2f;
+    private const float SecondSlotExtraHeight = 70f;
+    private const float TwoSlotCardHeight = OneSlotCardHeight + SecondSlotExtraHeight;
+    private const float NextSlotTopInset = 40f;          // space the "NEXT" label occupies
+    private const float NextPrimarySlotSideInset = 30f;
+    private const float NextPrimarySlotHeight = 94f;     // OneSlotCardHeight - top - 18 bottom pad
+    private const float NextSlotGap = 6f;
+    private const float NextSecondarySlotSideInset = 56f; // narrower => visibly smaller
+    private const float NextSecondarySlotHeight = 64f;
     // Bar segments slip this far under the card edge. Exactly the half-width of the
     // card's border stroke: any deeper and the tucked bar shows through the translucent
     // card as a dark sliver inside the border; any shallower risks a sky-gap at the seam.
@@ -64,7 +77,8 @@ public class UIManager : MonoBehaviour
         new System.Collections.Generic.List<(Image, Color)>(4);
     private bool _nudgePillsDimmed;
     private GameObject _nextPanel;
-    private Image _nextPreview;
+    private Image[] _nextPreviews;
+    private int _activeSlotCount = 1;
     private GameObject _pauseButton;
     private PauseMenuController _pauseMenu;
     private RectTransform _hudRoot;
@@ -141,7 +155,7 @@ public class UIManager : MonoBehaviour
             HandleLivesChanged(GameManager.Instance.lives);
         }
 
-        if (_spawner != null) HandleNextBlockChanged(_spawner.GetNextBlockName());
+        if (_spawner != null) HandleNextBlockChanged(_spawner.GetUpcomingBlockNames());
     }
 
     // The HUD total is the LIVE count of placed blocks still standing (drops when a block
@@ -167,17 +181,41 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    private void HandleNextBlockChanged(string blockName)
+    private void HandleNextBlockChanged(System.Collections.Generic.IReadOnlyList<string> blockNames)
     {
-        if (_nextPreview == null) return;
+        if (_nextPreviews == null) return;
 
+        int count = blockNames != null ? blockNames.Count : 0;
+        EnsureSlotLayout(count);
+
+        // The card itself stays put (it's part of the bar's silhouette); only the ghosts
+        // inside come and go. Slots beyond the supplied count clear.
+        for (int i = 0; i < _nextPreviews.Length; i++)
+        {
+            if (_nextPreviews[i] == null) continue;
+            SetSlotSprite(_nextPreviews[i], i < count ? blockNames[i] : null);
+        }
+    }
+
+    private void SetSlotSprite(Image slot, string blockName)
+    {
         string shape = ThemeSkins.ExtractShapeToken(blockName);
         Sprite ghost = string.IsNullOrEmpty(shape) ? null : GetGhostSprite(shape);
+        slot.sprite = ghost;
+        slot.enabled = ghost != null;
+    }
 
-        // The card itself stays put (it's part of the bar's silhouette); only the
-        // ghost inside comes and goes.
-        _nextPreview.sprite = ghost;
-        _nextPreview.enabled = ghost != null;
+    // Grows/shrinks the NEXT card to fit the previewed count (1 vs 2 slots). Touches the
+    // card only when the count actually changes, so the common per-spawn update is O(1)
+    // with no layout churn. The card is top-pivoted, so the extra height extends downward.
+    private void EnsureSlotLayout(int nameCount)
+    {
+        int layout = Mathf.Clamp(nameCount, 1, _nextPreviews.Length);
+        if (layout == _activeSlotCount || _nextPanel == null) return;
+
+        _activeSlotCount = layout;
+        float height = layout >= 2 ? TwoSlotCardHeight : OneSlotCardHeight;
+        ((RectTransform)_nextPanel.transform).sizeDelta = new Vector2(NextCardWidth, height);
     }
 
     // Desaturated copy of the piece sprite so the preview reads as "coming up", not as a
@@ -502,7 +540,7 @@ public class UIManager : MonoBehaviour
         card.SetParent(root, false);
         card.anchorMin = card.anchorMax = new Vector2(0.5f, 1f);
         card.pivot = new Vector2(0.5f, 1f);
-        card.sizeDelta = new Vector2(NextCardWidth, BarHeight + NextCardOverhang * 2f);
+        card.sizeDelta = new Vector2(NextCardWidth, OneSlotCardHeight);
 
         Image fill = _nextPanel.GetComponent<Image>();
         fill.sprite = RuntimeSprites.RoundedPanel();
@@ -534,19 +572,46 @@ public class UIManager : MonoBehaviour
             labelText.raycastTarget = false;
         }
 
-        GameObject preview = new GameObject("NextPiecePreview", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform previewRect = (RectTransform)preview.transform;
-        previewRect.SetParent(card, false);
-        previewRect.anchorMin = Vector2.zero;
-        previewRect.anchorMax = Vector2.one;
-        previewRect.offsetMin = new Vector2(30f, 18f);
-        previewRect.offsetMax = new Vector2(-30f, -40f);
+        // Two stacked preview slots, both pinned to the card's TOP so the second extends
+        // the card downward (Foresight). Slot 0 (immediate-next) matches the single-preview
+        // layout exactly; slot 1 (next-next) is smaller and dimmer, hidden until the queue
+        // widens. The array length tracks MaxVisibleQueueDepth, but the card layout below is
+        // tuned for two: the data layer (Spawner queue + NextBlockChanged list) scales to any
+        // depth on its own, the VIEW does not - a depth of 3+ also needs a third slot built
+        // here and a taller-card case in EnsureSlotLayout.
+        _nextPreviews = new Image[Spawner.MaxVisibleQueueDepth];
+        _nextPreviews[0] = CreatePreviewSlot(card, "NextPiecePreview",
+            NextPrimarySlotSideInset, NextSlotTopInset, NextPrimarySlotHeight, NextPreviewTint);
+        if (_nextPreviews.Length > 1)
+        {
+            _nextPreviews[1] = CreatePreviewSlot(card, "NextNextPiecePreview",
+                NextSecondarySlotSideInset, NextSlotTopInset + NextPrimarySlotHeight + NextSlotGap,
+                NextSecondarySlotHeight, NextSecondaryTint);
+        }
+        _activeSlotCount = 1;
+    }
 
-        _nextPreview = preview.GetComponent<Image>();
-        _nextPreview.preserveAspect = true;
-        _nextPreview.raycastTarget = false;
-        _nextPreview.color = NextPreviewTint;
-        _nextPreview.enabled = false;
+    // A top-pinned preview box (stretches horizontally, fixed height). anchoredPosition.y
+    // places its TOP `topInset` below the card's top; sizeDelta.x of -2*sideInset insets
+    // both sides. preserveAspect keeps each piece's proportions within its slot.
+    private Image CreatePreviewSlot(RectTransform card, string name,
+        float sideInset, float topInset, float height, Color tint)
+    {
+        GameObject slot = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        RectTransform rect = (RectTransform)slot.transform;
+        rect.SetParent(card, false);
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(1f, 1f);
+        rect.pivot = new Vector2(0.5f, 1f);
+        rect.sizeDelta = new Vector2(-2f * sideInset, height);
+        rect.anchoredPosition = new Vector2(0f, -topInset);
+
+        Image image = slot.GetComponent<Image>();
+        image.preserveAspect = true;
+        image.raycastTarget = false;
+        image.color = tint;
+        image.enabled = false;
+        return image;
     }
 
     // The nudge zones' "ghost buttons": a soft rounded translucent pill filling each

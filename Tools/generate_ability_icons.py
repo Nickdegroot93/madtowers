@@ -346,6 +346,25 @@ def render_icon_air_brake(path):
     write_png(path, S, S, c.to_bytes())
 
 
+def render_icon_foresight(path):
+    """Card artwork: two upcoming pieces in a queue - the near one bright and large,
+    the one seen behind it smaller and faded (planning ahead)."""
+    S = 512
+    c = Canvas(S, S)
+    pearl = (224, 232, 235)
+    draw_glow(c, S / 2, S / 2, 205, (232, 238, 240), peak=0.24)
+
+    # immediate-next: bright, large, upper (mirrors the HUD's primary slot)
+    draw_square_piece(c, S / 2, 196, 104, pearl, outline_px=14, bevel_px=20)
+    # the one after: smaller, dimmer, lower - the extra foresight buys
+    draw_square_piece(c, S / 2, 372, 66, pearl, outline_px=12, bevel_px=16, alpha=0.4)
+
+    for sx, sy, sz in ((150, 150, 22), (372, 330, 18), (350, 170, 13)):
+        draw_sparkle(c, sx, sy, sz, color=(252, 255, 255), alpha=0.85)
+
+    write_png(path, S, S, c.to_bytes())
+
+
 def render_block_bullet(path):
     """The in-game 1x1 projectile piece: aged bronze shell, pointy bottom,
     same lighting language as the tetromino block sprites (PPU 256)."""
@@ -379,6 +398,7 @@ ARTWORK = {
     "icon_vector_guide.png": render_icon_vector_guide,
     "icon_high_friction.png": render_icon_high_friction,
     "icon_air_brake.png": render_icon_air_brake,
+    "icon_foresight.png": render_icon_foresight,
     "block_bullet.png": render_block_bullet,
 }
 SKIN_ARTWORK = {

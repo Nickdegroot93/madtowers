@@ -25,13 +25,31 @@ public class Spawner : MonoBehaviour
     private readonly List<DefinitionChance> _definitionChances = new List<DefinitionChance>();
     private readonly List<VariantChance> _variantChances = new List<VariantChance>();
     private BlockData _queuedVariantOverride;
-    private BlockDefinition _nextDefinition;
+
+    // Stable look-ahead queue: holds exactly _visibleQueueDepth rolled shapes, front =
+    // next to spawn. A queued shape is NEVER re-rolled, so what the HUD previews is exactly
+    // what spawns. Foresight widens the depth (SetVisibleQueueDepth); default is one.
+    public const int MaxVisibleQueueDepth = 2;
+    private readonly List<BlockDefinition> _upcoming = new List<BlockDefinition>(MaxVisibleQueueDepth);
+    private readonly List<string> _upcomingNames = new List<string>(MaxVisibleQueueDepth);
+    private int _visibleQueueDepth = 1;
+
     public BlockController currentBlock => _currentBlock;
     private GameModeConfig ActiveGameModeConfig => LevelSelectionState.ResolveGameMode(gameModeConfig);
 
-    public string GetNextBlockName()
+    /// <summary>The upcoming shapes' display names, front first (live reused buffer; read
+    /// it synchronously). One entry by default, more once Foresight widens visibility.</summary>
+    public IReadOnlyList<string> GetUpcomingBlockNames() => _upcomingNames;
+
+    /// <summary>Widen (or restore) how many upcoming shapes are prepared and previewed.
+    /// Tops the queue up immediately so new previews appear without waiting for a spawn.</summary>
+    public void SetVisibleQueueDepth(int depth)
     {
-        return _nextDefinition != null ? _nextDefinition.DisplayName : "None";
+        int clamped = Mathf.Clamp(depth, 1, MaxVisibleQueueDepth);
+        if (clamped == _visibleQueueDepth) return;
+
+        _visibleQueueDepth = clamped;
+        RefillQueue();
     }
 
     private void Start()
@@ -39,7 +57,7 @@ public class Spawner : MonoBehaviour
         if (LevelSelectionState.IsSelectionPending) return;
 
         RegisterAmbientVariantChances();
-        PrepareNextBlock();
+        RefillQueue();
         SpawnNextBlock();
     }
 
@@ -62,28 +80,47 @@ public class Spawner : MonoBehaviour
         }
     }
 
-    private void PrepareNextBlock()
+    // Rolls a SINGLE upcoming shape: a forced definition-chance injection (Spike/Cube
+    // Supply) if one fires, else a draw from the shuffle bag. Null only when the mode has
+    // no configured blocks.
+    private BlockDefinition RollOneDefinition()
     {
-        if (HasConfiguredBlocks())
-        {
-            if (TryRollDefinitionChance(out BlockDefinition boostedDefinition))
-            {
-                _nextDefinition = boostedDefinition;
-            }
-            else
-            {
-                if (_definitionBag.Count == 0) RefillDefinitionBag();
+        if (!HasConfiguredBlocks()) return null;
 
-                if (_definitionBag.Count > 0)
-                {
-                    int bagIndex = Random.Range(0, _definitionBag.Count);
-                    _nextDefinition = _definitionBag[bagIndex];
-                    _definitionBag.RemoveAt(bagIndex);
-                }
-            }
+        if (TryRollDefinitionChance(out BlockDefinition boosted)) return boosted;
+
+        if (_definitionBag.Count == 0) RefillDefinitionBag();
+        if (_definitionBag.Count == 0) return null;
+
+        int bagIndex = Random.Range(0, _definitionBag.Count);
+        BlockDefinition drawn = _definitionBag[bagIndex];
+        _definitionBag.RemoveAt(bagIndex);
+        return drawn;
+    }
+
+    // Tops the look-ahead queue up to the visible depth (existing entries stay put - the
+    // queue is stable) and announces the new preview. O(depth), depth <= MaxVisibleQueueDepth.
+    private void RefillQueue()
+    {
+        while (_upcoming.Count < _visibleQueueDepth)
+        {
+            BlockDefinition rolled = RollOneDefinition();
+            if (rolled == null) break; // no configured blocks - leave the queue as-is
+            _upcoming.Add(rolled);
         }
 
-        GameEvents.RaiseNextBlockChanged(GetNextBlockName());
+        AnnounceUpcoming();
+    }
+
+    private void AnnounceUpcoming()
+    {
+        _upcomingNames.Clear();
+        for (int i = 0; i < _upcoming.Count; i++)
+        {
+            _upcomingNames.Add(_upcoming[i] != null ? _upcoming[i].DisplayName : "None");
+        }
+
+        GameEvents.RaiseNextBlockChanged(_upcomingNames);
     }
 
     // Restarts the lock->spawn chain after an external gate (win verification) suppressed
@@ -151,15 +188,19 @@ public class Spawner : MonoBehaviour
             return;
         }
 
-        GameObject prefab = GetPreparedPrefab();
+        if (_upcoming.Count == 0) RefillQueue();
+        BlockDefinition definition = _upcoming.Count > 0 ? _upcoming[0] : null;
+        GameObject prefab = definition != null ? definition.Prefab : null;
         if (prefab == null)
         {
             Debug.LogError("No block prefabs assigned to Spawner!");
             return;
         }
 
-        BlockDefinition definition = _nextDefinition;
-        PrepareNextBlock();
+        // Consume the front, then top the queue back up so the preview advances: the shown
+        // next-next becomes the next, unchanged (stable), and a fresh tail is rolled.
+        _upcoming.RemoveAt(0);
+        RefillQueue();
 
         GameObject blockObj = Instantiate(prefab, spawnPoint.position, Quaternion.identity);
 
@@ -241,11 +282,6 @@ public class Spawner : MonoBehaviour
             if (configuredBlocks[i] == definition) return true;
         }
         return false;
-    }
-
-    private GameObject GetPreparedPrefab()
-    {
-        return _nextDefinition != null ? _nextDefinition.Prefab : null;
     }
 
     private BlockData GetBlockData(BlockDefinition definition)

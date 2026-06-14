@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public static class GameEvents
@@ -13,7 +14,9 @@ public static class GameEvents
     /// <summary>A life was just charged (LivesChanged also fires; this one never fires for gains).</summary>
     public static event Action LifeLost;
     public static event Action<float> HeightChanged;
-    public static event Action<string> NextBlockChanged;
+    /// <summary>The upcoming shapes' display names, front first. One entry by default;
+    /// more once a queue-visibility ability (Foresight) widens the look-ahead.</summary>
+    public static event Action<IReadOnlyList<string>> NextBlockChanged;
     /// <summary>A new piece entered play, with the controller and the variant it rolled (null = normal).</summary>
     public static event Action<BlockController, BlockData> BlockSpawned;
     public static event Action<int, float> GameOver;
@@ -36,7 +39,7 @@ public static class GameEvents
     public static void RaiseLivesChanged(int lives) => LivesChanged?.Invoke(lives);
     public static void RaiseLifeLost() => LifeLost?.Invoke();
     public static void RaiseHeightChanged(float height) => HeightChanged?.Invoke(height);
-    public static void RaiseNextBlockChanged(string blockName) => NextBlockChanged?.Invoke(blockName);
+    public static void RaiseNextBlockChanged(IReadOnlyList<string> blockNames) => NextBlockChanged?.Invoke(blockNames);
     public static void RaiseBlockSpawned(BlockController block, BlockData variant) => BlockSpawned?.Invoke(block, variant);
     public static void RaiseGameOver(int score, float maxHeight) => GameOver?.Invoke(score, maxHeight);
 }

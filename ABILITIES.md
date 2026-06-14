@@ -191,6 +191,7 @@ when unusable, same affordance as the nudge pills.
    | `BlockDefinitionChancePowerUp` | Passive (stackable) | definition, firstStackChance, additionalStackChance | "shape X appears a little more often" |
    | `BlockFrictionPowerUp` | Passive (stackable) | firstStackIncrease, additionalStackIncrease | "standard blocks grip a little harder" |
    | `FallSpeedReductionPowerUp` | Passive (stackable) | reductionPerStack | "future pieces fall a little slower" |
+   | `QueueVisibilityPowerUp` | Passive (unique) | visibleDepth | "see N upcoming shapes instead of 1" |
    | `NextBlockVariantPowerUp` | Instant | variant | "next block becomes variant V" |
    | `ExtraLifePowerUp` | Instant | lives | flat life grant |
    | `SlowMotionPowerUp` | Instant | duration | timed timescale effect |
@@ -273,13 +274,13 @@ at the source, add a virtual handler on `PassiveAbility`, fan out in `AbilityRun
 
 Picker every 3 blocks, PlaceBlocks 30 target, rarity profile = `RarityProfile_TestEqual`.
 The mode's pool (`GameMode_AbilityTest`) is intentionally tiny and hand-edited to the
-abilities currently under test. Today it is **exactly three always-available commons**
-(Bullet + High Friction + Air Brake): because every member is common and the offer draws
-three uniformly without replacement, all three are shown every time — so the ability under
-test (Air Brake) is *always* on the card screen. Keep the pool at three unconditional,
-non-`unique` commons to preserve that guarantee (conditional or unique members can shrink
-the candidate set below three and break it). An ability hits `maxStacks` and drops out of
-the offer once fully stacked — expected on a bench.
+abilities currently under test. Today it is **three commons** (Bullet + High Friction +
+Foresight): because every member is common and the offer draws three uniformly without
+replacement, all three are shown — so the ability under test (Foresight) is on the card
+screen every time. Note Foresight is `unique`, so once picked it filters out and offers
+drop to two cards (restart to re-test); a non-unique under-test ability keeps the
+always-three guarantee. An ability also drops out once it hits `maxStacks` — expected on
+a bench.
 Building a new ability = temporarily add it here. The 12 inert dummies (`Data/PowerUps/Dummies/`) and the migrated
 proof abilities still exist as assets for chrome/regression testing; never add
 dummies to real level pools.
@@ -306,6 +307,19 @@ ramp). It scales the whole speed curve down, so a given speed is reached at a la
 AND the effective top speed comes down — the brake persists on long/endless runs instead
 of evaporating at the cap. It is deliberately NOT a `FallSpeedMultiplier` status (those are
 timed; this is permanent and stack-scaled). `maxStacks = 3` (×0.76 at full, ~24% slower).
+
+### Foresight (Common, passive, unique)
+`QueueVisibilityPowerUp` raises the Spawner's visible look-ahead depth on acquire
+(`context.Spawner.SetVisibleQueueDepth(2)`). The Spawner keeps a **stable** depth-N queue
+(`_upcoming`): shapes are pre-rolled and held, never re-rolled on advance, so the second
+preview is exactly the shape that spawns. `NextBlockChanged` carries the whole visible
+list (front first), so the data layer supports any depth; the HUD renders up to
+`Spawner.MaxVisibleQueueDepth` slots. The NEXT card grows **downward** to a smaller,
+dimmer second slot — the top slot is byte-identical to the single-preview layout, and the
+relayout only fires when the slot count actually changes (`UIManager.EnsureSlotLayout`).
+`unique = true`; resets per run with the fresh Spawner. Note: a Spike/Cube Supply picked
+*after* a shape is already queued won't bias that already-locked shape (the bias applies
+going forward) — acceptable.
 
 ### Vector Guide (Common, passive, unique)
 `VectorGuideAbility` toggles a run-local landing ghost on `BlockController`. The active
