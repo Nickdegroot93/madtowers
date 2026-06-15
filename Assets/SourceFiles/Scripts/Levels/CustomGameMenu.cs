@@ -70,8 +70,35 @@ public static class CustomGameMenu
     {
         if (_root != null) UnityEngine.Object.Destroy(_root);
         _root = RuntimeUiKit.CreateOverlayCanvas("Custom Game", 5000);
-        RuntimeUiKit.CreateBackdrop(_root.transform, new Color(0.04f, 0.06f, 0.08f, 0.96f));
-        RuntimeUiKit.CreateScrollColumn(_root.transform, new Vector2(680f, 1200f), out Transform panel);
+        RuntimeUiKit.CreateBackdrop(_root.transform, new Color(0.04f, 0.06f, 0.08f, 0.98f));
+
+        // Stretch the scroll panel to (nearly) the full screen so it fits any phone width - a
+        // fixed-width centred panel overflowed once the canvas scaler scaled up on tall screens.
+        GameObject scroll = RuntimeUiKit.CreateScrollColumn(_root.transform, new Vector2(100f, 100f), out Transform panel);
+
+        // Stretch the scroll viewport to the screen (minus a small margin).
+        RectTransform pr = (RectTransform)scroll.transform;
+        pr.anchorMin = Vector2.zero;
+        pr.anchorMax = Vector2.one;
+        pr.offsetMin = new Vector2(24f, 24f);
+        pr.offsetMax = new Vector2(-24f, -24f);
+
+        // Nail the content column to the viewport width with ZERO horizontal inset. A fresh
+        // RectTransform's default sizeDelta left the content wider than the panel and centred, so
+        // its left edge fell outside the mask and clipped the start of every left-aligned label.
+        RectTransform content = (RectTransform)panel;
+        content.anchorMin = new Vector2(0f, 1f);
+        content.anchorMax = new Vector2(1f, 1f);
+        content.pivot = new Vector2(0.5f, 1f);
+        content.offsetMin = new Vector2(0f, content.offsetMin.y);
+        content.offsetMax = new Vector2(0f, content.offsetMax.y);
+
+        VerticalLayoutGroup vlg = panel.GetComponent<VerticalLayoutGroup>();
+        if (vlg != null)
+        {
+            vlg.spacing = 8f;
+            vlg.padding = new RectOffset(26, 26, 22, 22);
+        }
 
         RuntimeUiKit.CreateLabel(panel, "Custom Game", 44, 72f, FontStyle.Bold, RuntimeUiKit.TitleColor);
 

@@ -257,9 +257,14 @@ public static class RuntimeUiKit
         layout.childForceExpandWidth = false;
         layout.childForceExpandHeight = true;
 
-        labelText = CreateLabel(row.transform, label, 26, height, FontStyle.Bold, BodyTextColor, TextAnchor.MiddleLeft);
+        labelText = CreateLabel(row.transform, label, 28, height, FontStyle.Bold, BodyTextColor, TextAnchor.MiddleLeft);
+        // The label flexes from ZERO so the fixed-width control on the right always fits and the
+        // row never overgrows the panel (which clipped both ends). It absorbs the leftover width.
         LayoutElement labelLayout = labelText.GetComponent<LayoutElement>();
+        labelLayout.minWidth = 0f;
+        labelLayout.preferredWidth = 0f;
         labelLayout.flexibleWidth = 1f;
+        labelText.horizontalOverflow = HorizontalWrapMode.Wrap;
         return row;
     }
 
