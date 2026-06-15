@@ -182,11 +182,11 @@ while climbing, streak clouds, rolling dunes at ground level
 |---|---|
 | Round | lives **0** · fall speed **2** → cap **5** · scaling **PerBlock, Additive, +0.025/block** (OverTime alt: +0.1 per 60s) · spawnDelay **0** |
 | Spawning | bag: **all 7 tetrominoes ×1 copy** · fallback variants: Normal, Heavy · ambient variant rolls: **none** |
-| Placement | gridSpacing **1** · placement buffer **3 columns** |
+| Placement | gridSpacing **1** · placement buffer **3 columns** (effective steer reach is `max(buffer, 4)` — the widest block always fits past the edge; see PHYSICS.md reach guarantee) |
 | Floor | 1 segment: center **0**, **9 columns** (Narrow: ~5) |
 | Power-ups | choice every **10** blocks · pool: Extra Life, Slow Time, Anchor Brick, Cement Tower · slowMotionScale **0.5** |
 | Islands | **enabled** · row interval 1 · chance 0.25 per side (floor-distance weighted) · first 9 · camera lead 2 · columns ±6, center clear 3 · shapes Single 12 / Two Wide 2 / Two Tall 2 / Corner 1 (details: §3 islands) |
-| Camera | peak **0.5** · spawn **0.9** · zoom **15–24** · smooth **0.28 / 0.35** · padding **1.5** · safe area **0.78** · min Y **0** |
+| Camera | peak **0.5** · spawn **0.9** · zoom **15–24** · smooth **vert 0.28 / zoom 0.35 / horiz-follow 0.21 (code const)** · padding **1.5** (= column margin) · min Y **0** — follow camera: pans+zooms to frame floor/tower/nearby islands/active piece (safe area **0.78** is now unused by framing) |
 | Physics ⚠️ contract — identical in every mode | grounded **0.03** · impact cap **2** · settle **0.08 / 8°s / 0.35s** · sleepOnLock **on** · microAlign **on, 0.08 / 4°** · maxControlTime **12** |
 
 ### Difficulty & pacing
@@ -204,7 +204,7 @@ while climbing, streak clouds, rolling dunes at ground level
 |---|---|
 | `floorSegments` | List of (centerColumn, columnCount). One wide segment = classic. One narrow = Narrow mode. **Multiple segments = islands with gaps / build two towers.** |
 | `gridSpacing` | Cell size. Leave at 1 unless everything else is retuned. |
-| `horizontalPlacementBufferColumns` | How far past the tower/floor edge the player may steer. |
+| `horizontalPlacementBufferColumns` | How far past the tower/floor edge the player may steer. Floored in code at `BlockController.WidestBlockColumns` (4): the effective reach is `max(this, 4)` so the widest block (horizontal 1×4) can always slip down the outer side of any obstacle — block **or** sky island — and fall off. Islands count toward this reach (PHYSICS.md). |
 
 ### Blocks
 | Setting | What it does |
@@ -241,12 +241,14 @@ is the 8-line template.
 
 ### Floating support islands (sky blocks)
 **On in every campaign level.** Static 1x1 themed cells flanking the tower (Tricky
-Towers' sky stones). Generation is **camera-driven**: every grid row up to
-`spawnAheadHeight` above the visible screen top is rolled exactly once
-(`StaticSupportIslandManager`), so islands always exist before they scroll into
-view — no pop-in during endless play. Each row rolls **independently per side band**
-(the columns between the center clear lane and min/max column), producing the two
-flanking stone lines from Tricky Towers.
+Towers' sky stones). Generation is **tower-driven**: every grid row up to
+`spawnAheadHeight` above the tower's peak is rolled exactly once
+(`StaticSupportIslandManager`); the camera only decides whether a newly-in-range row
+pops in visibly or silently pre-exists off-screen. Each row rolls **independently per
+side band** (the columns between the center clear lane and min/max column), producing
+the two flanking stone lines from Tricky Towers. Each band is additionally clipped to
+the **reachable range** (see the columns row below) so no island spawns where a piece
+couldn't slip past it.
 
 Under a height-limit waves level, generation is capped **1.5 cells below the line**
 (`TowerHeightLimit.CeilingY`, published by HeightLimitWavesModifier once the line
@@ -262,7 +264,7 @@ full-size from frame one) + the `pop_01` sound.
 | `staticSupportIslandSpawnChance` | Chance per row PER SIDE, before floor-distance weighting. Canonical **0.25** ≈ a few stones per screen, almost all on the flanks (≈ half the Tricky Towers reference density out there). ⚠️ Playtested: 0.4 cluttered the narrow phone screen, 0.05 felt empty (whole games with 0–1 stones). |
 | `staticSupportIslandFirstHeight` | Meters above the floor where generation starts (**9**) — the first screens of building stay completely clean. |
 | `staticSupportIslandSpawnAheadHeight` | Generation lead above the **tower's peak** (**6**; SkyPlatforms **8**). Islands materialize with the laser-reveal pop (animation + sound) once the build climbs within this height of them — the sky ahead stays clean until you're nearly there. Keep below the spawn-line offset (~12 above the peak) so revealed islands are immediately landable. |
-| `staticSupportIslandMin/MaxColumn`, `CenterClearColumns` | **±6, clear 3** → side bands of 5 columns each (2–6 from center): nothing in the falling lane, nothing far out. Off-screen columns are fine — the camera zooms out as the tower widens. |
+| `staticSupportIslandMin/MaxColumn`, `CenterClearColumns` | **±6, clear 3** → side bands of 5 columns each (2–6 from center): nothing in the falling lane. Bands are additionally clipped at spawn to the **reachable range** (`TryGetReachableColumnRange`, anchored to the floor centre at max zoom) so a piece can always slip ≥`WidestBlockColumns` (4) clear columns past any island and drop down its outer side. On a normal phone aspect the ±6 band fits inside this and nothing is clipped; very narrow screens trim the outermost column. The follow camera pans/zooms to keep islands and the steered piece framed. |
 | *(code)* floor-width weighting | Within a band, columns are weighted by distance past the **floor's edge** (derived per mode from `floorSegments`): over the floor **×0.12**, first column beyond the edge **×0.5**, clear of it **×1**. Islands exist to grow wider than the floor — above the floor they'd just block the landing lane. A narrow Spire floor therefore keeps full side density automatically. Constants: `StaticSupportIslandManager.OverFloorWeight` / `FloorEdgePlusOneWeight`. |
 | `staticSupportIslandShapes` | Weighted clusters, authorable inline per mode. Canonical: **Single 12, Two Wide 2, Two Tall 2, Corner 1** — mostly lone stones, occasional pairs, rare 3-cell corner. |
 
@@ -287,7 +289,7 @@ negative offer; persistent positives like the old 20%-Anchors proved overpowered
 |---|---|
 | `towerPeakScreenY` | **The leniency dial.** Lower = more room between tower and spawn = more reaction time. 0.5 default, 0.58 Narrow (harder), range 0.35–0.9. |
 | `spawnPointScreenY` | Where pieces spawn on screen (0.9). |
-| `minimum/maximumCameraSize`, padding, smooth times | Zoom behaviour as towers widen. |
+| `minimum/maximumCameraSize`, padding, smooth times | **Follow camera** (`TowerCameraController`): frames floor + nearby tower + nearby islands + the active piece, then **pans (X) and zooms** to fit, with `horizontalCameraPadding` as the visible column margin (≈1.5). `minimumCameraSize` doubles as the vertical reaction-room floor — lowering it zooms in but cuts reaction time. Horizontal-follow responsiveness is the code const `HorizontalFollowSmoothTime` (0.21s), separate from vertical (`cameraSmoothTime`) and zoom (`cameraZoomSmoothTime`). `horizontalCameraSafeArea` is no longer used by framing. |
 
 ### Physics dials
 Also serialized per mode (settle thresholds, micro-align caps, grounded distance...). These are

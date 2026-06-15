@@ -58,6 +58,14 @@ public partial class BlockController : MonoBehaviour
     private static bool _vectorGuideEnabled;
     private static bool _edgePortalEnabled;
 
+    // Bumped whenever the placed geometry behind the reach bounds changes - a block lands or leaves
+    // tracking, or an island spawns. Active pieces cache their reach bounds against this stamp so
+    // the per-FixedUpdate steering clamp and per-input legality check don't rescan every tracked
+    // block + island on a tall tower. (Post-landing settle drift is intentionally not tracked: it
+    // is sub-cell and the 4-column reach margin dwarfs it; the next landing refreshes the cache.)
+    private static int _reachGeometryVersion;
+    public static void InvalidateReachGeometry() => _reachGeometryVersion++;
+
     [Header("Active Piece Control (fallback; GameModeConfig overrides these per level)")]
     [Tooltip("How close (world units) support must be below the piece before steering control is handed to physics. Keep small so players can make last-second tuck moves.")]
     [SerializeField] private float groundedCheckDistance = 0.03f;
@@ -109,6 +117,12 @@ public partial class BlockController : MonoBehaviour
 
     private const float RotationStep = 90f;
     private const float GridMatchTolerance = 0.05f;
+    // The widest piece is the horizontal 1x4 (I-piece). The reachable area beside any obstacle
+    // (tower block OR sky island) must always leave at least this many clear columns on the
+    // outer side, so even a horizontal 1x4 can slip down past it and fall off. This is a
+    // correctness floor tied to block geometry, NOT the designer's aesthetic placement buffer -
+    // consumed by the placement bounds, the camera zoom, and the island spawn confinement.
+    public const int WidestBlockColumns = 4;
     // The quiet grid pull only runs on blocks that seated flat. Nudging a tilted block sideways
     // engages/releases its lean contact each frame, which can feed a rocking limit cycle.
     private const float QuietPullMaxTiltDegrees = 1f;
@@ -153,6 +167,12 @@ public partial class BlockController : MonoBehaviour
     private float _stillnessAnchorRotation;
     private float _stillnessTimer;
 
+    // Per-piece cache of the gameplay reach bounds, refreshed only when _reachGeometryVersion moves.
+    private int _reachBoundsStamp = -1;
+    private float _reachBoundsMinX;
+    private float _reachBoundsMaxX;
+    private bool _reachBoundsValid;
+
     public bool HasLanded { get; private set; }
     public static IReadOnlyList<BlockController> AllBlocks => TrackedBlocks;
 
@@ -160,7 +180,11 @@ public partial class BlockController : MonoBehaviour
     /// destroyed - used while a rescue animation (Rebound) plays it out. Removes it from
     /// AllBlocks so height/camera/ability sweeps that filter on HasLanded stop seeing a block
     /// that has already left the board. OnDestroy's own removal then becomes a no-op.</summary>
-    public void DetachFromTracking() => TrackedBlocks.Remove(this);
+    public void DetachFromTracking()
+    {
+        TrackedBlocks.Remove(this);
+        if (HasLanded) InvalidateReachGeometry(); // a landed block leaving the tower changes the reach bounds
+    }
 
     public event System.Action OnBlockLocked;
 
@@ -179,6 +203,7 @@ public partial class BlockController : MonoBehaviour
         _nudgeLockedUntilTime = 0f;
         _vectorGuideEnabled = false;
         _edgePortalEnabled = false;
+        _reachGeometryVersion = 0;
     }
 
     public static void AddStandardBlockFrictionMultiplier(float multiplierDelta)
@@ -258,7 +283,8 @@ public partial class BlockController : MonoBehaviour
     private void OnDestroy()
     {
         if (ActiveControlled == this) ActiveControlled = null; // e.g. destroyed by the loss zone mid-fall
-        TrackedBlocks.Remove(this);
+        bool wasTracked = TrackedBlocks.Remove(this);
+        if (wasTracked && HasLanded) InvalidateReachGeometry(); // a landed block destroyed changes the reach bounds
         DestroyPlacementBeam();
         _inputs?.Dispose();
     }

@@ -126,16 +126,23 @@ public partial class BlockController
         float minX = float.NegativeInfinity;
         float maxX = float.PositiveInfinity;
 
-        if (includeGameplayBounds && TryGetGameplayHorizontalBounds(out float gameplayMinX, out float gameplayMaxX))
+        // Movement is gated by the gameplay REACH bounds (obstacles + the widest-block margin),
+        // never by the camera - the camera is now a follow camera that pans/zooms to keep the
+        // piece in view, so clamping to it would re-introduce the "walled off at the screen edge"
+        // bug this whole change set exists to kill. The only camera-bounded path is Edge Portal,
+        // which wraps targets across the *visible* screen edges (gameplay bounds excluded there).
+        if (includeGameplayBounds)
         {
-            minX = gameplayMinX;
-            maxX = gameplayMaxX;
+            if (TryGetGameplayHorizontalBounds(out float gameplayMinX, out float gameplayMaxX))
+            {
+                minX = gameplayMinX;
+                maxX = gameplayMaxX;
+            }
         }
-
-        if (TryGetCameraHorizontalBounds(out float cameraMinX, out float cameraMaxX))
+        else if (TryGetCameraHorizontalBounds(out float cameraMinX, out float cameraMaxX))
         {
-            minX = Mathf.Max(minX, cameraMinX);
-            maxX = Mathf.Min(maxX, cameraMaxX);
+            minX = cameraMinX;
+            maxX = cameraMaxX;
         }
 
         const float tolerance = 0.001f;
@@ -199,7 +206,24 @@ public partial class BlockController
         return columnX <= maxPrimaryX + tolerance;
     }
 
+    // Cached against the placed-geometry version: the reach bounds only change when a block lands
+    // or leaves the tower, or an island spawns (all bump _reachGeometryVersion). During a single
+    // piece's fall nothing else lands, so every steering-clamp and input-legality call this lifetime
+    // reuses one computation instead of rescanning all tracked blocks + islands.
     private bool TryGetGameplayHorizontalBounds(out float minX, out float maxX)
+    {
+        if (_reachBoundsStamp != _reachGeometryVersion)
+        {
+            _reachBoundsStamp = _reachGeometryVersion;
+            _reachBoundsValid = ComputeGameplayHorizontalBounds(out _reachBoundsMinX, out _reachBoundsMaxX);
+        }
+
+        minX = _reachBoundsMinX;
+        maxX = _reachBoundsMaxX;
+        return _reachBoundsValid;
+    }
+
+    private bool ComputeGameplayHorizontalBounds(out float minX, out float maxX)
     {
         minX = float.PositiveInfinity;
         maxX = float.NegativeInfinity;
@@ -207,10 +231,16 @@ public partial class BlockController
 
         AddFloorHorizontalBounds(ref minX, ref maxX, ref hasBounds);
         AddPlacedBlockHorizontalBounds(ref minX, ref maxX, ref hasBounds);
+        AddStaticIslandHorizontalBounds(ref minX, ref maxX, ref hasBounds);
 
         if (!hasBounds) return false;
 
-        float buffer = Mathf.Max(0, horizontalPlacementBufferColumns) * gridSpacing;
+        // The reachable margin must always fit the widest block (the horizontal 1x4) flush
+        // beside the outermost obstacle, so a piece can always reach the drop lane down its
+        // outer side. WidestBlockColumns is the correctness floor; the designer buffer may
+        // widen it further but never below it.
+        int bufferColumns = Mathf.Max(Mathf.Max(0, horizontalPlacementBufferColumns), WidestBlockColumns);
+        float buffer = bufferColumns * gridSpacing;
         minX -= buffer;
         maxX += buffer;
         return true;
@@ -218,17 +248,7 @@ public partial class BlockController
 
     private void AddFloorHorizontalBounds(ref float minX, ref float maxX, ref bool hasBounds)
     {
-        if (_floorSegments == null) return;
-
-        for (int i = 0; i < _floorSegments.Count; i++)
-        {
-            FloorSegmentConfig segment = _floorSegments[i];
-            if (segment == null) continue;
-
-            float segmentMinX = (segment.LeftColumn - 0.5f) * gridSpacing;
-            float segmentMaxX = (segment.RightColumn + 0.5f) * gridSpacing;
-            ExpandHorizontalBounds(segmentMinX, segmentMaxX, ref minX, ref maxX, ref hasBounds);
-        }
+        HorizontalBounds.AddFloorSegments(_floorSegments, gridSpacing, ref minX, ref maxX, ref hasBounds);
     }
 
     private void AddPlacedBlockHorizontalBounds(ref float minX, ref float maxX, ref bool hasBounds)
@@ -239,15 +259,18 @@ public partial class BlockController
             if (block == null || block == this || !block.HasLanded) continue;
             if (!block.TryGetWorldBounds(out Bounds blockBounds)) continue;
 
-            ExpandHorizontalBounds(blockBounds.min.x, blockBounds.max.x, ref minX, ref maxX, ref hasBounds);
+            HorizontalBounds.Encapsulate(blockBounds.min.x, blockBounds.max.x, ref minX, ref maxX, ref hasBounds);
         }
     }
 
-    private void ExpandHorizontalBounds(float candidateMinX, float candidateMaxX, ref float minX, ref float maxX, ref bool hasBounds)
+    // Sky islands have no BlockController, so the placed-block sweep above never sees them.
+    // Fold their world horizontal extent in so the reachable area opens up beside a platform
+    // too (the buffer above then guarantees the widest block fits past it). Islands are
+    // confined to the reachable area at spawn time, so this only ever widens, never traps.
+    private void AddStaticIslandHorizontalBounds(ref float minX, ref float maxX, ref bool hasBounds)
     {
-        minX = hasBounds ? Mathf.Min(minX, candidateMinX) : candidateMinX;
-        maxX = hasBounds ? Mathf.Max(maxX, candidateMaxX) : candidateMaxX;
-        hasBounds = true;
+        if (!StaticSupportIslandManager.TryGetWorldHorizontalExtent(out float islandMinX, out float islandMaxX)) return;
+        HorizontalBounds.Encapsulate(islandMinX, islandMaxX, ref minX, ref maxX, ref hasBounds);
     }
 
     private bool TryGetCameraHorizontalBounds(out float minX, out float maxX)
