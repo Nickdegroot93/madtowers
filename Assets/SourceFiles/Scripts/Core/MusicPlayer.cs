@@ -2,12 +2,12 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Theme soundtrack player. A theme has 1..N tracks: a RANDOM one opens, then the
+/// Chapter soundtrack player. A chapter has 1..N tracks: a RANDOM one opens, then the
 /// rotation is fixed (A, B, A, B...) while the level is alive. Lives across scene
-/// loads, so restarting a level in the same theme never restarts the music - it only
-/// changes when the theme changes. Unaffected by pause (audio ignores timeScale).
+/// loads, so restarting a level in the same chapter never restarts the music - it only
+/// changes when the chapter changes. Unaffected by pause (audio ignores timeScale).
 /// Stops on game over; a retry starts the rotation fresh (random opener again).
-/// GameManager points it at the theme on every level load.
+/// GameManager points it at the chapter on every level load.
 /// </summary>
 public class MusicPlayer : MonoBehaviour
 {
@@ -16,13 +16,13 @@ public class MusicPlayer : MonoBehaviour
     private static MusicPlayer _instance;
 
     private AudioSource _source;
-    private ThemeDefinition _theme;
+    private ChapterDefinition _chapter;
     private IReadOnlyList<AudioClip> _playlist;
     private int _trackIndex;
-    private bool _halted; // game over: silence until the next PlayForTheme
+    private bool _halted; // game over: silence until the next PlayForChapter
 
-    /// <summary>Play the theme's playlist; keeps playing seamlessly if it's already on.</summary>
-    public static void PlayForTheme(ThemeDefinition theme)
+    /// <summary>Play the chapter's playlist; keeps playing seamlessly if it's already on.</summary>
+    public static void PlayForChapter(ChapterDefinition chapter)
     {
         EnsureInstance();
 
@@ -31,12 +31,12 @@ public class MusicPlayer : MonoBehaviour
         GameEvents.GameOver -= HandleGameOver;
         GameEvents.GameOver += HandleGameOver;
 
-        // Same theme and still playing: don't interrupt. (After a game-over halt, the
+        // Same chapter and still playing: don't interrupt. (After a game-over halt, the
         // retry falls through and starts the rotation fresh.)
-        if (_instance._theme == theme && _instance._source.isPlaying) return;
+        if (_instance._chapter == chapter && _instance._source.isPlaying) return;
 
-        _instance._theme = theme;
-        _instance._playlist = theme != null ? theme.MusicPlaylist : null;
+        _instance._chapter = chapter;
+        _instance._playlist = chapter != null ? chapter.MusicPlaylist : null;
         _instance._halted = false;
         // Any track may open the rotation; the order is fixed after that.
         _instance._trackIndex = _instance._playlist != null && _instance._playlist.Count > 1
@@ -60,7 +60,7 @@ public class MusicPlayer : MonoBehaviour
         if (_instance == null) return;
         _instance._halted = true;
         _instance._source.Stop();
-        // Future: a game-over jingle (shared by all themes) plays here.
+        // Future: a game-over jingle (shared by all chapters) plays here.
     }
 
     private void PlayCurrentTrack()

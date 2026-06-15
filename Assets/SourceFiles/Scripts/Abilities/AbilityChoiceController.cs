@@ -5,7 +5,7 @@ using UnityEngine.UI;
 /// <summary>
 /// Archero-style ability choices: every N placed blocks (per GameModeConfig) the game
 /// fully pauses and the player picks one of three rarity-weighted abilities. Added to
-/// the GameManager's object at runtime; the UI is built in code like LevelSelectRuntimeMenu.
+/// the GameManager's object at runtime; the UI is built in code like MainMenuRuntime.
 ///
 /// Offers are RECORDED on the score event but PRESENTED from Update only when nothing
 /// more important is happening (win verification, pauses, game over) - see Update.

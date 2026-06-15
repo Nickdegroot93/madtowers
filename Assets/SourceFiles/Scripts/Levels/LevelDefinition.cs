@@ -7,6 +7,12 @@ public class LevelDefinition : ScriptableObject
     [Header("Identity")]
     [SerializeField] private string displayName = "Level";
 
+    [Header("Menu Presentation")]
+    [Tooltip("Optional square image for the campaign menu card. Empty = generated placeholder.")]
+    [SerializeField] private Sprite menuThumbnail;
+    [Tooltip("Optional uppercase label for the card metric. Empty = inferred from target/modifiers.")]
+    [SerializeField] private string menuChallengeLabelOverride = "";
+
     [Header("Rules")]
     [SerializeField] private GameModeConfig gameModeConfig;
 
@@ -29,6 +35,8 @@ public class LevelDefinition : ScriptableObject
     [SerializeField] private AbilityRarityProfile abilityRarityProfile;
 
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
+    public Sprite MenuThumbnail => menuThumbnail;
+    public string MenuChallengeLabelOverride => menuChallengeLabelOverride;
     public GameModeConfig GameModeConfig => gameModeConfig;
     public LevelTargetType TargetType => targetType;
     public float TargetValue => Mathf.Max(1f, targetValue);

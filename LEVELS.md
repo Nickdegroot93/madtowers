@@ -10,18 +10,18 @@ needed** unless a row says "needs code". Physics tuning dials have their own con
 ## 1. The data model (what references what)
 
 ```
-ThemeDefinition  (Assets/Resources/Themes/  — an Archero-style chapter)
- ├─ sortOrder (themes play lowest-first; leave gaps: 10, 20, 30...)
+ChapterDefinition  (Assets/Resources/Chapters/  — an Archero-style chapter)
+ ├─ sortOrder (chapters play lowest-first; leave gaps: 10, 20, 30...)
  ├─ presentation shared by its levels: backdrop (BackdropPreset: layered sky/clouds/
  │   hills/particles - see ART.md §3), musicPlaylist (random opener, then rotating;
  │   stops on game over),
  │   skinFolder (generated art; missing files fall back to Classic)
- ├─ featuredUnlocks: power-ups introduced by this theme (messaging; availability is
+ ├─ featuredUnlocks: power-ups introduced by this chapter (messaging; availability is
  │   authored per level pool)
- └─ levels: ordered list of LevelDefinitions — any count per theme
+ └─ levels: ordered list of LevelDefinitions — any count per chapter
 
 LevelDefinition  (Assets/Resources/Levels/  — one per level)
- ├─ identity: display name (presentation lives on the theme)
+ ├─ identity: display name + menu thumbnail (presentation lives on the chapter)
  ├─ instruction: one-sentence goal banner shown (fade in/out) at level start
  ├─ GOAL: targetType (Endless | PlaceBlocks | ReachHeight) + targetValue.
  │   Reaching it arms a 5 s "Hold steady!" countdown (LevelRuntimeController): nothing
@@ -30,7 +30,7 @@ LevelDefinition  (Assets/Resources/Levels/  — one per level)
  │   re-checked against the LIVE standing tower during the countdown (the recorded max
  │   is monotonic); a collapse below the target aborts the countdown and play resumes.
  │   Surviving to zero pauses and shows Level Complete with "Next: <level>" (next in
- │   theme), Keep Building, and Replay. Losing the last life mid-countdown is a normal
+ │   chapter), Keep Building, and Replay. Losing the last life mid-countdown is a normal
  │   game over; losing a non-final life is survivable ("lucky") by design.
  ├─ modifiers: LevelModifier assets — custom behaviour beyond settings (see below)
  ├─ abilities: bannedAbilities (per-level lockouts) + abilityRarityProfile (override
@@ -112,45 +112,43 @@ touch engine code.
   the rises follow ~3 blocks per meter, so late waves force building wider than the floor
   without becoming unfair. Retune if the floor width changes. A countdown rides the right
   end of the line showing blocks left until it rises.
-- Laser **art** follows the active theme automatically: drop a `laser.png` into
-  `Resources/Skins/<Theme>/` (see ART.md) and every laser level in that theme uses it;
+- Laser **art** follows the active chapter automatically: drop a `laser.png` into
+  `Resources/Skins/<Chapter>/` (see ART.md) and every laser level in that chapter uses it;
   no file = the code-built bar. Zapped blocks burst via the reusable `BlockShatterFx`
   (shards tinted to the laser color) plus a subtle camera impact.
 
 ### Campaign structure & progression
 
-The game is a campaign of themes (chapters): themes unlock in `sortOrder` once the
-previous theme's levels are ALL completed; levels within a theme unlock sequentially.
+The game is a campaign of chapters: chapters unlock in `sortOrder` once the
+previous chapter's levels are ALL completed; levels within a chapter unlock sequentially.
 Rules live in `Campaign.cs` (read-side only); completions and personal bests persist via
 `ProgressStore` (see **DATA.md** for the persistence architecture and cloud-sync plan).
-A theme with `alwaysUnlocked: true` is a sandbox — always playable, never gates the
+A chapter with `alwaysUnlocked: true` is a sandbox — always playable, never gates the
 campaign (that's Testing Grounds, parked at sortOrder 1000). The menu shows campaign
-themes as a carousel (one theme per screen, arrows cycle); sandbox + unthemed levels
+chapters as a carousel (one chapter per screen, arrows cycle); sandbox + unthemed levels
 live behind the "Test Levels" button.
 `Campaign.UnlockAllForTesting` is compile-gated: **true** in the editor and development
 builds (everything playable while building content), automatically **false** in release
 builds — nothing to remember to flip.
-Each theme's `skinFolder` drives all generated art (blocks/ground/laser) via
-`ThemeSkins`; empty = Classic skin.
+Each chapter's `skinFolder` drives all generated art (blocks/ground/laser) via
+`ChapterSkins`; empty = Classic skin.
 
 ### Current level inventory
 
-**Theme: Training Wheels (sortOrder 10)**
+**Chapter: Training Wheels (sortOrder 10)**
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
 | Foundations | GameMode_Classic | Place 100 | Plain stacking endurance. |
-| Under Pressure | GameMode_LaserLimit | Place 52 | Height-limit waves (4 waves, standard asset). |
-| The Spire | GameMode_Spire | Reach 10m | 4-column floor climb. |
 
-**Theme: Desert (sortOrder 20)** — sunset gradient with sky shimmer, faint sun revealed
+**Chapter: Dune Realm (sortOrder 20)** — sunset gradient with sky shimmer, faint sun revealed
 while climbing, streak clouds, rolling dunes at ground level
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| Dunes | GameMode_Classic | Place 100 | Stacking endurance, desert dressing. |
-| Mirage | GameMode_LaserLimit | Place 52 | Height-limit waves. |
-| The Obelisk | GameMode_Spire | Reach 10m | 4-column floor; uses the narrow ziggurat variant. |
+| The Mirage | GameMode_Classic | Place 100 | Stacking endurance, desert dressing. |
+| Sandswept Path | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
+| Rising Dunes | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
 
-**Theme: Testing Grounds (sortOrder 1000, alwaysUnlocked)** — sandboxes, not part of the campaign
+**Chapter: Testing Grounds (sortOrder 1000, alwaysUnlocked)** — sandboxes, not part of the campaign
 | Level | Mode asset | Goal | What's different |
 |---|---|---|---|
 | Classic | GameMode_Classic | Reach 10m | The baseline (canonical values in §2). |
@@ -163,7 +161,7 @@ while climbing, streak clouds, rolling dunes at ground level
 
 | Path | Contents |
 |---|---|
-| `Assets/Resources/Themes/` | ThemeDefinition assets. **Must stay here** (loaded by path at runtime). |
+| `Assets/Resources/Chapters/` | ChapterDefinition assets. **Must stay here** (loaded by path at runtime). |
 | `Assets/Resources/Levels/` | LevelDefinition assets. **Must stay here** (loaded by path at runtime). |
 | `Assets/Resources/GameModes/` | GameModeConfig assets used by levels. |
 | `Assets/SourceFiles/Scripts/Levels/Modifiers/` | LevelModifier behaviour classes (code). |
@@ -268,8 +266,8 @@ full-size from frame one) + the `pop_01` sound.
 | *(code)* floor-width weighting | Within a band, columns are weighted by distance past the **floor's edge** (derived per mode from `floorSegments`): over the floor **×0.12**, first column beyond the edge **×0.5**, clear of it **×1**. Islands exist to grow wider than the floor — above the floor they'd just block the landing lane. A narrow Spire floor therefore keeps full side density automatically. Constants: `StaticSupportIslandManager.OverFloorWeight` / `FloorEdgePlusOneWeight`. |
 | `staticSupportIslandShapes` | Weighted clusters, authorable inline per mode. Canonical: **Single 12, Two Wide 2, Two Tall 2, Corner 1** — mostly lone stones, occasional pairs, rare 3-cell corner. |
 
-Visuals: `Skins/<Theme>/island_1..3.png` (see ART.md) — plateau-material 1x1 cells;
-each spawn picks a random variant + random 90° rotation = 12 looks per theme.
+Visuals: `Skins/<Chapter>/island_1..3.png` (see ART.md) — plateau-material 1x1 cells;
+each spawn picks a random variant + random 90° rotation = 12 looks per chapter.
 
 ### Power-up choices
 | Setting | What it does |
@@ -302,17 +300,17 @@ in practice, keep them identical across modes.
 
 **New level:** duplicate a GameModeConfig in `Resources/GameModes/`, tweak dials → duplicate a
 LevelDefinition in `Resources/Levels/`, name it, point it at the mode, set a goal → add it to
-a theme's `levels` array at the position it should play. The menu groups by theme automatically.
+a chapter's `levels` array at the position it should play. The menu groups by chapter automatically.
 
-**New theme (complete recipe):**
-1. ThemeDefinition in `Resources/Themes/` (Create > Stacking > Levels > Theme Definition):
+**New chapter (complete recipe):**
+1. ChapterDefinition in `Resources/Chapters/` (Create > Stacking > Levels > Chapter Definition):
    `sortOrder` (leave gaps), `levels` list, `skinFolder`, `backdrop`, `musicPlaylist`.
 2. Backdrop: BackdropPreset in `Data/Backdrops/` (Create > Stacking > Levels > Backdrop
    Preset) — sky color pairs + altitude fade, cloud style/count/drift, hills on/off +
    style, ambient particles. No preset = classic dark sky. Best workflow: give Claude an
    inspiration image; palette and mood translate directly into preset values.
 3. Skin: a preset per generator (`Tools/generate_piece_sprites.py`,
-   `generate_ground_sprite.py`) writing to `Resources/Skins/<Theme>/`; set the theme's
+   `generate_ground_sprite.py`) writing to `Resources/Skins/<Chapter>/`; set the chapter's
    `skinFolder`. Missing files fall back to Classic file-by-file, so a ground-only skin
    is fine.
 4. Music: 1–2 tracks in `Assets/Audio/Music/`, dragged onto `musicPlaylist`
@@ -356,7 +354,7 @@ Already possible with today's data (no code):
 
 Needs code (rough effort, all fit the existing hooks):
 
-- ~~**Theme/level unlock persistence**~~ — done: `ProgressStore` (local JSON, cloud-sync
+- ~~**Chapter/level unlock persistence**~~ — done: `ProgressStore` (local JSON, cloud-sync
   ready — see DATA.md) + `Campaign` lock rules + menu locks/checkmarks/personal bests.
 - **Wind gusts** (small) — a LevelModifier like Earthquake but with telegraphed directional pushes. Watch PHYSICS.md I1: forces only, never positions.
 - ~~**Bomb brick**~~ — done: Bomb variant (1s fuse, chain-deletes touching blocks). Use via ambient chance or a cursed power-up.

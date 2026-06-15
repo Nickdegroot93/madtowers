@@ -10,11 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 441b8ad77b4948f0af95820f8275ed2a, type: 3}
-  m_Name: Level_D1_Dunes
+  m_Name: Level_DR1_TheMirage
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
-  displayName: Dunes
+  displayName: The Mirage
+  menuThumbnail: {fileID: 0}
+  menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: e7daa3104128405ba51018e33535bbb8, type: 2}
   targetType: 1
   targetValue: 100
-  instruction: Stack 100 blocks under the desert sun.
+  instruction: Stack 100 blocks in the shifting dunes.
   modifiers: []

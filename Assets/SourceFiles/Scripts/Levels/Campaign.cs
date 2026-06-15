@@ -3,15 +3,15 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Campaign progression rules, computed from ProgressStore + the theme assets:
-/// - themes play in sortOrder; a theme unlocks when the previous theme is fully completed
-///   (or it's the first, or it's flagged AlwaysUnlocked - testing/sandbox themes)
-/// - levels within a theme are sequential: each unlocks when the previous one is completed
+/// Campaign progression rules, computed from ProgressStore + the chapter assets:
+/// - chapters play in sortOrder; a chapter unlocks when the previous chapter is fully completed
+///   (or it's the first, or it's flagged AlwaysUnlocked - testing/sandbox chapters)
+/// - levels within a chapter are sequential: each unlocks when the previous one is completed
 /// Pure read-side logic: nothing here writes progress.
 /// </summary>
 public static class Campaign
 {
-    // DEV ONLY: short-circuits every lock so all themes/levels are playable while building
+    // DEV ONLY: short-circuits every lock so all chapters/levels are playable while building
     // content. Progress and personal bests still record normally (the save stays honest).
     // Compile-gated so a release build can never ship with it true; development builds and
     // the editor keep it on.
@@ -21,54 +21,54 @@ public static class Campaign
     public static readonly bool UnlockAllForTesting = false;
 #endif
 
-    // Theme assets never change at runtime; load once instead of re-hitting Resources on
+    // Chapter assets never change at runtime; load once instead of re-hitting Resources on
     // every lookup (scene loads, backdrop resolves, completion panels all call in here).
-    private static ThemeDefinition[] _cachedThemes;
+    private static ChapterDefinition[] _cachedChapters;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetCache()
     {
-        _cachedThemes = null;
+        _cachedChapters = null;
     }
 
-    private static ThemeDefinition[] LoadThemes()
+    private static ChapterDefinition[] LoadChapters()
     {
-        if (_cachedThemes == null)
+        if (_cachedChapters == null)
         {
-            _cachedThemes = Resources.LoadAll<ThemeDefinition>("Themes");
-            Array.Sort(_cachedThemes, (a, b) => a.SortOrder.CompareTo(b.SortOrder));
+            _cachedChapters = Resources.LoadAll<ChapterDefinition>("Chapters");
+            Array.Sort(_cachedChapters, (a, b) => a.SortOrder.CompareTo(b.SortOrder));
         }
-        return _cachedThemes;
+        return _cachedChapters;
     }
 
-    /// <summary>All themes, sorted by play order.</summary>
-    public static ThemeDefinition[] LoadThemesInOrder()
+    /// <summary>All chapters, sorted by play order.</summary>
+    public static ChapterDefinition[] LoadChaptersInOrder()
     {
-        return LoadThemes();
+        return LoadChapters();
     }
 
-    /// <summary>The theme whose level list contains the given level, or null.</summary>
-    public static ThemeDefinition FindThemeOf(LevelDefinition level)
+    /// <summary>The chapter whose level list contains the given level, or null.</summary>
+    public static ChapterDefinition FindChapterOf(LevelDefinition level)
     {
         if (level == null) return null;
 
-        ThemeDefinition[] themes = LoadThemes();
-        for (int t = 0; t < themes.Length; t++)
+        ChapterDefinition[] chapters = LoadChapters();
+        for (int c = 0; c < chapters.Length; c++)
         {
-            IReadOnlyList<LevelDefinition> levels = themes[t].Levels;
+            IReadOnlyList<LevelDefinition> levels = chapters[c].Levels;
             if (levels == null) continue;
 
             for (int i = 0; i < levels.Count; i++)
             {
-                if (levels[i] == level) return themes[t];
+                if (levels[i] == level) return chapters[c];
             }
         }
         return null;
     }
 
-    public static bool IsThemeCompleted(ThemeDefinition theme)
+    public static bool IsChapterCompleted(ChapterDefinition chapter)
     {
-        IReadOnlyList<LevelDefinition> levels = theme != null ? theme.Levels : null;
+        IReadOnlyList<LevelDefinition> levels = chapter != null ? chapter.Levels : null;
         if (levels == null || levels.Count == 0) return false;
 
         for (int i = 0; i < levels.Count; i++)
@@ -78,32 +78,32 @@ public static class Campaign
         return true;
     }
 
-    /// <summary>themesInOrder must come from LoadThemesInOrder (or be sorted the same way).</summary>
-    public static bool IsThemeUnlocked(ThemeDefinition[] themesInOrder, int themeIndex)
+    /// <summary>chaptersInOrder must come from LoadChaptersInOrder (or be sorted the same way).</summary>
+    public static bool IsChapterUnlocked(ChapterDefinition[] chaptersInOrder, int chapterIndex)
     {
         if (UnlockAllForTesting) return true;
 
-        ThemeDefinition theme = themesInOrder[themeIndex];
-        if (theme.AlwaysUnlocked) return true;
+        ChapterDefinition chapter = chaptersInOrder[chapterIndex];
+        if (chapter.AlwaysUnlocked) return true;
 
-        // Unlocked when every preceding campaign theme is completed (AlwaysUnlocked themes
+        // Unlocked when every preceding campaign chapter is completed (AlwaysUnlocked chapters
         // are sandboxes and don't gate the campaign).
-        for (int i = 0; i < themeIndex; i++)
+        for (int i = 0; i < chapterIndex; i++)
         {
-            if (themesInOrder[i].AlwaysUnlocked) continue;
-            if (!IsThemeCompleted(themesInOrder[i])) return false;
+            if (chaptersInOrder[i].AlwaysUnlocked) continue;
+            if (!IsChapterCompleted(chaptersInOrder[i])) return false;
         }
         return true;
     }
 
-    /// <summary>Sequential within the theme: first level always, others need the previous one.</summary>
-    public static bool IsLevelUnlocked(ThemeDefinition theme, int levelIndex)
+    /// <summary>Sequential within the chapter: first level always, others need the previous one.</summary>
+    public static bool IsLevelUnlocked(ChapterDefinition chapter, int levelIndex)
     {
         if (UnlockAllForTesting) return true;
-        if (theme.AlwaysUnlocked) return true;
+        if (chapter.AlwaysUnlocked) return true;
         if (levelIndex <= 0) return true;
 
-        LevelDefinition previous = theme.Levels[levelIndex - 1];
+        LevelDefinition previous = chapter.Levels[levelIndex - 1];
         return previous == null || ProgressStore.IsLevelCompleted(previous);
     }
 }

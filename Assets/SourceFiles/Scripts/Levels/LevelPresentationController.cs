@@ -1,8 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Layered, theme-driven backdrop - no background images. Driven entirely by the active
-/// theme's BackdropPreset (or the built-in classic defaults):
+/// Layered, chapter-driven gameplay backdrop - no background images. Driven entirely by the
+/// active chapter's BackdropPreset (or the built-in classic defaults):
 ///   - sky: a generated vertical gradient glued to the camera, crossfading to a second
 ///     "high altitude" gradient as the tower climbs
 ///   - clouds: procedural sprites drifting horizontally, recycled around the camera so
@@ -84,8 +84,8 @@ public partial class LevelPresentationController : MonoBehaviour
 
         _presetLevel = activeLevel;
         _presetResolved = true;
-        ThemeDefinition theme = Campaign.FindThemeOf(activeLevel);
-        BackdropPreset preset = theme != null ? theme.Backdrop : null;
+        ChapterDefinition chapter = Campaign.FindChapterOf(activeLevel);
+        BackdropPreset preset = chapter != null ? chapter.Backdrop : null;
         SetPreset(preset != null ? preset : BackdropPreset.Defaults);
     }
 

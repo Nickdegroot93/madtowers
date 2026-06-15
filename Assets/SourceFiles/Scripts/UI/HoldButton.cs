@@ -31,7 +31,7 @@ public class HoldButton : MonoBehaviour
     private const float PunchSeconds = 0.45f;
 
     // Neutral white overlay (matches the top bar's TitleColor) so the button reads cleanly on
-    // any level theme rather than tinting it blue.
+    // any level chapter rather than tinting it blue.
     private static readonly Color BubbleColor = new Color(0.92f, 0.97f, 1f, 0.9f);
 
     private HoldCache _cache;
@@ -259,19 +259,19 @@ public class HoldButton : MonoBehaviour
     private const float GhostBrightness = 0.6f; // <1 pushes faces toward white; the dips (cell seams) stay as lines
 
     // White rendering of the shape that KEEPS the cell seams: luminance normalised by the
-    // piece's brightest pixel (hue-independent across themes), then gamma-lifted so the cell
+    // piece's brightest pixel (hue-independent across chapters), then gamma-lifted so the cell
     // faces read white while the embossed seam/outline dips survive as soft lines. The block's
     // colour is dropped entirely - "displayed in white, not the block's colour". Cached per shape+skin.
     private Sprite WhiteGhost(BlockDefinition def)
     {
         if (def == null) return null;
-        string shape = ThemeSkins.ExtractShapeToken(def.DisplayName);
+        string shape = ChapterSkins.ExtractShapeToken(def.DisplayName);
         if (string.IsNullOrEmpty(shape)) return null;
 
-        string key = $"{ThemeSkins.Folder}:{shape}";
+        string key = $"{ChapterSkins.Folder}:{shape}";
         if (_whiteGhosts.TryGetValue(key, out Sprite cached) && cached != null) return cached;
 
-        Sprite source = ThemeSkins.LoadPiece(shape);
+        Sprite source = ChapterSkins.LoadPiece(shape);
         Sprite ghost = source;
         if (source != null && source.texture.isReadable)
         {

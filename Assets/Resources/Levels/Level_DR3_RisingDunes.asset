@@ -10,11 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 441b8ad77b4948f0af95820f8275ed2a, type: 3}
-  m_Name: Level_D3_TheObelisk
+  m_Name: Level_DR3_RisingDunes
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
-  displayName: The Obelisk
+  displayName: Rising Dunes
+  menuThumbnail: {fileID: 0}
+  menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: c22636cd5cec49bbaa438ba699481dfc, type: 2}
   targetType: 2
-  targetValue: 10
-  instruction: A narrow obelisk. Reach 10 meters!
+  targetValue: 50
+  instruction: Reach 50 meters from a three-column starting floor.
   modifiers: []

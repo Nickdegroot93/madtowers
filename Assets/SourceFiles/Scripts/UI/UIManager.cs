@@ -199,7 +199,7 @@ public class UIManager : MonoBehaviour
 
     private void SetSlotSprite(Image slot, string blockName)
     {
-        string shape = ThemeSkins.ExtractShapeToken(blockName);
+        string shape = ChapterSkins.ExtractShapeToken(blockName);
         Sprite ghost = string.IsNullOrEmpty(shape) ? null : GetGhostSprite(shape);
         slot.sprite = ghost;
         slot.enabled = ghost != null;
@@ -222,10 +222,10 @@ public class UIManager : MonoBehaviour
     // brick already in play. Cached per shape and skin folder.
     private Sprite GetGhostSprite(string shape)
     {
-        string cacheKey = $"{ThemeSkins.Folder}:{shape}";
+        string cacheKey = $"{ChapterSkins.Folder}:{shape}";
         if (_ghostSprites.TryGetValue(cacheKey, out Sprite cached)) return cached;
 
-        Sprite source = ThemeSkins.LoadPiece(shape);
+        Sprite source = ChapterSkins.LoadPiece(shape);
         Sprite ghost = source;
         if (source != null && source.texture.isReadable)
         {

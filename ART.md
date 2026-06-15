@@ -2,8 +2,8 @@
 
 This is the spec for all images Nick supplies. Everything else (randomization,
 tinting, parallax, particles, animations) is done in code. Drop finished files
-into `Assets/Art/<Theme>/` using the names below — Claude wires them up.
-**Exception:** block skins live in `Assets/Resources/BlockSkins/<Theme>/` —
+into `Assets/Art/<Chapter>/` using the names below — Claude wires them up.
+**Exception:** block skins live in `Assets/Resources/BlockSkins/<Chapter>/` —
 import settings are applied automatically to anything dropped there.
 
 General rules for every image:
@@ -25,9 +25,9 @@ variety comes from rotation and the 7 shapes/colors.
 
 **These are generated, not painted.** `Tools/generate_piece_sprites.py` renders
 all 7 (silhouette, outline, gradient, bevel, seam cracks) per entry in its
-`THEME_PRESETS` table into `Assets/Resources/Skins/<Theme>/`. A theme without
+`THEME_PRESETS` table into `Assets/Resources/Skins/<Chapter>/`. A chapter without
 an entry falls back to the Classic pieces automatically. **New block look for
-a theme = one preset dict** (7 hue-identity-preserving colors + an outline
+a chapter = one preset dict** (7 hue-identity-preserving colors + an outline
 factor) and a rerun — nothing else.
 
 Hand-made art can still override any shape: export a transparent PNG at
@@ -60,8 +60,8 @@ Keep ~24px of empty margin around the symbol. White or light icons work best
 
 ## 3. Background (layered, no images)
 
-Backgrounds are **not images** — each theme has a `BackdropPreset` asset
-(`Assets/Data/Backdrops/`, assigned to the theme's `backdrop` field) that
+Backgrounds are **not images** — each chapter has a `BackdropPreset` asset
+(`Assets/Data/Backdrops/`, assigned to the chapter's `backdrop` field) that
 composes generated layers at runtime:
 
 - **Sky**: vertical gradient glued to the camera, crossfading to a second
@@ -80,35 +80,35 @@ composes generated layers at runtime:
 - **Ground props**: procedural cacti (etc.) flanking the floor, sinking away as
   the tower climbs.
 
-A theme without a preset gets the classic dark sky. To design a new theme's
+A chapter without a preset gets the classic dark sky. To design a new chapter's
 backdrop, give Claude an **inspiration image** (screenshot, painting, photo) —
 palette and mood translate directly into preset values. Hand-made art can
-still join later as additional layers if a hero theme needs it.
+still join later as additional layers if a hero chapter needs it.
 
 ## 4. Ground / floor
 
 **Generated, not painted** — `Tools/generate_ground_sprite.py` renders each
-theme's `plateau.png` into `Assets/Resources/Skins/<Theme>/`: one tile
+chapter's `plateau.png` into `Assets/Resources/Skins/<Chapter>/`: one tile
 (256×96 px = 2×0.75 u) of the landable strip, **tiled** by the game to any
 floor width (never stretched, outlined end caps mark its exact boundary).
-Each theme picks a material via the renderer's parameters: beveled stone
+Each chapter picks a material via the renderer's parameters: beveled stone
 blocks (Classic), grass-capped earth (Training Wheels), sandstone slabs
 (Desert) — block count, bevel, tone steps, and an optional cap band (grass,
-snow, moss…) per theme.
+snow, moss…) per chapter.
 
 The plateau is the **only** ground visual, and it matches the landable
 collider width exactly — what you see is what you can land on. There are
 deliberately **no buildings under the floor**: anything decorative near the
 platform risks reading as a landing surface, and it's invisible once the
-tower climbs anyway. Theme scenery (hills, dunes, mountains, props) lives in
+tower climbs anyway. Chapter scenery (hills, dunes, mountains, props) lives in
 the backdrop system (§3) instead.
 
 **Floating support islands** — the same script renders `island_1..3.png`
-(128×128 px = one 1×1 cell, 128 px/unit) per theme: the sky stones pieces can
+(128×128 px = one 1×1 cell, 128 px/unit) per chapter: the sky stones pieces can
 land on (LEVELS.md has the spawn rules). Same material language as the plateau
 (base color, edge-line border ring, grain) but deliberately **symmetric — no
 "top"**: the spawner rotates each cell in random 90° steps, so 3 variants give
-12 looks per theme. Variants stay subtle: 1 plain, 2 hairline crack, 3 pebble
+12 looks per chapter. Variants stay subtle: 1 plain, 2 hairline crack, 3 pebble
 flecks. The spawner picks variant + rotation randomly per cell
 (`StaticSupportIslandManager.ConfigureIslandCellVisual`). Hand-made
 override: transparent PNG at 128 px/unit whose flat top spans exactly the
@@ -119,7 +119,7 @@ style rules: see STYLE.md.
 
 | File | Size | Transparent? | Notes |
 |---|---|---|---|
-| `panel.png` | 256×256, ~48px corner radius | Yes | One rounded panel, **9-sliced** in code (corners stay crisp, middle stretches) — used for HUD cards, popups, level-select. Light/neutral so code can tint per theme. |
+| `panel.png` | 256×256, ~48px corner radius | Yes | One rounded panel, **9-sliced** in code (corners stay crisp, middle stretches) — used for HUD cards, popups, level-select. Light/neutral so code can tint per chapter. |
 | `button.png` | 256×128, ~32px corners | Yes | Same idea, for buttons. A pressed variant (`button_pressed.png`) is optional — code can darken instead. |
 | `icon_heart.png` | 128×128 | Yes | Lives. |
 | `icon_height.png` | 128×128 | Yes | Height arrow/flag. |
@@ -137,9 +137,9 @@ style rules: see STYLE.md.
 
 White/grayscale; code tints them.
 
-## 7. Per-theme reskins
+## 7. Per-chapter reskins
 
-A theme = one folder with the same file names:
+A chapter = one folder with the same file names:
 
 ```
 Assets/Resources/Skins/Classic/   piece_I..Z, plateau, island_1..3, (optional) laser
@@ -147,25 +147,25 @@ Assets/Art/Classic/               bg_sky, bg_far, clouds, ...
 (<Theme2>: same file names in sibling folders, different art)
 ```
 
-Optional per-theme `laser.png`: the height-limit line for puzzle levels. Horizontal
+Optional per-chapter `laser.png`: the height-limit line for puzzle levels. Horizontal
 strip, ~1024×32–64 px (128 px/unit — height is kept as authored, length is stretched),
 transparent PNG, glow baked in light tones (the level tints and pulses it). Without it,
 a clean code-built bar is used.
 
-Code loads the matching skin when a theme starts. Emblems, HUD, particles can
-be shared across themes or overridden per theme — only supply what should
-differ. Start with **Classic only**; once it looks good, each new theme is
+Code loads the matching skin when a chapter starts. Emblems, HUD, particles can
+be shared across chapters or overridden per chapter — only supply what should
+differ. Start with **Classic only**; once it looks good, each new chapter is
 just "fill the folder again."
 
 ---
 
 ## 8. Music
 
-Per theme: 1–N tracks (**OGG preferred**, MP3 fine; convert WAV→OGG from
+Per chapter: 1–N tracks (**OGG preferred**, MP3 fine; convert WAV→OGG from
 lossless, never lossy→lossy; matched loudness between tracks), dropped in
-`Assets/Audio/Music/` and assigned to the theme's `musicPlaylist`. Playback:
+`Assets/Audio/Music/` and assigned to the chapter's `musicPlaylist`. Playback:
 a **random track opens**, then the rotation is fixed (A → B → A …) while the
-level is alive; music survives level restarts within a theme, **stops on game
+level is alive; music survives level restarts within a chapter, **stops on game
 over** (a shared game-over jingle is planned), and a retry starts fresh.
 Music imports as *streaming* automatically (memory-friendly on phones).
 License: CC0, CC-BY (credits screen later), or owned.
@@ -190,7 +190,7 @@ slide scrape, slam-home clack; `synth_gun_cock`, the multi-stage mechanical
 recipe to copy for future weapon-like abilities).
 Hand-made/downloaded WAVs (prefer **CC0**, e.g. Kenney packs)
 drop into the same folder and play through the same system. Background music
-is a separate future system (per-theme tracks, ducking).
+is a separate future system (per-chapter tracks, ducking).
 
 ## 10. Fonts
 
@@ -249,28 +249,28 @@ same generator/folder as `block_<name>.png`, 256×256 at PPU 256 (one cell),
 reusing the same `shade()` lighting so they sit naturally next to the
 tetromino pieces.
 
-## Under the hood: how theming works at runtime (exact pipeline)
+## Under the hood: how chapter skins work at runtime (exact pipeline)
 
 What happens when a level loads, in order:
 
-1. **Theme resolution** — `GameManager.Awake` calls `Campaign.FindThemeOf(selectedLevel)`
-   once, then `ThemeSkins.Apply(theme)` (sets the static `ThemeSkins.Folder`, e.g.
-   `Skins/Desert`) and `MusicPlayer.PlayForTheme(theme)` (playlist looped in order;
-   keeps playing across level restarts within the same theme).
-2. **Floor** — `PlayAreaController.ApplyGroundSkin`: `ThemeSkins.LoadPlateau()` resolves
+1. **Chapter resolution** — `GameManager.Awake` calls `Campaign.FindChapterOf(selectedLevel)`
+   once, then `ChapterSkins.Apply(chapter)` (sets the static `ChapterSkins.Folder`, e.g.
+   `Skins/Desert`) and `MusicPlayer.PlayForChapter(chapter)` (playlist looped in order;
+   keeps playing across level restarts within the same chapter).
+2. **Floor** — `PlayAreaController.ApplyGroundSkin`: `ChapterSkins.LoadPlateau()` resolves
    `<Folder>/plateau` and falls back to `Skins/Classic` per file. The strip is rendered
    with `SpriteRenderer.drawMode = Tiled` at exactly the collider width (end caps kept
    by the 12px sprite border); the original floor bar renderer is disabled. The collider
    is never touched.
 3. **Blocks** — each spawned piece (`BlockController.ApplyBlockSkin`) loads
-   `ThemeSkins.LoadPiece(shape)` with the same fallback chain; the HUD's "next" ghost
+   `ChapterSkins.LoadPiece(shape)` with the same fallback chain; the HUD's "next" ghost
    (`UIManager`) builds a desaturated copy of the same sprite (cached per folder+shape).
-   **Support islands** load `ThemeSkins.LoadIsland(1..3)` once at level start
+   **Support islands** load `ChapterSkins.LoadIsland(1..3)` once at level start
    (`StaticSupportIslandManager.Start`); each spawned cell gets a random variant and a
    random 90° rotation on a visual child (the cell collider never rotates or scales).
 4. **Backdrop** — `LevelPresentationController` (on the scene's Background object,
    `[ExecuteAlways]`; world elements split into `LevelPresentationController.Elements`):
-   - Resolves `theme.Backdrop` (a `BackdropPreset`), or `BackdropPreset.Defaults`
+   - Resolves `chapter.Backdrop` (a `BackdropPreset`), or `BackdropPreset.Defaults`
      (classic dark sky) when none. Cached per level; re-resolved only on change.
    - **Sky**: two gradient sprites built by `RuntimeSprites.VerticalGradient`
      (curve 0.8, top color fully reached at 60% height), regenerated only on preset
@@ -292,9 +292,9 @@ What happens when a level loads, in order:
    - **Parallax baseline**: all climb-based offsets measure from the camera's Y at
      backdrop spawn (`_climbBaseY`), NOT from the floor — the camera starts ~11.5
      units above the floor, which once lifted everything.
-5. **Laser** (height-limit levels) — `ThemeSkins.LoadLaser()` or the code-built bar.
+5. **Laser** (height-limit levels) — `ChapterSkins.LoadLaser()` or the code-built bar.
 6. **Post-FX** — `PostFxController` (self-installed, survives scene loads) applies one
-   global URP volume to every theme: vignette, bloom, color grading (values in
+   global URP volume to every chapter: vignette, bloom, color grading (values in
    STYLE.md). Re-attaches `renderPostProcessing` to the camera on each scene load.
 
 **Sorting orders** (back → front): sky −100 · sky-high overlay −99 · sun −95 ·
@@ -313,14 +313,14 @@ HideAndDontSave. Generators in `Tools/` own all themed PNGs (pieces, plateau, sf
 - Generating the block and ground sprites (`Tools/generate_piece_sprites.py`,
   `Tools/generate_ground_sprite.py`)
 - The entire layered backdrop (sky gradient + altitude crossfade, clouds, hill/mesa
-  silhouettes, ambient particles) — per-theme `BackdropPreset` data, zero image assets
+  silhouettes, ambient particles) — per-chapter `BackdropPreset` data, zero image assets
 - Wiring each shape's sprite onto the physics piece (colliders never change)
-- Per-theme block skins; runtime tints/sprite-swaps for power-ups (e.g. cement)
+- Per-chapter block skins; runtime tints/sprite-swaps for power-ups (e.g. cement)
 - Vertical parallax (sky stretch/fade, silhouette layers, procedural clouds)
 - Juice: landing squash & dust, camera shake on heavy impacts, lock flash,
   score popups, bomb explosion, milestone effects
 - HUD restyle with 9-sliced panels, icons, custom font; menu/overlay polish
-- Transitions: level intro/outro fades, theme crossfade
+- Transitions: level intro/outro fades, chapter crossfade
 - Unity import settings (PPU, filtering, compression) for everything supplied
 
 ## Build order
@@ -330,4 +330,4 @@ HideAndDontSave. Generators in `Tools/` own all themed PNGs (pieces, plateau, sf
 3. **Juice pass** (code-only)
 4. **HUD/menu restyle** + panel/icons/font
 5. **Special block emblems** + unique effects
-6. **Theme #2** — refill the folder
+6. **Chapter #2** — refill the folder

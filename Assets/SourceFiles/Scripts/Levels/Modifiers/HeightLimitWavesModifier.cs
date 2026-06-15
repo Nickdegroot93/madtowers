@@ -15,7 +15,7 @@ using UnityEngine;
 /// it spawns above it).
 /// </summary>
 [CreateAssetMenu(fileName = "HeightLimitWaves", menuName = "Stacking/Levels/Modifiers/Height Limit Waves")]
-public class HeightLimitWavesModifier : LevelModifier
+public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvider
 {
     [System.Serializable]
     public sealed class Wave
@@ -39,9 +39,9 @@ public class HeightLimitWavesModifier : LevelModifier
     [Tooltip("Seconds the line takes to glide to the next wave's height.")]
     [SerializeField] private float lineRiseSeconds = 1.2f;
 
-    [Header("Laser Style (per level; themes can override the art)")]
+    [Header("Laser Style (per level; chapters can override the art)")]
     [SerializeField] private Color lineColor = new Color(1f, 0.27f, 0.2f, 1f);
-    [Tooltip("World thickness of the default code-built line (ignored when a theme supplies laser.png).")]
+    [Tooltip("World thickness of the default code-built line (ignored when a chapter supplies laser.png).")]
     [SerializeField] private float lineThickness = 0.12f;
     [Range(0f, 1f)]
     [SerializeField] private float lineBaseAlpha = 0.55f;
@@ -70,9 +70,37 @@ public class HeightLimitWavesModifier : LevelModifier
         get
         {
             int total = 0;
+            if (waves == null) return total;
             for (int i = 0; i < waves.Length; i++) total += waves[i].blockCount;
             return total;
         }
+    }
+
+    public int WaveCount => waves != null ? waves.Length : 0;
+
+    public string MenuChallengeLabel => "PUZZLE WAVES";
+
+    public string MenuProgressLabel(LevelDefinition level, ProgressStore.LevelBest best, bool completed)
+    {
+        int bestScore = best != null ? best.bestScore : 0;
+        int waveCount = Mathf.Max(1, WaveCount);
+        int reached = completed ? waveCount : CompletedWavesForBlockCount(bestScore);
+        return $"{reached} / {waveCount} Waves";
+    }
+
+    public int CompletedWavesForBlockCount(int placedBlocks)
+    {
+        if (waves == null || waves.Length == 0) return 0;
+
+        int completed = 0;
+        int cumulative = 0;
+        for (int i = 0; i < waves.Length; i++)
+        {
+            cumulative += waves[i].blockCount;
+            if (placedBlocks < cumulative) break;
+            completed++;
+        }
+        return Mathf.Clamp(completed, 0, waves.Length);
     }
 
     public override void OnLevelStart(LevelModifierContext context)
@@ -227,16 +255,16 @@ public class HeightLimitWavesModifier : LevelModifier
         _counter.color = c;
     }
 
-    // The line art follows the active theme's skin folder when it provides laser.png
+    // The line art follows the active chapter's skin folder when it provides laser.png
     // (same convention as piece_*.png and ground.png); otherwise a code-built soft bar.
-    // A themed sprite keeps its authored height - only its length is stretched.
+    // A chapter sprite keeps its authored height - only its length is stretched.
     private void CreateLineVisual()
     {
-        Sprite themed = ThemeSkins.LoadLaser();
+        Sprite chapterSprite = ChapterSkins.LoadLaser();
 
         GameObject go = new GameObject("HeightLimitLine");
         _line = go.AddComponent<SpriteRenderer>();
-        _line.sprite = themed != null ? themed : RuntimeSprites.SoftHorizontalBar(lineThickness);
+        _line.sprite = chapterSprite != null ? chapterSprite : RuntimeSprites.SoftHorizontalBar(lineThickness);
         _line.sortingOrder = 50; // in front of blocks (0), behind UI
         _line.transform.position = new Vector3(0f, _lineY, 0f);
         _line.transform.localScale = new Vector3(LineLength / _line.sprite.bounds.size.x, 1f, 1f);

@@ -144,7 +144,7 @@ public class PauseMenuController : MonoBehaviour
 
     private void ReturnToMenu()
     {
-        LevelSelectRuntimeMenu.ReturnToMenu();
+        MainMenuRuntime.ReturnToMenu();
     }
 
     private void DestroyMenu()

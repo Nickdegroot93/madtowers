@@ -30,13 +30,13 @@ Prefer **CC0 / royalty-free** (freesound.org CC0, Kenney, Sonniss GDC packs).
 - **Countdown ticks** (5-4-3-2-1 hold-steady) — none wired.
 - **Laser line clear** (puzzle modes) — none wired.
 
-## Music (real tracks, per theme — `ThemeDefinition.musicPlaylist`)
-| Theme | Tracks |
+## Music (real tracks, per chapter — `ChapterDefinition.musicPlaylist`)
+| Chapter | Tracks |
 |---|---|
 | Training Wheels | [training_wheels_a.ogg](Assets/Audio/Music/training_wheels_a.ogg), [training_wheels_b.ogg](Assets/Audio/Music/training_wheels_b.ogg) |
 | Desert | [desert_a.ogg](Assets/Audio/Music/desert_a.ogg), [desert_b.ogg](Assets/Audio/Music/desert_b.ogg) |
 
-Played by [MusicPlayer.cs](Assets/SourceFiles/Scripts/Core/MusicPlayer.cs) (crossfades through the theme's playlist). Source `.ogg` originals also live under `Assets/SourceFiles/SoundFX/`.
+Played by [MusicPlayer.cs](Assets/SourceFiles/Scripts/Core/MusicPlayer.cs) (crossfades through the chapter's playlist). Source `.ogg` originals also live under `Assets/SourceFiles/SoundFX/`.
 
 ## How playback works (for whoever wires replacements)
 - `SfxPlayer.Play(name, volume, pitchJitter)` — loads `Resources/Audio/Sfx/<name>`, plays a pooled one-shot with random pitch ±jitter.

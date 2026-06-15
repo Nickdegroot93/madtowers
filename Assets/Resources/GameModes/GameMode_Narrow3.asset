@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d0fe95161ec248308119ac199c73fdda, type: 3}
-  m_Name: GameMode_Spire
+  m_Name: GameMode_Narrow3
   m_EditorClassIdentifier:
   startingLives: 0
   initialFallSpeed: 2
@@ -110,7 +110,7 @@ MonoBehaviour:
       y: 1
   floorSegments:
   - centerColumn: 0
-    columnCount: 4
+    columnCount: 3
   minimumCameraY: 0
   towerPeakScreenY: 0.5
   spawnPointScreenY: 0.9

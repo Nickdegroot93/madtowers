@@ -4,7 +4,7 @@ using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// One global post-processing stack applied over EVERY theme - the cross-theme "same
+/// One global post-processing stack applied over EVERY chapter - the cross-chapter "same
 /// game" glue and the cheap answer to "make it all look a bit better":
 ///   - vignette: soft darkened corners focus the eye on the tower
 ///   - bloom: bright elements (laser, sun, glow) bleed light slightly

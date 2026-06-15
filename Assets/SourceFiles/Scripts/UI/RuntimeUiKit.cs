@@ -57,6 +57,98 @@ public static class RuntimeUiKit
         return root;
     }
 
+    public static RectTransform CreateRect(Transform parent, string name,
+        Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot, Vector2 anchoredPosition, Vector2 size)
+    {
+        GameObject go = new GameObject(name, typeof(RectTransform));
+        RectTransform rect = (RectTransform)go.transform;
+        rect.SetParent(parent, false);
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.pivot = pivot;
+        rect.anchoredPosition = anchoredPosition;
+        rect.sizeDelta = size;
+        return rect;
+    }
+
+    public static Image CreateImage(Transform parent, string name, Sprite sprite, Color color)
+    {
+        GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        RectTransform rect = (RectTransform)go.transform;
+        rect.SetParent(parent, false);
+
+        Image image = go.GetComponent<Image>();
+        image.sprite = sprite;
+        image.color = color;
+        image.raycastTarget = false;
+        return image;
+    }
+
+    public static RawImage CreateRawImage(Transform parent, string name, Texture texture, Color color)
+    {
+        GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
+        RectTransform rect = (RectTransform)go.transform;
+        rect.SetParent(parent, false);
+
+        RawImage image = go.GetComponent<RawImage>();
+        image.texture = texture;
+        image.color = color;
+        image.raycastTarget = false;
+        return image;
+    }
+
+    public static Text CreateText(Transform parent, string name, string value, int size, Color color,
+        TextAnchor alignment, FontStyle style, Font font)
+    {
+        Text text = CreateText(parent, name, value, size, color, alignment, style, font,
+            Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
+        Stretch(text.rectTransform);
+        return text;
+    }
+
+    public static Text CreateText(Transform parent, string name, string value, int size, Color color,
+        TextAnchor alignment, FontStyle style, Font font, Vector2 anchoredPosition, Vector2 rectSize, Vector2 anchor)
+    {
+        GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+        RectTransform rect = (RectTransform)go.transform;
+        rect.SetParent(parent, false);
+        rect.anchorMin = anchor;
+        rect.anchorMax = anchor;
+        rect.pivot = anchor;
+        rect.anchoredPosition = anchoredPosition;
+        rect.sizeDelta = rectSize;
+
+        Text text = go.GetComponent<Text>();
+        text.font = font != null ? font : DefaultFont;
+        text.text = value;
+        text.fontSize = size;
+        text.fontStyle = style;
+        text.alignment = alignment;
+        text.color = color;
+        text.horizontalOverflow = HorizontalWrapMode.Overflow;
+        text.verticalOverflow = VerticalWrapMode.Truncate;
+        text.raycastTarget = false;
+        return text;
+    }
+
+    public static void SetRect(RectTransform rect, Vector2 anchoredPosition, Vector2 size, Vector2 anchor)
+    {
+        rect.anchorMin = anchor;
+        rect.anchorMax = anchor;
+        rect.pivot = anchor;
+        rect.anchoredPosition = anchoredPosition;
+        rect.sizeDelta = size;
+    }
+
+    public static void Stretch(RectTransform rect)
+    {
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+        rect.pivot = new Vector2(0.5f, 0.5f);
+    }
+
     /// <summary>Stretched outline child over a panel fill (RoundedOutline matches
     /// RoundedPanel's geometry, so the pair reads as one bordered shape).</summary>
     public static Image AddOutline(Transform parent, Color color)
@@ -74,6 +166,9 @@ public static class RuntimeUiKit
         outline.type = Image.Type.Sliced;
         outline.color = color;
         outline.raycastTarget = false;
+
+        LayoutElement layout = outlineObject.AddComponent<LayoutElement>();
+        layout.ignoreLayout = true;
         return outline;
     }
 

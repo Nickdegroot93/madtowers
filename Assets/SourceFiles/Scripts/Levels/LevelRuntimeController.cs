@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Runs the selected level's meta layer: drives its LevelModifiers, tracks the win target,
-/// and shows the completion screen with next-level progression inside the level's theme.
+/// and shows the completion screen with next-level progression inside the level's chapter.
 /// Added to the GameManager's object at runtime.
 /// </summary>
 public class LevelRuntimeController : MonoBehaviour
@@ -417,10 +417,10 @@ public class LevelRuntimeController : MonoBehaviour
         BuildCompletionPanel();
     }
 
-    private LevelDefinition FindNextLevelInTheme()
+    private LevelDefinition FindNextLevelInChapter()
     {
-        ThemeDefinition theme = Campaign.FindThemeOf(_level);
-        return theme != null ? theme.GetNextLevel(_level) : null;
+        ChapterDefinition chapter = Campaign.FindChapterOf(_level);
+        return chapter != null ? chapter.GetNextLevel(_level) : null;
     }
 
     private void LoadLevel(LevelDefinition level)
@@ -454,7 +454,7 @@ public class LevelRuntimeController : MonoBehaviour
         RuntimeUiKit.CreateLabel(panel.transform, "Level Complete!", 52, 82f, FontStyle.Bold,
             new Color(0.55f, 0.95f, 0.6f, 1f));
 
-        LevelDefinition next = FindNextLevelInTheme();
+        LevelDefinition next = FindNextLevelInChapter();
         if (next != null)
         {
             RuntimeUiKit.CreateButton(panel.transform, $"Next: {next.DisplayName}", 88f, () => LoadLevel(next));

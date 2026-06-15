@@ -46,8 +46,8 @@ key; the file is the row.
 ### Read-side separation
 
 Lock/unlock state is **never stored** — it's *computed* from completions by `Campaign`
-(`Scripts/Levels/Campaign.cs`: themes unlock when the previous theme completes; levels
-are sequential; `AlwaysUnlocked` themes are sandboxes that don't gate anything).
+(`Scripts/Levels/Campaign.cs`: chapters unlock when the previous chapter completes; levels
+are sequential; `AlwaysUnlocked` chapters are sandboxes that don't gate anything).
 Derived state on disk = sync bugs; we persist facts, not conclusions.
 
 ## Adding new data (e.g. achievements) — the pattern
@@ -93,7 +93,7 @@ Not designed yet — these notes exist so nothing we do now blocks it:
 
 - **What already helps:** gameplay events flow through `GameEvents`; the active piece is
   a single handle (`BlockController.ActiveControlled`) that touch/keyboard feed into —
-  a remote player's inputs are just another feeder. Level/theme identity is stable
+  a remote player's inputs are just another feeder. Level/chapter identity is stable
   string IDs. Physics has no wall-clock or `Random` dependence in the contract paths.
 - **What it will need (new work, isolated):** a session/lobby service, an authority
   model — likely host-authoritative state sync (Box2D is not deterministic across

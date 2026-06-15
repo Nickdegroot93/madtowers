@@ -41,7 +41,7 @@ the preset asset if you need to. Widen the curated set by following the maintena
 
 ## Removed
 
-The `Theme_TestingGrounds` sandbox theme and its levels (Classic, Narrow, SkyPlatforms, Hard,
+The `Chapter_TestingGrounds` sandbox chapter and its levels (Classic, Narrow, SkyPlatforms, Hard,
 LaserLimit, Test10Blocks, TestAbilities) and the `GameMode_AbilityTest` bench were deleted. The mode
 *configs* (Classic/Narrow/Hard/LaserLimit/SkyPlatforms/Spire) are kept and reused as Custom Game
 **presets**. The real campaign (Training Wheels, Desert) is untouched.

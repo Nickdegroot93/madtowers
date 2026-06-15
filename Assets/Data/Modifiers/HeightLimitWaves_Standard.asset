@@ -15,12 +15,14 @@ MonoBehaviour:
   waves:
   - blockCount: 6
     lineHeightAboveFloor: 5
+  - blockCount: 8
+    lineHeightAboveFloor: 7
   - blockCount: 10
-    lineHeightAboveFloor: 8
-  - blockCount: 15
-    lineHeightAboveFloor: 13
-  - blockCount: 21
-    lineHeightAboveFloor: 20
+    lineHeightAboveFloor: 10
+  - blockCount: 12
+    lineHeightAboveFloor: 14
+  - blockCount: 14
+    lineHeightAboveFloor: 19
   lineRiseSeconds: 1.2
   lineColor: {r: 1, g: 0.27, b: 0.2, a: 1}
   lineThickness: 0.12

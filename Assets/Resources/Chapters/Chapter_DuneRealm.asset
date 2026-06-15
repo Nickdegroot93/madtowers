@@ -10,14 +10,23 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ccb180f7c3a343d394214cd43034c5c1, type: 3}
-  m_Name: Theme_Desert
-  m_EditorClassIdentifier: Assembly-CSharp::ThemeDefinition
-  displayName: Desert
+  m_Name: Chapter_DuneRealm
+  m_EditorClassIdentifier: Assembly-CSharp::ChapterDefinition
+  displayName: Dune Realm
+  chapterNumber: 2
   sortOrder: 20
   levels:
   - {fileID: 11400000, guid: 7c6b9c01924f4c418ad7dcc0284a157f, type: 2}
   - {fileID: 11400000, guid: 27fbf1f7b0aa4b04af64522f0dfee826, type: 2}
   - {fileID: 11400000, guid: 7eda6a283e544188857116da0fcf2960, type: 2}
+  menuBackgroundVideo: {fileID: 0}
+  menuBackgroundImage: {fileID: 0}
+  nextChapterPreviewImage: {fileID: 0}
+  menuAccentColor: {r: 1, g: 0.64, b: 0.18, a: 1}
+  menuAccentSecondaryColor: {r: 0.62, g: 0.36, b: 0.13, a: 1}
+  menuPanelColor: {r: 0.14, g: 0.1, b: 0.065, a: 0.76}
+  playButtonTopColor: {r: 1, g: 0.72, b: 0.27, a: 1}
+  playButtonBottomColor: {r: 0.88, g: 0.38, b: 0.08, a: 1}
   backdrop: {fileID: 11400000, guid: 31e96611fa81425c95f969c4555b64ef, type: 2}
   music: {fileID: 0}
   musicPlaylist:

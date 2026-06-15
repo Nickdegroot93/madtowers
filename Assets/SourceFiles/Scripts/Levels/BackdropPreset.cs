@@ -1,11 +1,11 @@
 using UnityEngine;
 
 /// <summary>
-/// A theme's layered backdrop, as data: sky colors that crossfade with tower altitude,
+/// A chapter's layered backdrop, as data: sky colors that crossfade with tower altitude,
 /// drifting procedural clouds, ground-level hill silhouettes that fall away as you climb,
 /// and optional ambient particles (snow, petals, embers - it's just color + motion).
 /// Rendered by LevelPresentationController; no background images involved.
-/// A theme without a preset gets the built-in classic dark sky (see Defaults).
+/// A chapter without a preset gets the built-in classic dark sky (see Defaults).
 /// </summary>
 [CreateAssetMenu(fileName = "BackdropPreset", menuName = "Stacking/Levels/Backdrop Preset")]
 public class BackdropPreset : ScriptableObject
@@ -99,7 +99,7 @@ public class BackdropPreset : ScriptableObject
     public float ParticleFallSpeed => particleFallSpeed;
     public float ParticleSwayAmount => particleSwayAmount;
 
-    // The classic dark sky used by any theme without an authored preset.
+    // The classic dark sky used by any chapter without an authored preset.
     private static BackdropPreset _defaults;
 
     public static BackdropPreset Defaults

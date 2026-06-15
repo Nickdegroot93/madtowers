@@ -14,7 +14,7 @@ using System.Collections.Generic;
 /// Under a height-limit level (TowerHeightLimit.CeilingY), generation is additionally
 /// capped a safe margin below the line, so a rising laser line reveals the next band the
 /// same way. Pops are visuals only - colliders are full-size from frame one. Visuals are
-/// themed (ThemeSkins.LoadIsland, random variant + 90-degree rotation); all per-level
+/// chapter-skinned (ChapterSkins.LoadIsland, random variant + 90-degree rotation); all per-level
 /// dials live on GameModeConfig (see LEVELS.md).
 /// </summary>
 public class StaticSupportIslandManager : MonoBehaviour
@@ -66,12 +66,12 @@ public class StaticSupportIslandManager : MonoBehaviour
             useLayerMask = false
         };
 
-        // The themed looks, loaded once (GameManager.Awake applied the skin already).
+        // The chapter looks, loaded once (GameManager.Awake applied the skin already).
         // Only non-null variants are kept, so a random pick can never come up empty.
-        var sprites = new List<Sprite>(ThemeSkins.IslandVariantCount);
-        for (int i = 1; i <= ThemeSkins.IslandVariantCount; i++)
+        var sprites = new List<Sprite>(ChapterSkins.IslandVariantCount);
+        for (int i = 1; i <= ChapterSkins.IslandVariantCount; i++)
         {
-            Sprite sprite = ThemeSkins.LoadIsland(i);
+            Sprite sprite = ChapterSkins.LoadIsland(i);
             if (sprite != null) sprites.Add(sprite);
         }
         _islandSprites = sprites.ToArray();
@@ -368,10 +368,10 @@ public class StaticSupportIslandManager : MonoBehaviour
         }
     }
 
-    // Themed look on a VISUAL CHILD (random variant, random 90-degree rotation - the art is
-    // rotation-safe, giving 12 looks per theme), so the pop animation can scale the sprite
+    // Chapter look on a VISUAL CHILD (random variant, random 90-degree rotation - the art is
+    // rotation-safe, giving 12 looks per chapter), so the pop animation can scale the sprite
     // while the collider stays full-size. The prefab's own gray renderer becomes the
-    // fallback for a (never-shipped) theme with no island art at all.
+    // fallback for a (never-shipped) chapter with no island art at all.
     private void ConfigureIslandCellVisual(GameObject cell, bool popIn, float popDelay, bool withSound)
     {
         if (cell == null) return;

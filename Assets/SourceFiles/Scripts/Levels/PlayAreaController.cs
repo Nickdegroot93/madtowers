@@ -30,7 +30,7 @@ public class PlayAreaController : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] private float floorFriction = 0.95f;
 
-    [Tooltip("Sorting order of the plateau skin: behind blocks (0), in front of the theme background (-100).")]
+    [Tooltip("Sorting order of the plateau skin: behind blocks (0), in front of the chapter background (-100).")]
     [SerializeField] private int groundSkinSortingOrder = -50;
 
     private PhysicsMaterial2D _floorMaterial;
@@ -132,10 +132,10 @@ public class PlayAreaController : MonoBehaviour
         ApplyGroundSkin(target, width);
     }
 
-    // Visual only: replaces the floating floor bar with the theme's plateau strip -
+    // Visual only: replaces the floating floor bar with the chapter's plateau strip -
     // plateau.png TILED to the floor width (never stretched; outlined end caps mark its
     // boundary, preserved by the sprite border). The visual matches the landable collider
-    // width EXACTLY: what you see is what you can land on. Theme scenery (hills, dunes,
+    // width EXACTLY: what you see is what you can land on. Chapter scenery (hills, dunes,
     // mountains) lives in the backdrop, never attached to the floor - nothing decorative
     // can be mistaken for a landing surface. Collider, inset and friction are untouched.
     private void ApplyGroundSkin(Transform target, float width)
@@ -143,7 +143,7 @@ public class PlayAreaController : MonoBehaviour
         SpriteRenderer floorRenderer = target.GetComponent<SpriteRenderer>();
         if (floorRenderer == null) return;
 
-        Sprite plateau = ThemeSkins.LoadPlateau();
+        Sprite plateau = ChapterSkins.LoadPlateau();
         if (plateau == null) return;
 
         Transform existing = target.Find("PlateauSkin");
