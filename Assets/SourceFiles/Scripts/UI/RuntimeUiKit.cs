@@ -310,7 +310,12 @@ public static class RuntimeUiKit
         colors.colorMultiplier = 1f;
         button.colors = colors;
         button.targetGraphic = image;
-        button.onClick.AddListener(onClick);
+        // Guard against null: callers that need the Button reference inside their handler (e.g.
+        // CreateCycleRow, whose handler reads the button's own value label) pass null here and
+        // AddListener their real handler afterward. A null listener throws on click (Unity calls
+        // delegate.Target during invoke), which aborted the listener chain before the real one ran
+        // - that was why every cycle row (Preset / Win by / Difficulty ramp) did nothing on tap.
+        if (onClick != null) button.onClick.AddListener(onClick);
 
         LayoutElement buttonLayout = buttonObject.AddComponent<LayoutElement>();
         buttonLayout.preferredHeight = height;

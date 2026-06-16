@@ -1,15 +1,17 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 
 /// <summary>
-/// Editor-only discovery of every ability and block asset in the project, for the Custom Game
-/// setup screen. It LOOPS over the whole project, so any newly-authored ability or block shows
-/// up automatically - there is no list to maintain (see CUSTOMGAME.md). Editor-only by design
-/// (AssetDatabase): the Custom Game screen is a dev/testing tool, so in a built player these
-/// return empty and the screen says so.
+/// Discovery of every ability and block asset for the Custom Game testing screen. In the EDITOR it
+/// loops over the whole project live via AssetDatabase, so any newly-authored ability or block shows
+/// up automatically - there is no list to maintain (see CUSTOMGAME.md). A player build has no
+/// AssetDatabase, so it reads a <see cref="ContentManifest"/> baked under Resources at build time
+/// (ContentManifestBuilder). The screen is a dev/testing tool, so in a player it is gated to
+/// DEVELOPMENT builds (Debug.isDebugBuild) - it never appears in a release build.
 /// </summary>
 public static class ContentCatalog
 {
@@ -18,9 +20,26 @@ public static class ContentCatalog
 #if UNITY_EDITOR
         get => true;
 #else
-        get => false;
+        get => Debug.isDebugBuild && Manifest != null;
 #endif
     }
+
+#if !UNITY_EDITOR
+    private static ContentManifest _manifest;
+    private static bool _manifestLoaded;
+    private static ContentManifest Manifest
+    {
+        get
+        {
+            if (!_manifestLoaded)
+            {
+                _manifestLoaded = true;
+                _manifest = Resources.Load<ContentManifest>("ContentManifest");
+            }
+            return _manifest;
+        }
+    }
+#endif
 
     /// <summary>Every real ability (dummies/scaffolding excluded), sorted by rarity then name.</summary>
     public static List<AbilityDefinition> AllAbilities()
@@ -39,6 +58,12 @@ public static class ContentCatalog
             int r = a.Rarity.CompareTo(b.Rarity);
             return r != 0 ? r : string.Compare(a.DisplayName, b.DisplayName, StringComparison.Ordinal);
         });
+#else
+        if (Manifest != null)
+        {
+            foreach (AbilityDefinition ability in Manifest.Abilities)
+                if (ability != null) list.Add(ability);
+        }
 #endif
         return list;
     }
@@ -53,8 +78,10 @@ public static class ContentCatalog
             var profile = AssetDatabase.LoadAssetAtPath<AbilityRarityProfile>(AssetDatabase.GUIDToAssetPath(guid));
             if (profile != null) return profile; // only one exists (TestEqual); first match is fine
         }
-#endif
         return null;
+#else
+        return Manifest != null ? Manifest.EqualRarityProfile : null;
+#endif
     }
 
     /// <summary>Every block shape definition, sorted by name.</summary>
@@ -69,6 +96,12 @@ public static class ContentCatalog
             if (block != null) list.Add(block);
         }
         list.Sort((a, b) => string.Compare(a.DisplayName, b.DisplayName, StringComparison.Ordinal));
+#else
+        if (Manifest != null)
+        {
+            foreach (BlockDefinition block in Manifest.Blocks)
+                if (block != null) list.Add(block);
+        }
 #endif
         return list;
     }
