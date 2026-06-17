@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f561ed3e1854902a4bc3e98df8f2025, type: 3}
+  m_Name: Hardline
+  m_EditorClassIdentifier:
+  displayName: Hardline
+  icon: {fileID: 0}
+  shortDescription: Catches first falling block, creating a platform.
+  description: Generates a glowing laser line at the bottom edge of the screen. The first
+    block that falls off your tower is caught by this net and frozen in place, turning
+    a lethal mistake into an extended platform to widen your base mid-air.
+  rarity: 2
+  unique: 1
+  maxStacks: 0
+  requiresVariantsInLevel: []
+  charges: 1
+  laserColor: {r: 0.78, g: 0.28, b: 1, a: 1}
+  laserYOffset: 0.34
+  laserSortingOrder: -7
+  settleSeconds: 0.2
+  platformLiftAboveLaser: 0.05
+  overlapClearance: 0.04
+  maxOverlapNudgeColumns: 3
+  catchEffect: {fileID: 0}
+  catchEffectScale: 1

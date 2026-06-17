@@ -43,6 +43,19 @@ public abstract class PassiveAbility : AbilityDefinition
     // ---- Intercepting hook (short-circuit; return true = loss handled, charge consumed) ----
 
     /// <summary>
+    /// Higher values get first refusal for loss interception. Most abilities should leave this
+    /// at 0 and resolve in acquisition order; use it only when presentation implies physical
+    /// ordering, such as a catch line visibly above a destroy line.
+    /// </summary>
+    public virtual int LossInterceptPriority => 0;
+
+    /// <summary>
+    /// Raises the screen-bottom sweep line while this passive is armed. This keeps visual catch
+    /// beams and their gameplay trigger in sync; destructive/default passives leave it at 0.
+    /// </summary>
+    public virtual float LossInterceptLineOffset => 0f;
+
+    /// <summary>
     /// A LANDED block is about to be lost off the bottom of the screen. Return true to
     /// handle it instead of charging a life - the handler MUST leave the block non-lost
     /// (freeze it or destroy it), or the cull sweep re-fires within 100 ms.

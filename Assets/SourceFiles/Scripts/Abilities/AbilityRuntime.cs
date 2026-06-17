@@ -10,9 +10,10 @@ using UnityEngine;
 /// re-clones - it increments Stacks and calls OnStackAdded on the same Instance.
 ///
 /// Ordering rules (full table in ABILITIES.md): one inventory list in acquisition
-/// order. Intercepting hooks short-circuit at the first ability that handles the event;
-/// notification hooks fan out to everyone (passives phase, then combos phase). A charge
-/// is consumed immediately after the owning handler reports having triggered.
+/// order. Intercepting hooks short-circuit at the highest-priority ability that handles
+/// the event (ties stay acquisition-ordered); notification hooks fan out to everyone
+/// (passives phase, then combos phase). A charge is consumed immediately after the
+/// owning handler reports having triggered.
 /// </summary>
 public class AbilityRuntime : MonoBehaviour
 {
@@ -228,18 +229,52 @@ public class AbilityRuntime : MonoBehaviour
 
     // ---- Loss interception (called by LossZone for LANDED blocks only) ----------------------
 
-    /// <summary>First armed ability to handle the loss wins; the block must end non-lost.</summary>
+    public float LossInterceptLineOffset
+    {
+        get
+        {
+            float offset = 0f;
+            for (int i = 0; i < _owned.Count; i++)
+            {
+                if (_owned[i].Instance is not PassiveAbility passive) continue;
+                offset = Mathf.Max(offset, passive.LossInterceptLineOffset);
+            }
+
+            return offset;
+        }
+    }
+
+    /// <summary>Highest-priority armed ability gets first refusal; ties use acquisition order.</summary>
     public bool TryInterceptLoss(BlockController block)
     {
-        for (int i = 0; i < _owned.Count; i++)
+        int previousPriority = int.MaxValue;
+        while (true)
         {
-            if (_owned[i].Instance is not PassiveAbility passive) continue;
-            if (!passive.TryInterceptLoss(Context, block)) continue;
+            int activePriority = int.MinValue;
+            for (int i = 0; i < _owned.Count; i++)
+            {
+                if (_owned[i].Instance is not PassiveAbility passive) continue;
+                int priority = passive.LossInterceptPriority;
+                if (priority < previousPriority && priority > activePriority)
+                {
+                    activePriority = priority;
+                }
+            }
 
-            ConsumeCharge(_owned[i]);
-            return true;
+            if (activePriority == int.MinValue) return false;
+
+            for (int i = 0; i < _owned.Count; i++)
+            {
+                if (_owned[i].Instance is not PassiveAbility passive) continue;
+                if (passive.LossInterceptPriority != activePriority) continue;
+                if (!passive.TryInterceptLoss(Context, block)) continue;
+
+                ConsumeCharge(_owned[i]);
+                return true;
+            }
+
+            previousPriority = activePriority;
         }
-        return false;
     }
 
     // ---- Event fan-out ------------------------------------------------------------------------

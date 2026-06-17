@@ -69,9 +69,14 @@ state across runs (documented bug class — don't reintroduce it).
 ## 4. Ordering rules (deterministic, documented here on purpose)
 
 - Inventory is ONE list in **acquisition order**.
-- **Intercepting hooks** (`TryInterceptLoss`): first armed ability to return true
-  handles the event and SHORT-CIRCUITS; later abilities stay armed. Multiple lost
-  blocks in one sweep resolve in block-spawn order.
+- **Intercepting hooks** (`TryInterceptLoss`): highest `LossInterceptPriority` gets
+  first refusal, ties resolve in acquisition order. The first armed ability to return
+  true handles the event and SHORT-CIRCUITS; later abilities stay armed. Multiple lost
+  blocks in one sweep resolve in block-spawn order. Keep the default priority unless
+  the UI/FX implies a physical order (Hardline's catch beam sits above Sacrifice's
+  destroy beam, so it wins first). `LossInterceptLineOffset` can raise the sweep line
+  while an upper catch beam is armed, keeping the visual trigger and gameplay trigger
+  aligned.
 - **Notification hooks** (`OnLifeLost`, `OnBlockSpawned`, combo fan-out): EVERY
   subscriber runs, in acquisition order; a charge is consumed right after the owning
   handler returns. Handlers observe live state mutated by earlier handlers.
@@ -202,6 +207,7 @@ when unusable, same affordance as the nudge pills.
    | `QueueVisibilityPowerUp` | Passive (unique) | visibleDepth | "see N upcoming shapes instead of 1" |
    | `EdgePortalAbility` | Passive (unique) | — | "active pieces wrap across screen edges" |
    | `PocketCacheAbility` | Passive (unique) | — | "unlocks a Tetris-style hold/swap cache" |
+   | `HardlineAbility` | Passive (unique, charges = 1) | laserColor, laserYOffset, settleSeconds | "first lost landed block becomes an airborne platform" |
    | `NextBlockVariantPowerUp` | Instant | variant | "next block becomes variant V" |
    | `ExtraLifePowerUp` | Instant | lives | flat life grant |
    | `SlowMotionPowerUp` | Instant | duration | timed timescale effect |
@@ -378,6 +384,26 @@ impact composition (`BurstFromEveryCell` with the authored `impactEffect`,
 While armed, a layered blue laser line follows `LossZone.CurrentLossLineY`: the fixed
 trigger top early in the run, or the camera-relative cull once that becomes higher.
 `charges = 1`, `unique = true`.
+
+### Hardline (Epic, one-shot passive, unique)
+`HardlineAbility` is the constructive sibling of Sacrifice. While armed, it renders a
+purple laser line slightly above Sacrifice's blue line and has a higher
+`LossInterceptPriority`, so if both are owned the visible upper catch line gets first
+refusal. The first **landed** block lost below the screen is immediately neutralised
+as kinematic, eased into a platform pose, and left as a `Static` Rigidbody2D that
+remains in `BlockController.AllBlocks` as real stackable terrain.
+
+The platform pose is computed from the block's cell colliders, not hardcoded per shape:
+it tests the four cardinal rotations, maximises horizontal width, then breaks ties by
+the number of cells forming the upper surface, lower height, and smallest rotation.
+That makes I/domino pieces lie flat and favours L/T-style orientations with the broad
+side on top. A small overlap nudge tries to keep the rescued platform out of the tower
+without teleporting it far from where it fell. `charges = 1`, `unique = true`.
+
+Juice: the catch flashes the laser line, plays a swoosh + `ImpactPunch`, and bursts a
+swappable per-cell `catchEffect` (a serialized CFXR prefab, base prefabs only per the §13
+gotcha) across the block — unassigned by default, so it degrades to the flash+punch until
+an effect is dragged in.
 
 ### High Friction (Common, passive)
 `BlockFrictionPowerUp` adds a run-local multiplier delta to the shared standard-block
