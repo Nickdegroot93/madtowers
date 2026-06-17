@@ -3,9 +3,11 @@
 Binding for the dev/testing entry point. The hand-made "test levels" are gone; to test, open
 **Settings tab → Custom Game** and dial in a run.
 
-**Availability:** the Unity editor **and development builds** (`Debug.isDebugBuild`) — so it works
-on your phone when you make a Development Build, but **never appears in a release build**. Gated by
-`ContentCatalog.IsAvailable`, which both the Settings-tab button
+**Availability:** the Unity editor **and (temporarily) all player builds**. The
+`Debug.isDebugBuild` gate that normally hid it from release builds is currently disabled in
+`ContentCatalog.IsAvailable` (marked `TEMPORARY`) so the button is reachable on device for testing
+— restore that gate before shipping. Gated by `ContentCatalog.IsAvailable`, which both the
+Settings-tab button
 ([MainMenuRuntime](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs)) and the no-chapters fallback
 check. In the editor it discovers content live via `AssetDatabase`; a player build has no
 AssetDatabase, so it reads a [ContentManifest](Assets/SourceFiles/Scripts/Levels/ContentManifest.cs)
