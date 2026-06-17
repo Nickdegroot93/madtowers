@@ -17,3 +17,4 @@ MonoBehaviour:
   defaultDuration: 10
   magnitude: 1
   stackPolicy: 0
+  screenEffect: {fileID: 3942825033974895155, guid: 0e97b30b5b3ef2d4fa745810940a4e80, type: 3}

@@ -26,6 +26,11 @@ from a **preset** (any `GameModeConfig` in `Resources/GameModes`, e.g. Classic).
 The runtime config/level are throwaway `ScriptableObject` instances held alive by the static
 `LevelSelectionState`; they are never written to disk. Settings persist for the editor session.
 
+**Testing defaults** (override the preset on purpose, since this is a dev tool): **all abilities
+OFF** (enable one at a time to test it in isolation), **3 starting lives**, **power-up choice
+every 5 blocks**. Blocks default to the preset's bag. Set in `CustomGameSettings.FromConfig`
+(lives / interval) and `CustomGameMenu.EnsureState` (abilities).
+
 ## Build-safe content (how it works on device)
 
 [ContentCatalog](Assets/SourceFiles/Scripts/Levels/ContentCatalog.cs) has two backends behind one

@@ -105,6 +105,10 @@ public class GameManager : MonoBehaviour
             {
                 gameObject.AddComponent<ComboDetector>();
             }
+            if (GetComponent<StatusFieldController>() == null)
+            {
+                gameObject.AddComponent<StatusFieldController>();
+            }
             if (GetComponent<HoldCache>() == null)
             {
                 gameObject.AddComponent<HoldCache>();

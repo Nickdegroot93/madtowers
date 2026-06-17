@@ -14,7 +14,7 @@ Code: `Assets/SourceFiles/Scripts/Abilities/` · Assets: `Assets/Data/PowerUps/`
 | Kind | Class | Lifecycle | Example |
 |---|---|---|---|
 | **Instant** | `InstantAbility` | `Apply()` once at pick, then gone | Extra Life, Slow Motion, Next-Block Variant |
-| **Consumable** | `ConsumableAbility` | Held in one of 2 HUD slots; player taps to `Activate()` | Freeze, Extract, Stasis |
+| **Consumable** | `ConsumableAbility` | Held in one of 2 HUD slots; player taps to `Activate()` | Freeze, Extract, Shrink |
 | **Passive** | `PassiveAbility` | Always on from pick; `charges` makes it one-shot | Recovery (permanent), Sacrifice (charges = 1) |
 | **Combo** | `ComboAbility` | Fires `OnComboFired()` when its trigger pattern lands | Overdrive (two upright I-pieces) |
 
@@ -102,6 +102,17 @@ Stack policies: `RefreshDuration` (timer restarts), `ExtendDuration` (durations 
 `StackMagnitude` (magnitudes add, timer refreshes). Timers tick on scaled time —
 pauses freeze every state for free. A new shareable state = one new asset; new code
 only when a new KIND needs a new consult point in a core system.
+
+**Surfacing a state on screen** (so the player knows it's active): the state carries its own
+look — `StatusEffectDefinition.screenEffect` is an optional prefab. `StatusFieldController` (on
+the GameManager object) is **fully data-driven**: it shows the prefab of *any* active state that
+has one and tears it down when the state ends, driven by the STATE not the ability. So surfacing
+a new state, or pointing a second ability at an existing one, is **zero code here** — author the
+status asset, drop a prefab on it. Today only `LifeLossImmunity` (opened by Brace) carries one:
+the **Hovl "Screen buff" overlay** (`Assets/Hovl Studio/Fullscreen effects`), a camera-parented
+particle quad whose `HS_ScreenEffect` sizes it to the view, tuned to a warm edge-weighted smoke
+haze (arrow sub-effect disabled, smoke recoloured). The controller loops every system for the
+window and stops them to fade out.
 
 Note: `ScorePerBlockBonus` amplifies score, and score is the progression currency (win
 targets, picker milestones, wave counts all accelerate — that's the designed effect).
@@ -404,6 +415,18 @@ Juice: the catch flashes the laser line, plays a swoosh + `ImpactPunch`, and bur
 swappable per-cell `catchEffect` (a serialized CFXR prefab, base prefabs only per the §13
 gotcha) across the block — unassigned by default, so it degrades to the flash+punch until
 an effect is dragged in.
+
+### Brace (Epic, passive, unique)
+A `StatusPassiveAbility` asset (`triggerEvent = LifeLost`) that applies the shared
+`LifeLossImmunity` status (the same 10 s `Status_LifeImmunity10s` the old Stasis consumable
+used). Losing a life opens a 10 s window in which `GameManager.GameOver()` absorbs every
+further charge, so a whole-tower collapse during it costs exactly the one life that opened it.
+`charges = 0` (permanent — re-arms every life loss), `unique = true`. No new logic: it's a pure
+status grant, and during the window no life is actually lost, so the next loss *after* it
+expires re-opens it. Replaces the Stasis consumable (removed). The active window is surfaced by
+the reusable status presenter (§5): a warm orange edge-haze (the Hovl "Screen buff" overlay with
+its arrows disabled, smoke recoloured), held for the 10 s, plus a soft "shield up" swoosh on
+engage.
 
 ### High Friction (Common, passive)
 `BlockFrictionPowerUp` adds a run-local multiplier delta to the shared standard-block

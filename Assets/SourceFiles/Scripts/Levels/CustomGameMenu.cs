@@ -42,13 +42,13 @@ public static class CustomGameMenu
         GameModeConfig basePreset = CurrentPreset();
         _settings = CustomGameSettings.FromConfig(basePreset);
 
-        // Default content: the preset's block bag on; every ability on (best for testing).
+        // Default content: the preset's block bag on; abilities all OFF, so testing one ability
+        // at a time means just enabling it - no disabling the whole list first.
         if (basePreset != null && basePreset.BlockBag != null)
         {
             foreach (BlockDefinition b in basePreset.BlockBag)
                 if (b != null) _settings.EnabledBlocks.Add(b);
         }
-        foreach (AbilityDefinition a in ContentCatalog.AllAbilities()) _settings.EnabledAbilities.Add(a);
     }
 
     private static GameModeConfig CurrentPreset() =>

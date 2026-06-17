@@ -22,7 +22,7 @@ Prefer **CC0 / royalty-free** (freesound.org CC0, Kenney, Sonniss GDC packs).
 | `pop_01` | Support island materializes ([IslandPopFx.cs:49](Assets/SourceFiles/Scripts/World/IslandPopFx.cs#L49)); **also the generic ability-activate sound** for status consumables/combos ([StatusConsumableAbility.cs:19](Assets/SourceFiles/Scripts/Abilities/Definitions/StatusConsumableAbility.cs#L19), [StatusComboAbility.cs:21](Assets/SourceFiles/Scripts/Abilities/Definitions/StatusComboAbility.cs#L21), [DummyConsumableAbility.cs:10](Assets/SourceFiles/Scripts/Abilities/Definitions/DummyConsumableAbility.cs#L10)) | Friendly rising *blip/pop*. **Overloaded** — see gaps below; most abilities want their own sound. | UI / spawn |
 
 ### Sounds we don't have yet but the game will want
-- **Per-ability activation sounds.** Right now every non-Bullet ability reuses `pop_01`. Each ability should get its own (Cement Tower = a heavy *set/pour*; Stasis = a shimmer/freeze; Overdrive = a power-up surge; etc.).
+- **Per-ability activation sounds.** Right now every non-Bullet ability reuses `pop_01`. Each ability should get its own (Cement Tower = a heavy *set/pour*; Brace = a shield-up shimmer; Overdrive = a power-up surge; etc.).
 - **Combo / pattern fired** — a distinct chime, separate from the generic pop.
 - **Life lost** / **game over** — none wired.
 - **Level win / hold-steady success** — none wired.
