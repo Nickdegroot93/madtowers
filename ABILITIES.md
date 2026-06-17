@@ -14,7 +14,7 @@ Code: `Assets/SourceFiles/Scripts/Abilities/` · Assets: `Assets/Data/PowerUps/`
 | Kind | Class | Lifecycle | Example |
 |---|---|---|---|
 | **Instant** | `InstantAbility` | `Apply()` once at pick, then gone | Extra Life, Slow Motion, Next-Block Variant |
-| **Consumable** | `ConsumableAbility` | Held in one of 2 HUD slots; player taps to `Activate()` | Cement Tower (Flash Freeze), Stasis |
+| **Consumable** | `ConsumableAbility` | Held in one of 2 HUD slots; player taps to `Activate()` | Freeze, Stasis |
 | **Passive** | `PassiveAbility` | Always on from pick; `charges` makes it one-shot | Recovery (permanent), Sacrifice (charges = 1) |
 | **Combo** | `ComboAbility` | Fires `OnComboFired()` when its trigger pattern lands | Overdrive (two upright I-pieces) |
 

@@ -98,7 +98,7 @@ public partial class BlockController
         {
             BlockController block = _stepBlockers[i];
             if (block == null || block._rb == null) continue;
-            if (block._rb.bodyType != RigidbodyType2D.Dynamic) continue; // anchored/cemented stay rock
+            if (block._rb.bodyType != RigidbodyType2D.Dynamic) continue; // anchored/frozen stay rock
 
             block._rb.WakeUp();
             block._rb.AddForce(impulse, ForceMode2D.Impulse);

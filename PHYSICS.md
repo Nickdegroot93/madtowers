@@ -185,12 +185,12 @@ Code-level details that are part of the contract (not inspector values):
 - A failed **nudge** (the corner-zone dash refused by bricks or islands) shoves the
   blocking landed bricks with a horizontal **velocity impulse** (`SlamBlockingBricks` —
   I1-sanctioned: never positions) and arms a 0.5 s nudge lockout (`NudgeFailLockoutSeconds`,
-  static across pieces). Anchored/cemented (non-Dynamic) bricks and islands never move.
+  static across pieces). Anchored/frozen (non-Dynamic) bricks and islands never move.
   Drag steps stay silent on refusal — only the nudge is high-stakes.
 - Cast/overlap buffers are reused instance arrays — no per-FixedUpdate allocations
   (GC spikes read as physics stutter).
-- Anchored/cemented blocks (`FreezeInPlace()`, used by the anchor-brick variant and the
-  cement-tower power-up) become Static bodies; landed maintenance skips any non-Dynamic
+- Anchored/frozen blocks (`FreezeInPlace()`, used by the anchor-brick variant and the
+  Freeze power-up) become Static bodies; landed maintenance skips any non-Dynamic
   body. Static blocks are allowed to violate grid registration — they freeze as-is by design.
 
 ## 3. Floor & Sky Platforms (must match the blocks)
