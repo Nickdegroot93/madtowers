@@ -184,7 +184,7 @@ while climbing, streak clouds, rolling dunes at ground level
 | Spawning | bag: **all 7 tetrominoes ×1 copy** · fallback variants: Normal, Heavy · ambient variant rolls: **none** |
 | Placement | gridSpacing **1** · placement buffer **3 columns** (effective steer reach is `max(buffer, 4)` — the widest block always fits past the edge; see PHYSICS.md reach guarantee) |
 | Floor | 1 segment: center **0**, **9 columns** (Narrow: ~5) |
-| Power-ups | choice every **10** blocks · pool: Extra Life, Slow Time, Anchor Brick, Freeze · slowMotionScale **0.5** |
+| Power-ups | choice every **10** blocks · pool: Extra Life, Slow Time, Anchor Brick, Freeze, Extract · slowMotionScale **0.5** |
 | Islands | **enabled** · row interval 1 · chance 0.25 per side (floor-distance weighted) · first 9 · camera lead 2 · columns ±6, center clear 3 · shapes Single 12 / Two Wide 2 / Two Tall 2 / Corner 1 (details: §3 islands) |
 | Camera | peak **0.5** · spawn **0.9** · zoom **15–24** · smooth **vert 0.28 / zoom 0.35 / horiz-follow 0.21 (code const)** · padding **1.5** (= column margin) · min Y **0** — follow camera: pans+zooms to frame floor/tower/nearby islands/active piece (safe area **0.78** is now unused by framing) |
 | Physics ⚠️ contract — identical in every mode | grounded **0.03** · impact cap **2** · settle **0.08 / 8°s / 0.35s** · sleepOnLock **on** · microAlign **on, 0.08 / 4°** · maxControlTime **12** |
@@ -278,7 +278,7 @@ each spawn picks a random variant + random 90° rotation = 12 looks per chapter.
 | `powerUpChoicePool` | Which AbilityDefinitions can be offered (see **ABILITIES.md** for the full ability architecture: kinds, stacking, conditions, status effects, combo triggers). Per level — hard levels can ban abilities via `LevelDefinition.bannedAbilities`, gift levels can offer only Legendaries. Rarity weighting (Common 100 / Rare 40 / Epic 15 / Legendary 5) lives in `AbilityRarityInfo`. |
 
 Current power-ups: Extra Life (Common), Slow Time (Common), Anchor Brick (Rare — your NEXT
-brick becomes an Anchor, one brick only), Freeze (Epic). Adding more: see the doc
+brick becomes an Anchor, one brick only), Freeze (Epic), Extract (Epic). Adding more: see the doc
 comment on `PowerUpDefinition.cs` — many new power-ups are zero-code: a
 `NextBlockVariantPowerUp` asset pointing at any variant (one-shot), or a
 `BlockVariantChancePowerUp` asset for a persistent chance (e.g. "Curse: Boulders" as a
