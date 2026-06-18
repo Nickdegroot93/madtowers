@@ -42,6 +42,7 @@ public class GameManager : MonoBehaviour
     /// slo-mo windows). Applied to NORMAL descent only - fast drops ignore it.</summary>
     public float AbilityFallSpeedFactor => _abilityFallSpeedMultiplier;
     public GameModeConfig ActiveConfig => ActiveGameModeConfig;
+    public BlockController LastPlacedBlock => _lastPlacedBlock != null ? _lastPlacedBlock : null;
 
     private Coroutine _slowMotionCoroutine;
     private float _speedTimer;
@@ -55,6 +56,7 @@ public class GameManager : MonoBehaviour
     // so this is how scoring learns which piece is locking and whether it counts.
     private BlockController _activeBlock;
     private BlockData _activeBlockData;
+    private BlockController _lastPlacedBlock;
     // Loss context, scoped by DuringBlockLoss around the frozen HandleLostBelowScreen call:
     // GameOver() reads whether the lost piece costs a life, and AddScore() suppresses the
     // posthumous lock-score of a piece that fell off (it was lost, not placed).
@@ -341,6 +343,7 @@ public class GameManager : MonoBehaviour
         if (_activeBlock != null && _activeBlock.TryGetComponent(out BlockIdentity identity))
         {
             identity.MarkCountedAsPlaced();
+            _lastPlacedBlock = _activeBlock;
         }
     }
 
@@ -359,6 +362,8 @@ public class GameManager : MonoBehaviour
     /// counted (idempotent - a double-call is a no-op). The caller still destroys it.</summary>
     public void RemovePlacedBlock(BlockController block)
     {
+        if (_lastPlacedBlock == block) _lastPlacedBlock = null;
+
         if (block != null && block.TryGetComponent(out BlockIdentity identity) && identity.TryConsumeCounted())
         {
             AdjustStandingBlocks(-1);
@@ -381,6 +386,7 @@ public class GameManager : MonoBehaviour
         // (LossZone.ResolveLostBlock guarantees this runs at most once per block.)
         if (block != null && block.TryGetComponent(out BlockIdentity identity) && identity.TryConsumeCounted())
         {
+            if (_lastPlacedBlock == block) _lastPlacedBlock = null;
             AdjustStandingBlocks(-1);
         }
 

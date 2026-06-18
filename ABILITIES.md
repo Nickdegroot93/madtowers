@@ -206,6 +206,7 @@ when unusable, same affordance as the nudge pills.
    | `TransmuteAbility` | Consumable | targetShape (+ transformEffect) | "activate: active piece becomes shape X" |
    | `SlowWindowConsumable` | Consumable | slowFactor, blocks | "activate: next N blocks fall slower" |
    | `OverdrawAbility` | Consumable (unique) | choiceCount | "activate: hold three shapes and choose drop order" |
+   | `ScrapAbility` | Consumable | vaporColor | "activate: destroy the last placed block" |
    | `RecoveryWindowAbility` | Passive (unique) | slowFactor, blocksPerTrigger | "on life lost: next N blocks fall slower" |
    | `StatusPassiveAbility` | Passive | triggerEvent, status (+ charges) | "on life lost / on spawn: enter state X" |
    | `StatusComboAbility` | Combo | trigger, status (+ charges) | "pattern lands: enter state X" |
@@ -534,6 +535,19 @@ and query `context.Runtime.GetOwnedStacks(prereq) > 0`.
 Same `BlockDropChancePowerUp` pattern targeting the **Domino** (1×2) brick at `0.05`. Two
 injected bricks just sum their chances in the roll (Pip + Domino owned = ~10% forced, split
 between them; the bag fills the remaining ~90%). `unique = true`.
+
+### Scrap (Rare, consumable, max stack 1)
+`ScrapAbility` deletes the latest counted placed block. `GameManager` records
+`LastPlacedBlock` when a block successfully scores/enters the live placed-block count, and
+clears that reference when the block is destroyed or resolved by the loss system. This is
+deliberately not a tower scan: "last placed" means the last piece the player added, even if
+physics has already pulled it away from the tower and it is falling toward the loss line.
+Activation calls `AbilityEffects.DestroyBlockWithShatter`, which removes the block from
+the live count and destroys the object before `LossZone` can charge a life. It cannot undo
+a loss that has already been resolved. Like other consumables, Scrap is locked out while
+a consumable-driven piece sequence such as Fission or Overdraw is active. The asset uses
+`maxStacks = 1`, not `unique`, so the player can hold one Scrap at a time but may be offered
+another after spending it.
 
 ### Overdraw (Rare, consumable, unique)
 `OverdrawAbility` replaces the current active falling piece with a three-shape draft.

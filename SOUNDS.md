@@ -28,7 +28,7 @@ repeats don't fatigue. Heard constantly — the "this game feels good" sound.
 
 ### `impact_soft_01` — Impact (dud / quiet removal)
 - Bullet **wasted shot** — hits floor/island/frozen block ([BulletImpact.cs:51](Assets/SourceFiles/Scripts/Blocks/Variants/BulletImpact.cs#L51)).
-- Generic **destroy a placed block** shatter ([AbilityEffects.DestroyBlockWithShatter](Assets/SourceFiles/Scripts/Abilities/Effects/AbilityEffects.cs#L52)) — shared by every ability that shatters a block.
+- Generic **destroy a placed block** shatter ([AbilityEffects.DestroyBlockWithShatter](Assets/SourceFiles/Scripts/Abilities/Effects/AbilityEffects.cs#L52)) — shared by every ability that shatters a block, including Scrap.
 - **Extract** deletes the chosen block ([ExtractTargetingSession.cs:328](Assets/SourceFiles/Scripts/Abilities/Effects/ExtractTargetingSession.cs#L328)).
 
 **Should be:** a quiet, dull *thud* / "nothing much happened". MUST read clearly softer &
@@ -78,7 +78,7 @@ whoosh is wrong for a shield-up, a save, a transmute, etc.
 **Should be:** a friendly rising *blip/pop*. **Overloaded** — most abilities want their own.
 
 ### Gaps — sounds the game wants but does not have
-- **Per-ability activation sounds.** Most abilities reuse `swoosh_01` or `pop_01`. Each should get its own (Brace = shield-up shimmer; Freeze = icy crackle; Slo-Mo = time-warp wow; Transmute = a magic morph; Fission = a brittle multi-crack distinct from the generic shatter; Extract = a soft extract/pluck; Overdraw = a sleek card/air shuffle plus soft select tick; etc.).
+- **Per-ability activation sounds.** Most abilities reuse `swoosh_01`, `pop_01`, or shared impact clips. Each should get its own (Brace = shield-up shimmer; Freeze = icy crackle; Slo-Mo = time-warp wow; Transmute = a magic morph; Fission = a brittle multi-crack distinct from the generic shatter; Extract = a soft extract/pluck; Overdraw = a sleek card/air shuffle plus soft select tick; Scrap = compact vaporize/undo puff; etc.).
 - **Combo / pattern fired** — a distinct chime, separate from the generic pop.
 - **Per-shard drop / land in Fission** — currently the generic landing sound; a lighter "tick" per micro-cube would read better.
 - **Life lost** / **game over** — none wired.
