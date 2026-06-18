@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: SlowTime
   m_EditorClassIdentifier: Assembly-CSharp::SlowMotionPowerUp
   displayName: Slow Time
+  icon: {fileID: 21300000, guid: dd776dd35ea2453a90dc2ec2ca70d306, type: 3}
   description: Time runs at half speed for 15 seconds.
   rarity: 0
   category: 0

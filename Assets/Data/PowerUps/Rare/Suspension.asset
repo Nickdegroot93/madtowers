@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Suspension
   m_EditorClassIdentifier: Assembly-CSharp::SuspensionAbility
   displayName: Suspension
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 34d605232eda459da319c5758fa06f00, type: 3}
   shortDescription: Locks one placed block floating mid-air permanently.
   description: Select a block inside your tower and sever its relationship with gravity.
     That specific block locks permanently into its current screen coordinates, remaining

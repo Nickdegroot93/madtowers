@@ -84,6 +84,35 @@ public static class RuntimeUiKit
         return image;
     }
 
+    // A white rounded tile that backs a TRANSPARENT ability glyph, so cards and the
+    // consumable slot share one look. The tile fills its parent; `pad` insets the glyph
+    // from the tile edge. `tileAlpha` lets the slot show a 90% tile while cards use a
+    // solid one. Returns the glyph Image (sprite set by the caller); `tile` is handed back
+    // so callers can resize it (cards center a fixed square) or toggle the pair as one.
+    public static Image CreateIconTile(Transform parent, float tileAlpha, float pad, out Image tile, Color? borderColor = null)
+    {
+        tile = CreateImage(parent, "IconTile", RuntimeSprites.RoundedPanel(), new Color(1f, 1f, 1f, tileAlpha));
+        tile.type = Image.Type.Sliced;
+        RectTransform tileRect = tile.rectTransform;
+        tileRect.anchorMin = Vector2.zero;
+        tileRect.anchorMax = Vector2.one;
+        tileRect.offsetMin = Vector2.zero;
+        tileRect.offsetMax = Vector2.zero;
+
+        Image glyph = CreateImage(tile.transform, "Icon", null, Color.white);
+        glyph.preserveAspect = true;
+        RectTransform glyphRect = glyph.rectTransform;
+        glyphRect.anchorMin = Vector2.zero;
+        glyphRect.anchorMax = Vector2.one;
+        glyphRect.offsetMin = new Vector2(pad, pad);
+        glyphRect.offsetMax = new Vector2(-pad, -pad);
+
+        // Optional rarity border (off-white / blue / purple), owned here so every call site
+        // gets the same look without re-deriving it.
+        if (borderColor.HasValue) AddOutline(tile.transform, borderColor.Value);
+        return glyph;
+    }
+
     public static RawImage CreateRawImage(Transform parent, string name, Texture texture, Color color)
     {
         GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));

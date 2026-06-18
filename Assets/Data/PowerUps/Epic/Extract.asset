@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Extract
   m_EditorClassIdentifier: Assembly-CSharp::ExtractAbility
   displayName: Extract
+  icon: {fileID: 21300000, guid: 9971073b8a464ca8a6c7a22e87d200d0, type: 3}
   shortDescription: Delete one chosen block inside your tower.
   description: Allows you to tap a specific block deep inside your existing tower to delete it, correcting old center-of-mass errors without destroying the top layers.
   rarity: 2

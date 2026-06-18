@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Scrap
   m_EditorClassIdentifier: Assembly-CSharp::ScrapAbility
   displayName: Scrap
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 2d7d61a2b4dd4f969f381567e0c1e12a, type: 3}
   shortDescription: Instantly destroys your last placed block.
   description: Completely vaporizes the very last piece added to your tower structure.
     This allows you to immediately erase a critical misplacement, bad rotation, or

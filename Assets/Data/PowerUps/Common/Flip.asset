@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Flip
   m_EditorClassIdentifier: Assembly-CSharp::FlipAbility
   displayName: Flip
-  icon: {fileID: 21300000, guid: 2b70572f3c0f41c89041378308567a91, type: 3}
+  icon: {fileID: 21300000, guid: 49f201f4dcfe48c4b84977b61b54cba0, type: 3}
   shortDescription: Swaps active block with next queue piece.
   description: Instantly swaps your current active falling block with the very next
     piece waiting in your queue line, giving you immediate access to a better shape.

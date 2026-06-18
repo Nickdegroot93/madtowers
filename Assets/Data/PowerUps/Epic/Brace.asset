@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Brace
   m_EditorClassIdentifier:
   displayName: Brace
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: ffc2021964364f91bfa77c02a438a3cb, type: 3}
   shortDescription: Losing a life grants 10 seconds of immunity to further life loss.
   description: Losing a life grants 10 seconds of total immunity to further life loss.
     If a catastrophic chain reaction causes the entire top half of your tower to slide

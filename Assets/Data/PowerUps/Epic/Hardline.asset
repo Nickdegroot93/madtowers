@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Hardline
   m_EditorClassIdentifier:
   displayName: Hardline
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: dbe60e5021f04b9d858e316130c8519d, type: 3}
   shortDescription: Catches first falling block, creating a platform.
   description: Generates a glowing laser line at the bottom edge of the screen. The first
     block that falls off your tower is caught by this net and frozen in place, turning

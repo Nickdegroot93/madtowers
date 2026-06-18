@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Overdraw
   m_EditorClassIdentifier: Assembly-CSharp::OverdrawAbility
   displayName: Overdraw
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 5873fd98a0a243da898d51f17ef9f276, type: 3}
   shortDescription: Hold three active blocks and choose drop order.
   description: Upgrades your active control state. Instead of one falling block, three
     different shapes spawn at the top of the screen simultaneously. You can cycle between
