@@ -24,16 +24,16 @@ public class UIManager : MonoBehaviour
     private static readonly Color NextSecondaryTint = new Color(1f, 1f, 1f, 0.32f); // dimmer next-next slot
     // Top bar: one dark rounded master card, two darker stat cards inside it, and a
     // taller NEXT card vertically centered on it (equal overhang above and below).
-    // Warm near-opaque tones: translucent layers stacking over each other is what read
-    // as "weird lines" - the mockup's layers barely let each other through.
-    private static readonly Color BarColor = new Color(0.16f, 0.13f, 0.10f, 0.62f);
-    private static readonly Color BarInsetColor = new Color(0.10f, 0.08f, 0.06f, 0.78f);
-    private static readonly Color NextCardColor = new Color(0.17f, 0.14f, 0.11f, 0.78f);
-    private static readonly Color NextCardBorder = new Color(0.95f, 0.92f, 0.86f, 0.38f);
-    private static readonly Color StatLabelColor = new Color(0.88f, 0.80f, 0.70f, 0.55f);
-    private static readonly Color StatValueColor = new Color(0.99f, 0.97f, 0.93f, 1f);
+    // Pure greyscale: near-opaque black tones so translucent layers stacking over each
+    // other don't read as "weird lines" - each layer barely lets the one below through.
+    private static readonly Color BarColor = new Color(0f, 0f, 0f, 0.62f);
+    private static readonly Color BarInsetColor = new Color(0f, 0f, 0f, 0.78f);
+    private static readonly Color NextCardColor = new Color(0f, 0f, 0f, 0.78f);
+    private static readonly Color NextCardBorder = new Color(0.92f, 0.92f, 0.92f, 0.38f);
+    private static readonly Color StatLabelColor = new Color(0.80f, 0.80f, 0.80f, 0.55f);
+    private static readonly Color StatValueColor = new Color(0.97f, 0.97f, 0.97f, 1f);
     private static readonly Color PauseFillColor = new Color(0f, 0f, 0f, 0.45f);
-    private static readonly Color PauseIconColor = new Color(0.88f, 0.80f, 0.70f, 0.85f);
+    private static readonly Color PauseIconColor = new Color(0.85f, 0.85f, 0.85f, 0.85f);
     private const float BarHeight = 104f;
     private const float BarSideMargin = 120f; // breathing room per the design - nothing reserves this space
     private const float BarCardInset = 14f;   // stat cards float inside their segment on all sides
@@ -420,7 +420,7 @@ public class UIManager : MonoBehaviour
         // Icon + caption + value as one center-anchored group.
         RectTransform group = CreateCenteredGroup(card, new Vector2(186f, 60f), 0f);
         CreateBarIcon(group, RuntimeSprites.CubeGlyph(), new Vector2(24f, 0f), 42f,
-            new Color(0.92f, 0.86f, 0.78f, 0.85f));
+            new Color(0.90f, 0.90f, 0.90f, 0.85f));
         CreateBarCaption(group, "BLOCKS", new Vector2(60f, 16f));
         if (scoreText != null) PlaceBarValue(scoreText, group, new Vector2(60f, -12f));
     }
@@ -484,7 +484,7 @@ public class UIManager : MonoBehaviour
         caption.characterSpacing = 16f;
         caption.fontStyle = FontStyles.Bold;
         caption.alignment = TextAlignmentOptions.MidlineLeft;
-        caption.color = StatLabelColor; // warm + translucent: the mockup's overlay-blend look
+        caption.color = StatLabelColor; // neutral grey + translucent: greyscale overlay-blend look
         caption.raycastTarget = false;
     }
 
