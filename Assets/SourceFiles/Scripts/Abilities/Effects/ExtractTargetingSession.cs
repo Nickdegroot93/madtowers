@@ -410,7 +410,12 @@ public sealed class ExtractTargetingSession : MonoBehaviour
         {
             HiddenRenderer hidden = _hiddenRenderers[i];
             if (hidden.Renderer == null) continue;
-            hidden.Renderer.color = hidden.Color;
+            // Restore only the alpha we zeroed to hide the real block. Its RGB may have changed
+            // during the session (Suspension recolours its target into the Anchor variant), and
+            // that change must survive the proxy teardown - we never touch real RGB ourselves.
+            Color color = hidden.Renderer.color;
+            color.a = hidden.Color.a;
+            hidden.Renderer.color = color;
         }
     }
 
