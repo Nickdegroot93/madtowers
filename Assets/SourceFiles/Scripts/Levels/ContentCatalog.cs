@@ -43,7 +43,7 @@ public static class ContentCatalog
     }
 #endif
 
-    /// <summary>Every real ability (dummies/scaffolding excluded), sorted by rarity then name.</summary>
+    /// <summary>Every ability, sorted by rarity then name.</summary>
     public static List<AbilityDefinition> AllAbilities()
     {
         var list = new List<AbilityDefinition>();
@@ -52,7 +52,7 @@ public static class ContentCatalog
         {
             string path = AssetDatabase.GUIDToAssetPath(guid);
             var ability = AssetDatabase.LoadAssetAtPath<AbilityDefinition>(path);
-            if (ability == null || ability is DummyPassiveAbility) continue;
+            if (ability == null) continue;
             list.Add(ability);
         }
         list.Sort((a, b) =>
