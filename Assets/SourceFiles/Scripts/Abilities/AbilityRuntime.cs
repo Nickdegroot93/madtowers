@@ -195,17 +195,19 @@ public class AbilityRuntime : MonoBehaviour
         InventoryChanged?.Invoke();
     }
 
-    /// <summary>True while the blanket activation gates allow consumable use at all. A Fission
-    /// session locks consumables out for its duration: the "active piece" is a hovering shard the
-    /// session owns, and another active-piece consumable (Bullet/Shrink/Transmute) fired into it
-    /// would corrupt the shard sequence.</summary>
+    /// <summary>True while the blanket activation gates allow consumable use at all. Choice
+    /// sessions lock consumables out for their duration: the "active piece" is owned by a
+    /// sequence driver, and another active-piece consumable fired into it would corrupt that
+    /// sequence.</summary>
     public bool ConsumablesUsable
     {
         get
         {
             GameManager gm = GameManager.Instance;
             return gm != null && !gm.isGameOver && !gm.IsGamePaused
-                   && !LevelRuntimeController.IsVerifyingWin && !FissionSession.IsActive;
+                   && !LevelRuntimeController.IsVerifyingWin
+                   && !FissionSession.IsActive
+                   && !OverdrawSession.IsActive;
         }
     }
 

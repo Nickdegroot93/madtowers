@@ -163,6 +163,65 @@ public class Spawner : MonoBehaviour
         return next;
     }
 
+    /// <summary>Draw a small hand of upcoming definitions, preferring distinct shapes.
+    /// Overdraw uses this to turn one active piece into a three-shape choice without
+    /// permanently duplicating the look-ahead queue. Duplicate rolls are returned to the
+    /// queue front in their original order where possible.</summary>
+    public List<BlockDefinition> TakeDistinctQueued(int count)
+    {
+        var choices = new List<BlockDefinition>(Mathf.Max(0, count));
+        if (count <= 0) return choices;
+
+        var duplicates = new List<BlockDefinition>();
+        int attempts = Mathf.Max(count * 8, count);
+        while (choices.Count < count && attempts-- > 0)
+        {
+            BlockDefinition next = TakeNextQueued();
+            if (next == null) break;
+
+            bool alreadyChosen = false;
+            for (int i = 0; i < choices.Count; i++)
+            {
+                if (choices[i] == next)
+                {
+                    alreadyChosen = true;
+                    break;
+                }
+            }
+
+            if (alreadyChosen) duplicates.Add(next);
+            else choices.Add(next);
+        }
+
+        while (choices.Count < count && duplicates.Count > 0)
+        {
+            int last = duplicates.Count - 1;
+            choices.Add(duplicates[last]);
+            duplicates.RemoveAt(last);
+        }
+
+        for (int i = duplicates.Count - 1; i >= 0; i--)
+        {
+            RequeueDefinition(duplicates[i]);
+        }
+
+        return choices;
+    }
+
+    /// <summary>Remove the live falling piece without locking or scoring. Used by
+    /// active-state abilities that replace the turn with their own controlled sequence.</summary>
+    public bool DestroyActivePieceWithoutLock()
+    {
+        BlockController active = BlockController.ActiveControlled;
+        if (active == null || active != _currentBlock || active.HasLanded) return false;
+
+        active.OnBlockLocked -= HandleBlockLocked;
+        Destroy(active.gameObject);
+        _currentBlock = null;
+        if (GameManager.Instance != null) GameManager.Instance.SetActivePiece(null, null);
+        return true;
+    }
+
     // Restarts the lock->spawn chain after an external gate (win verification) suppressed
     // it - the chain is event-driven, so a suppressed spawn never retries on its own.
     public void ResumeSpawning()
@@ -223,12 +282,17 @@ public class Spawner : MonoBehaviour
 
     /// <summary>
     /// Spawn a fresh controlled piece of the given definition at a position, wired exactly like
-    /// a normal spawn (same WireBlock path) so it cannot drift from it. Used by the Fission
-    /// session to feed each 1x1 shard; <paramref name="suspended"/> starts it hovering (descent
-    /// deferred until the player commits a drop). Uses DefaultData (no variant roll) and does NOT
-    /// raise BlockSpawned - a shard is the same logical turn, like a transmute, not a new draw.
+    /// a normal spawn (same WireBlock path) so it cannot drift from it. Used by sessions to feed
+    /// authored choice pieces; <paramref name="suspended"/> starts it hovering (descent deferred
+    /// until the player commits a drop). By default it uses DefaultData and does not raise
+    /// BlockSpawned (Fission shards are the same logical turn); pass <paramref name="asNewSpawn"/>
+    /// for genuine new choice pieces such as Overdraw.
     /// </summary>
-    public BlockController SpawnControlledPieceAt(BlockDefinition definition, Vector3 position, bool suspended)
+    public BlockController SpawnControlledPieceAt(
+        BlockDefinition definition,
+        Vector3 position,
+        bool suspended,
+        bool asNewSpawn = false)
     {
         if (definition == null || definition.Prefab == null) return null;
 
@@ -242,8 +306,10 @@ public class Spawner : MonoBehaviour
         }
 
         _currentBlock = block;
-        WireBlock(block, definition, definition.DefaultData);
+        BlockData data = asNewSpawn ? RollVariantChances(GetBlockData(definition)) : definition.DefaultData;
+        WireBlock(block, definition, data);
         if (suspended) block.SetDescentSuspended(true);
+        if (asNewSpawn) GameEvents.RaiseBlockSpawned(block, data);
         return block;
     }
 

@@ -79,6 +79,7 @@ public class UIManager : MonoBehaviour
     private GameObject _nextPanel;
     private Image[] _nextPreviews;
     private int _activeSlotCount = 1;
+    private bool _nextPanelSuppressed;
     private GameObject _pauseButton;
     private PauseMenuController _pauseMenu;
     private RectTransform _hudRoot;
@@ -184,6 +185,11 @@ public class UIManager : MonoBehaviour
     private void HandleNextBlockChanged(System.Collections.Generic.IReadOnlyList<string> blockNames)
     {
         if (_nextPreviews == null) return;
+        if (OverdrawSession.SuppressesNextPreview)
+        {
+            SetNextPanelSuppressed(true);
+            return;
+        }
 
         int count = blockNames != null ? blockNames.Count : 0;
         EnsureSlotLayout(count);
@@ -194,6 +200,19 @@ public class UIManager : MonoBehaviour
         {
             if (_nextPreviews[i] == null) continue;
             SetSlotSprite(_nextPreviews[i], i < count ? blockNames[i] : null);
+        }
+    }
+
+    private void SetNextPanelSuppressed(bool suppressed)
+    {
+        if (_nextPanelSuppressed == suppressed) return;
+
+        _nextPanelSuppressed = suppressed;
+        if (_nextPanel != null) _nextPanel.SetActive(!suppressed);
+
+        if (!suppressed && _spawner != null)
+        {
+            HandleNextBlockChanged(_spawner.GetUpcomingBlockNames());
         }
     }
 
@@ -684,6 +703,8 @@ public class UIManager : MonoBehaviour
             if (_pauseButton.activeSelf != show) _pauseButton.SetActive(show);
         }
 
+        SetNextPanelSuppressed(OverdrawSession.SuppressesNextPreview);
+
         bool dim = BlockController.NudgeLockoutRemaining > 0f;
         if (dim == _nudgePillsDimmed) return;
         _nudgePillsDimmed = dim;
@@ -720,7 +741,9 @@ public class UIManager : MonoBehaviour
 
         bool any = false;
         float lowestWorldY = float.MaxValue;
-        RectTransform nextRect = _nextPanel != null ? (RectTransform)_nextPanel.transform : null;
+        RectTransform nextRect = _nextPanel != null && _nextPanel.activeInHierarchy && !OverdrawSession.SuppressesNextPreview
+            ? (RectTransform)_nextPanel.transform
+            : null;
         any |= AccumulateLowestBottom(_barLeft, uiCamera, worldCamera, depth, ref lowestWorldY);
         any |= AccumulateLowestBottom(_barRight, uiCamera, worldCamera, depth, ref lowestWorldY);
         any |= AccumulateLowestBottom(nextRect, uiCamera, worldCamera, depth, ref lowestWorldY);

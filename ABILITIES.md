@@ -205,6 +205,7 @@ when unusable, same affordance as the nudge pills.
    | `StatusConsumableAbility` | Consumable | status | "activate: enter state X" |
    | `TransmuteAbility` | Consumable | targetShape (+ transformEffect) | "activate: active piece becomes shape X" |
    | `SlowWindowConsumable` | Consumable | slowFactor, blocks | "activate: next N blocks fall slower" |
+   | `OverdrawAbility` | Consumable (unique) | choiceCount | "activate: hold three shapes and choose drop order" |
    | `RecoveryWindowAbility` | Passive (unique) | slowFactor, blocksPerTrigger | "on life lost: next N blocks fall slower" |
    | `StatusPassiveAbility` | Passive | triggerEvent, status (+ charges) | "on life lost / on spawn: enter state X" |
    | `StatusComboAbility` | Combo | trigger, status (+ charges) | "pattern lands: enter state X" |
@@ -533,6 +534,23 @@ and query `context.Runtime.GetOwnedStacks(prereq) > 0`.
 Same `BlockDropChancePowerUp` pattern targeting the **Domino** (1×2) brick at `0.05`. Two
 injected bricks just sum their chances in the roll (Pip + Domino owned = ~10% forced, split
 between them; the bag fills the remaining ~90%). `unique = true`.
+
+### Overdraw (Rare, consumable, unique)
+`OverdrawAbility` replaces the current active falling piece with a three-shape draft.
+Activation destroys the active piece without locking/scoring, suspends the Spawner's
+automatic lock-to-next-bag-piece path, and draws three upcoming definitions via
+`Spawner.TakeDistinctQueued` (preferring different shapes; duplicates only fill if the
+mode cannot supply enough distinct draws). `OverdrawSession` presents those choices as
+world-space, chapter-skinned previews just below the top HUD. The player clicks or taps
+the first two choices; the final remaining choice auto-commits. A selected preview glides
+into the spawn lane, then `Spawner.SpawnControlledPieceAt(..., asNewSpawn: true)` creates
+the real controllable piece so `BlockSpawned` passives, variants, slow windows and scoring
+all treat each chosen shape as a fresh piece. The NEXT preview is hidden only while the
+draft UI is active; it returns as soon as the final Overdraw piece starts falling. When
+that last chosen piece locks, the session clears auto-spawn suspension before the Spawner
+continues, so normal play resumes on the next bag piece. Audio currently reuses
+`swoosh_01` for activation and manual choice commits; the final auto-commit stays silent
+so the third-piece handoff does not double-hit the ear.
 
 ### Bullet (Common, consumable)
 `BulletAbility` — the active falling piece transforms into a 1×1 shell
