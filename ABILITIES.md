@@ -34,15 +34,17 @@ the details view). Short and long fall back to each other, so half-authored asse
 degrade gracefully.
 
 There is also a player-facing **type badge** (`AbilityDefinition.Type`), shown small at
-the top of every card: Instant / Consumable / Passive / One-Time Passive. It is
-**derived, never authored** - kind from the class, "one-time" from charges - so the
-badge can never contradict what the ability does. Labels/colors in `AbilityTypeInfo`.
+the top of every card. It is **derived, never authored** - kind from the class,
+"one-time" from charges. The `Type` enum still distinguishes `OneTimePassive`, but the
+badge **text** collapses it to "PASSIVE" (a one-shot passive IS a passive; the one-time
+distinction is intentionally not surfaced to players), so the labels shown are
+**CONSUMABLE / PASSIVE / INSTANT**. Labels/colors in `AbilityTypeInfo`.
 
 Consumption today: choice cards are the mockup chrome - a dark cut-corner plate + a
 rarity-tinted glowing frame (both SDF sprites in `RuntimeSprites.AbilityCards`), title,
-a badge plate with a generated type glyph (infinity = passive, ring-and-one =
-one-time, flask = consumable, spark = instant), the icon (a spark placeholder until
-real icons land), "Owned xN", short description and an outlined rarity-tinted
+a badge plate showing the type as **text** (`AbilityTypeInfo.GetLabel`), the authored
+icon on a white rounded tile with a rarity-tinted border (off-white / blue / purple,
+via `RuntimeUiKit.CreateIconTile`), "Owned xN", short description and an outlined rarity-tinted
 **Details** button; titles render in Rajdhani (Resources/Fonts, OFL) best-fit to one
 line; legendary cards get an animated
 shine sweep (`AbilityCardShine`). Details opens the detail view (type + rarity, icon,

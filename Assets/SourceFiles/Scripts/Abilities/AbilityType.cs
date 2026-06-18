@@ -19,27 +19,13 @@ public enum AbilityType
 
 public static class AbilityTypeInfo
 {
-    /// <summary>The badge plate's icon (the mockups' infinity/flask marks): generated
-    /// sprites - infinity = passive, ring-and-one = one-time, flask = consumable,
-    /// spark = instant. White; tint at the call site.</summary>
-    public static Sprite GetGlyphSprite(AbilityType type)
-    {
-        switch (type)
-        {
-            case AbilityType.Consumable: return RuntimeSprites.GlyphFlask();
-            case AbilityType.Passive: return RuntimeSprites.GlyphInfinity();
-            case AbilityType.OneTimePassive: return RuntimeSprites.GlyphOneShot();
-            default: return RuntimeSprites.AbilityGlyph();
-        }
-    }
-
     public static string GetLabel(AbilityType type)
     {
         switch (type)
         {
             case AbilityType.Consumable: return "CONSUMABLE";
             case AbilityType.Passive: return "PASSIVE";
-            case AbilityType.OneTimePassive: return "ONE-TIME PASSIVE";
+            case AbilityType.OneTimePassive: return "PASSIVE"; // players don't need the one-time distinction
             default: return "INSTANT";
         }
     }
