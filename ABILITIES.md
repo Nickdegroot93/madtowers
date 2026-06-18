@@ -208,6 +208,7 @@ when unusable, same affordance as the nudge pills.
    | `SlowWindowConsumable` | Consumable | slowFactor, blocks | "activate: next N blocks fall slower" |
    | `OverdrawAbility` | Consumable (unique) | choiceCount | "activate: hold three shapes and choose drop order" |
    | `ScrapAbility` | Consumable | vaporColor | "activate: destroy the last placed block" |
+   | `SuspensionAbility` | Consumable | - | "activate: select one placed block and freeze it in place" |
    | `RecoveryWindowAbility` | Passive (unique) | slowFactor, blocksPerTrigger | "on life lost: next N blocks fall slower" |
    | `StatusPassiveAbility` | Passive | triggerEvent, status (+ charges) | "on life lost / on spawn: enter state X" |
    | `StatusComboAbility` | Combo | trigger, status (+ charges) | "pattern lands: enter state X" |
@@ -564,6 +565,21 @@ a loss that has already been resolved. Like other consumables, Scrap is locked o
 a consumable-driven piece sequence such as Fission or Overdraw is active. The asset uses
 `maxStacks = 1`, not `unique`, so the player can hold one Scrap at a time but may be offered
 another after spending it.
+
+### Suspension (Rare, consumable, max stack 1)
+`SuspensionAbility` reuses the Extract targeting presentation: visible landed tower blocks
+are hidden behind floating visual proxies, the game pauses, and the player taps one proxy.
+Instead of deleting the chosen block, the shared `ExtractTargetingSession` runs in Suspension
+mode and calls `BlockController.FreezeInPlace()` on the real block. That turns the selected
+block into a `Static` Rigidbody2D at its current world coordinates, so it remains as permanent
+anchor-like terrain even if every supporting block underneath later disappears.
+
+Suspension only offers/selects landed blocks that are not already frozen/static, so a held
+charge cannot be wasted on an existing anchor brick, Freeze target, or previous Suspension
+target. It uses the same visible-screen filter as Extract and the normal consumable lockout
+while Fission/Overdraw-style sessions own active-piece state. The asset uses `maxStacks = 1`,
+not `unique`, so the player can hold one Suspension at a time but may be offered another
+after spending it.
 
 ### Overdraw (Rare, consumable, unique)
 `OverdrawAbility` replaces the current active falling piece with a three-shape draft.

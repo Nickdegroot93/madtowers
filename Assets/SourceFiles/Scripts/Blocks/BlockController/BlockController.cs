@@ -179,6 +179,7 @@ public partial class BlockController : MonoBehaviour
     private bool _reachBoundsValid;
 
     public bool HasLanded { get; private set; }
+    public bool IsFrozenInPlace => _rb != null && _rb.bodyType == RigidbodyType2D.Static;
     public static IReadOnlyList<BlockController> AllBlocks => TrackedBlocks;
 
     /// <summary>Stop counting this block as a live tower member right now, before it is

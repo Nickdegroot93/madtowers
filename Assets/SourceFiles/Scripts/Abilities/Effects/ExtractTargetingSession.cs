@@ -36,6 +36,12 @@ public sealed class ExtractTargetingSession : MonoBehaviour
         Closing
     }
 
+    private enum TargetEffect
+    {
+        Extract,
+        Suspension
+    }
+
     private const float OpenSeconds = 0.18f;
     private const float VanishSeconds = 0.14f;
     private const float CloseSeconds = 0.16f;
@@ -54,6 +60,7 @@ public sealed class ExtractTargetingSession : MonoBehaviour
     private Camera _camera;
     private bool _pausedGame;
     private bool _finishing;
+    private TargetEffect _effect;
 
     public static bool IsActive { get; private set; }
 
@@ -68,12 +75,21 @@ public sealed class ExtractTargetingSession : MonoBehaviour
         if (IsActive) return;
 
         GameObject go = new GameObject("ExtractTargetingSession");
-        go.AddComponent<ExtractTargetingSession>().StartSession();
+        go.AddComponent<ExtractTargetingSession>().StartSession(TargetEffect.Extract);
     }
 
-    private void StartSession()
+    public static void BeginSuspension()
+    {
+        if (IsActive) return;
+
+        GameObject go = new GameObject("SuspensionTargetingSession");
+        go.AddComponent<ExtractTargetingSession>().StartSession(TargetEffect.Suspension);
+    }
+
+    private void StartSession(TargetEffect effect)
     {
         IsActive = true;
+        _effect = effect;
         _camera = Camera.main;
         BuildProxies();
 
@@ -113,10 +129,10 @@ public sealed class ExtractTargetingSession : MonoBehaviour
                 break;
             case State.Vanishing:
                 ApplyProxyLayout(1f);
-                ApplySelectedVanish(Smooth01(_age / VanishSeconds));
+                ApplySelectedResolution(Smooth01(_age / VanishSeconds));
                 if (_age >= VanishSeconds)
                 {
-                    ExtractSelectedBlock();
+                    ResolveSelectedBlock();
                     _state = State.Closing;
                     _age = 0f;
                 }
@@ -137,6 +153,7 @@ public sealed class ExtractTargetingSession : MonoBehaviour
         {
             BlockController block = blocks[i];
             if (block == null || !block.HasLanded) continue;
+            if (!CanTarget(block)) continue;
             if (!block.TryGetWorldBounds(out Bounds bounds)) continue;
             if (!IsVisible(bounds)) continue;
 
@@ -156,6 +173,7 @@ public sealed class ExtractTargetingSession : MonoBehaviour
         {
             BlockController block = blocks[i];
             if (block == null || !block.HasLanded) continue;
+            if (!CanTarget(block)) continue;
             if (!block.TryGetWorldBounds(out Bounds bounds)) continue;
             if (!IsVisible(bounds)) continue;
 
@@ -250,18 +268,27 @@ public sealed class ExtractTargetingSession : MonoBehaviour
         }
     }
 
-    private void ApplySelectedVanish(float amount)
+    private void ApplySelectedResolution(float amount)
     {
         if (_selected == null || _selected.Root == null) return;
 
-        float scale = Mathf.Lerp(ExpandScale, 0.08f, amount);
+        float scale = _effect == TargetEffect.Extract
+            ? Mathf.Lerp(ExpandScale, 0.08f, amount)
+            : ExpandScale + Mathf.Sin(amount * Mathf.PI) * 0.1f;
         _selected.Root.localScale = Vector3.one * scale;
         for (int i = 0; i < _selected.Renderers.Length; i++)
         {
             SpriteRenderer renderer = _selected.Renderers[i];
             if (renderer == null) continue;
             Color color = renderer.color;
-            color.a = 1f - amount;
+            if (_effect == TargetEffect.Extract)
+            {
+                color.a = 1f - amount;
+            }
+            else
+            {
+                color = Color.Lerp(color, new Color(0.5f, 0.82f, 1f, color.a), Mathf.Sin(amount * Mathf.PI));
+            }
             renderer.color = color;
         }
     }
@@ -320,13 +347,25 @@ public sealed class ExtractTargetingSession : MonoBehaviour
         return picked != null;
     }
 
-    private void ExtractSelectedBlock()
+    private void ResolveSelectedBlock()
     {
         if (_selected == null || _selected.Block == null) return;
 
-        if (GameManager.Instance != null) GameManager.Instance.RemovePlacedBlock(_selected.Block);
-        SfxPlayer.Play("impact_soft_01", 0.7f, 0.06f);
-        Destroy(_selected.Block.gameObject);
+        if (_effect == TargetEffect.Extract)
+        {
+            if (GameManager.Instance != null) GameManager.Instance.RemovePlacedBlock(_selected.Block);
+            SfxPlayer.Play("impact_soft_01", 0.7f, 0.06f);
+            Destroy(_selected.Block.gameObject);
+            return;
+        }
+
+        _selected.Block.FreezeInPlace();
+        SfxPlayer.Play("pop_01", 0.7f, 0.04f);
+    }
+
+    private bool CanTarget(BlockController block)
+    {
+        return _effect != TargetEffect.Suspension || !block.IsFrozenInPlace;
     }
 
     private bool IsVisible(Bounds bounds)

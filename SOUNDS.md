@@ -69,17 +69,18 @@ whoosh is wrong for a shield-up, a save, a transmute, etc.
 
 **Should be:** a dry *knock* — a refusal, distinct from a landing.
 
-### `pop_01` — UI / spawn (OVERLOADED — 5 sites)
+### `pop_01` — UI / spawn (OVERLOADED — 6 sites)
 - Support **island materializes** ([IslandPopFx.cs:49](Assets/SourceFiles/Scripts/World/IslandPopFx.cs#L49)).
 - Generic **status consumable** activate ([StatusConsumableAbility.cs:19](Assets/SourceFiles/Scripts/Abilities/Definitions/StatusConsumableAbility.cs#L19)).
 - Generic **status combo** fired ([StatusComboAbility.cs:21](Assets/SourceFiles/Scripts/Abilities/Definitions/StatusComboAbility.cs#L21)).
 - **Freeze** power-up activate ([FreezePowerUp.cs:30](Assets/SourceFiles/Scripts/Abilities/Definitions/FreezePowerUp.cs#L30)).
+- **Suspension** locks the selected block in place ([ExtractTargetingSession.cs:363](Assets/SourceFiles/Scripts/Abilities/Effects/ExtractTargetingSession.cs#L363)).
 - **Dummy consumable** ([DummyConsumableAbility.cs:10](Assets/SourceFiles/Scripts/Abilities/Definitions/DummyConsumableAbility.cs#L10)) — test asset only.
 
 **Should be:** a friendly rising *blip/pop*. **Overloaded** — most abilities want their own.
 
 ### Gaps — sounds the game wants but does not have
-- **Per-ability activation sounds.** Most abilities reuse `swoosh_01`, `pop_01`, or shared impact clips. Each should get its own (Brace = shield-up shimmer; Freeze = icy crackle; Slo-Mo = time-warp wow; Transmute = a magic morph; Flip = crisp queue-swap flick; Fission = a brittle multi-crack distinct from the generic shatter; Extract = a soft extract/pluck; Overdraw = a sleek card/air shuffle plus soft select tick; Scrap = compact vaporize/undo puff; etc.).
+- **Per-ability activation sounds.** Most abilities reuse `swoosh_01`, `pop_01`, or shared impact clips. Each should get its own (Brace = shield-up shimmer; Freeze = icy crackle; Slo-Mo = time-warp wow; Transmute = a magic morph; Flip = crisp queue-swap flick; Suspension = clean gravity-lock shimmer; Fission = a brittle multi-crack distinct from the generic shatter; Extract = a soft extract/pluck; Overdraw = a sleek card/air shuffle plus soft select tick; Scrap = compact vaporize/undo puff; etc.).
 - **Combo / pattern fired** — a distinct chime, separate from the generic pop.
 - **Per-shard drop / land in Fission** — currently the generic landing sound; a lighter "tick" per micro-cube would read better.
 - **Life lost** / **game over** — none wired.
