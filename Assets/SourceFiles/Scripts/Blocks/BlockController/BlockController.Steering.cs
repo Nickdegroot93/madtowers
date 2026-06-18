@@ -100,6 +100,24 @@ public partial class BlockController
 
         if (Mathf.Abs(columnDelta) > 0.001f) TuckIntoStaticPocket(preStepPosition);
 
+        // Fission hover: the shard sits at the spawn line and is only steerable until the player
+        // commits a drop. Any descent intent (flick / held fast-drop / down) releases it; until
+        // then skip the Y advance and the landing cast (the piece is kinematic and never-landed,
+        // so no transform is written on a landed block - first contact is just deferred).
+        if (_descentSuspended)
+        {
+            if (_autoDrop || _isFastDrop || _moveInput.y < -0.5f)
+            {
+                _descentSuspended = false;
+            }
+            else
+            {
+                ClearControlledLinearVelocity();
+                ClampHorizontalToReachBounds();
+                return;
+            }
+        }
+
         _lastControlledFallSpeed = GetActiveFallSpeed();
         float fallDistance = _lastControlledFallSpeed * Time.fixedDeltaTime;
         if (TryGetDownContact(fallDistance + groundedCheckDistance, out float contactDistance))

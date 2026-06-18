@@ -137,6 +137,11 @@ public partial class BlockController : MonoBehaviour
     private bool _isControlEnabled = true;
     private Vector2 _moveInput;
     private bool _isFastDrop;
+    // Fission: while true the controlled piece hovers (steering still works) and does not
+    // advance downward or run the landing cast - the start of descent is deferred until the
+    // player commits a drop. The body stays kinematic and never-landed throughout, so I1/I5
+    // hold (first contact is merely postponed, never a transform write on a landed block).
+    private bool _descentSuspended;
     private ContactFilter2D _contactFilter;
     private BlockData _appliedData;
     private readonly BlockCellGeometry _cellGeometry = new BlockCellGeometry();

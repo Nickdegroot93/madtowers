@@ -152,6 +152,13 @@ Code-level details that are part of the contract (not inspector values):
   falling piece only. It wraps target columns across the current camera bounds, snaps
   them back onto the placement grid, then runs the normal side-step collision
   classification; landed blocks are never moved.
+- The Fission ability may **suspend the controlled descent** of the active piece
+  (`BlockController.SetDescentSuspended`): while suspended, `SteerWhileFalling` still runs
+  the horizontal grid step and rotation but skips the Y advance and the landing cast, so the
+  shard hovers and is steerable but does not fall. Any descent intent (flick / held fast-drop /
+  down) auto-clears it, so the normal commit gesture starts the drop. The body stays Kinematic
+  and never-landed throughout — this only **defers** first contact (I5), it never writes a
+  transform on a landed block (I1). Active-piece-only, like Edge Portal.
 - `Physics2D.SyncTransforms()` is called before every landing cast (`SteerWhileFalling`,
   `SettleOntoContact`) because **AutoSyncTransforms is off** project-wide. Without it,
   casts see last step's collider poses → landings measured at the wrong X.

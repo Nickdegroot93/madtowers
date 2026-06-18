@@ -699,6 +699,50 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    private readonly Vector3[] _hudCornerBuffer = new Vector3[4];
+
+    /// <summary>
+    /// World-space Y of the LOWEST edge of the top HUD (bar segments + the NEXT card, whichever
+    /// hangs lowest), for the given gameplay camera. Lets a gameplay overlay (the Fission shard
+    /// queue) sit clear of the HUD on any aspect / safe-area instead of guessing a screen fraction.
+    /// Returns false if the bar has not been built yet.
+    /// </summary>
+    public bool TryGetTopHudBottomWorldY(Camera worldCamera, out float worldY)
+    {
+        worldY = 0f;
+        if (worldCamera == null) return false;
+
+        Canvas canvas = HudRoot() != null ? HudRoot().GetComponentInParent<Canvas>() : null;
+        Camera uiCamera = (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
+            ? canvas.worldCamera
+            : null;
+        float depth = Mathf.Abs(worldCamera.transform.position.z);
+
+        bool any = false;
+        float lowestWorldY = float.MaxValue;
+        RectTransform nextRect = _nextPanel != null ? (RectTransform)_nextPanel.transform : null;
+        any |= AccumulateLowestBottom(_barLeft, uiCamera, worldCamera, depth, ref lowestWorldY);
+        any |= AccumulateLowestBottom(_barRight, uiCamera, worldCamera, depth, ref lowestWorldY);
+        any |= AccumulateLowestBottom(nextRect, uiCamera, worldCamera, depth, ref lowestWorldY);
+        if (!any) return false;
+
+        worldY = lowestWorldY;
+        return true;
+    }
+
+    private bool AccumulateLowestBottom(RectTransform rect, Camera uiCamera, Camera worldCamera, float depth, ref float lowestWorldY)
+    {
+        if (rect == null) return false;
+
+        rect.GetWorldCorners(_hudCornerBuffer); // [0]=bottom-left, [3]=bottom-right
+        float screenBottomY = Mathf.Min(
+            RectTransformUtility.WorldToScreenPoint(uiCamera, _hudCornerBuffer[0]).y,
+            RectTransformUtility.WorldToScreenPoint(uiCamera, _hudCornerBuffer[3]).y);
+        float wy = worldCamera.ScreenToWorldPoint(new Vector3(Screen.width * 0.5f, screenBottomY, depth)).y;
+        if (wy < lowestWorldY) lowestWorldY = wy;
+        return true;
+    }
+
     private RectTransform HudRoot()
     {
         // Cached on first use: the top bar REPARENTS scoreText into a stat card, so

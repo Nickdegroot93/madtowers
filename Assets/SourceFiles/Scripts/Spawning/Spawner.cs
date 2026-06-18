@@ -30,6 +30,10 @@ public class Spawner : MonoBehaviour
     private readonly List<VariantChance> _variantChances = new List<VariantChance>();
     private BlockData _queuedVariantOverride;
 
+    // Set by the Fission session: while true the lock->spawn chain stops auto-spawning bag
+    // pieces so the session can feed its own 1x1 shards. Run-local; resets with a fresh Spawner.
+    private bool _suppressAutoSpawn;
+
     // Stable look-ahead queue: holds exactly _visibleQueueDepth rolled shapes, front =
     // next to spawn. A queued shape is NEVER re-rolled, so what the HUD previews is exactly
     // what spawns. Foresight widens the depth (SetVisibleQueueDepth); default is one.
@@ -210,8 +214,47 @@ public class Spawner : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// While true, the lock->spawn chain does NOT auto-spawn the next bag piece. The Fission
+    /// session owns spawning for its duration (it feeds 1x1 shards itself); it clears this on
+    /// the final shard's lock so the very next SpawnNextBlock resumes normal play.
+    /// </summary>
+    public void SetAutoSpawnSuspended(bool suspended) => _suppressAutoSpawn = suspended;
+
+    /// <summary>
+    /// Spawn a fresh controlled piece of the given definition at a position, wired exactly like
+    /// a normal spawn (same WireBlock path) so it cannot drift from it. Used by the Fission
+    /// session to feed each 1x1 shard; <paramref name="suspended"/> starts it hovering (descent
+    /// deferred until the player commits a drop). Uses DefaultData (no variant roll) and does NOT
+    /// raise BlockSpawned - a shard is the same logical turn, like a transmute, not a new draw.
+    /// </summary>
+    public BlockController SpawnControlledPieceAt(BlockDefinition definition, Vector3 position, bool suspended)
+    {
+        if (definition == null || definition.Prefab == null) return null;
+
+        GameObject blockObj = Instantiate(definition.Prefab, position, Quaternion.identity);
+        BlockController block = blockObj.GetComponent<BlockController>();
+        if (block == null)
+        {
+            Debug.LogError($"SpawnControlledPieceAt: '{definition.name}' prefab has no BlockController.", definition);
+            Destroy(blockObj);
+            return null;
+        }
+
+        _currentBlock = block;
+        WireBlock(block, definition, definition.DefaultData);
+        if (suspended) block.SetDescentSuspended(true);
+        return block;
+    }
+
     private void SpawnNextBlock()
     {
+        // The Fission session feeds its own shards; never inject a bag piece mid-session.
+        if (_suppressAutoSpawn)
+        {
+            return;
+        }
+
         // Never two controlled pieces: a pending SpawnWithDelay coroutine and an external
         // ResumeSpawning can otherwise race (latent today - every config uses SpawnDelay 0).
         if (BlockController.ActiveControlled != null)

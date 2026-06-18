@@ -609,3 +609,34 @@ behind the standard, so the next consumable composes instead of copy-pasting:
 `BulletImpact` is the reference composition: `SupportBlockBelow` → `BurstFromEveryCell`
 + `ImpactPunch` + sfx → destroy. ~45 lines, all of it Bullet's own decisions
 (guards, which sounds); every reusable mechanic is one of the calls above.
+
+### Fission (Epic, consumable)
+`FissionAbility` shatters the active falling piece into one independent **1×1 Pip shard per
+cell** (a tetromino → 4, a domino → 2). `Activate` plays the per-cell shatter (`BurstFromEveryCell`
++ `ImpactPunch` + `impact_shatter_01`) then hands off to `FissionSession`, a runtime-only driver
+(the `ExtractTargetingSession`/`HoldCache` pattern: static `IsActive`, created via `Begin`):
+- Shard #1 reuses `Spawner.ReplaceActivePiece(pip, SpawnPosition)` (cleanly disposes the original,
+  no lock/score) lifted to the **top spawn line**, then `BlockController.SetDescentSuspended(true)`
+  so it **hovers** — steerable L/R but not falling. A downward **flick** (the normal commit
+  gesture) auto-clears the suspension and the shard plummets and lands through the ordinary
+  landing/lock path. See PHYSICS.md for why the suspension is I1/I5-safe (Kinematic, contact
+  merely deferred).
+- The remaining shards float above as a small **queue** of ghost sprites (cloned from the live
+  shard's renderers, so they match the theme skin), with an idle hover bob. Each time the active
+  shard locks (`GameEvents.BlockLocked`, like `HoldCache`), the next shard is fed via the new
+  `Spawner.SpawnControlledPieceAt(pip, SpawnPosition, suspended:true)` and the front ghost glides
+  into the drop slot (smooth lerp, no teleport snaps); the row recentres.
+- The session **withholds bag pieces** for its duration via `Spawner.SetAutoSpawnSuspended(true)`
+  (guards `SpawnNextBlock`); it does **not** pause `Time.timeScale` (that would freeze the
+  controllable shard — the "kinda paused" feel comes from no bag pieces + hovering shards). On the
+  last shard's lock it clears the suspension so the Spawner's own lock→spawn chain resumes normal
+  play; game-over mid-session tears down cleanly.
+
+Each shard is a real `Block_Pip` (Normal data — counts +1, costs a life), so a tetromino that
+normally scores +1 places **four counting blocks** (BLOCKS.md): the power, and the cost. The
+original piece is destroyed without locking, so it was never counted (no `−1`). `CanActivate`
+reuses `AbilityEffects.CanTransmuteActivePiece(context, pip)` (live piece in air, not mid-lock,
+not past the loss line, Pip wired, **not already a Pip**) plus cell-count ≥ 2 and no session
+already active. `splitEffect` is a swappable serialized CFXR field (base prefabs only; degrades to
+flash+punch until assigned). **Deferred:** the spec's "infinite stacks / +1 charge" — consumables
+don't stack today; ships single-use, revisit with a general stackable-consumable pass.
