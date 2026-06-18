@@ -7,6 +7,10 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "Suspension", menuName = "Stacking/Abilities/Suspension")]
 public class SuspensionAbility : ConsumableAbility
 {
+    [Tooltip("The Anchor block variant the frozen block is converted into, so it adopts the " +
+             "shared anchor look (tint/skin) instead of staying visually identical.")]
+    [SerializeField] private BlockData anchorVariant;
+
     public override bool CanActivate(AbilityContext context)
     {
         if (ExtractTargetingSession.IsActive) return false;
@@ -22,7 +26,7 @@ public class SuspensionAbility : ConsumableAbility
 
     public override void Activate(AbilityContext context)
     {
-        ExtractTargetingSession.BeginSuspension();
+        ExtractTargetingSession.BeginSuspension(anchorVariant);
     }
 
     private static bool IsVisible(BlockController block)

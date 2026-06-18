@@ -61,6 +61,7 @@ public sealed class ExtractTargetingSession : MonoBehaviour
     private bool _pausedGame;
     private bool _finishing;
     private TargetEffect _effect;
+    private BlockData _anchorVariant;
 
     public static bool IsActive { get; private set; }
 
@@ -75,21 +76,22 @@ public sealed class ExtractTargetingSession : MonoBehaviour
         if (IsActive) return;
 
         GameObject go = new GameObject("ExtractTargetingSession");
-        go.AddComponent<ExtractTargetingSession>().StartSession(TargetEffect.Extract);
+        go.AddComponent<ExtractTargetingSession>().StartSession(TargetEffect.Extract, null);
     }
 
-    public static void BeginSuspension()
+    public static void BeginSuspension(BlockData anchorVariant)
     {
         if (IsActive) return;
 
         GameObject go = new GameObject("SuspensionTargetingSession");
-        go.AddComponent<ExtractTargetingSession>().StartSession(TargetEffect.Suspension);
+        go.AddComponent<ExtractTargetingSession>().StartSession(TargetEffect.Suspension, anchorVariant);
     }
 
-    private void StartSession(TargetEffect effect)
+    private void StartSession(TargetEffect effect, BlockData anchorVariant)
     {
         IsActive = true;
         _effect = effect;
+        _anchorVariant = anchorVariant;
         _camera = Camera.main;
         BuildProxies();
 
@@ -359,6 +361,9 @@ public sealed class ExtractTargetingSession : MonoBehaviour
             return;
         }
 
+        // Convert into the Anchor variant first so it adopts the shared anchor look
+        // (ApplyData re-tints the existing skin), then freeze it as a Static body.
+        if (_anchorVariant != null) _selected.Block.ApplyData(_anchorVariant);
         _selected.Block.FreezeInPlace();
         SfxPlayer.Play("pop_01", 0.7f, 0.04f);
     }

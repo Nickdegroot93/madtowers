@@ -570,9 +570,13 @@ another after spending it.
 `SuspensionAbility` reuses the Extract targeting presentation: visible landed tower blocks
 are hidden behind floating visual proxies, the game pauses, and the player taps one proxy.
 Instead of deleting the chosen block, the shared `ExtractTargetingSession` runs in Suspension
-mode and calls `BlockController.FreezeInPlace()` on the real block. That turns the selected
-block into a `Static` Rigidbody2D at its current world coordinates, so it remains as permanent
-anchor-like terrain even if every supporting block underneath later disappears.
+mode and, on the real block, applies the **Anchor** `BlockData` variant (`ApplyData`, wired as
+the ability's `anchorVariant` field) and then calls `BlockController.FreezeInPlace()`. Applying
+the anchor data re-tints the existing skin so the block visually *becomes* an anchor brick (it
+adopts whatever look the Anchor variant carries — today the bluish `colorTint` — so future anchor
+styling flows to suspended blocks for free); the freeze turns it into a `Static` Rigidbody2D at
+its current world coordinates, so it remains as permanent anchor-like terrain even if every
+supporting block underneath later disappears.
 
 Suspension only offers/selects landed blocks that are not already frozen/static, so a held
 charge cannot be wasted on an existing anchor brick, Freeze target, or previous Suspension
