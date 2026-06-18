@@ -150,6 +150,61 @@ public class Spawner : MonoBehaviour
     /// <summary>Where a fresh piece spawns (the top). The Hold cache drops a banked-in piece here.</summary>
     public Vector3 SpawnPosition => spawnPoint != null ? spawnPoint.position : Vector3.zero;
 
+    /// <summary>Can the active falling piece trade places with the front of the look-ahead queue?</summary>
+    public bool CanSwapActiveWithNextQueued()
+    {
+        BlockController active = BlockController.ActiveControlled;
+        if (active == null || active != _currentBlock || active.HasLanded) return false;
+
+        BlockDefinition outgoing = ActiveDefinition;
+        if (outgoing == null || outgoing.Prefab == null) return false;
+
+        if (_upcoming.Count == 0) return false;
+        BlockDefinition incoming = _upcoming[0];
+        if (incoming == null || incoming.Prefab == null) return false;
+        if (incoming == outgoing) return false;
+        if (incoming.Prefab.GetComponent<BlockController>() == null) return false;
+
+        Camera camera = Camera.main;
+        if (camera != null && camera.orthographic && active.transform.position.y < LossZone.CullY(camera)) return false;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Swap the active falling shape with the next queued shape. The outgoing active shape becomes
+    /// the queue front, and the incoming queued shape enters play at the active piece's position.
+    /// </summary>
+    public bool SwapActiveWithNextQueued()
+    {
+        if (!CanSwapActiveWithNextQueued()) return false;
+
+        BlockController active = BlockController.ActiveControlled;
+        BlockDefinition outgoing = ActiveDefinition;
+        BlockDefinition incoming = _upcoming[0];
+        Vector3 spawnPos = active.transform.position;
+
+        GameObject blockObj = Instantiate(incoming.Prefab, spawnPos, Quaternion.identity);
+        BlockController replacement = blockObj.GetComponent<BlockController>();
+        if (replacement == null)
+        {
+            Debug.LogError($"SwapActiveWithNextQueued: '{incoming.name}' prefab has no BlockController.", incoming);
+            Destroy(blockObj);
+            return false;
+        }
+
+        active.OnBlockLocked -= HandleBlockLocked;
+        Destroy(active.gameObject);
+        _currentBlock = replacement;
+        _upcoming[0] = outgoing;
+
+        BlockData data = RollVariantChances(GetBlockData(incoming));
+        WireBlock(replacement, incoming, data);
+        AnnounceUpcoming();
+        GameEvents.RaiseBlockSpawned(replacement, data);
+        return true;
+    }
+
     /// <summary>Pop the next queued shape off the front and refill (the Hold cache's bank case:
     /// the banked piece leaves the field and this becomes the new active piece).</summary>
     public BlockDefinition TakeNextQueued()

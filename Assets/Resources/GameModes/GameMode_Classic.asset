@@ -49,6 +49,7 @@ MonoBehaviour:
   powerUpChoicePool:
   - {fileID: 11400000, guid: 0dca35f837a34a25996ebab97183f7aa, type: 2}
   - {fileID: 11400000, guid: ab3b38f4ef6c4ee09db11741e7fab0d9, type: 2}
+  - {fileID: 11400000, guid: 8f1e0a23bf6e4e89a8ed4d49a2f31d8c, type: 2}
   - {fileID: 11400000, guid: 6470a3ad296e48478c6cb9447a928492, type: 2}
   - {fileID: 11400000, guid: 7b487e5f478044db94d833da9f8ab16d, type: 2}
   - {fileID: 11400000, guid: ab2fe7abf100443dab8293f4d68f0bf4, type: 2}

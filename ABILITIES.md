@@ -204,6 +204,7 @@ when unusable, same affordance as the nudge pills.
    |---|---|---|---|
    | `StatusConsumableAbility` | Consumable | status | "activate: enter state X" |
    | `TransmuteAbility` | Consumable | targetShape (+ transformEffect) | "activate: active piece becomes shape X" |
+   | `FlipAbility` | Consumable | - | "activate: swap active shape with next queued shape" |
    | `SlowWindowConsumable` | Consumable | slowFactor, blocks | "activate: next N blocks fall slower" |
    | `OverdrawAbility` | Consumable (unique) | choiceCount | "activate: hold three shapes and choose drop order" |
    | `ScrapAbility` | Consumable | vaporColor | "activate: destroy the last placed block" |
@@ -475,6 +476,21 @@ relayout only fires when the slot count actually changes (`UIManager.EnsureSlotL
 `unique = true`; resets per run with the fresh Spawner. Note: a Spike/Cube Supply picked
 *after* a shape is already queued won't bias that already-locked shape (the bias applies
 going forward) — acceptable.
+
+### Flip (Common, consumable, max stack 1)
+`FlipAbility` swaps the active falling shape with the front of the Spawner's stable
+look-ahead queue via `Spawner.SwapActiveWithNextQueued`. The incoming queued shape is
+instantiated at the active piece's current world position, wired through the same path as
+a normal spawn, and raises `BlockSpawned` because it is a queued piece entering play early.
+The outgoing active shape becomes the new front of `_upcoming`, so the NEXT preview updates
+immediately to show the piece the player just traded away; activation is refused if the
+next shape is identical to the active one. This is shape-only, matching
+Hold/Rebound queue semantics: any variant on the outgoing piece is not preserved and will
+reroll when that shape later spawns. Activation is refused unless there is a live controlled
+piece, a valid queued next shape, and the active piece has not fallen below the loss cull.
+Like other consumables, Flip is locked out while Fission/Overdraw-style consumable sessions
+own the active-piece state. The asset uses `maxStacks = 1`, not `unique`, so it can be
+offered again after spending it.
 
 ### Vector Guide (Common, passive, unique)
 `VectorGuideAbility` toggles a run-local landing ghost on `BlockController`. The active

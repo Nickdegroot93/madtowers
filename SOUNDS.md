@@ -46,7 +46,7 @@ duller than `impact_shatter_01`.
 
 **Should be:** a single gun cock (pull back, slam home) — "weapon readied".
 
-### `swoosh_01` — Movement / generic ability (HEAVILY OVERLOADED — 11 sites)
+### `swoosh_01` — Movement / generic ability (HEAVILY OVERLOADED — 12 sites)
 The catch-all "something moved/activated" sound. Most of these want their own sound.
 - Corner-**nudge dash** ([BlockController.Input.cs:60](Assets/SourceFiles/Scripts/Blocks/BlockController/BlockController.Input.cs#L60)).
 - **Hold button** reveals when Pocket Cache unlocks ([HoldButton.cs:138](Assets/SourceFiles/Scripts/UI/HoldButton.cs#L138)).
@@ -55,6 +55,7 @@ The catch-all "something moved/activated" sound. Most of these want their own so
 - **Rebound** rescue lift (saved block beamed back) ([RescueLift.cs:126](Assets/SourceFiles/Scripts/Abilities/Effects/RescueLift.cs#L126)).
 - **Hardline** catch (lost block becomes a platform) ([HardlineAbility.cs:64](Assets/SourceFiles/Scripts/Abilities/Definitions/HardlineAbility.cs#L64)).
 - **Transmute / Shrink** transforms the active piece ([TransmuteAbility.cs:34](Assets/SourceFiles/Scripts/Abilities/Definitions/TransmuteAbility.cs#L34)).
+- **Flip** swaps the active piece with the next queued piece ([FlipAbility.cs:23](Assets/SourceFiles/Scripts/Abilities/Definitions/FlipAbility.cs#L23)).
 - **Slo-Mo / slow-window** activate ([SlowWindowConsumable.cs:22](Assets/SourceFiles/Scripts/Abilities/Definitions/SlowWindowConsumable.cs#L22)).
 - **Fission** shard advances from the queue into the drop slot ([FissionSession.cs:160](Assets/SourceFiles/Scripts/Abilities/Effects/FissionSession.cs#L160)).
 - **Overdraw** activates and replaces the current active piece with the draft row ([OverdrawAbility.cs:39](Assets/SourceFiles/Scripts/Abilities/Definitions/OverdrawAbility.cs#L39)).
@@ -78,7 +79,7 @@ whoosh is wrong for a shield-up, a save, a transmute, etc.
 **Should be:** a friendly rising *blip/pop*. **Overloaded** — most abilities want their own.
 
 ### Gaps — sounds the game wants but does not have
-- **Per-ability activation sounds.** Most abilities reuse `swoosh_01`, `pop_01`, or shared impact clips. Each should get its own (Brace = shield-up shimmer; Freeze = icy crackle; Slo-Mo = time-warp wow; Transmute = a magic morph; Fission = a brittle multi-crack distinct from the generic shatter; Extract = a soft extract/pluck; Overdraw = a sleek card/air shuffle plus soft select tick; Scrap = compact vaporize/undo puff; etc.).
+- **Per-ability activation sounds.** Most abilities reuse `swoosh_01`, `pop_01`, or shared impact clips. Each should get its own (Brace = shield-up shimmer; Freeze = icy crackle; Slo-Mo = time-warp wow; Transmute = a magic morph; Flip = crisp queue-swap flick; Fission = a brittle multi-crack distinct from the generic shatter; Extract = a soft extract/pluck; Overdraw = a sleek card/air shuffle plus soft select tick; Scrap = compact vaporize/undo puff; etc.).
 - **Combo / pattern fired** — a distinct chime, separate from the generic pop.
 - **Per-shard drop / land in Fission** — currently the generic landing sound; a lighter "tick" per micro-cube would read better.
 - **Life lost** / **game over** — none wired.
