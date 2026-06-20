@@ -1,14 +1,17 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Layered, chapter-driven gameplay backdrop - no background images. Driven entirely by the
-/// active chapter's BackdropPreset (or the built-in classic defaults):
+/// Layered, chapter-driven gameplay backdrop. Driven by the active chapter's
+/// BackdropPreset (or the built-in classic defaults):
 ///   - sky: a generated vertical gradient glued to the camera, crossfading to a second
 ///     "high altitude" gradient as the tower climbs
 ///   - clouds: procedural sprites drifting horizontally, recycled around the camera so
 ///     coverage is infinite in height
 ///   - hills: ground-level silhouettes with slight parallax that sink out of view as the
 ///     camera rises (the ground disappears, only sky and clouds remain)
+///   - imported sprite layers: optional Asset Store/background-pack layers adapted for
+///     portrait vertical play
 ///   - ambient particles: falling, swaying soft dots (snow, petals, embers - just data)
 /// Purely visual; nothing here is read by physics. In edit mode only the sky preview
 /// runs - the world elements exist in play mode.
@@ -16,6 +19,15 @@ using UnityEngine;
 [ExecuteAlways]
 public partial class LevelPresentationController : MonoBehaviour
 {
+    private sealed class RuntimeSpriteLayer
+    {
+        public BackdropPreset.SpriteLayer Config;
+        public SpriteRenderer Renderer;
+        public float BaseX;
+        public float BaseY;
+        public float BaseScale;
+    }
+
     [SerializeField] private LevelDefinition levelDefinition;
     [SerializeField] private SpriteRenderer backgroundRenderer;
     [SerializeField] private Camera targetCamera;
@@ -36,6 +48,7 @@ public partial class LevelPresentationController : MonoBehaviour
     private Sprite _skyLowSprite;
     private Sprite _skyHighSprite;
     private SpriteRenderer _skyHighRenderer;
+    private Sprite _bottomClarityVeilSprite;
 
     private float _climbBaseY;    // camera Y when the backdrop spawned; parallax measures
                                   // from here, NOT from the floor (the camera starts well
@@ -52,6 +65,8 @@ public partial class LevelPresentationController : MonoBehaviour
     private float _propMinFromCenter;
     private Transform[] _particles;
     private float[] _particlePhases;
+    private readonly List<RuntimeSpriteLayer> _spriteLayerRuntimes = new List<RuntimeSpriteLayer>();
+    private SpriteRenderer _bottomClarityVeil;
 
     private void LateUpdate()
     {
@@ -64,6 +79,8 @@ public partial class LevelPresentationController : MonoBehaviour
         EnsureWorldElements();
         UpdateClouds();
         UpdateHills();
+        UpdateSpriteLayers();
+        UpdateBottomClarityVeil();
         UpdateSun();
         UpdateProps();
         UpdateParticles();
@@ -92,10 +109,12 @@ public partial class LevelPresentationController : MonoBehaviour
     private void SetPreset(BackdropPreset preset)
     {
         if (_preset == preset) return;
+        DestroyWorldElements();
         _preset = preset;
 
         DestroySprite(ref _skyLowSprite);
         DestroySprite(ref _skyHighSprite);
+        DestroySprite(ref _bottomClarityVeilSprite);
         // The gradient lives in the bottom 60% of the quad and is solid top color above;
         // the gentle curve keeps the blend smooth inside that band.
         const float SkyGradientCurve = 0.8f;
@@ -118,8 +137,33 @@ public partial class LevelPresentationController : MonoBehaviour
     // be destroyed with their owner or every level restart leaks two textures.
     private void OnDestroy()
     {
+        DestroyWorldElements();
         DestroySprite(ref _skyLowSprite);
         DestroySprite(ref _skyHighSprite);
+        DestroySprite(ref _bottomClarityVeilSprite);
+    }
+
+    private void DestroyWorldElements()
+    {
+        if (_worldRoot != null)
+        {
+            if (Application.isPlaying) Destroy(_worldRoot.gameObject);
+            else DestroyImmediate(_worldRoot.gameObject);
+        }
+
+        _worldRoot = null;
+        _clouds = null;
+        _cloudSpeeds = null;
+        _cloudBobPhases = null;
+        _hills = null;
+        _hillBase = null;
+        _sun = null;
+        _props = null;
+        _propOffsets = null;
+        _particles = null;
+        _particlePhases = null;
+        _bottomClarityVeil = null;
+        _spriteLayerRuntimes.Clear();
     }
 
     // ---- sky -----------------------------------------------------------------------------

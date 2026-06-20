@@ -122,6 +122,8 @@ public partial class LevelPresentationController
             _particles[i] = particle.transform;
             _particlePhases[i] = Random.Range(0f, Mathf.PI * 2f);
         }
+
+        CreateSpriteLayers();
     }
 
     private float CameraHalfHeight => targetCamera.orthographicSize;
@@ -202,6 +204,211 @@ public partial class LevelPresentationController
             _hillBase.transform.localScale = new Vector3(width, FillDepth, 1f);
             _hillBase.transform.position = new Vector3(cam.x, lowestValley - FillDepth * 0.5f + 0.1f, 0f);
         }
+    }
+
+    private void CreateSpriteLayers()
+    {
+        BackdropPreset.SpriteLayer[] layers = _preset.SpriteLayers;
+        if (layers == null || layers.Length == 0) return;
+
+        for (int layerIndex = 0; layerIndex < layers.Length; layerIndex++)
+        {
+            BackdropPreset.SpriteLayer layer = layers[layerIndex];
+            Sprite[] sprites = layer.Sprites;
+            if (sprites == null || sprites.Length == 0) continue;
+
+            int count = layer.InstanceCount > 0 ? layer.InstanceCount : sprites.Length;
+            float spread = CameraHalfWidth * layer.HorizontalSpread;
+
+            for (int i = 0; i < count; i++)
+            {
+                Sprite sprite = sprites[i % sprites.Length];
+                if (sprite == null) continue;
+
+                GameObject layerObject = new GameObject($"{layer.Label}{i}");
+                layerObject.transform.SetParent(_worldRoot, false);
+
+                SpriteRenderer sr = layerObject.AddComponent<SpriteRenderer>();
+                sr.sprite = sprite;
+                sr.color = layer.Tint;
+                sr.sortingOrder = layer.SortingOrder;
+
+                float t = count <= 1 ? 0.5f : (float)i / (count - 1);
+                float baseX = Mathf.Lerp(-spread, spread, t);
+                Vector2 jitter = layer.PositionJitter;
+                baseX += StableLayerRange(layer.Label, layerIndex, i, 0, -Mathf.Abs(jitter.x), Mathf.Abs(jitter.x));
+                float baseY = layer.BaseYOffset + StableLayerRange(layer.Label, layerIndex, i, 1, -Mathf.Abs(jitter.y), Mathf.Abs(jitter.y));
+
+                Vector2 scaleRange = layer.ScaleRange;
+                float minScale = Mathf.Max(0.01f, Mathf.Min(scaleRange.x, scaleRange.y));
+                float maxScale = Mathf.Max(minScale, Mathf.Max(scaleRange.x, scaleRange.y));
+
+                RuntimeSpriteLayer runtime = new RuntimeSpriteLayer
+                {
+                    Config = layer,
+                    Renderer = sr,
+                    BaseX = baseX,
+                    BaseY = baseY,
+                    BaseScale = StableLayerRange(layer.Label, layerIndex, i, 2, minScale, maxScale)
+                };
+                _spriteLayerRuntimes.Add(runtime);
+            }
+        }
+    }
+
+    private static float StableLayerRange(string label, int layerIndex, int instanceIndex, int salt, float min, float max)
+    {
+        if (Mathf.Approximately(min, max)) return min;
+
+        uint hash = 2166136261u;
+        AddStableHash(ref hash, label);
+        AddStableHash(ref hash, layerIndex);
+        AddStableHash(ref hash, instanceIndex);
+        AddStableHash(ref hash, salt);
+
+        float t = (hash & 0x00ffffff) / 16777215f;
+        return Mathf.Lerp(min, max, t);
+    }
+
+    private static void AddStableHash(ref uint hash, string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            AddStableHash(ref hash, 0);
+            return;
+        }
+
+        for (int i = 0; i < value.Length; i++)
+        {
+            hash ^= value[i];
+            hash *= 16777619u;
+        }
+    }
+
+    private static void AddStableHash(ref uint hash, int value)
+    {
+        unchecked
+        {
+            uint bits = (uint)value;
+            for (int i = 0; i < 4; i++)
+            {
+                hash ^= bits & 0xffu;
+                hash *= 16777619u;
+                bits >>= 8;
+            }
+        }
+    }
+
+    private void UpdateSpriteLayers()
+    {
+        if (_spriteLayerRuntimes.Count == 0 || targetCamera == null) return;
+
+        Vector3 cam = targetCamera.transform.position;
+        float climbed = Climbed(cam);
+        float floorY = GameManager.Instance != null
+            ? GameManager.Instance.floorOriginY
+            : _climbBaseY - CameraHalfHeight;
+
+        for (int i = 0; i < _spriteLayerRuntimes.Count; i++)
+        {
+            RuntimeSpriteLayer runtime = _spriteLayerRuntimes[i];
+            if (runtime.Renderer == null || runtime.Config == null) continue;
+
+            float scale = runtime.BaseScale;
+            if (runtime.Renderer.sprite != null && (runtime.Config.CoverCameraView || runtime.Config.FitToCameraWidth))
+            {
+                float spriteWidth = runtime.Renderer.sprite.bounds.size.x;
+                float spriteHeight = runtime.Renderer.sprite.bounds.size.y;
+                if (spriteWidth > 0f && spriteHeight > 0f)
+                {
+                    float widthScale = (CameraHalfWidth * 2f) / spriteWidth;
+                    float fitScale = runtime.Config.CoverCameraView
+                        ? Mathf.Max(widthScale, (CameraHalfHeight * 2f) / spriteHeight)
+                        : widthScale;
+                    scale *= fitScale * runtime.Config.FittedWidthMultiplier;
+                }
+            }
+
+            float y = runtime.Config.AnchorToCamera
+                ? cam.y + runtime.BaseY
+                : floorY + runtime.BaseY + climbed * runtime.Config.VerticalParallax;
+
+            Transform layerTransform = runtime.Renderer.transform;
+            layerTransform.localScale = new Vector3(scale, scale, 1f);
+            layerTransform.position = new Vector3(
+                cam.x + runtime.BaseX,
+                y,
+                0f);
+        }
+    }
+
+    private void UpdateBottomClarityVeil()
+    {
+        if (_preset == null || !_preset.BottomClarityVeilEnabled || targetCamera == null)
+        {
+            if (_bottomClarityVeil != null) _bottomClarityVeil.enabled = false;
+            return;
+        }
+
+        EnsureBottomClarityVeil();
+        if (_bottomClarityVeil == null || _bottomClarityVeil.sprite == null) return;
+
+        _bottomClarityVeil.enabled = true;
+        Vector3 cam = targetCamera.transform.position;
+        float height = CameraHalfHeight * 2f * Mathf.Max(0.01f, _preset.BottomClarityVeilHeight);
+        float width = CameraHalfWidth * 2.2f;
+        Vector2 spriteSize = _bottomClarityVeil.sprite.bounds.size;
+        if (spriteSize.x <= 0f || spriteSize.y <= 0f) return;
+
+        _bottomClarityVeil.transform.position = new Vector3(
+            cam.x,
+            cam.y - CameraHalfHeight + height * 0.5f,
+            0f);
+        _bottomClarityVeil.transform.localScale = new Vector3(
+            width / spriteSize.x,
+            height / spriteSize.y,
+            1f);
+    }
+
+    private void EnsureBottomClarityVeil()
+    {
+        if (_bottomClarityVeil != null) return;
+
+        if (_bottomClarityVeilSprite == null)
+        {
+            _bottomClarityVeilSprite = CreateBottomClarityVeilSprite(_preset.BottomClarityVeilColor, _preset.BottomClarityVeilCurve);
+        }
+
+        GameObject veil = new GameObject("BottomClarityVeil");
+        veil.transform.SetParent(_worldRoot, false);
+        _bottomClarityVeil = veil.AddComponent<SpriteRenderer>();
+        _bottomClarityVeil.sprite = _bottomClarityVeilSprite;
+        _bottomClarityVeil.sortingOrder = ParticleSortingOrder + 1;
+    }
+
+    private static Sprite CreateBottomClarityVeilSprite(Color color, float curve)
+    {
+        const int Height = 128;
+        Texture2D tex = new Texture2D(1, Height, TextureFormat.RGBA32, false)
+        {
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear,
+            hideFlags = HideFlags.HideAndDontSave
+        };
+
+        float maxAlpha = Mathf.Clamp01(color.a);
+        Color pixel = color;
+        for (int y = 0; y < Height; y++)
+        {
+            float t = (float)y / (Height - 1);
+            pixel.a = maxAlpha * Mathf.Pow(1f - t, Mathf.Max(0.25f, curve));
+            tex.SetPixel(0, y, pixel);
+        }
+
+        tex.Apply();
+        Sprite sprite = Sprite.Create(tex, new Rect(0, 0, 1, Height), new Vector2(0.5f, 0.5f), Height);
+        sprite.hideFlags = HideFlags.HideAndDontSave;
+        return sprite;
     }
 
     // The sun sits at a fixed screen X; vertically it lives near sunHeightMeters but

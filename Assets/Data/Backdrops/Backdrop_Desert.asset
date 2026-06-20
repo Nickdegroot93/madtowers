@@ -19,7 +19,7 @@ MonoBehaviour:
   altitudeFadeMeters: 30
   skyShimmerAmount: 0.3
   skyShimmerPeriodMeters: 22
-  sunEnabled: 1
+  sunEnabled: 0
   sunColor: {r: 1, g: 0.94, b: 0.82, a: 0.35}
   sunSize: 3.2
   sunScreenX: 0.74
@@ -27,15 +27,136 @@ MonoBehaviour:
   propCount: 0
   propColor: {r: 0.31, g: 0.42, b: 0.29, a: 1}
   propScaleRange: {x: 1.5, y: 2.1}
-  cloudCount: 7
+  cloudCount: 0
   cloudStyle: 2
   cloudColor: {r: 1, g: 0.93, b: 0.85, a: 0.55}
   cloudDriftSpeed: 0.22
   cloudScaleRange: {x: 2.5, y: 4.5}
-  hillsEnabled: 1
+  hillsEnabled: 0
   hillStyle: 0
   hillFarColor: {r: 0.88, g: 0.52, b: 0.4, a: 1}
   hillNearColor: {r: 0.82, g: 0.45, b: 0.35, a: 1}
+  spriteLayers:
+  - label: Desert Vibe BG
+    sprites:
+    - {fileID: 21300000, guid: f942608f8411f7b4cae5e621a6b15146, type: 3}
+    instanceCount: 1
+    verticalParallax: 0.92
+    baseYOffset: 0
+    horizontalSpread: 1
+    positionJitter: {x: 0, y: 0}
+    scaleRange: {x: 1, y: 1}
+    fitToCameraWidth: 1
+    coverCameraView: 1
+    fittedWidthMultiplier: 1.04
+    anchorToCamera: 1
+    tint: {r: 1, g: 1, b: 1, a: 1}
+    sortingOrder: -99
+  - label: Desert Vibe Clouds
+    sprites:
+    - {fileID: 21300000, guid: dfdc1d7b58712a745b45d0ba3d77d6f9, type: 3}
+    instanceCount: 1
+    verticalParallax: 0.9
+    baseYOffset: 13
+    horizontalSpread: 1
+    positionJitter: {x: 0, y: 0}
+    scaleRange: {x: 1, y: 1}
+    fitToCameraWidth: 1
+    coverCameraView: 0
+    fittedWidthMultiplier: 1.3
+    anchorToCamera: 1
+    tint: {r: 1, g: 1, b: 1, a: 0.82}
+    sortingOrder: -94
+  - label: Desert Vibe Far
+    sprites:
+    - {fileID: 21300000, guid: e0c31f4e4516e4440abd6cc8e85e4770, type: 3}
+    - {fileID: 21300000, guid: 038d28f89962f6349b31a8a187cff218, type: 3}
+    - {fileID: 21300000, guid: ca0d82864bd383944ab2aa4defd06070, type: 3}
+    - {fileID: 21300000, guid: 176554b99bf345d4ab4682f37920c815, type: 3}
+    instanceCount: 4
+    verticalParallax: 0.45
+    baseYOffset: -0.75
+    horizontalSpread: 1.25
+    positionJitter: {x: 1.5, y: 0.2}
+    scaleRange: {x: 1.1, y: 1.25}
+    fitToCameraWidth: 0
+    coverCameraView: 0
+    fittedWidthMultiplier: 1.12
+    anchorToCamera: 0
+    tint: {r: 1, g: 1, b: 1, a: 1}
+    sortingOrder: -88
+  - label: Desert Vibe Mid Far
+    sprites:
+    - {fileID: 21300000, guid: 97e441ef8e5f04b40a853f9ae27e506b, type: 3}
+    - {fileID: 21300000, guid: 9d83750d4c9d3064bba7dfacd358bfdf, type: 3}
+    instanceCount: 3
+    verticalParallax: 0.16
+    baseYOffset: -1.8
+    horizontalSpread: 0.95
+    positionJitter: {x: 1.4, y: 0.18}
+    scaleRange: {x: 1.08, y: 1.22}
+    fitToCameraWidth: 0
+    coverCameraView: 0
+    fittedWidthMultiplier: 1.12
+    anchorToCamera: 0
+    tint: {r: 1, g: 1, b: 1, a: 1}
+    sortingOrder: -86
+  - label: Desert Vibe Mid
+    sprites:
+    - {fileID: 21300000, guid: 4b69bf8262937c94cb00471c96df6be4, type: 3}
+    - {fileID: 21300000, guid: f924ac498134a88409ebc504c42de111, type: 3}
+    - {fileID: 21300000, guid: 425abcea6d0faf6478c30a2f387de0e0, type: 3}
+    instanceCount: 3
+    verticalParallax: 0.08
+    baseYOffset: -2.3
+    horizontalSpread: 1
+    positionJitter: {x: 1.5, y: 0.15}
+    scaleRange: {x: 1.02, y: 1.18}
+    fitToCameraWidth: 0
+    coverCameraView: 0
+    fittedWidthMultiplier: 1.12
+    anchorToCamera: 0
+    tint: {r: 1, g: 1, b: 1, a: 1}
+    sortingOrder: -84
+  - label: Desert Vibe Near
+    sprites:
+    - {fileID: 21300000, guid: 52eaf09f27232c347bbcaa1c920268bb, type: 3}
+    - {fileID: 21300000, guid: bab1d0afeb048c8488e9eebdedf9e2b7, type: 3}
+    - {fileID: 21300000, guid: ec72110b74c86654da317d33df0adeae, type: 3}
+    - {fileID: 21300000, guid: 08913360844d0bf43aa5f2ee7769ebb2, type: 3}
+    instanceCount: 4
+    verticalParallax: 0.03
+    baseYOffset: -3.1
+    horizontalSpread: 1.08
+    positionJitter: {x: 1.4, y: 0.12}
+    scaleRange: {x: 0.98, y: 1.12}
+    fitToCameraWidth: 0
+    coverCameraView: 0
+    fittedWidthMultiplier: 1.12
+    anchorToCamera: 0
+    tint: {r: 1, g: 1, b: 1, a: 1}
+    sortingOrder: -82
+  - label: Desert Vibe Foreground
+    sprites:
+    - {fileID: 21300000, guid: 955d8b3b30fc69448969558ca02bee01, type: 3}
+    - {fileID: 21300000, guid: 43971c8603af4a74baa6c13c86ee34de, type: 3}
+    - {fileID: 21300000, guid: 4ba51accbda847c459775328a3a2d1b6, type: 3}
+    instanceCount: 3
+    verticalParallax: 0
+    baseYOffset: -4
+    horizontalSpread: 1.08
+    positionJitter: {x: 1.2, y: 0.1}
+    scaleRange: {x: 1, y: 1.14}
+    fitToCameraWidth: 0
+    coverCameraView: 0
+    fittedWidthMultiplier: 1.12
+    anchorToCamera: 0
+    tint: {r: 1, g: 1, b: 1, a: 1}
+    sortingOrder: -80
+  bottomClarityVeilEnabled: 1
+  bottomClarityVeilColor: {r: 0.86, g: 0.72, b: 0.54, a: 0.34}
+  bottomClarityVeilHeight: 0.36
+  bottomClarityVeilCurve: 1.45
   particleCount: 0
   particleColor: {r: 1, g: 1, b: 1, a: 1}
   particleSize: 0.12
