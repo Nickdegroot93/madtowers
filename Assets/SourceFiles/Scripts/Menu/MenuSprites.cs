@@ -109,6 +109,84 @@ public static class MenuSprites
         return Cache[key] = Finish(tex, S);
     }
 
+    public static Sprite PointHexBadge(Color top, Color bottom, Color border)
+    {
+        string key = $"point-hex:{Key(top)}:{Key(bottom)}:{Key(border)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 192;
+        Texture2D tex = NewTexture(S, S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                float u = ((x + 0.5f) / S) * 2f - 1f;
+                float v = ((y + 0.5f) / S) * 2f - 1f;
+                float au = Mathf.Abs(u);
+                float av = Mathf.Abs(v);
+
+                // Point-up hexagon: flat sides, small peak at top/bottom.
+                float d = Mathf.Max(au, av * 0.8660254f + au * 0.5f) - 0.74f;
+                float edge = Mathf.Clamp01(0.5f - d * 70f);
+                float stroke = Mathf.Clamp01(1.05f - Mathf.Abs(d) * 95f);
+
+                Color fill = Color.Lerp(bottom, top, (v + 1f) * 0.5f);
+                Color c = Color.Lerp(fill, border, stroke * 0.72f);
+                c.a = Mathf.Max(fill.a * edge, border.a * stroke) * edge;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    public static Sprite DiamondBadge(Color fill, Color border)
+    {
+        string key = $"diamond:{Key(fill)}:{Key(border)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 128;
+        Texture2D tex = NewTexture(S, S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                float u = ((x + 0.5f) / S) * 2f - 1f;
+                float v = ((y + 0.5f) / S) * 2f - 1f;
+                float d = Mathf.Abs(u) + Mathf.Abs(v) - 0.78f;
+                float inside = Mathf.Clamp01(0.5f - d * 80f);
+                float stroke = Mathf.Clamp01(1.1f - Mathf.Abs(d) * 105f);
+                Color c = Color.Lerp(fill, border, stroke * 0.82f);
+                c.a = Mathf.Max(fill.a * inside, border.a * stroke) * inside;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    public static Sprite CircleBadge(Color fill, Color border)
+    {
+        string key = $"circle:{Key(fill)}:{Key(border)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 128;
+        Texture2D tex = NewTexture(S, S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                float u = ((x + 0.5f) / S) * 2f - 1f;
+                float v = ((y + 0.5f) / S) * 2f - 1f;
+                float d = Mathf.Sqrt(u * u + v * v) - 0.78f;
+                float inside = Mathf.Clamp01(0.5f - d * 80f);
+                float stroke = Mathf.Clamp01(1.1f - Mathf.Abs(d) * 105f);
+                Color c = Color.Lerp(fill, border, stroke * 0.82f);
+                c.a = Mathf.Max(fill.a * inside, border.a * stroke) * inside;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
     public static Sprite TrianglePlay()
     {
         const string key = "play-triangle";

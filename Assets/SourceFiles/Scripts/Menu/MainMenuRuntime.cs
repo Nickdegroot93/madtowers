@@ -16,11 +16,11 @@ public static class MainMenuRuntime
     private const string LevelsResourcesPath = "Levels";
     private const float LevelListTopInset = 485f;
     private const float LevelListBottomInset = 205f;
-    private const float LevelRowHeight = 205f;
+    private const float LevelRowHeight = 220f;
     private const float LevelCardWidth = 790f;
-    private const float LevelCardHeight = 155f;
+    private const float LevelCardHeight = 184f;
     private const float LevelCardX = 108f;
-    private const float LevelCardTop = 18f;
+    private const float LevelCardTop = 6f;
     private const float RailX = 52f;
 
     private static readonly Color TextPrimary = new Color(0.96f, 0.93f, 0.86f, 1f);
@@ -29,6 +29,7 @@ public static class MainMenuRuntime
     private static readonly Color CardDark = new Color(0.07f, 0.06f, 0.05f, 0.76f);
     private static readonly Color NavDark = new Color(0.045f, 0.04f, 0.035f, 0.92f);
     private static readonly Color GoldBase = new Color(1f, 0.9f, 0.68f, 1f);
+    private static readonly Color GlassBorder = new Color(1f, 0.92f, 0.74f, 0.18f);
 
     private enum MenuTab
     {
@@ -59,6 +60,53 @@ public static class MainMenuRuntime
         Color color = GoldBase;
         color.a = alpha;
         return color;
+    }
+
+    private static Color WithAlpha(Color color, float alpha)
+    {
+        color.a = alpha;
+        return color;
+    }
+
+    private static Color ChapterLight(ChapterDefinition chapter)
+    {
+        return chapter != null ? Color.Lerp(chapter.MenuAccentColor, TextPrimary, 0.46f) : GoldBase;
+    }
+
+    private static Color ChapterDark(ChapterDefinition chapter)
+    {
+        if (chapter == null) return GoldBase;
+        return Color.Lerp(chapter.MenuAccentSecondaryColor, chapter.MenuAccentColor, 0.22f);
+    }
+
+    private static Color MenuGlassFill(ChapterDefinition chapter, float alpha)
+    {
+        Color panel = chapter != null ? chapter.MenuPanelColor : CardDark;
+        Color fill = Color.Lerp(new Color(0.012f, 0.011f, 0.01f, 1f), panel, 0.24f);
+        fill.a = alpha;
+        return fill;
+    }
+
+    private static string TrackedUpper(string value, string letterGap, string wordGap)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+
+        string[] words = value.ToUpperInvariant().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        for (int w = 0; w < words.Length; w++)
+        {
+            char[] chars = words[w].ToCharArray();
+            words[w] = string.Join(letterGap, Array.ConvertAll(chars, c => c.ToString()));
+        }
+        return string.Join(wordGap, words);
+    }
+
+    private static void SetCentered(RectTransform rect, Vector2 anchoredPosition, Vector2 size)
+    {
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(0f, 1f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = anchoredPosition;
+        rect.sizeDelta = size;
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -154,7 +202,7 @@ public static class MainMenuRuntime
         RefreshBackground(chapter);
 
         Transform topRoot = RecreateSection(ref _topStatusRoot, _topStatusLayer, "TopStatusRoot");
-        BuildTopStatusBar(topRoot);
+        BuildTopStatusBar(topRoot, chapter);
 
         Transform contentRoot = RecreateSection(ref _contentRoot, _contentLayer, "ContentRoot");
         if (_activeTab == MenuTab.Play) BuildPlayScreen(contentRoot, chapter);
@@ -324,22 +372,23 @@ public static class MainMenuRuntime
         shadeRect.sizeDelta = new Vector2(0f, 360f);
     }
 
-    private static void BuildTopStatusBar(Transform parent)
+    private static void BuildTopStatusBar(Transform parent, ChapterDefinition chapter)
     {
         PlayerProfileStore.Snapshot profile = PlayerProfileStore.Current;
+        Color chapterTint = chapter != null ? chapter.MenuAccentSecondaryColor : GoldBase;
 
         RectTransform bar = CreateRect(parent, "TopStatusBar",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0f, -34f), new Vector2(-48f, 110f));
+            new Vector2(0f, -34f), new Vector2(-48f, 122f));
         Image barImage = bar.gameObject.AddComponent<Image>();
         barImage.sprite = RuntimeSprites.RoundedPanel();
         barImage.type = Image.Type.Sliced;
-        barImage.color = new Color(0.05f, 0.045f, 0.038f, 0.72f);
-        RuntimeUiKit.AddOutline(bar, GoldOutline(0.16f));
+        barImage.color = WithAlpha(Color.Lerp(chapterTint, TextPrimary, 0.18f), 0.07f);
+        RuntimeUiKit.AddOutline(bar, GlassBorder);
 
         HorizontalLayoutGroup layout = bar.gameObject.AddComponent<HorizontalLayoutGroup>();
-        layout.padding = new RectOffset(24, 24, 11, 11);
-        layout.spacing = 20f;
+        layout.padding = new RectOffset(28, 28, 14, 14);
+        layout.spacing = 24f;
         layout.childAlignment = TextAnchor.MiddleCenter;
         layout.childControlWidth = true;
         layout.childControlHeight = true;
@@ -347,50 +396,62 @@ public static class MainMenuRuntime
         layout.childForceExpandHeight = false;
 
         Image badge = CreateImage(bar, "LevelBadge",
-            MenuSprites.HexButton(new Color(0.23f, 0.21f, 0.18f, 1f), new Color(0.08f, 0.075f, 0.07f, 1f)),
+            MenuSprites.PointHexBadge(
+                new Color(0.32f, 0.30f, 0.26f, 0.36f),
+                new Color(0.06f, 0.055f, 0.048f, 0.42f),
+                GlassBorder),
             Color.white);
         LayoutElement badgeLayout = badge.gameObject.AddComponent<LayoutElement>();
-        badgeLayout.preferredWidth = 88f;
-        badgeLayout.preferredHeight = 88f;
-        CreateText(badge.transform, "LevelText", profile.PlayerLevel.ToString(), 34, TextPrimary,
-            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        badgeLayout.preferredWidth = 82f;
+        badgeLayout.preferredHeight = 82f;
+        CreateText(badge.transform, "LevelText", profile.PlayerLevel.ToString(), 30, TextPrimary,
+            TextAnchor.MiddleCenter, FontStyle.Normal, RuntimeUiKit.DefaultFont);
 
         RectTransform profileColumn = CreateRect(bar, "ProfileInfo",
             Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
         LayoutElement profileLayout = profileColumn.gameObject.AddComponent<LayoutElement>();
-        profileLayout.minWidth = 230f;
-        profileLayout.flexibleWidth = 1f;
-        profileLayout.preferredHeight = 88f;
+        profileLayout.minWidth = 210f;
+        profileLayout.preferredWidth = 210f;
+        profileLayout.preferredHeight = 82f;
 
         VerticalLayoutGroup profileStack = profileColumn.gameObject.AddComponent<VerticalLayoutGroup>();
-        profileStack.padding = new RectOffset(0, 0, 14, 16);
-        profileStack.spacing = 9f;
+        profileStack.padding = new RectOffset(0, 0, 16, 17);
+        profileStack.spacing = 8f;
         profileStack.childAlignment = TextAnchor.MiddleLeft;
         profileStack.childControlWidth = true;
         profileStack.childControlHeight = true;
         profileStack.childForceExpandWidth = true;
         profileStack.childForceExpandHeight = false;
 
-        Text playerName = CreateText(profileColumn, "PlayerName", profile.PlayerName, 19, TextPrimary,
-            TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            Vector2.zero, new Vector2(0f, 28f), new Vector2(0f, 1f));
+        Text playerName = CreateText(profileColumn, "PlayerName", profile.PlayerName, 18, TextPrimary,
+            TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont,
+            Vector2.zero, new Vector2(0f, 27f), new Vector2(0f, 1f));
         playerName.resizeTextForBestFit = true;
         playerName.resizeTextMinSize = 14;
-        playerName.resizeTextMaxSize = 19;
-        playerName.gameObject.AddComponent<LayoutElement>().preferredHeight = 28f;
+        playerName.resizeTextMaxSize = 18;
+        playerName.gameObject.AddComponent<LayoutElement>().preferredHeight = 27f;
 
         Image expTrack = CreateImage(profileColumn, "ExpTrack", RuntimeSprites.RoundedPanel(),
-            new Color(0.04f, 0.04f, 0.035f, 0.9f));
+            new Color(0.02f, 0.019f, 0.017f, 0.36f));
         expTrack.type = Image.Type.Sliced;
-        expTrack.gameObject.AddComponent<LayoutElement>().preferredHeight = 9f;
+        LayoutElement expLayout = expTrack.gameObject.AddComponent<LayoutElement>();
+        expLayout.preferredWidth = 195f;
+        expLayout.preferredHeight = 7f;
+        expLayout.flexibleWidth = 0f;
         Image expFill = CreateImage(expTrack.transform, "ExpFill", RuntimeSprites.RoundedPanel(),
-            new Color(1f, 0.67f, 0.23f, 1f));
+            new Color(1f, 0.72f, 0.32f, 1f));
         expFill.type = Image.Type.Sliced;
         RectTransform expFillRect = expFill.rectTransform;
         expFillRect.anchorMin = new Vector2(0f, 0f);
         expFillRect.anchorMax = new Vector2(Mathf.Clamp01(profile.Experience01), 1f);
         expFillRect.offsetMin = Vector2.zero;
         expFillRect.offsetMax = Vector2.zero;
+
+        RectTransform spacer = CreateRect(bar, "StatusSpacer",
+            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+        LayoutElement spacerLayout = spacer.gameObject.AddComponent<LayoutElement>();
+        spacerLayout.minWidth = 24f;
+        spacerLayout.flexibleWidth = 1f;
 
         BuildCurrencyCard(bar, "$", profile.Coins.ToString("N0", CultureInfo.InvariantCulture), null);
         BuildCurrencyCard(bar, null,
@@ -402,60 +463,76 @@ public static class MainMenuRuntime
     {
         RectTransform card = CreateRect(parent, "StatusCard",
             Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f),
-            Vector2.zero, new Vector2(225f, 66f));
+            Vector2.zero, new Vector2(232f, 70f));
         LayoutElement cardLayout = card.gameObject.AddComponent<LayoutElement>();
-        cardLayout.preferredWidth = 225f;
-        cardLayout.preferredHeight = 66f;
+        cardLayout.preferredWidth = 232f;
+        cardLayout.preferredHeight = 70f;
         Image cardImage = card.gameObject.AddComponent<Image>();
         cardImage.sprite = RuntimeSprites.RoundedPanel();
         cardImage.type = Image.Type.Sliced;
-        cardImage.color = new Color(0.04f, 0.038f, 0.034f, 0.9f);
-        RuntimeUiKit.AddOutline(card, GoldOutline(0.18f));
+        cardImage.color = new Color(0.025f, 0.023f, 0.021f, 0.32f);
+        RuntimeUiKit.AddOutline(card, GlassBorder);
 
         if (!string.IsNullOrEmpty(coinGlyph))
         {
             Image coin = CreateImage(card, "Coin", RuntimeSprites.Bubble(), new Color(1f, 0.7f, 0.16f, 1f));
-            SetRect(coin.rectTransform, new Vector2(18f, -10f), new Vector2(46f, 46f), new Vector2(0f, 1f));
-            CreateText(coin.transform, "CoinGlyph", coinGlyph, 22, new Color(0.28f, 0.15f, 0.02f, 1f),
-                TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+            SetRect(coin.rectTransform, new Vector2(18f, 0f), new Vector2(46f, 46f), new Vector2(0f, 0.5f));
+            CreateText(coin.transform, "CoinGlyph", coinGlyph, 20, new Color(0.28f, 0.15f, 0.02f, 1f),
+                TextAnchor.MiddleCenter, FontStyle.Normal, RuntimeUiKit.DefaultFont);
         }
         else
         {
             Image heart = CreateImage(card, "Heart", RuntimeSprites.Heart(), new Color(1f, 0.22f, 0.15f, 1f));
-            SetRect(heart.rectTransform, new Vector2(18f, -11f), new Vector2(48f, 48f), new Vector2(0f, 1f));
+            SetRect(heart.rectTransform, new Vector2(18f, 0f), new Vector2(50f, 50f), new Vector2(0f, 0.5f));
         }
 
-        Text primaryText = CreateText(card, "Primary", primary, 24, TextPrimary, TextAnchor.MiddleLeft,
-            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(76f, -6f), new Vector2(100f, 38f), new Vector2(0f, 1f));
+        Vector2 primaryPosition = string.IsNullOrEmpty(secondary) ? new Vector2(78f, 0f) : new Vector2(78f, 12f);
+        Text primaryText = CreateText(card, "Primary", primary, 23, TextPrimary, TextAnchor.MiddleLeft,
+            FontStyle.Normal, RuntimeUiKit.DefaultFont, primaryPosition, new Vector2(96f, 34f), new Vector2(0f, 0.5f));
         primaryText.resizeTextForBestFit = true;
         primaryText.resizeTextMinSize = 16;
-        primaryText.resizeTextMaxSize = 24;
+        primaryText.resizeTextMaxSize = 23;
         if (!string.IsNullOrEmpty(secondary))
         {
-            CreateText(card, "Secondary", secondary, 18, TextMuted, TextAnchor.MiddleLeft,
-                FontStyle.Normal, RuntimeUiKit.DefaultFont, new Vector2(76f, -36f), new Vector2(100f, 25f), new Vector2(0f, 1f));
+            CreateText(card, "Secondary", secondary, 17, TextMuted, TextAnchor.MiddleLeft,
+                FontStyle.Normal, RuntimeUiKit.DefaultFont, new Vector2(78f, -14f), new Vector2(96f, 24f), new Vector2(0f, 0.5f));
         }
 
-        Image divider = CreateImage(card, "Divider", RuntimeSprites.Square(), GoldOutline(0.22f));
-        SetRect(divider.rectTransform, new Vector2(174f, -16f), new Vector2(2f, 34f), new Vector2(0f, 1f));
-        CreateText(card, "Plus", "+", 34, TextPrimary, TextAnchor.MiddleCenter,
-            FontStyle.Normal, RuntimeUiKit.DefaultFont, new Vector2(184f, -10f), new Vector2(34f, 42f), new Vector2(0f, 1f));
+        Image divider = CreateImage(card, "Divider", RuntimeSprites.Square(), WithAlpha(TextPrimary, 0.24f));
+        SetRect(divider.rectTransform, new Vector2(178f, 0f), new Vector2(1f, 36f), new Vector2(0f, 0.5f));
+        CreateText(card, "Plus", "+", 32, TextPrimary, TextAnchor.MiddleCenter,
+            FontStyle.Normal, RuntimeUiKit.DefaultFont, new Vector2(197f, 0f), new Vector2(40f, 42f), new Vector2(0f, 0.5f));
     }
 
     private static void BuildPlayScreen(Transform parent, ChapterDefinition chapter)
     {
         bool chapterUnlocked = Campaign.IsChapterUnlocked(_chapters, _chapterIndex);
+        Color chapterMarkColor = Color.Lerp(chapter.MenuAccentSecondaryColor, chapter.MenuAccentColor, 0.62f);
+        Color eyebrowColor = Color.Lerp(chapter.MenuAccentColor, TextPrimary, 0.42f);
 
-        CreateText(parent, "ChapterEyebrow", $"*  CHAPTER {chapter.ChapterNumber}  *", 24,
-            chapter.MenuAccentColor, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(78f, -230f), new Vector2(360f, 40f), new Vector2(0f, 1f));
+        Image leftDiamond = CreateImage(parent, "ChapterDiamondLeft", RuntimeSprites.Square(), eyebrowColor);
+        leftDiamond.color = chapterMarkColor;
+        SetRect(leftDiamond.rectTransform, new Vector2(82f, -252f), new Vector2(8f, 8f), new Vector2(0f, 1f));
+        leftDiamond.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
 
-        Text title = CreateText(parent, "ChapterTitle", chapter.DisplayName.ToUpperInvariant(), 72,
-            TextPrimary, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(76f, -282f), new Vector2(610f, 96f), new Vector2(0f, 1f));
+        Image rightDiamond = CreateImage(parent, "ChapterDiamondRight", RuntimeSprites.Square(), eyebrowColor);
+        rightDiamond.color = chapterMarkColor;
+        SetRect(rightDiamond.rectTransform, new Vector2(267f, -252f), new Vector2(8f, 8f), new Vector2(0f, 1f));
+        rightDiamond.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+
+        Text eyebrow = CreateText(parent, "ChapterEyebrow", $"{TrackedUpper("Chapter", " ", "   ")}  {chapter.ChapterNumber}", 20,
+            eyebrowColor, TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont,
+            new Vector2(105f, -232f), new Vector2(160f, 42f), new Vector2(0f, 1f));
+        eyebrow.resizeTextForBestFit = true;
+        eyebrow.resizeTextMinSize = 16;
+        eyebrow.resizeTextMaxSize = 20;
+
+        Text title = CreateText(parent, "ChapterTitle", TrackedUpper(chapter.DisplayName, "", "  "), 68,
+            TextPrimary, TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont,
+            new Vector2(76f, -276f), new Vector2(700f, 104f), new Vector2(0f, 1f));
         title.resizeTextForBestFit = true;
-        title.resizeTextMinSize = 42;
-        title.resizeTextMaxSize = 72;
+        title.resizeTextMinSize = 40;
+        title.resizeTextMaxSize = 68;
 
         BuildNextChapterCard(parent, chapter);
 
@@ -538,9 +615,19 @@ public static class MainMenuRuntime
             LevelDefinition level = chapter.Levels[i];
             if (level == null) continue;
             fallback = i;
-            if (Campaign.IsLevelUnlocked(chapter, i) && !ProgressStore.IsLevelCompleted(level)) return i;
+            if (IsLevelVisuallyUnlocked(chapter, i) && !ProgressStore.IsLevelCompleted(level)) return i;
         }
         return fallback;
+    }
+
+    private static bool IsLevelVisuallyUnlocked(ChapterDefinition chapter, int levelIndex)
+    {
+        if (chapter == null) return false;
+        if (chapter.AlwaysUnlocked) return true;
+        if (levelIndex <= 0) return true;
+
+        LevelDefinition previous = chapter.Levels[levelIndex - 1];
+        return previous == null || ProgressStore.IsLevelCompleted(previous);
     }
 
     private static void BuildLevelList(Transform parent, ChapterDefinition chapter, int currentIndex)
@@ -589,99 +676,185 @@ public static class MainMenuRuntime
                 Vector2.zero, new Vector2(0f, LevelRowHeight));
             row.gameObject.AddComponent<LayoutElement>().preferredHeight = LevelRowHeight;
 
-            bool unlocked = Campaign.IsLevelUnlocked(chapter, i);
             bool completed = ProgressStore.IsLevelCompleted(level);
+            bool unlocked = completed || IsLevelVisuallyUnlocked(chapter, i);
             bool isCurrent = i == currentIndex;
             bool current = isCurrent && unlocked && !completed;
 
-            BuildRailForRow(row, count, i, completed, current, chapter.MenuAccentColor);
+            BuildRailForRow(row, count, i, unlocked, completed, current,
+                chapter.MenuAccentColor, chapter.MenuAccentSecondaryColor);
             BuildLevelCard(row, chapter, level, i, unlocked, completed, current);
         }
     }
 
     private static void BuildRailForRow(Transform row, int levelCount, int index,
-        bool completed, bool current, Color accentColor)
+        bool unlocked, bool completed, bool current, Color accentColor, Color secondaryColor)
     {
         float cardCenterY = -(LevelCardTop + LevelCardHeight * 0.5f);
         float lineTop = index == 0 ? -cardCenterY : 0f;
         float lineHeight = index == levelCount - 1 ? -cardCenterY : LevelRowHeight;
+        Color railColor = Color.Lerp(accentColor, TextPrimary, 0.72f);
+        Color currentColor = Color.Lerp(secondaryColor, TextPrimary, 0.48f);
 
-        Image rail = CreateImage(row, "RailSegment", RuntimeSprites.RoundedPanel(), GoldOutline(0.48f));
+        Image railGlow = CreateImage(row, "RailGlow", RuntimeSprites.RoundedPanel(), WithAlpha(railColor, 0.08f));
+        railGlow.type = Image.Type.Sliced;
+        SetRect(railGlow.rectTransform, new Vector2(RailX - 3f, -lineTop), new Vector2(6f, lineHeight),
+            new Vector2(0f, 1f));
+
+        Image rail = CreateImage(row, "RailSegment", RuntimeSprites.RoundedPanel(), WithAlpha(railColor, 0.72f));
         rail.type = Image.Type.Sliced;
-        SetRect(rail.rectTransform, new Vector2(RailX - 3f, -lineTop), new Vector2(6f, lineHeight), new Vector2(0f, 1f));
+        SetRect(rail.rectTransform, new Vector2(RailX - 1f, -lineTop), new Vector2(2f, lineHeight),
+            new Vector2(0f, 1f));
 
-        Image node = CreateImage(row, "RailNode", RuntimeSprites.Bubble(),
-            current ? accentColor : (completed ? new Color(0.8f, 1f, 0.42f, 0.92f) : GoldOutline(0.82f)));
-        RectTransform nodeRect = node.rectTransform;
-        nodeRect.anchorMin = new Vector2(0f, 1f);
-        nodeRect.anchorMax = new Vector2(0f, 1f);
-        nodeRect.pivot = new Vector2(0.5f, 0.5f);
-        nodeRect.anchoredPosition = new Vector2(RailX, cardCenterY);
-        nodeRect.sizeDelta = current ? new Vector2(56f, 56f) : new Vector2(28f, 28f);
+        if (current)
+        {
+            Image glow = CreateImage(row, "RailNodeGlow",
+                MenuSprites.DiamondBadge(WithAlpha(currentColor, 0.12f), WithAlpha(currentColor, 0.30f)), Color.white);
+            SetCentered(glow.rectTransform, new Vector2(RailX, cardCenterY), new Vector2(78f, 78f));
+
+            Image outer = CreateImage(row, "RailNodeOuter",
+                MenuSprites.DiamondBadge(WithAlpha(Color.black, 0.02f), WithAlpha(currentColor, 0.96f)), Color.white);
+            SetCentered(outer.rectTransform, new Vector2(RailX, cardCenterY), new Vector2(54f, 54f));
+
+            Image inner = CreateImage(row, "RailNodeInner",
+                MenuSprites.DiamondBadge(WithAlpha(currentColor, 0.78f), WithAlpha(railColor, 0.95f)), Color.white);
+            SetCentered(inner.rectTransform, new Vector2(RailX, cardCenterY), new Vector2(20f, 20f));
+            return;
+        }
+
+        if (completed || unlocked)
+        {
+            Image node = CreateImage(row, "RailNode",
+                MenuSprites.DiamondBadge(WithAlpha(railColor, completed ? 0.84f : 0.64f),
+                    WithAlpha(railColor, completed ? 0.96f : 0.78f)), Color.white);
+            SetCentered(node.rectTransform, new Vector2(RailX, cardCenterY), new Vector2(15f, 15f));
+            return;
+        }
+
+        Image lockedNode = CreateImage(row, "RailNodeLocked",
+            MenuSprites.CircleBadge(WithAlpha(Color.black, 0.01f), WithAlpha(railColor, 0.58f)), Color.white);
+        SetCentered(lockedNode.rectTransform, new Vector2(RailX, cardCenterY), new Vector2(14f, 14f));
     }
 
     private static void BuildLevelCard(Transform parent, ChapterDefinition chapter, LevelDefinition level,
         int index, bool unlocked, bool completed, bool current)
     {
+        Color chapterLight = ChapterLight(chapter);
+        Color chapterDark = ChapterDark(chapter);
+
         RectTransform card = CreateRect(parent, $"LevelCard{index + 1}",
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
             new Vector2(LevelCardX, -LevelCardTop), new Vector2(LevelCardWidth, LevelCardHeight));
         Image cardImage = card.gameObject.AddComponent<Image>();
         cardImage.sprite = RuntimeSprites.RoundedPanel();
         cardImage.type = Image.Type.Sliced;
-        Color panel = chapter.MenuPanelColor;
-        panel.a = unlocked ? 0.78f : 0.46f;
-        cardImage.color = panel;
+        Color cardFill = MenuGlassFill(chapter, unlocked ? 0.76f : 0.58f);
+        cardImage.color = cardFill;
 
-        Color outline = current ? chapter.MenuAccentColor : GoldOutline(unlocked ? 0.18f : 0.08f);
-        RuntimeUiKit.AddOutline(card, outline);
+        Color cardBorder = current
+            ? WithAlpha(chapterLight, 0.76f)
+            : WithAlpha(TextPrimary, unlocked ? 0.18f : 0.10f);
+
+        if (current)
+        {
+            Image glow = CreateImage(card, "CurrentGlow", RuntimeSprites.RoundedOutline(),
+                WithAlpha(chapterLight, 0.24f));
+            glow.type = Image.Type.Sliced;
+            Stretch(glow.rectTransform);
+            glow.rectTransform.offsetMin = new Vector2(-8f, -8f);
+            glow.rectTransform.offsetMax = new Vector2(8f, 8f);
+        }
+        RuntimeUiKit.AddOutline(card, cardBorder);
 
         Sprite thumbSprite = level.MenuThumbnail != null
             ? level.MenuThumbnail
             : MenuSprites.LevelThumbnail(index, chapter.MenuAccentColor, chapter.MenuAccentSecondaryColor);
         Image thumb = CreateImage(card, "Thumbnail", thumbSprite, unlocked ? Color.white : new Color(0.55f, 0.55f, 0.55f, 0.55f));
-        SetRect(thumb.rectTransform, new Vector2(24f, -18f), new Vector2(118f, 118f), new Vector2(0f, 1f));
+        SetRect(thumb.rectTransform, new Vector2(22f, -16f), new Vector2(132f, 152f), new Vector2(0f, 1f));
         thumb.preserveAspect = false;
-        RuntimeUiKit.AddOutline(thumb.transform, GoldOutline(0.18f));
+        RuntimeUiKit.AddOutline(thumb.transform, WithAlpha(TextPrimary, unlocked ? 0.18f : 0.08f));
 
-        Image numberPlate = CreateImage(card, "NumberPlate", RuntimeSprites.Bubble(),
-            new Color(0.07f, 0.055f, 0.045f, 0.8f));
-        SetRect(numberPlate.rectTransform, new Vector2(176f, -52f), new Vector2(54f, 54f), new Vector2(0f, 1f));
-        CreateText(numberPlate.transform, "Number", (index + 1).ToString(), 23, unlocked ? TextPrimary : LockedColor,
-            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        Image numberPlate = CreateImage(card, "NumberPlate",
+            MenuSprites.DiamondBadge(MenuGlassFill(chapter, unlocked ? 0.22f : 0.14f),
+                WithAlpha(chapterLight, unlocked ? 0.84f : 0.32f)),
+            Color.white);
+        SetCentered(numberPlate.rectTransform, new Vector2(194f, -66f), new Vector2(52f, 52f));
+        CreateText(numberPlate.transform, "Number", (index + 1).ToString(), 24, unlocked ? TextPrimary : LockedColor,
+            TextAnchor.MiddleCenter, FontStyle.Normal, RuntimeUiKit.DefaultFont);
 
         Color titleColor = unlocked ? TextPrimary : LockedColor;
         LevelMenuPresentation.Snapshot presentation = LevelMenuPresentation.Build(level, completed);
-        CreateText(card, "Title", level.DisplayName, 38, titleColor, TextAnchor.MiddleLeft,
-            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(246f, -24f), new Vector2(405f, 52f), new Vector2(0f, 1f));
-        CreateText(card, "Challenge", presentation.ChallengeLabel, 17, unlocked ? TextMuted : LockedColor,
-            TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(246f, -78f), new Vector2(310f, 30f), new Vector2(0f, 1f));
-        CreateText(card, "Progress", presentation.ProgressLabel, 26,
-            unlocked ? chapter.MenuAccentColor : LockedColor, TextAnchor.MiddleLeft, FontStyle.Bold,
-            RuntimeUiKit.TitleFont, new Vector2(246f, -108f), new Vector2(330f, 36f), new Vector2(0f, 1f));
+        Text title = CreateText(card, "Title", level.DisplayName, 42, titleColor, TextAnchor.MiddleLeft,
+            FontStyle.Normal, RuntimeUiKit.DefaultFont, new Vector2(248f, -27f), new Vector2(420f, 56f), new Vector2(0f, 1f));
+        title.resizeTextForBestFit = true;
+        title.resizeTextMinSize = 30;
+        title.resizeTextMaxSize = 42;
 
-        Image action = CreateImage(card, "Action", RuntimeSprites.Bubble(),
-            completed ? new Color(0.58f, 0.9f, 0.2f, 0.92f) : new Color(0.04f, 0.036f, 0.03f, 0.66f));
-        SetRect(action.rectTransform, new Vector2(700f, -48f), new Vector2(62f, 62f), new Vector2(0f, 1f));
-        string actionText = completed ? "OK" : (unlocked ? ">" : "LOCK");
-        CreateText(action.transform, "ActionText", actionText, completed ? 18 : (unlocked ? 36 : 14),
-            completed ? new Color(0.12f, 0.24f, 0.02f, 1f) : (unlocked ? TextPrimary : LockedColor),
-            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        CreateText(card, "Challenge", TrackedUpper(presentation.ChallengeLabel, " ", "   "), 18,
+            unlocked ? chapterLight : LockedColor, TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont,
+            new Vector2(248f, -82f), new Vector2(380f, 32f), new Vector2(0f, 1f));
+
+        BuildProgressLine(card, presentation, unlocked, completed, chapterDark, chapterLight);
+
+        BuildActionBadge(card, unlocked, completed, chapterLight);
 
         Button button = card.gameObject.AddComponent<Button>();
         button.targetGraphic = cardImage;
-        button.interactable = unlocked;
+        button.interactable = Campaign.IsLevelUnlocked(chapter, index);
         LevelDefinition selected = level;
         int selectedIndex = index;
         bool selectedCompleted = completed;
         button.onClick.AddListener(() => OpenLevelSummary(chapter, selected, selectedIndex, selectedCompleted));
 
         ColorBlock colors = button.colors;
-        colors.normalColor = Color.white;
-        colors.highlightedColor = new Color(0.96f, 0.96f, 0.96f, 1f);
-        colors.pressedColor = new Color(0.88f, 0.88f, 0.88f, 1f);
-        colors.disabledColor = new Color(0.7f, 0.7f, 0.7f, 0.65f);
+        colors.normalColor = cardFill;
+        colors.highlightedColor = WithAlpha(Color.Lerp(cardFill, TextPrimary, 0.08f), cardFill.a);
+        colors.pressedColor = WithAlpha(Color.Lerp(cardFill, Color.black, 0.12f), cardFill.a);
+        colors.disabledColor = MenuGlassFill(chapter, 0.36f);
         button.colors = colors;
+    }
+
+    private static void BuildProgressLine(Transform card, LevelMenuPresentation.Snapshot presentation,
+        bool unlocked, bool completed, Color primaryColor, Color suffixColor)
+    {
+        Color completeColor = new Color(0.68f, 0.9f, 0.24f, 1f);
+        Color valueColor = !unlocked ? LockedColor : (completed ? completeColor : primaryColor);
+        Color restColor = !unlocked ? LockedColor : (completed ? Color.Lerp(completeColor, TextPrimary, 0.18f) : suffixColor);
+
+        float primaryWidth = Mathf.Clamp(presentation.ProgressPrimary.Length * 20f + 12f, 42f, 112f);
+        Text primary = CreateText(card, "ProgressPrimary", presentation.ProgressPrimary, 36, valueColor,
+            TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont,
+            new Vector2(248f, -123f), new Vector2(primaryWidth, 44f), new Vector2(0f, 1f));
+        primary.resizeTextForBestFit = true;
+        primary.resizeTextMinSize = 24;
+        primary.resizeTextMaxSize = 36;
+
+        CreateText(card, "ProgressSuffix", presentation.ProgressSuffix, 22, restColor,
+            TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont,
+            new Vector2(248f + primaryWidth + 2f, -118f), new Vector2(260f, 34f), new Vector2(0f, 1f));
+    }
+
+    private static void BuildActionBadge(Transform card, bool unlocked, bool completed, Color chapterLight)
+    {
+        Color green = new Color(0.58f, 0.86f, 0.18f, 1f);
+        Vector2 center = new Vector2(718f, -LevelCardHeight * 0.5f);
+
+        if (completed)
+        {
+            Image completedGlow = CreateImage(card, "ActionGlow",
+                MenuSprites.CircleBadge(WithAlpha(green, 0.10f), WithAlpha(green, 0.20f)), Color.white);
+            SetCentered(completedGlow.rectTransform, center, new Vector2(72f, 72f));
+        }
+
+        Color fill = completed ? WithAlpha(green, 0.18f) : WithAlpha(Color.black, 0.06f);
+        Color border = completed ? WithAlpha(green, 0.86f) : WithAlpha(chapterLight, unlocked ? 0.54f : 0.30f);
+        Image action = CreateImage(card, "Action", MenuSprites.CircleBadge(fill, border), Color.white);
+        SetCentered(action.rectTransform, center, new Vector2(56f, 56f));
+
+        string actionText = completed ? "\u2713" : (unlocked ? ">" : "LOCK");
+        CreateText(action.transform, "ActionText", actionText, completed ? 31 : (unlocked ? 34 : 12),
+            completed ? green : (unlocked ? TextPrimary : LockedColor),
+            TextAnchor.MiddleCenter, FontStyle.Normal, RuntimeUiKit.DefaultFont);
     }
 
     private static void BuildDummyScreen(Transform parent, MenuTab tab)
