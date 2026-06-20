@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// Shared spatial queries over the live block field - the physics-contract-sensitive
-/// bits (which body types count, the 0.94 collider footprint, landed-vs-falling) that
+/// bits (which body types count, the 0.94 collider width, landed-vs-falling) that
 /// abilities must not each re-derive. Read-only; never moves or mutates blocks.
 /// </summary>
 public static class BlockQuery

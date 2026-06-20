@@ -16,7 +16,7 @@ public partial class BlockController
     // tilted has an off-grid equilibrium: snapping it at sleep time teleports it away from that
     // equilibrium, the solver wakes it and pushes it back, and the next sleep snaps it again -
     // a metronomic, infinite twitch. Grid registration comes from honest sources instead: pieces
-    // land exactly on-grid, and the awake-time velocity pull eases flat blocks toward column.
+    // land exactly on-grid, and the awake-time velocity pull eases flat blocks toward column/angle.
     private void SleepSettledBody()
     {
         _rb.linearVelocity = Vector2.zero;
@@ -145,10 +145,15 @@ public partial class BlockController
         if (!microAlignSettledBlocks) return;
 
         // Tolerance contract: only ease blocks that are already essentially in place. A piece
-        // that tipped, tilted, or slid beyond the caps can never reach its snapped X, so pulling
-        // it every frame would turn it into a permanent agitator for the whole tower.
+        // that tipped, tilted, or slid beyond the caps can never reach its snapped grid pose, so
+        // pulling it every frame would turn it into a permanent agitator for the whole tower.
         float snappedRotation = SnapValue(_rb.rotation, RotationStep);
-        if (Mathf.Abs(Mathf.DeltaAngle(_rb.rotation, snappedRotation)) > QuietPullMaxTiltDegrees) return;
+        float rotationCorrection = Mathf.DeltaAngle(_rb.rotation, snappedRotation);
+        float absRotationCorrection = Mathf.Abs(rotationCorrection);
+        if (absRotationCorrection > Mathf.Max(0f, microAlignMaxRotationDegrees)) return;
+
+        PullQuietBlockRotationTowardGrid(rotationCorrection);
+        if (absRotationCorrection > QuietPullMaxTiltDegrees) return;
 
         _cellGeometry.Refresh();
         float primaryX = _cellGeometry.GetPrimaryWorldX(transform.position.x);
@@ -169,6 +174,20 @@ public partial class BlockController
         Vector2 velocity = _rb.linearVelocity;
         velocity.x = pullSpeed;
         _rb.linearVelocity = velocity;
+    }
+
+    private void PullQuietBlockRotationTowardGrid(float correctionDegrees)
+    {
+        if (Mathf.Abs(correctionDegrees) <= 0.01f) return;
+
+        // Rotate via angular velocity, never by writing rb.rotation. Keep the pull below the
+        // settled threshold so the correction itself does not prevent the normal sleep path.
+        float maxPullSpeed = Mathf.Max(0f, settleAngularThreshold * 0.5f);
+        float pullSpeed = Mathf.Clamp(
+            correctionDegrees * Mathf.Clamp01(quietGridPullFactor) / Time.fixedDeltaTime,
+            -maxPullSpeed, maxPullSpeed);
+
+        _rb.angularVelocity = pullSpeed;
     }
 
     // External disturbance (earthquakes, wind, ...) as a velocity impulse - the only legal way

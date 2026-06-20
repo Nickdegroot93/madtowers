@@ -31,8 +31,8 @@ contacts stay honest, interpolation stays intact). See `PullQuietBlockTowardGrid
 ### I2 — Going to sleep must never move the body.
 `SleepSettledBody()` is exactly: zero velocities + `Sleep()`. No snap, no alignment.
 A block that physics holds 2° tilted sleeps 2° tilted. Grid registration comes from honest
-sources only: pieces *land* exactly on-grid (kinematic snap before handoff), and flat
-blocks get a gentle velocity pull while awake. Re-adding "just a tiny bounded snap" at
+sources only: pieces *land* exactly on-grid (kinematic snap before handoff), and almost-flat
+blocks get gentle linear/angular velocity pulls while awake. Re-adding "just a tiny bounded snap" at
 sleep will re-create the infinite twitch — bounded in size is not bounded in repetition.
 
 ### I3 — The stillness watchdog: no net movement → asleep within 0.75 s.
@@ -55,14 +55,26 @@ quiet after the grace (leaning, wedged, vine-jointed) sleeps normally, and the w
 timer keeps accruing during the defer, so the I3 guarantee is *delayed* for marginal
 blocks, never lost. If you ever see a block twitching, check this defer first (then I1/I2).
 
-### I4 — Physics footprint is SMALLER than the visual cell (0.94).
-A piece must be able to slide into a gap exactly its own size. With a footprint of exactly
-1.0 cell that is mathematically impossible (any sub-pixel neighbour drift pinches the slot
-→ the piece wedges on the corners → depenetration shoves the walls apart). The 6% total
-clearance also means side-by-side blocks don't touch at rest, so the contact graph splits
-into independent columns: a landing wakes one column, not the whole tower. The sprite stays
-full size; only collision shrinks, **uniformly** (so it survives 90° rotations).
-This is how Tricky Towers does it. If footprint goes back to 1.0, everything regresses at once.
+### I4 — Physics footprint is NARROWER than the visual cell (0.94 world-width, 1.0 world-height).
+A piece must be able to slide into a gap exactly its own width. With a collider width of
+exactly 1.0 cell that is mathematically impossible (any sub-pixel neighbour drift pinches
+the slot → the piece wedges on the corners → depenetration shoves the walls apart). The 6%
+total horizontal clearance also means side-by-side blocks don't touch at rest, so the
+contact graph splits into independent columns: a landing wakes one column, not the whole
+tower. The sprite stays full size; only collision width shrinks.
+
+Collider height stays 1.0 cell so perfect stacked supports remain grid-true vertically.
+Shrinking height as well made each separate block-on-block support settle slightly low,
+which accumulated into tiny height mismatches and tilted later flat pieces placed across
+multiple supports. Because block roots rotate in 90° steps, the shrink axis must follow
+the snapped rotation: local X is narrowed at 0°/180°, local Y at 90°/270°, so the collider
+is always narrow in world-X and full-height in world-Y.
+
+**v2 test note (June 2026):** this pass pairs world-X-only collider shrink with a gentle
+angular-velocity pull for almost-flat settled blocks. If mobile testing shows new jitter,
+wedging, or worse stacking behaviour, revert the `ApplyColliderForgivenessForCurrentRotation`
+axis swap and `PullQuietBlockRotationTowardGrid` changes together before trying another
+approach.
 
 ### I5 — Grid owns X/rotation during descent; physics owns Y from first contact.
 The falling piece is kinematic, column-snapped, rotation-snapped. At first valid contact:
@@ -84,7 +96,7 @@ Inspector in debug mode if behaviour diverges between pieces.
 
 | Setting | Value | Why this value / what breaks if changed |
 |---|---|---|
-| `colliderFootprintScale` | **0.94** | Invariant I4. Lower (→0.90) = more forgiving + bigger visible seams; 1.0 = game-breaking wedging. Must equal the island footprint scale. |
+| `colliderFootprintScale` | **0.94 world-width only** | Invariant I4. Lower (→0.90) = more forgiving + bigger visible side seams; 1.0 = game-breaking horizontal wedging. Height stays 1.0 to preserve support height. The local axis is swapped at 90°/270° rotations. Must equal the island width scale. |
 | `colliderCornerRadiusFraction` | 0.06 | Rounded corners turn "catch and tip" into "shave past and slide in". Box is shrunk by 2r so radius adds **no** size (edgeRadius expands outward!). |
 | `defaultBlockFriction` | 0.95 | Engine default 0.4 is "wood on ice" — towers shear sideways. Box2D mixes friction as √(a·b), so **every** surface (blocks, floor, islands) must be ~0.95. |
 | `defaultBlockBounciness` | 0 | Any bounce amplifies stack ringing. |
@@ -98,8 +110,8 @@ Inspector in debug mode if behaviour diverges between pieces.
 | `stillnessTime` | 0.75 | Watchdog window. Also makes phantom wake-ups cheap (re-sleep without re-earning velocity quiet). |
 | `KnifeEdgeGraceSeconds` (const) | 2 | I3 refinement: sleep is deferred this long for quiet blocks whose COM is outside their support span, letting them tip honestly. Bounded so I3 still always wins. |
 | `SupportSpanEpsilon` (const) | 0.01 | COM-outside-support margin for the knife-edge test. Larger values defer sleep for more borderline blocks. |
-| `quietGridPullFactor` | 0.15 | Strength of the awake-time ease toward grid X. **Velocity-based** (I1). |
-| `quietGridPullMaxSpeedFraction` | 0.02 | Pull speed cap = 0.02 u/s — must stay well under `settleLinearThreshold` (0.08) so the pull can never keep a block awake. |
+| `quietGridPullFactor` | 0.15 | Strength of the awake-time ease toward grid X and rotation. **Velocity-based** (I1). |
+| `quietGridPullMaxSpeedFraction` | 0.02 | Linear pull speed cap = 0.02 u/s — must stay well under `settleLinearThreshold` (0.08) so the pull can never keep a block awake. Rotation pull is capped at half `settleAngularThreshold` for the same reason. |
 | `QuietPullMaxTiltDegrees` (const) | 1 | Pull only touches blocks that seated flat. Nudging a tilted block engages/releases its lean contact every frame → rocking limit cycle. |
 | `microAlignMaxColumnFraction` / `microAlignMaxRotationDegrees` | 0.08 / 4 | ε caps: corrections only ever apply within these; beyond them the block belongs to physics. (Used as the quiet-pull drift bound.) |
 | `sleepSettledBlocksOnLock` | true | The whole settle architecture assumes self-managed sleep. |
@@ -166,7 +178,7 @@ Code-level details that are part of the contract (not inspector values):
 | PlayAreaController | `floorFriction` | 0.95 | Friction mixing — see above. |
 | PlayAreaController | `floorColliderEdgeInset` | 0.03 | Collision edge sits just inside the visual floor so pieces don't snag its corners. |
 | StaticSupportIslandManager | `_islandFriction` | 0.95 | Islands are the tower's anchors; the prefab itself has **no** material, the manager applies it at spawn. |
-| StaticSupportIslandManager | `_islandFootprintScale` | 0.94 | **Must equal** the blocks' footprint scale or pieces wedge beside/between islands. |
+| StaticSupportIslandManager | `_islandFootprintScale` | 0.94 width only | **Must equal** the blocks' width scale or pieces wedge beside/between islands. Height stays 1.0 to preserve support height. |
 | StaticSupportIslandManager | `_islandCornerRadiusFraction` | 0.06 | Match blocks. |
 | StaticSupportIslandManager | spawn-clearance check | (code) | A platform never materializes intersecting the falling piece / tower / another island — an overlapped piece can't land on it and ghosts through (the original "fall through platforms" bug). Platforms must also spawn **below the spawn line** to be usable (see camera settings). |
 
@@ -213,7 +225,7 @@ These are the *designer* dials — safe to vary per level. Current defaults:
 | Towers shimmer / everything moves constantly | Someone is writing positions on landed blocks (I1). Search for `SetPosition`/`transform.position` reachable after `HasLanded`. |
 | One block twitches forever in place | Something moves bodies at sleep time (I2), or the watchdog (I3) was weakened/removed, or the knife-edge defer (I3 refinement) lost its grace bound. |
 | Half-on-edge block survives on one floor side, falls on the other | Knife-edge defer (I3 refinement) removed or its support test broken — COM-on-edge outcomes degrade to float noise without it. |
-| Piece won't fit a gap it should fit; placements shove neighbours | Footprint scale crept back toward 1.0, or islands/blocks scales diverged (I4). Verify in Physics Debugger: collider outlines must sit visibly *inside* sprites. |
+| Piece won't fit a gap it should fit; placements shove neighbours | Footprint width crept back toward 1.0, or islands/blocks width scales diverged (I4). Verify in Physics Debugger: collider outlines must sit visibly *inside* sprite sides while remaining full-height. |
 | Blocks land on invisible corners and tip | Landing filter weakened (`landingSupportNormalY`, `landingMinSupportWidthFraction`). |
 | Blocks slide off platforms/floor | A surface lost its 0.95 friction material (remember √-mixing punishes one bad surface). |
 | Tower collapses by itself late game | Escalating load came back (gravity scaling per block) or landing impact got coupled to fall speed again. |

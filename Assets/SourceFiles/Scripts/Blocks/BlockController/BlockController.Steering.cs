@@ -337,6 +337,7 @@ public partial class BlockController
         float snappedAngle = SnapValue(angle, RotationStep);
         transform.rotation = Quaternion.Euler(0f, 0f, snappedAngle);
         if (_rb != null) _rb.rotation = snappedAngle;
+        ApplyColliderForgivenessForCurrentRotation();
     }
 
     private void SetRotationZPreservingGridPivot(float angle)

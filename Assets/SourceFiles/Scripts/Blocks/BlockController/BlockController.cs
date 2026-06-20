@@ -43,7 +43,7 @@ public partial class BlockController : MonoBehaviour
     [Tooltip("Rounds block collider corners as a fraction of one cell.")]
     [Range(0f, 0.12f)]
     [SerializeField] private float colliderCornerRadiusFraction = 0.06f;
-    [Tooltip("Effective physics footprint of each cell as a fraction of the visual cell. Slightly undersized shapes give perfect placements real clearance - a piece can slide into a gap exactly its own size - and stop side-by-side blocks from transmitting every landing through the whole row.")]
+    [Tooltip("Effective world-horizontal physics footprint of each cell as a fraction of the visual cell. Slightly undersized width gives perfect placements real side clearance while the full-height collider preserves grid-true support height.")]
     [Range(0.85f, 1f)]
     [SerializeField] private float colliderFootprintScale = 0.94f;
 
@@ -117,6 +117,8 @@ public partial class BlockController : MonoBehaviour
 
     private readonly RaycastHit2D[] _castResults = new RaycastHit2D[CastResultCapacity];
     private readonly Collider2D[] _overlapResults = new Collider2D[CastResultCapacity];
+    private BoxCollider2D[] _forgivenColliders;
+    private Vector2[] _forgivenColliderBaseSizes;
 
     private Rigidbody2D _rb;
     private StackingInputs _inputs;

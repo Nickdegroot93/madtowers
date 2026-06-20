@@ -13,7 +13,7 @@ using System.Collections.Generic;
 ///
 /// Under a height-limit level (TowerHeightLimit.CeilingY), generation is additionally
 /// capped a safe margin below the line, so a rising laser line reveals the next band the
-/// same way. Pops are visuals only - colliders are full-size from frame one. Visuals are
+/// same way. Pops are visuals only - colliders are physics-ready from frame one. Visuals are
 /// chapter-skinned (ChapterSkins.LoadIsland, random variant + 90-degree rotation); all per-level
 /// dials live on GameModeConfig (see LEVELS.md).
 /// </summary>
@@ -27,7 +27,7 @@ public class StaticSupportIslandManager : MonoBehaviour
     [Tooltip("Rounds island collider corners as a fraction of one cell, matching the falling blocks.")]
     [Range(0f, 0.12f)]
     [SerializeField] private float _islandCornerRadiusFraction = 0.06f;
-    [Tooltip("Effective physics footprint of an island cell as a fraction of the visual cell. Must match the blocks' footprint scale so pieces fit cleanly beside and between islands.")]
+    [Tooltip("Effective horizontal physics footprint of an island cell as a fraction of the visual cell. Must match the blocks' width scale so pieces fit cleanly beside and between islands while support height stays grid-true.")]
     [Range(0.85f, 1f)]
     [SerializeField] private float _islandFootprintScale = 0.94f;
 
@@ -333,7 +333,7 @@ public class StaticSupportIslandManager : MonoBehaviour
 
     // Islands are the tower's sturdy anchors, so their surfaces must behave like block surfaces:
     // real friction (the prefab has none, which leaves engine-default 0.4 and lets pieces shear
-    // off) and rounded corners with an exact cell-sized footprint, matching the falling blocks.
+    // off) and rounded corners with the same narrow-width/full-height footprint as blocks.
     private void ConfigureIslandCellPhysics(GameObject cell, float gridSpacing)
     {
         if (cell == null) return;
@@ -356,7 +356,10 @@ public class StaticSupportIslandManager : MonoBehaviour
             // Pooled cells come back already shrunk; only resize once.
             if (box.edgeRadius > 0f) continue;
 
-            Vector2 targetSize = box.size * Mathf.Clamp(_islandFootprintScale, 0.85f, 1f);
+            float horizontalFootprintScale = Mathf.Clamp(_islandFootprintScale, 0.85f, 1f);
+            Vector2 targetSize = new Vector2(
+                box.size.x * horizontalFootprintScale,
+                box.size.y);
             float requestedRadius = Mathf.Max(0f, _islandCornerRadiusFraction) * gridSpacing;
             float radius = Mathf.Min(requestedRadius, Mathf.Min(targetSize.x, targetSize.y) * 0.45f);
             if (radius <= 0f) continue;
@@ -370,7 +373,7 @@ public class StaticSupportIslandManager : MonoBehaviour
 
     // Chapter look on a VISUAL CHILD (random variant, random 90-degree rotation - the art is
     // rotation-safe, giving 12 looks per chapter), so the pop animation can scale the sprite
-    // while the collider stays full-size. The prefab's own gray renderer becomes the
+    // while the collider stays physics-ready. The prefab's own gray renderer becomes the
     // fallback for a (never-shipped) chapter with no island art at all.
     private void ConfigureIslandCellVisual(GameObject cell, bool popIn, float popDelay, bool withSound)
     {

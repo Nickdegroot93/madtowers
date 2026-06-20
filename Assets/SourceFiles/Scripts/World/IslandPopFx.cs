@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// Scale-in "materialize" animation for a support island's VISUAL when a rising laser
 /// line reveals it on screen (off-screen spawns stay silent and skip this entirely).
-/// Lives on the visual child only - the cell's collider is full-size from frame one,
+/// Lives on the visual child only - the cell's collider is physics-ready from frame one,
 /// so physics never sees a half-grown island. Plays one pop sound when the (optionally
 /// delayed) animation actually starts; disables itself when settled at scale 1.
 /// </summary>

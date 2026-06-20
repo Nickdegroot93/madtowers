@@ -71,22 +71,50 @@ public partial class BlockController
         data.OnApplied(this);
     }
 
-    // Physics shapes are slightly smaller than the visual cells (Tricky-Towers style). With an
-    // exactly cell-sized footprint a piece can never enter a gap that is exactly its own size:
+    // Physics shapes are slightly narrower on the WORLD-X axis than the visual cells
+    // (Tricky-Towers style). With an exactly cell-wide footprint a piece can never enter a gap
+    // that is exactly its own width:
     // any sub-pixel drift of a neighbour pinches the slot, the piece wedges on the corners, and
-    // the depenetration shoves the walls apart. The sprite stays full size; only collision
-    // shrinks. The inset is uniform so it survives 90-degree rotations, and
-    // BoxCollider2D.edgeRadius expands outward, so the box is shrunk by 2r on top of the inset.
+    // the depenetration shoves the walls apart. The sprite stays full size; only collision width
+    // shrinks. Height stays grid-true so perfect multi-block supports do not accumulate vertical
+    // compression and tilt a later flat piece.
+    // BoxCollider2D.edgeRadius expands outward, so the box is shrunk by 2r on each axis.
     private void ApplyColliderForgiveness()
     {
-        BoxCollider2D[] colliders = GetComponentsInChildren<BoxCollider2D>();
-        if (colliders.Length == 0) return;
+        CacheForgivenColliders();
+        ApplyColliderForgivenessForCurrentRotation();
+    }
 
-        float footprintScale = Mathf.Clamp(colliderFootprintScale, 0.85f, 1f);
-        for (int i = 0; i < colliders.Length; i++)
+    private void CacheForgivenColliders()
+    {
+        if (_forgivenColliders != null) return;
+
+        _forgivenColliders = GetComponentsInChildren<BoxCollider2D>();
+        _forgivenColliderBaseSizes = new Vector2[_forgivenColliders.Length];
+        for (int i = 0; i < _forgivenColliders.Length; i++)
         {
-            BoxCollider2D box = colliders[i];
-            Vector2 targetSize = box.size * footprintScale;
+            _forgivenColliderBaseSizes[i] = _forgivenColliders[i] != null
+                ? _forgivenColliders[i].size
+                : Vector2.one;
+        }
+    }
+
+    private void ApplyColliderForgivenessForCurrentRotation()
+    {
+        if (_forgivenColliders == null || _forgivenColliders.Length == 0) return;
+
+        float horizontalFootprintScale = Mathf.Clamp(colliderFootprintScale, 0.85f, 1f);
+        bool localYMapsToWorldX = IsQuarterTurnRotation();
+
+        for (int i = 0; i < _forgivenColliders.Length; i++)
+        {
+            BoxCollider2D box = _forgivenColliders[i];
+            if (box == null) continue;
+
+            Vector2 baseSize = _forgivenColliderBaseSizes[i];
+            Vector2 targetSize = localYMapsToWorldX
+                ? new Vector2(baseSize.x, baseSize.y * horizontalFootprintScale)
+                : new Vector2(baseSize.x * horizontalFootprintScale, baseSize.y);
             float requestedRadius = Mathf.Max(0f, colliderCornerRadiusFraction) * gridSpacing;
             float radius = Mathf.Min(requestedRadius, Mathf.Min(targetSize.x, targetSize.y) * 0.45f);
             box.size = new Vector2(
@@ -94,6 +122,13 @@ public partial class BlockController
                 Mathf.Max(0.05f, targetSize.y - 2f * radius));
             box.edgeRadius = radius;
         }
+    }
+
+    private bool IsQuarterTurnRotation()
+    {
+        float snappedRotation = Mathf.Repeat(SnapValue(transform.eulerAngles.z, RotationStep), 360f);
+        return Mathf.Abs(Mathf.DeltaAngle(snappedRotation, 90f)) <= 0.001f ||
+               Mathf.Abs(Mathf.DeltaAngle(snappedRotation, 270f)) <= 0.001f;
     }
 
     // Returns the variant's own PhysicsMaterial2D if one is assigned; otherwise a single
