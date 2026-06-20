@@ -144,6 +144,7 @@ public class PauseMenuController : MonoBehaviour
 
     private void ReturnToMenu()
     {
+        SfxPlayer.Play("ui-leave-game");
         MainMenuRuntime.ReturnToMenu();
     }
 

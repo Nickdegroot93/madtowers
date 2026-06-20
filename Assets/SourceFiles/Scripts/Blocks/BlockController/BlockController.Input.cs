@@ -57,7 +57,7 @@ public partial class BlockController
         {
             case ColumnStepResult.Moved:
                 if (TryGetWorldBounds(out Bounds bounds)) DashWindFx.Spawn(bounds, attempted);
-                SfxPlayer.Play("swoosh_01", 0.45f, 0.08f);
+                SfxPlayer.Play("nudge", 0.6f, 0.05f);
                 break;
 
             case ColumnStepResult.BlockedByBlocks:
@@ -110,12 +110,14 @@ public partial class BlockController
     {
         if (!_isControlEnabled || !CanRotateVariant) return;
         _targetAngleZ -= RotationStep;
+        SfxPlayer.Play("rotate-swoosh", 0.5f, 0.06f);
     }
 
     public void RotateRight()
     {
         if (!_isControlEnabled || !CanRotateVariant) return;
         _targetAngleZ += RotationStep;
+        SfxPlayer.Play("rotate-swoosh", 0.5f, 0.06f);
     }
 
     private bool CanRotateVariant => _appliedData == null || _appliedData.CanRotate;

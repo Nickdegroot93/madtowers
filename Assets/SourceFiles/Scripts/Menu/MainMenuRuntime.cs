@@ -122,6 +122,7 @@ public static class MainMenuRuntime
         Time.timeScale = 0f;
         RuntimeUiKit.EnsureEventSystem();
         BuildMenu();
+        MusicPlayer.PlayMenu(); // menu soundtrack plays everywhere outside a level
     }
 
     private static void BuildMenu()
@@ -508,6 +509,7 @@ public static class MainMenuRuntime
         button.interactable = unlocked;
         button.onClick.AddListener(() =>
         {
+            SfxPlayer.Play("ui-button-click");
             _chapterIndex = nextIndex;
             _activeTab = MenuTab.Play;
             BuildMenu();
@@ -670,7 +672,9 @@ public static class MainMenuRuntime
         button.targetGraphic = cardImage;
         button.interactable = unlocked;
         LevelDefinition selected = level;
-        button.onClick.AddListener(() => SelectLevel(selected));
+        int selectedIndex = index;
+        bool selectedCompleted = completed;
+        button.onClick.AddListener(() => OpenLevelSummary(chapter, selected, selectedIndex, selectedCompleted));
 
         ColorBlock colors = button.colors;
         colors.normalColor = Color.white;
@@ -739,6 +743,7 @@ public static class MainMenuRuntime
         button.targetGraphic = target;
         button.onClick.AddListener(() =>
         {
+            SfxPlayer.Play("ui-button-click");
             _activeTab = tab;
             BuildMenu();
         });
@@ -775,6 +780,7 @@ public static class MainMenuRuntime
         button.targetGraphic = image;
         button.onClick.AddListener(() =>
         {
+            SfxPlayer.Play("ui-button-click");
             _activeTab = MenuTab.Play;
             BuildMenu();
         });
@@ -799,7 +805,7 @@ public static class MainMenuRuntime
 
         Button button = rect.gameObject.AddComponent<Button>();
         button.targetGraphic = image;
-        button.onClick.AddListener(onClick);
+        button.onClick.AddListener(() => { SfxPlayer.Play("ui-button-click"); onClick?.Invoke(); });
         CreateText(rect, "Label", label, 26, TextPrimary, TextAnchor.MiddleCenter,
             FontStyle.Bold, RuntimeUiKit.TitleFont);
         return button;
@@ -810,6 +816,79 @@ public static class MainMenuRuntime
         TearDownRoot();
         _activeTab = MenuTab.Play;
         CustomGameMenu.Show(BuildMenu);
+    }
+
+    // Level pre-launch summary modal: tapping a level no longer launches it directly - it
+    // opens this (level image + stats + a big Start Game button). Close button (top-right) or
+    // a tap on the dimmed backdrop dismisses it. Styling is intentionally minimal for now.
+    private static void OpenLevelSummary(ChapterDefinition chapter, LevelDefinition level, int index, bool completed)
+    {
+        SfxPlayer.Play("ui-button-click");
+
+        GameObject overlay = RuntimeUiKit.CreateOverlayCanvas("Level Summary", 5500);
+        void Close() => UnityEngine.Object.Destroy(overlay);
+
+        // Dimmed backdrop - a tap anywhere outside the panel closes the modal.
+        Image backdrop = CreateImage(overlay.transform, "Backdrop", null, new Color(0f, 0f, 0f, 0.72f));
+        Stretch(backdrop.rectTransform);
+        backdrop.raycastTarget = true;
+        Button backdropButton = backdrop.gameObject.AddComponent<Button>();
+        backdropButton.transition = Selectable.Transition.None;
+        backdropButton.onClick.AddListener(Close);
+
+        // Centered panel. Its own raycast target swallows taps so they don't reach the backdrop.
+        RectTransform panel = CreateRect(overlay.transform, "Panel",
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+            Vector2.zero, new Vector2(860f, 1120f));
+        Image panelImage = panel.gameObject.AddComponent<Image>();
+        panelImage.sprite = RuntimeSprites.RoundedPanel();
+        panelImage.type = Image.Type.Sliced;
+        panelImage.color = CardDark;
+        panelImage.raycastTarget = true;
+        RuntimeUiKit.AddOutline(panel, GoldOutline(0.3f));
+
+        // Level image.
+        Sprite thumb = level.MenuThumbnail != null
+            ? level.MenuThumbnail
+            : MenuSprites.LevelThumbnail(index, chapter.MenuAccentColor, chapter.MenuAccentSecondaryColor);
+        Image image = CreateImage(panel, "Image", thumb, Color.white);
+        SetRect(image.rectTransform, new Vector2(0f, -60f), new Vector2(760f, 440f), new Vector2(0.5f, 1f));
+        image.preserveAspect = false;
+        RuntimeUiKit.AddOutline(image.transform, GoldOutline(0.2f));
+
+        // Title + stat lines (same source the level cards use).
+        CreateText(panel, "Title", level.DisplayName, 56, TextPrimary, TextAnchor.MiddleCenter,
+            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -540f), new Vector2(780f, 72f), new Vector2(0.5f, 1f));
+        LevelMenuPresentation.Snapshot presentation = LevelMenuPresentation.Build(level, completed);
+        CreateText(panel, "Challenge", presentation.ChallengeLabel, 30, TextMuted, TextAnchor.MiddleCenter,
+            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -618f), new Vector2(780f, 44f), new Vector2(0.5f, 1f));
+        CreateText(panel, "Progress", presentation.ProgressLabel, 34, chapter.MenuAccentColor, TextAnchor.MiddleCenter,
+            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -666f), new Vector2(780f, 48f), new Vector2(0.5f, 1f));
+
+        // Close (X), top-right of the panel.
+        Image closeBg = CreateImage(panel, "Close", RuntimeSprites.Bubble(), new Color(0.1f, 0.09f, 0.08f, 0.92f));
+        SetRect(closeBg.rectTransform, new Vector2(-28f, -28f), new Vector2(72f, 72f), new Vector2(1f, 1f));
+        closeBg.raycastTarget = true;
+        CreateText(closeBg.transform, "X", "X", 34, TextPrimary, TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        Button closeButton = closeBg.gameObject.AddComponent<Button>();
+        closeButton.targetGraphic = closeBg;
+        closeButton.onClick.AddListener(Close);
+
+        // Start Game, pinned to the bottom of the panel.
+        Image startBg = CreateImage(panel, "StartGame", RuntimeSprites.RoundedPanel(), chapter.MenuAccentColor);
+        startBg.type = Image.Type.Sliced;
+        SetRect(startBg.rectTransform, new Vector2(0f, 40f), new Vector2(720f, 124f), new Vector2(0.5f, 0f));
+        startBg.raycastTarget = true;
+        CreateText(startBg.transform, "StartLabel", "START GAME", 42, new Color(0.08f, 0.07f, 0.05f, 1f),
+            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        Button startButton = startBg.gameObject.AddComponent<Button>();
+        startButton.targetGraphic = startBg;
+        LevelDefinition selected = level;
+        startButton.onClick.AddListener(() =>
+        {
+            SfxPlayer.Play("ui-start-game");
+            SelectLevel(selected);
+        });
     }
 
     private static void SelectLevel(LevelDefinition level)

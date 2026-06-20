@@ -46,7 +46,7 @@ public sealed class IslandPopFx : MonoBehaviour
         if (!_started)
         {
             _started = true;
-            if (_withSound) SfxPlayer.Play("pop_01", 0.5f, 0.12f);
+            if (_withSound) SfxPlayer.Play("pop", 0.6f, 0.06f);
         }
 
         float t = Mathf.Clamp01((_age - _delay) / DurationSeconds);

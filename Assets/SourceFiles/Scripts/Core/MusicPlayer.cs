@@ -20,6 +20,30 @@ public class MusicPlayer : MonoBehaviour
     private IReadOnlyList<AudioClip> _playlist;
     private int _trackIndex;
     private bool _halted; // game over: silence until the next PlayForChapter
+    private bool _menuMode; // true while playing the menu playlist (no chapter)
+
+    /// <summary>Play the menu soundtrack (everywhere outside a level: menu, settings, custom game).
+    /// menu-a / menu-b alternate A->B->A, random opener - same rotation as a chapter. Idempotent:
+    /// no-op if it's already running, so rebuilding the menu doesn't restart the track.</summary>
+    public static void PlayMenu()
+    {
+        EnsureInstance();
+        if (_instance._menuMode && _instance._source.isPlaying) return;
+
+        var playlist = new List<AudioClip>();
+        AudioClip a = Resources.Load<AudioClip>("Audio/Music/menu-a");
+        AudioClip b = Resources.Load<AudioClip>("Audio/Music/menu-b");
+        if (a != null) playlist.Add(a);
+        if (b != null) playlist.Add(b);
+
+        _instance._menuMode = true;
+        _instance._chapter = null;
+        _instance._halted = false;
+        _instance._playlist = playlist;
+        _instance._trackIndex = playlist.Count > 1 ? Random.Range(0, playlist.Count) : 0;
+        _instance._source.Stop();
+        _instance.PlayCurrentTrack();
+    }
 
     /// <summary>Play the chapter's playlist; keeps playing seamlessly if it's already on.</summary>
     public static void PlayForChapter(ChapterDefinition chapter)
@@ -36,6 +60,7 @@ public class MusicPlayer : MonoBehaviour
         if (_instance._chapter == chapter && _instance._source.isPlaying) return;
 
         _instance._chapter = chapter;
+        _instance._menuMode = false;
         _instance._playlist = chapter != null ? chapter.MusicPlaylist : null;
         _instance._halted = false;
         // Any track may open the rotation; the order is fixed after that.
