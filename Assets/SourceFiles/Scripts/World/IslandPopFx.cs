@@ -9,7 +9,7 @@ using UnityEngine;
 /// </summary>
 public sealed class IslandPopFx : MonoBehaviour
 {
-    private const float DurationSeconds = 0.3f;
+    public const float DurationSeconds = 0.3f;
     private const float Overshoot = 1.18f; // brief bulge past full size reads as a "pop"
 
     private float _delay;

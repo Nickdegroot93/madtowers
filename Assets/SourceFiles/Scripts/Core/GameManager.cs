@@ -71,6 +71,7 @@ public class GameManager : MonoBehaviour
             Instance = this;
             BlockController.ResetRuntimeState();
             TowerHeightLimit.Reset(); // ceilings never leak between levels
+            WaveRevealGate.Reset();   // nor a wave-transition spawn hold
             // Resolve the active chapter once; skin must apply before any skinned visual
             // loads (the floor's ground skin is applied just below; block skins at spawn).
             ChapterDefinition activeChapter = Campaign.FindChapterOf(LevelSelectionState.SelectedLevel);

@@ -60,6 +60,16 @@ public class StaticSupportIslandManager : MonoBehaviour
     // The world horizontal span actually occupied by spawned island cells, exposed so the
     // placement bounds and camera zoom can keep the reach guarantee honest beside platforms.
     private static StaticSupportIslandManager _instance;
+
+    // Wave-reveal handshake (see WaveRevealGate). GenerationTick counts manager update passes so
+    // the wave modifier can tell its just-raised ceiling has been acted on; _latestPopEndTime is
+    // the world time the last-revealed island finishes its pop, so the hold lasts exactly until
+    // the band has fully materialized. Both reset per scene in Awake.
+    private static int _generationTick;
+    public static int GenerationTick => _generationTick;
+    private float _latestPopEndTime;
+    public static bool HasPendingPops => _instance != null && Time.time < _instance._latestPopEndTime;
+
     private float _islandMinX = float.PositiveInfinity;
     private float _islandMaxX = float.NegativeInfinity;
     private bool _hasIslandExtent;
@@ -130,6 +140,8 @@ public class StaticSupportIslandManager : MonoBehaviour
     private void Awake()
     {
         _instance = this;
+        _generationTick = 0; // wave-reveal handshake state never leaks between levels
+        _latestPopEndTime = 0f;
     }
 
     private void OnDestroy()
@@ -188,6 +200,12 @@ public class StaticSupportIslandManager : MonoBehaviour
     // a reveal is visible (pop + sound) or silently pre-exists (initial fill, off-screen).
     private void GenerateUpToTarget()
     {
+        // One tick per pass, counted before any early-out: the wave modifier only needs to know
+        // the manager has run (and thus acted on a freshly raised ceiling) since the line settled.
+        // A pass that spawns a band does so synchronously below, so by the time the tick is
+        // observed next frame, HasPendingPops already reflects whatever this pass revealed.
+        _generationTick++;
+
         GameModeConfig activeConfig = ActiveGameModeConfig;
         if (activeConfig == null || !activeConfig.StaticSupportIslandsEnabled) return;
         if (_staticBlockPrefab == null) return;
@@ -407,7 +425,13 @@ public class StaticSupportIslandManager : MonoBehaviour
         islandRoot.transform.position = Vector3.zero;
 
         float popDelay = PopStaggerSeconds * _popsThisBurst;
-        if (popIn) _popsThisBurst++;
+        if (popIn)
+        {
+            _popsThisBurst++;
+            // Track when this reveal finishes animating so a wave-transition hold (WaveRevealGate)
+            // can wait out the whole band, stagger and all, before dropping the next piece.
+            _latestPopEndTime = Mathf.Max(_latestPopEndTime, Time.time + popDelay + IslandPopFx.DurationSeconds);
+        }
 
         IReadOnlyList<Vector2Int> offsets = shape.CellOffsets;
         for (int i = 0; i < offsets.Count; i++)
