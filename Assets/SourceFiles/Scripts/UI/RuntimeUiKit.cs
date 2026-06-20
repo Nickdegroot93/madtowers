@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -126,19 +127,68 @@ public static class RuntimeUiKit
         return image;
     }
 
-    public static Text CreateText(Transform parent, string name, string value, int size, Color color,
-        TextAnchor alignment, FontStyle style, Font font)
+    // ---- TextMeshPro -------------------------------------------------------------------------
+    // SDF text for the menu: crisp at any size, real spacing, inline rich text. Font assets are
+    // built once at runtime from the same TTFs the legacy path used (no pre-baked .asset needed),
+    // so the menu and the rest of the UI can share fonts during the gradual migration off Text.
+
+    private static TMP_FontAsset _tmpBodyFont;
+    public static TMP_FontAsset TmpBodyFont
     {
-        Text text = CreateText(parent, name, value, size, color, alignment, style, font,
-            Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
-        Stretch(text.rectTransform);
-        return text;
+        get
+        {
+            if (_tmpBodyFont == null) _tmpBodyFont = TMP_FontAsset.CreateFontAsset(DefaultFont);
+            return _tmpBodyFont;
+        }
     }
 
-    public static Text CreateText(Transform parent, string name, string value, int size, Color color,
+    private static TMP_FontAsset _tmpTitleFont;
+    public static TMP_FontAsset TmpTitleFont
+    {
+        get
+        {
+            if (_tmpTitleFont == null)
+            {
+                Font rajdhani = Resources.Load<Font>("Fonts/Rajdhani-Bold");
+                _tmpTitleFont = rajdhani != null ? TMP_FontAsset.CreateFontAsset(rajdhani) : TmpBodyFont;
+            }
+            return _tmpTitleFont;
+        }
+    }
+
+    private static TMP_FontAsset TmpFontFor(Font font) => font == TitleFont ? TmpTitleFont : TmpBodyFont;
+
+    private static TextAlignmentOptions TmpAlign(TextAnchor anchor)
+    {
+        switch (anchor)
+        {
+            case TextAnchor.UpperLeft: return TextAlignmentOptions.TopLeft;
+            case TextAnchor.UpperCenter: return TextAlignmentOptions.Top;
+            case TextAnchor.UpperRight: return TextAlignmentOptions.TopRight;
+            case TextAnchor.MiddleLeft: return TextAlignmentOptions.Left;
+            case TextAnchor.MiddleCenter: return TextAlignmentOptions.Center;
+            case TextAnchor.MiddleRight: return TextAlignmentOptions.Right;
+            case TextAnchor.LowerLeft: return TextAlignmentOptions.BottomLeft;
+            case TextAnchor.LowerCenter: return TextAlignmentOptions.Bottom;
+            default: return TextAlignmentOptions.BottomRight;
+        }
+    }
+
+    /// <summary>TMP twin of CreateText (stretched). Same signature so call sites barely change.</summary>
+    public static TextMeshProUGUI CreateTmp(Transform parent, string name, string value, int size, Color color,
+        TextAnchor alignment, FontStyle style, Font font)
+    {
+        TextMeshProUGUI tmp = CreateTmp(parent, name, value, size, color, alignment, style, font,
+            Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
+        Stretch(tmp.rectTransform);
+        return tmp;
+    }
+
+    /// <summary>TMP twin of CreateText (positioned).</summary>
+    public static TextMeshProUGUI CreateTmp(Transform parent, string name, string value, int size, Color color,
         TextAnchor alignment, FontStyle style, Font font, Vector2 anchoredPosition, Vector2 rectSize, Vector2 anchor)
     {
-        GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+        GameObject go = new GameObject(name, typeof(RectTransform));
         RectTransform rect = (RectTransform)go.transform;
         rect.SetParent(parent, false);
         rect.anchorMin = anchor;
@@ -147,17 +197,30 @@ public static class RuntimeUiKit
         rect.anchoredPosition = anchoredPosition;
         rect.sizeDelta = rectSize;
 
-        Text text = go.GetComponent<Text>();
-        text.font = font != null ? font : DefaultFont;
-        text.text = value;
-        text.fontSize = size;
-        text.fontStyle = style;
-        text.alignment = alignment;
-        text.color = color;
-        text.horizontalOverflow = HorizontalWrapMode.Overflow;
-        text.verticalOverflow = VerticalWrapMode.Truncate;
-        text.raycastTarget = false;
-        return text;
+        TextMeshProUGUI tmp = go.AddComponent<TextMeshProUGUI>();
+        tmp.font = TmpFontFor(font);
+        tmp.text = value;
+        tmp.fontSize = size;
+        tmp.color = color;
+        tmp.alignment = TmpAlign(alignment);
+        tmp.fontStyle = style == FontStyle.Bold ? FontStyles.Bold
+            : style == FontStyle.Italic ? FontStyles.Italic
+            : style == FontStyle.BoldAndItalic ? (FontStyles.Bold | FontStyles.Italic)
+            : FontStyles.Normal;
+        tmp.richText = true;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
+        tmp.overflowMode = TextOverflowModes.Overflow;
+        tmp.raycastTarget = false;
+        return tmp;
+    }
+
+    /// <summary>Best-fit autosizing for a TMP label (TMP twin of resizeTextForBestFit + min/max).</summary>
+    public static void AutoSize(TMP_Text tmp, float min, float max)
+    {
+        tmp.enableAutoSizing = true;
+        tmp.fontSizeMin = min;
+        tmp.fontSizeMax = max;
+        tmp.fontSize = max;
     }
 
     public static void SetRect(RectTransform rect, Vector2 anchoredPosition, Vector2 size, Vector2 anchor)
