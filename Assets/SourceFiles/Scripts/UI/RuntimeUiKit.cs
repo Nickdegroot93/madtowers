@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -84,6 +85,35 @@ public static class RuntimeUiKit
         return image;
     }
 
+    // A white rounded tile that backs a TRANSPARENT ability glyph, so cards and the
+    // consumable slot share one look. The tile fills its parent; `pad` insets the glyph
+    // from the tile edge. `tileAlpha` lets the slot show a 90% tile while cards use a
+    // solid one. Returns the glyph Image (sprite set by the caller); `tile` is handed back
+    // so callers can resize it (cards center a fixed square) or toggle the pair as one.
+    public static Image CreateIconTile(Transform parent, float tileAlpha, float pad, out Image tile, Color? borderColor = null)
+    {
+        tile = CreateImage(parent, "IconTile", RuntimeSprites.RoundedPanel(), new Color(1f, 1f, 1f, tileAlpha));
+        tile.type = Image.Type.Sliced;
+        RectTransform tileRect = tile.rectTransform;
+        tileRect.anchorMin = Vector2.zero;
+        tileRect.anchorMax = Vector2.one;
+        tileRect.offsetMin = Vector2.zero;
+        tileRect.offsetMax = Vector2.zero;
+
+        Image glyph = CreateImage(tile.transform, "Icon", null, Color.white);
+        glyph.preserveAspect = true;
+        RectTransform glyphRect = glyph.rectTransform;
+        glyphRect.anchorMin = Vector2.zero;
+        glyphRect.anchorMax = Vector2.one;
+        glyphRect.offsetMin = new Vector2(pad, pad);
+        glyphRect.offsetMax = new Vector2(-pad, -pad);
+
+        // Optional rarity border (off-white / blue / purple), owned here so every call site
+        // gets the same look without re-deriving it.
+        if (borderColor.HasValue) AddOutline(tile.transform, borderColor.Value);
+        return glyph;
+    }
+
     public static RawImage CreateRawImage(Transform parent, string name, Texture texture, Color color)
     {
         GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
@@ -97,19 +127,68 @@ public static class RuntimeUiKit
         return image;
     }
 
-    public static Text CreateText(Transform parent, string name, string value, int size, Color color,
-        TextAnchor alignment, FontStyle style, Font font)
+    // ---- TextMeshPro -------------------------------------------------------------------------
+    // SDF text for the menu: crisp at any size, real spacing, inline rich text. Font assets are
+    // built once at runtime from the same TTFs the legacy path used (no pre-baked .asset needed),
+    // so the menu and the rest of the UI can share fonts during the gradual migration off Text.
+
+    private static TMP_FontAsset _tmpBodyFont;
+    public static TMP_FontAsset TmpBodyFont
     {
-        Text text = CreateText(parent, name, value, size, color, alignment, style, font,
-            Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
-        Stretch(text.rectTransform);
-        return text;
+        get
+        {
+            if (_tmpBodyFont == null) _tmpBodyFont = TMP_FontAsset.CreateFontAsset(DefaultFont);
+            return _tmpBodyFont;
+        }
     }
 
-    public static Text CreateText(Transform parent, string name, string value, int size, Color color,
+    private static TMP_FontAsset _tmpTitleFont;
+    public static TMP_FontAsset TmpTitleFont
+    {
+        get
+        {
+            if (_tmpTitleFont == null)
+            {
+                Font rajdhani = Resources.Load<Font>("Fonts/Rajdhani-Bold");
+                _tmpTitleFont = rajdhani != null ? TMP_FontAsset.CreateFontAsset(rajdhani) : TmpBodyFont;
+            }
+            return _tmpTitleFont;
+        }
+    }
+
+    private static TMP_FontAsset TmpFontFor(Font font) => font == TitleFont ? TmpTitleFont : TmpBodyFont;
+
+    private static TextAlignmentOptions TmpAlign(TextAnchor anchor)
+    {
+        switch (anchor)
+        {
+            case TextAnchor.UpperLeft: return TextAlignmentOptions.TopLeft;
+            case TextAnchor.UpperCenter: return TextAlignmentOptions.Top;
+            case TextAnchor.UpperRight: return TextAlignmentOptions.TopRight;
+            case TextAnchor.MiddleLeft: return TextAlignmentOptions.Left;
+            case TextAnchor.MiddleCenter: return TextAlignmentOptions.Center;
+            case TextAnchor.MiddleRight: return TextAlignmentOptions.Right;
+            case TextAnchor.LowerLeft: return TextAlignmentOptions.BottomLeft;
+            case TextAnchor.LowerCenter: return TextAlignmentOptions.Bottom;
+            default: return TextAlignmentOptions.BottomRight;
+        }
+    }
+
+    /// <summary>TMP twin of CreateText (stretched). Same signature so call sites barely change.</summary>
+    public static TextMeshProUGUI CreateTmp(Transform parent, string name, string value, int size, Color color,
+        TextAnchor alignment, FontStyle style, Font font)
+    {
+        TextMeshProUGUI tmp = CreateTmp(parent, name, value, size, color, alignment, style, font,
+            Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
+        Stretch(tmp.rectTransform);
+        return tmp;
+    }
+
+    /// <summary>TMP twin of CreateText (positioned).</summary>
+    public static TextMeshProUGUI CreateTmp(Transform parent, string name, string value, int size, Color color,
         TextAnchor alignment, FontStyle style, Font font, Vector2 anchoredPosition, Vector2 rectSize, Vector2 anchor)
     {
-        GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+        GameObject go = new GameObject(name, typeof(RectTransform));
         RectTransform rect = (RectTransform)go.transform;
         rect.SetParent(parent, false);
         rect.anchorMin = anchor;
@@ -118,17 +197,30 @@ public static class RuntimeUiKit
         rect.anchoredPosition = anchoredPosition;
         rect.sizeDelta = rectSize;
 
-        Text text = go.GetComponent<Text>();
-        text.font = font != null ? font : DefaultFont;
-        text.text = value;
-        text.fontSize = size;
-        text.fontStyle = style;
-        text.alignment = alignment;
-        text.color = color;
-        text.horizontalOverflow = HorizontalWrapMode.Overflow;
-        text.verticalOverflow = VerticalWrapMode.Truncate;
-        text.raycastTarget = false;
-        return text;
+        TextMeshProUGUI tmp = go.AddComponent<TextMeshProUGUI>();
+        tmp.font = TmpFontFor(font);
+        tmp.text = value;
+        tmp.fontSize = size;
+        tmp.color = color;
+        tmp.alignment = TmpAlign(alignment);
+        tmp.fontStyle = style == FontStyle.Bold ? FontStyles.Bold
+            : style == FontStyle.Italic ? FontStyles.Italic
+            : style == FontStyle.BoldAndItalic ? (FontStyles.Bold | FontStyles.Italic)
+            : FontStyles.Normal;
+        tmp.richText = true;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
+        tmp.overflowMode = TextOverflowModes.Overflow;
+        tmp.raycastTarget = false;
+        return tmp;
+    }
+
+    /// <summary>Best-fit autosizing for a TMP label (TMP twin of resizeTextForBestFit + min/max).</summary>
+    public static void AutoSize(TMP_Text tmp, float min, float max)
+    {
+        tmp.enableAutoSizing = true;
+        tmp.fontSizeMin = min;
+        tmp.fontSizeMax = max;
+        tmp.fontSize = max;
     }
 
     public static void SetRect(RectTransform rect, Vector2 anchoredPosition, Vector2 size, Vector2 anchor)
@@ -310,7 +402,12 @@ public static class RuntimeUiKit
         colors.colorMultiplier = 1f;
         button.colors = colors;
         button.targetGraphic = image;
-        button.onClick.AddListener(onClick);
+        // Guard against null: callers that need the Button reference inside their handler (e.g.
+        // CreateCycleRow, whose handler reads the button's own value label) pass null here and
+        // AddListener their real handler afterward. A null listener throws on click (Unity calls
+        // delegate.Target during invoke), which aborted the listener chain before the real one ran
+        // - that was why every cycle row (Preset / Win by / Difficulty ramp) did nothing on tap.
+        if (onClick != null) button.onClick.AddListener(onClick);
 
         LayoutElement buttonLayout = buttonObject.AddComponent<LayoutElement>();
         buttonLayout.preferredHeight = height;

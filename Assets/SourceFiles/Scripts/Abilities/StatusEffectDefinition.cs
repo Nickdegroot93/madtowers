@@ -43,10 +43,15 @@ public class StatusEffectDefinition : ScriptableObject
     [Tooltip("Meaning depends on kind: FallSpeedMultiplier = the multiplier (0.5 = half speed); ScorePerBlockBonus = extra score per grant (1 = +1); others ignore it.")]
     [SerializeField] private float magnitude = 1f;
     [SerializeField] private StatusStackPolicy stackPolicy = StatusStackPolicy.RefreshDuration;
+    [Tooltip("Optional on-screen effect prefab StatusFieldController shows while this state is active " +
+             "(e.g. Brace's fullscreen immunity overlay). The state owns its look, so any ability granting " +
+             "it shares the visual. Null = no visual.")]
+    [SerializeField] private GameObject screenEffect;
 
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public StatusEffectKind Kind => kind;
     public float DefaultDuration => defaultDuration;
     public float Magnitude => magnitude;
     public StatusStackPolicy StackPolicy => stackPolicy;
+    public GameObject ScreenEffect => screenEffect;
 }

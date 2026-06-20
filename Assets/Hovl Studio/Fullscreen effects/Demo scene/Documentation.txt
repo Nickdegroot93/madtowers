@@ -1,0 +1,4 @@
+Effect must be 0.05 before the camera.
+Just add the prefab to the scene camera and select your camera.
+If no camera is selected, the script will select the main camera.
+If you don't see an effect on your camera, change camera Clipping Planes "Near" value to 0.01.

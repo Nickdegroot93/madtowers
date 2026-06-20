@@ -12,7 +12,7 @@ public sealed class SacrificeLaserLine : MonoBehaviour
     // the stack, and the tower draws over it instead of the beam cutting across the stack. The
     // layer offsets span -2..+2, so the base stays well under 0. The Sacrifice FLASH is separate
     // and deliberately stays in front (a momentary destructive bang).
-    private const int SortingOrder = -10;
+    private const int DefaultSortingOrder = -10;
 
     private readonly BeamLayer[] _layers =
     {
@@ -25,25 +25,30 @@ public sealed class SacrificeLaserLine : MonoBehaviour
     };
 
     private Color _color;
+    private Color _accentColor;
     private float _phaseOffset;
+    private float _verticalOffset;
 
-    public void Configure(Color color)
+    public void Configure(Color color, float verticalOffset = 0f, int sortingOrder = DefaultSortingOrder,
+        Color? accentColor = null)
     {
         _color = color;
+        _accentColor = accentColor ?? new Color(0.35f, 0.95f, 1f, 1f);
+        _verticalOffset = verticalOffset;
         _phaseOffset = Random.Range(0f, 20f);
         for (int i = 0; i < _layers.Length; i++)
         {
-            _layers[i].Create(transform, _color, SortingOrder);
+            _layers[i].Create(transform, _color, _accentColor, sortingOrder);
         }
     }
 
-    public static void FlashAtLossLine(Color color)
+    public static void FlashAtLossLine(Color color, float verticalOffset = 0f)
     {
         Camera cam = Camera.main;
 
         GameObject go = new GameObject("SacrificeLaserFlash");
         SacrificeLaserFlash flash = go.AddComponent<SacrificeLaserFlash>();
-        flash.Play(color, LossZone.CurrentLossLineY(cam), cam != null ? cam.transform.position.x : 0f);
+        flash.Play(color, LossZone.CurrentLossLineY(cam) + verticalOffset, cam != null ? cam.transform.position.x : 0f);
     }
 
     private void LateUpdate()
@@ -53,11 +58,11 @@ public sealed class SacrificeLaserLine : MonoBehaviour
 
         float t = Time.time + _phaseOffset;
         float mainWobble = Mathf.Sin(t * 3.6f) * 0.018f + Mathf.Sin(t * 6.1f + 1.4f) * 0.01f;
-        transform.position = new Vector3(cam.transform.position.x, LossZone.CurrentLossLineY(cam) + mainWobble, 0f);
+        transform.position = new Vector3(cam.transform.position.x, LossZone.CurrentLossLineY(cam) + _verticalOffset + mainWobble, 0f);
 
         for (int i = 0; i < _layers.Length; i++)
         {
-            _layers[i].Update(_color, t);
+            _layers[i].Update(_color, _accentColor, t);
         }
     }
 
@@ -94,7 +99,7 @@ public sealed class SacrificeLaserLine : MonoBehaviour
             _sortingOffset = sortingOffset;
         }
 
-        public void Create(Transform parent, Color baseColor, int sortingOrder)
+        public void Create(Transform parent, Color baseColor, Color accentColor, int sortingOrder)
         {
             GameObject child = new GameObject(_name);
             child.transform.SetParent(parent, false);
@@ -102,17 +107,17 @@ public sealed class SacrificeLaserLine : MonoBehaviour
             _renderer = child.AddComponent<SpriteRenderer>();
             _renderer.sprite = RuntimeSprites.SoftHorizontalBar(_thickness);
             _renderer.sortingOrder = sortingOrder + _sortingOffset;
-            Update(baseColor, 0f);
+            Update(baseColor, accentColor, 0f);
         }
 
-        public void Update(Color baseColor, float time)
+        public void Update(Color baseColor, Color accentColor, float time)
         {
             if (_renderer == null) return;
 
             float wave = Mathf.Sin(time * _speed + _phase);
             float shimmer = Mathf.Sin(time * (_speed * 1.7f) + _phase * 0.6f) * 0.5f + 0.5f;
-            Color cyan = Color.Lerp(baseColor, new Color(0.35f, 0.95f, 1f, 1f), _cyanBlend);
-            Color color = Color.Lerp(cyan, Color.white, _whiteBlend);
+            Color accent = Color.Lerp(baseColor, accentColor, _cyanBlend);
+            Color color = Color.Lerp(accent, Color.white, _whiteBlend);
             color.a = Mathf.Lerp(_minAlpha, _maxAlpha, shimmer);
             _renderer.color = color;
 

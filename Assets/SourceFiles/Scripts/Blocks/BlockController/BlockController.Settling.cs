@@ -202,7 +202,7 @@ public partial class BlockController
     }
 
     // Freezes this block permanently exactly where it currently is - used by anchor brick
-    // variants and the cement-tower power-up. A Static body costs nothing in the solver and
+    // variants and the Freeze power-up. A Static body costs nothing in the solver and
     // acts as a player-made platform; it can never drift, wake, or be knocked over.
     public void FreezeInPlace()
     {
@@ -211,5 +211,205 @@ public partial class BlockController
         _rb.linearVelocity = Vector2.zero;
         _rb.angularVelocity = 0f;
         _rb.bodyType = RigidbodyType2D.Static;
+    }
+
+    // The Freeze power-up's entry point: kick off the crawling-ice overlay NOW, but delay the
+    // actual physics lock by physicsDelaySeconds so a settling/teetering block keeps moving for
+    // a beat and then locks as the ice grabs it (it reads as the freeze stopping the motion).
+    // FreezeInPlace is idempotent, so a block already frozen just no-ops.
+    public void Freeze(float visualSeconds, float physicsDelaySeconds)
+    {
+        if (_rb == null) return;
+
+        BuildFrostOverlay(visualSeconds);
+        if (_rb.bodyType == RigidbodyType2D.Static) return;
+
+        if (physicsDelaySeconds <= 0f) FreezeInPlace();
+        else Invoke(nameof(FreezeInPlace), physicsDelaySeconds);
+    }
+
+    private static bool _frostLoaded;
+    private static Material _frostTemplate;
+    private bool _hasFrostOverlay;
+
+    // One frost pane per physical cell, not one outline around the whole tetromino. The panes sample
+    // their colour from the current chapter's piece art, then the Frost shader turns that into cloudy
+    // ice with bevels, scratches and internal cracks. Uses the tweakable Resources/Frost.mat; falls
+    // back to building from the shader. If neither exists, the physics lock still happens.
+    private void BuildFrostOverlay(float seconds)
+    {
+        if (!_frostLoaded)
+        {
+            _frostLoaded = true;
+            _frostTemplate = Resources.Load<Material>("Frost");
+            if (_frostTemplate == null)
+            {
+                Shader shader = Resources.Load<Shader>("Frost");
+                if (shader != null) _frostTemplate = new Material(shader);
+            }
+        }
+        if (_frostTemplate == null) return;
+
+        var overlays = new List<SpriteRenderer>();
+        SpriteRenderer pieceRenderer = FindPieceSkinRenderer();
+        SpriteRenderer sortSource = pieceRenderer != null ? pieceRenderer : GetComponentInChildren<SpriteRenderer>();
+        int sortingLayerId = sortSource != null ? sortSource.sortingLayerID : 0;
+        int sortingOrder = sortSource != null ? sortSource.sortingOrder : 0;
+
+        BoxCollider2D[] colliders = GetComponentsInChildren<BoxCollider2D>();
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            BoxCollider2D box = colliders[i];
+            if (box == null || box.isTrigger) continue;
+
+            Vector3 worldCenter = box.transform.TransformPoint(box.offset);
+            Vector3 localCenter = transform.InverseTransformPoint(worldCenter);
+            SpriteRenderer cellRenderer = box.GetComponent<SpriteRenderer>();
+            float cellSize = ResolveFrostCellSize(cellRenderer);
+
+            if (!_hasFrostOverlay)
+            {
+                GameObject go = new GameObject("FrostOverlay");
+                go.transform.SetParent(transform, false);
+                go.transform.localPosition = new Vector3(localCenter.x, localCenter.y, 0f);
+                go.transform.localRotation = Quaternion.identity;
+                go.transform.localScale = new Vector3(cellSize, cellSize, 1f);
+
+                SpriteRenderer overlay = go.AddComponent<SpriteRenderer>();
+                overlay.sprite = RuntimeSprites.Square();
+                overlay.sharedMaterial = _frostTemplate;
+                overlay.sortingLayerID = sortingLayerId;
+                overlay.sortingOrder = sortingOrder + 2; // above the chapter skin and any old cell renderers
+                overlay.color = ResolveFrostCellTint(pieceRenderer, worldCenter,
+                    cellRenderer != null ? cellRenderer.color : Color.white);
+                overlays.Add(overlay);
+            }
+        }
+
+        if (!_hasFrostOverlay && overlays.Count == 0)
+        {
+            // Fallback for a malformed prefab: frost whatever visible sprite it has instead of
+            // silently losing the visual.
+            SpriteRenderer[] renderers = GetComponentsInChildren<SpriteRenderer>();
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                SpriteRenderer sr = renderers[i];
+                if (sr == null || !sr.enabled || sr.sprite == null) continue;
+                if (sr.gameObject.name == "FrostOverlay") continue;
+
+                GameObject go = new GameObject("FrostOverlay");
+                go.transform.SetParent(sr.transform, false);
+                SpriteRenderer overlay = go.AddComponent<SpriteRenderer>();
+                overlay.sprite = sr.sprite;
+                overlay.sharedMaterial = _frostTemplate;
+                overlay.sortingLayerID = sr.sortingLayerID;
+                overlay.sortingOrder = sr.sortingOrder + 2;
+                overlay.color = sr.color;
+                overlays.Add(overlay);
+            }
+        }
+
+        if (_hasFrostOverlay) return;
+        if (overlays.Count == 0) return;
+
+        _hasFrostOverlay = true;
+        FrostFx fx = gameObject.AddComponent<FrostFx>();
+        fx.Play(overlays, seconds, Random.value * 50f); // per-block seed varies the crawl pattern
+    }
+
+    private SpriteRenderer FindPieceSkinRenderer()
+    {
+        SpriteRenderer[] renderers = GetComponentsInChildren<SpriteRenderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            SpriteRenderer sr = renderers[i];
+            if (sr != null && sr.gameObject.name == "PieceSkin") return sr;
+        }
+        return null;
+    }
+
+    private float ResolveFrostCellSize(SpriteRenderer cellRenderer)
+    {
+        if (cellRenderer != null && cellRenderer.sprite != null)
+        {
+            Bounds spriteBounds = cellRenderer.sprite.bounds;
+            Vector3 scale = cellRenderer.transform.localScale;
+            float width = Mathf.Abs(spriteBounds.size.x * scale.x);
+            float height = Mathf.Abs(spriteBounds.size.y * scale.y);
+            float size = Mathf.Max(width, height);
+            if (size > 0.01f) return size;
+        }
+
+        return Mathf.Max(0.01f, gridSpacing);
+    }
+
+    private Color ResolveFrostCellTint(SpriteRenderer pieceRenderer, Vector3 worldCenter, Color fallback)
+    {
+        Color tint = fallback;
+        if (pieceRenderer != null && pieceRenderer.sprite != null && pieceRenderer.sprite.texture != null)
+        {
+            Sprite sprite = pieceRenderer.sprite;
+            Texture2D texture = sprite.texture;
+            if (!texture.isReadable) return tint;
+
+            try
+            {
+                Vector3 localCenter = pieceRenderer.transform.InverseTransformPoint(worldCenter);
+                Color sampled = SampleBestPieceColor(sprite, texture, localCenter);
+                if (sampled.a > 0.05f)
+                {
+                    Color rendererColor = pieceRenderer.color;
+                    tint = new Color(
+                        sampled.r * rendererColor.r,
+                        sampled.g * rendererColor.g,
+                        sampled.b * rendererColor.b,
+                        1f);
+                }
+            }
+            catch (UnityException)
+            {
+                // Non-readable art still freezes; it just uses the renderer tint fallback.
+            }
+        }
+
+        tint.a = 1f;
+        return tint;
+    }
+
+    private Color SampleBestPieceColor(Sprite sprite, Texture2D texture, Vector3 localCenter)
+    {
+        Color best = Color.clear;
+        float bestScore = -1f;
+        Rect textureRect = sprite.rect;
+        Bounds bounds = sprite.bounds;
+
+        for (int i = 0; i < 5; i++)
+        {
+            Vector2 offset = Vector2.zero;
+            if (i == 1) offset = new Vector2(-0.22f, 0.16f);
+            else if (i == 2) offset = new Vector2(0.22f, 0.16f);
+            else if (i == 3) offset = new Vector2(-0.18f, -0.18f);
+            else if (i == 4) offset = new Vector2(0.18f, -0.18f);
+
+            Vector2 local = new Vector2(localCenter.x + offset.x, localCenter.y + offset.y);
+            float u = Mathf.InverseLerp(bounds.min.x, bounds.max.x, local.x);
+            float v = Mathf.InverseLerp(bounds.min.y, bounds.max.y, local.y);
+            Color sample = texture.GetPixelBilinear(
+                (textureRect.x + Mathf.Clamp01(u) * textureRect.width) / texture.width,
+                (textureRect.y + Mathf.Clamp01(v) * textureRect.height) / texture.height);
+            if (sample.a <= 0.05f) continue;
+
+            float max = Mathf.Max(sample.r, Mathf.Max(sample.g, sample.b));
+            float min = Mathf.Min(sample.r, Mathf.Min(sample.g, sample.b));
+            float saturation = max - min;
+            float luminance = sample.r * 0.299f + sample.g * 0.587f + sample.b * 0.114f;
+            float score = sample.a * (saturation * 0.75f + luminance * 0.25f);
+            if (score <= bestScore) continue;
+
+            best = sample;
+            bestScore = score;
+        }
+
+        return best;
     }
 }

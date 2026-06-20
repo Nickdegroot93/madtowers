@@ -56,7 +56,98 @@ public class StaticSupportIslandManager : MonoBehaviour
     private int _popsThisBurst;
     private int _floorMinColumn; // resolved once per generation burst (see ColumnWeight)
     private int _floorMaxColumn;
+
+    // The world horizontal span actually occupied by spawned island cells, exposed so the
+    // placement bounds and camera zoom can keep the reach guarantee honest beside platforms.
+    private static StaticSupportIslandManager _instance;
+
+    // Wave-reveal handshake (see WaveRevealGate). GenerationTick counts manager update passes so
+    // the wave modifier can tell its just-raised ceiling has been acted on; _latestPopEndTime is
+    // the world time the last-revealed island finishes its pop, so the hold lasts exactly until
+    // the band has fully materialized. Both reset per scene in Awake.
+    private static int _generationTick;
+    public static int GenerationTick => _generationTick;
+    private float _latestPopEndTime;
+    public static bool HasPendingPops => _instance != null && Time.time < _instance._latestPopEndTime;
+
+    private float _islandMinX = float.PositiveInfinity;
+    private float _islandMaxX = float.NegativeInfinity;
+    private bool _hasIslandExtent;
+    // Per-cell centres so the camera can frame only the islands near the current view (Sky mode
+    // build surface) instead of the whole monotonic span. Islands never despawn, so this only
+    // grows - a few hundred entries at most, scanned once per camera frame.
+    private readonly List<Vector2> _islandCellCenters = new List<Vector2>();
+    private float _islandCellHalfWidth;
+    // Low-water mark into _islandCellCenters: cells before this have permanently dropped below the
+    // camera's (monotonically rising) vertical window, so the per-frame range scan can skip them
+    // instead of walking the whole unbounded history. Advanced only in TryGetWorldHorizontalExtentInRange.
+    private int _islandScanStartIndex;
+
     private GameModeConfig ActiveGameModeConfig => LevelSelectionState.ResolveGameMode(gameModeConfig);
+
+    /// <summary>The world X span covered by all spawned island cells (cell edges, not centres).
+    /// False before any island exists. Islands are static and never despawn mid-round, so this
+    /// is a monotonically growing union - cheap to maintain at spawn time.</summary>
+    public static bool TryGetWorldHorizontalExtent(out float minX, out float maxX)
+    {
+        minX = 0f;
+        maxX = 0f;
+        if (_instance == null || !_instance._hasIslandExtent) return false;
+        minX = _instance._islandMinX;
+        maxX = _instance._islandMaxX;
+        return true;
+    }
+
+    /// <summary>The world X span of island cells whose vertical extent overlaps [minY, maxY] -
+    /// what the camera should keep framed near the current view. False when no island is in range.</summary>
+    public static bool TryGetWorldHorizontalExtentInRange(float minY, float maxY, out float minX, out float maxX)
+    {
+        minX = 0f;
+        maxX = 0f;
+        if (_instance == null) return false;
+
+        List<Vector2> cells = _instance._islandCellCenters;
+        float half = _instance._islandCellHalfWidth;
+
+        // The camera window only rises (camera Y is monotonic), so permanently skip cells that have
+        // dropped well below it. Keep a margin (4 half-cells ≈ 2 rows) below minY before retiring a
+        // cell, so neither the small Y-disorder from 2-tall shapes nor a transient shake dip in the
+        // window can skip a cell that is still in range. Cells past the start that happen to sit
+        // below the window are simply scanned-and-filtered, never wrongly dropped.
+        int start = _instance._islandScanStartIndex;
+        float retireBelow = minY - half * 4f;
+        while (start < cells.Count && cells[start].y + half < retireBelow) start++;
+        _instance._islandScanStartIndex = start;
+
+        bool has = false;
+        float lo = 0f;
+        float hi = 0f;
+        for (int i = start; i < cells.Count; i++)
+        {
+            Vector2 c = cells[i];
+            if (c.y + half < minY || c.y - half > maxY) continue;
+            lo = has ? Mathf.Min(lo, c.x - half) : c.x - half;
+            hi = has ? Mathf.Max(hi, c.x + half) : c.x + half;
+            has = true;
+        }
+
+        if (!has) return false;
+        minX = lo;
+        maxX = hi;
+        return true;
+    }
+
+    private void Awake()
+    {
+        _instance = this;
+        _generationTick = 0; // wave-reveal handshake state never leaks between levels
+        _latestPopEndTime = 0f;
+    }
+
+    private void OnDestroy()
+    {
+        if (_instance == this) _instance = null;
+    }
 
     private void Start()
     {
@@ -109,6 +200,12 @@ public class StaticSupportIslandManager : MonoBehaviour
     // a reveal is visible (pop + sound) or silently pre-exists (initial fill, off-screen).
     private void GenerateUpToTarget()
     {
+        // One tick per pass, counted before any early-out: the wave modifier only needs to know
+        // the manager has run (and thus acted on a freshly raised ceiling) since the line settled.
+        // A pass that spawns a band does so synchronously below, so by the time the tick is
+        // observed next frame, HasPendingPops already reflects whatever this pass revealed.
+        _generationTick++;
+
         GameModeConfig activeConfig = ActiveGameModeConfig;
         if (activeConfig == null || !activeConfig.StaticSupportIslandsEnabled) return;
         if (_staticBlockPrefab == null) return;
@@ -137,14 +234,48 @@ public class StaticSupportIslandManager : MonoBehaviour
     }
 
     // Each side band rolls independently: per row, per side, one chance for one cluster.
+    // Both bands are first clipped to the reachable column range, so an island never lands
+    // where a falling piece couldn't slip down its outer side (the user's "let me drop beside
+    // any platform" rule). A band clipped to nothing simply produces no island this row.
     private void GenerateRow(GameModeConfig config, float rowY, float cameraTop, float grid)
     {
         int clearColumns = config.StaticSupportIslandCenterClearColumns;
         int clearMin = -(clearColumns / 2);
         int clearMax = clearMin + clearColumns - 1;
 
-        TrySpawnInBand(config, rowY, cameraTop, grid, config.StaticSupportIslandMinColumn, clearMin - 1);
-        TrySpawnInBand(config, rowY, cameraTop, grid, clearMax + 1, config.StaticSupportIslandMaxColumn);
+        if (!TryGetReachableColumnRange(config, grid, out int reachMin, out int reachMax)) return;
+
+        TrySpawnInBand(config, rowY, cameraTop, grid,
+            Mathf.Max(config.StaticSupportIslandMinColumn, reachMin), Mathf.Min(clearMin - 1, reachMax));
+        TrySpawnInBand(config, rowY, cameraTop, grid,
+            Mathf.Max(clearMax + 1, reachMin), Mathf.Min(config.StaticSupportIslandMaxColumn, reachMax));
+    }
+
+    // The columns where an island cell can EVER be reached. The follow camera pans/zooms to keep
+    // the steered piece and the drop lane beside it framed (TowerCameraController.GetTargetFraming),
+    // so this is just a guardrail at the WIDEST the camera ever gets (MaximumCameraSize), anchored
+    // to the stable floor centre rather than the live (panning) camera X: an island spawned past
+    // this couldn't be framed with WidestBlockColumns clear beside it even at full zoom-out, so it
+    // must never spawn. With the default band (+/-6) on a normal phone aspect this clips nothing -
+    // it only bites on very narrow screens or an over-wide island band. False when no camera yet.
+    private bool TryGetReachableColumnRange(GameModeConfig config, float grid, out int minColumn, out int maxColumn)
+    {
+        minColumn = 0;
+        maxColumn = 0;
+        if (_camera == null || !_camera.orthographic || grid <= 0f) return false;
+
+        float aspect = Mathf.Max(0.01f, _camera.aspect);
+        float halfWidth = config.MaximumCameraSize * aspect;
+        // The camera pans at runtime, so anchor the guardrail to the floor centre (stable) rather
+        // than the live camera X - islands are placed relative to the floor, not the framing.
+        float floorCenterX = (_floorMinColumn + _floorMaxColumn) * 0.5f * grid;
+
+        // A cell at column C spans [(C-0.5)*grid, (C+0.5)*grid]; keep WidestBlockColumns of clear
+        // grid between its outer edge and the viewport edge on each side.
+        float reach = BlockController.WidestBlockColumns;
+        minColumn = Mathf.CeilToInt((floorCenterX - halfWidth) / grid + 0.5f + reach);
+        maxColumn = Mathf.FloorToInt((floorCenterX + halfWidth) / grid - 0.5f - reach);
+        return minColumn <= maxColumn;
     }
 
     private void TrySpawnInBand(GameModeConfig config, float rowY, float cameraTop, float grid,
@@ -294,7 +425,13 @@ public class StaticSupportIslandManager : MonoBehaviour
         islandRoot.transform.position = Vector3.zero;
 
         float popDelay = PopStaggerSeconds * _popsThisBurst;
-        if (popIn) _popsThisBurst++;
+        if (popIn)
+        {
+            _popsThisBurst++;
+            // Track when this reveal finishes animating so a wave-transition hold (WaveRevealGate)
+            // can wait out the whole band, stagger and all, before dropping the next piece.
+            _latestPopEndTime = Mathf.Max(_latestPopEndTime, Time.time + popDelay + IslandPopFx.DurationSeconds);
+        }
 
         IReadOnlyList<Vector2Int> offsets = shape.CellOffsets;
         for (int i = 0; i < offsets.Count; i++)
@@ -308,7 +445,18 @@ public class StaticSupportIslandManager : MonoBehaviour
             ConfigureIslandCellPhysics(cell, grid);
             // A multi-cell cluster pops as one: all cells animate, only the first one sounds.
             ConfigureIslandCellVisual(cell, popIn, popDelay, withSound: i == 0);
+
+            float halfGrid = grid * 0.5f;
+            _islandMinX = Mathf.Min(_islandMinX, cellPosition.x - halfGrid);
+            _islandMaxX = Mathf.Max(_islandMaxX, cellPosition.x + halfGrid);
+            _hasIslandExtent = true;
+            _islandCellHalfWidth = halfGrid;
+            _islandCellCenters.Add(new Vector2(cellPosition.x, cellPosition.y));
         }
+
+        // A new island widens the reach union (placement reads the overall island extent), so the
+        // active piece must recompute its cached reach bounds.
+        BlockController.InvalidateReachGeometry();
     }
 
     private bool IsIslandAreaClear(StaticSupportIslandShapeConfig shape, int baseColumn, float baseY, float gridSpacing)

@@ -9,7 +9,7 @@ using UnityEngine;
 /// </summary>
 public sealed class IslandPopFx : MonoBehaviour
 {
-    private const float DurationSeconds = 0.3f;
+    public const float DurationSeconds = 0.3f;
     private const float Overshoot = 1.18f; // brief bulge past full size reads as a "pop"
 
     private float _delay;
@@ -46,7 +46,7 @@ public sealed class IslandPopFx : MonoBehaviour
         if (!_started)
         {
             _started = true;
-            if (_withSound) SfxPlayer.Play("pop_01", 0.5f, 0.12f);
+            if (_withSound) SfxPlayer.Play("pop", 0.6f, 0.06f);
         }
 
         float t = Mathf.Clamp01((_age - _delay) / DurationSeconds);

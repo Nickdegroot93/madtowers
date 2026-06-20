@@ -100,6 +100,24 @@ public partial class BlockController
 
         if (Mathf.Abs(columnDelta) > 0.001f) TuckIntoStaticPocket(preStepPosition);
 
+        // Fission hover: the shard sits at the spawn line and is only steerable until the player
+        // commits a drop. Any descent intent (flick / held fast-drop / down) releases it; until
+        // then skip the Y advance and the landing cast (the piece is kinematic and never-landed,
+        // so no transform is written on a landed block - first contact is just deferred).
+        if (_descentSuspended)
+        {
+            if (_autoDrop || _isFastDrop || _moveInput.y < -0.5f)
+            {
+                _descentSuspended = false;
+            }
+            else
+            {
+                ClearControlledLinearVelocity();
+                ClampHorizontalToReachBounds();
+                return;
+            }
+        }
+
         _lastControlledFallSpeed = GetActiveFallSpeed();
         float fallDistance = _lastControlledFallSpeed * Time.fixedDeltaTime;
         if (TryGetDownContact(fallDistance + groundedCheckDistance, out float contactDistance))
@@ -117,7 +135,7 @@ public partial class BlockController
 
         ApplyControlledVerticalMovement(fallDistance);
         ClearControlledLinearVelocity();
-        ClampHorizontalToCameraBounds();
+        ClampHorizontalToReachBounds();
     }
 
     // A sidestep allowed on snapped-row forgiveness (see ClassifyGridPlacementAtColumn) may
@@ -236,7 +254,9 @@ public partial class BlockController
         Vector3 position = transform.position;
         position.x += deltaX;
         SetPosition(position);
-        ClampHorizontalToCameraBounds();
+        // No clamp here: the move converges onto _targetColumnX, which ShiftTargetColumn already
+        // reach-bounded, and SteerWhileFalling clamps once at the end of the step. Clamping here
+        // too would scan all tracked blocks + islands a second time every FixedUpdate for nothing.
     }
 
     private void ApplyControlledVerticalMovement(float distance)
@@ -277,15 +297,19 @@ public partial class BlockController
         return true;
     }
 
-    private void ClampHorizontalToCameraBounds()
+    // Continuous safety clamp to the gameplay REACH bounds (obstacles + the widest-block
+    // margin), NOT the camera: the grid-step target is already reach-bounded, this just keeps
+    // the in-between steering position honest. The camera follows the piece for visibility and
+    // never gates movement (see IsColumnTargetWithinBounds).
+    private void ClampHorizontalToReachBounds()
     {
-        if (!TryGetCameraHorizontalBounds(out float cameraMinX, out float cameraMaxX)) return;
+        if (!TryGetGameplayHorizontalBounds(out float reachMinX, out float reachMaxX)) return;
         if (!_cellGeometry.TryGetWorldBounds(out Bounds bounds)) return;
 
         float leftReach = transform.position.x - bounds.min.x;
         float rightReach = bounds.max.x - transform.position.x;
-        float minCenterX = cameraMinX + leftReach;
-        float maxCenterX = cameraMaxX - rightReach;
+        float minCenterX = reachMinX + leftReach;
+        float maxCenterX = reachMaxX - rightReach;
         if (minCenterX > maxCenterX) return;
 
         Vector3 position = transform.position;

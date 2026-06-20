@@ -57,7 +57,7 @@ public partial class BlockController
         {
             case ColumnStepResult.Moved:
                 if (TryGetWorldBounds(out Bounds bounds)) DashWindFx.Spawn(bounds, attempted);
-                SfxPlayer.Play("swoosh_01", 0.45f, 0.08f);
+                SfxPlayer.Play("nudge", 0.6f, 0.05f);
                 break;
 
             case ColumnStepResult.BlockedByBlocks:
@@ -98,7 +98,7 @@ public partial class BlockController
         {
             BlockController block = _stepBlockers[i];
             if (block == null || block._rb == null) continue;
-            if (block._rb.bodyType != RigidbodyType2D.Dynamic) continue; // anchored/cemented stay rock
+            if (block._rb.bodyType != RigidbodyType2D.Dynamic) continue; // anchored/frozen stay rock
 
             block._rb.WakeUp();
             block._rb.AddForce(impulse, ForceMode2D.Impulse);
@@ -110,12 +110,14 @@ public partial class BlockController
     {
         if (!_isControlEnabled || !CanRotateVariant) return;
         _targetAngleZ -= RotationStep;
+        SfxPlayer.Play("rotate-swoosh", 0.5f, 0.06f);
     }
 
     public void RotateRight()
     {
         if (!_isControlEnabled || !CanRotateVariant) return;
         _targetAngleZ += RotationStep;
+        SfxPlayer.Play("rotate-swoosh", 0.5f, 0.06f);
     }
 
     private bool CanRotateVariant => _appliedData == null || _appliedData.CanRotate;
@@ -134,6 +136,11 @@ public partial class BlockController
     {
         if (_isControlEnabled) _autoDrop = true;
     }
+
+    // Fission hover: hold the piece at the spawn line (steering stays live) until the player
+    // commits a drop. Any descent intent in SteerWhileFalling auto-clears this, so the normal
+    // flick / fast-drop gesture is the commit with no extra input plumbing.
+    public void SetDescentSuspended(bool suspended) => _descentSuspended = suspended;
 
     // Shared left/right auto-repeat (DAS) timing. `step` is invoked once on initial press, then
     // repeatedly at `dasRate` after the initial `dasDelay` while the direction is held.

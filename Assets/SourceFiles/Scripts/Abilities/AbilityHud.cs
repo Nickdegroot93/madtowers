@@ -23,6 +23,9 @@ public class AbilityHud : MonoBehaviour
     private Canvas _canvas;
     private readonly Image[] _slotFrames = new Image[AbilityRuntime.ConsumableSlotCount];
     private readonly Image[] _slotIcons = new Image[AbilityRuntime.ConsumableSlotCount];
+    // White tile behind each slot icon (authored glyphs are transparent); shown only when
+    // the slot holds an ability that has an icon. Toggling it also toggles its child glyph.
+    private readonly Image[] _slotTiles = new Image[AbilityRuntime.ConsumableSlotCount];
     private readonly Text[] _slotLabels = new Text[AbilityRuntime.ConsumableSlotCount];
     private readonly CanvasGroup[] _slotGroups = new CanvasGroup[AbilityRuntime.ConsumableSlotCount];
     private readonly bool[] _slotShownUsable = new bool[AbilityRuntime.ConsumableSlotCount];
@@ -100,18 +103,14 @@ public class AbilityHud : MonoBehaviour
         });
 
         // Icon fills the slot when the ability has one; the text label is the fallback.
-        GameObject iconObject = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform iconRect = (RectTransform)iconObject.transform;
-        iconRect.SetParent(slot.transform, false);
-        iconRect.anchorMin = Vector2.zero;
-        iconRect.anchorMax = Vector2.one;
-        iconRect.offsetMin = new Vector2(10f, 10f);
-        iconRect.offsetMax = new Vector2(-10f, -10f);
-        Image icon = iconObject.GetComponent<Image>();
-        icon.preserveAspect = true;
-        icon.raycastTarget = false;
-        icon.enabled = false;
+        // The transparent glyph rides on a white 90%-opacity tile (matches the ability card).
+        Image icon = RuntimeUiKit.CreateIconTile(slot.transform, 0.9f, 6f, out Image iconTile);
+        RectTransform tileRect = iconTile.rectTransform;
+        tileRect.offsetMin = new Vector2(10f, 10f);
+        tileRect.offsetMax = new Vector2(-10f, -10f);
+        iconTile.gameObject.SetActive(false);
         _slotIcons[index] = icon;
+        _slotTiles[index] = iconTile;
 
         Text label = RuntimeUiKit.CreateLabel(slot.transform, string.Empty, 20, SlotSize,
             FontStyle.Bold, RuntimeUiKit.TitleColor);
@@ -138,8 +137,8 @@ public class AbilityHud : MonoBehaviour
             _slotFrames[i].color = source != null ? SlotFilledColor : SlotEmptyColor;
 
             bool hasIcon = source != null && source.Icon != null;
-            _slotIcons[i].enabled = hasIcon;
-            _slotIcons[i].sprite = hasIcon ? source.Icon : null;
+            if (_slotTiles[i] != null) _slotTiles[i].gameObject.SetActive(hasIcon);
+            if (hasIcon) _slotIcons[i].sprite = source.Icon;
             _slotLabels[i].text = source != null && !hasIcon ? source.DisplayName : string.Empty;
         }
     }

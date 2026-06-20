@@ -31,7 +31,7 @@ public class TransmuteAbility : ConsumableAbility
         {
             BlockController piece = BlockController.ActiveControlled;
             if (piece != null) Vfx.Spawn(transformEffect, piece.transform.position, transformScale);
-            SfxPlayer.Play("swoosh_01", 0.8f, 0.04f);
+            SfxPlayer.Play("transmute", 0.9f);
         }
     }
 }

@@ -16,17 +16,23 @@ public class TowerCameraController : MonoBehaviour
     [SerializeField] private float fallbackMinimumCameraSize = 15f;
     [SerializeField] private float fallbackMaximumCameraSize = 24f;
     [SerializeField] private float fallbackHorizontalPadding = 1.5f;
-    [Range(0.5f, 1f)]
-    [SerializeField] private float fallbackHorizontalSafeArea = 0.78f;
     [SerializeField] private float fallbackZoomSmoothTime = 0.35f;
+
+    // Horizontal follow is its own motion (it tracks the piece being steered, not the tower
+    // climb), so it gets its own responsiveness rather than borrowing the vertical CameraSmoothTime.
+    // Snappier than the vertical climb so following a flick-to-edge doesn't feel like drag.
+    private const float HorizontalFollowSmoothTime = 0.21f;
 
     private static TowerCameraController _instance;
 
     private Camera _camera;
     private float _verticalVelocity;
     private float _zoomVelocity;
+    private float _horizontalVelocity;
     private float _highestCameraY;
     private float _baseY;
+    private float _baseX;
+    private bool _hasInitializedFraming;
     private float _shakeTime;
     private float _shakeDuration;
     private float _shakeAmplitude;
@@ -42,6 +48,7 @@ public class TowerCameraController : MonoBehaviour
 
         _highestCameraY = Mathf.Max(transform.position.y, MinimumCameraY);
         _baseY = _highestCameraY;
+        _baseX = transform.position.x;
         SetCameraY(_highestCameraY);
         UpdateSpawnPoint();
         UpdateVerticalFollowers();
@@ -75,8 +82,25 @@ public class TowerCameraController : MonoBehaviour
             ref _verticalVelocity,
             smoothTime);
 
-        SetCameraY(_baseY + GetShakeOffset());
-        UpdateZoom();
+        // Horizontal pan + zoom only when there is content to frame. Until then (degenerate first
+        // frames before the floor/config resolves) we hold the Awake values rather than latching a
+        // placeholder - so the first real frame still snaps cleanly with no zoom pop.
+        if (GetTargetFraming(out float targetX, out float targetSize))
+        {
+            if (!_hasInitializedFraming)
+            {
+                _hasInitializedFraming = true;
+                _baseX = targetX;
+                if (_camera != null && _camera.orthographic) _camera.orthographicSize = targetSize;
+            }
+            else
+            {
+                _baseX = Mathf.SmoothDamp(_baseX, targetX, ref _horizontalVelocity, HorizontalFollowSmoothTime);
+                UpdateZoom(targetSize);
+            }
+        }
+
+        SetCameraPosition(_baseX, _baseY + GetShakeOffset());
         UpdateSpawnPoint();
         UpdateVerticalFollowers();
     }
@@ -93,11 +117,10 @@ public class TowerCameraController : MonoBehaviour
         return Mathf.Sin((1f - remaining) * 30f) * _shakeAmplitude * remaining * remaining;
     }
 
-    private void UpdateZoom()
+    private void UpdateZoom(float targetSize)
     {
         if (_camera == null || !_camera.orthographic) return;
 
-        float targetSize = GetTargetCameraSize();
         _camera.orthographicSize = Mathf.SmoothDamp(
             _camera.orthographicSize,
             targetSize,
@@ -105,52 +128,103 @@ public class TowerCameraController : MonoBehaviour
             CameraZoomSmoothTime);
     }
 
-    private float GetTargetCameraSize()
+    // A follow camera: frame the horizontal span of the content (floor, the nearby tower, the
+    // nearby sky islands, and the piece the player is steering) with a fixed column margin, then
+    // BOTH pan and zoom to fit it. Normal play keeps the active piece over the tower, so the
+    // span equals the tower and the camera sits still and tight; only when the player pushes a
+    // piece out past the tower edge does the span grow on that side and the camera glide to
+    // follow it - so reaching the drop lane stays possible without permanently zooming out.
+    private bool GetTargetFraming(out float centerX, out float size)
     {
-        if (!TryGetFocusedBlockBounds(out Bounds focusedBounds))
-        {
-            return MinimumCameraSize;
-        }
+        centerX = transform.position.x;
+        size = MinimumCameraSize;
+        if (_camera == null || !_camera.orthographic) return false;
 
-        float cameraX = transform.position.x;
-        float farthestHorizontalExtent = Mathf.Max(
-            Mathf.Abs(focusedBounds.min.x - cameraX),
-            Mathf.Abs(focusedBounds.max.x - cameraX));
+        if (!TryGetContentHorizontalBounds(out float minX, out float maxX)) return false;
+
+        centerX = (minX + maxX) * 0.5f;
+        float halfSpan = (maxX - minX) * 0.5f;
         float aspect = Mathf.Max(0.01f, _camera.aspect);
-        float safeAspect = aspect * HorizontalCameraSafeArea;
-        float requiredHorizontalSize = (farthestHorizontalExtent + HorizontalCameraPadding) / safeAspect;
-        return Mathf.Clamp(requiredHorizontalSize, MinimumCameraSize, MaximumCameraSize);
+        // HorizontalCameraPadding is the visible margin (world units ≈ columns) left beyond the
+        // content on each side - dividing by aspect alone (no safe-area inflation) keeps that
+        // margin fixed rather than growing with the tower, which is what reads as "tight".
+        float halfWidthWorld = halfSpan + HorizontalCameraPadding;
+        size = Mathf.Clamp(halfWidthWorld / aspect, MinimumCameraSize, MaximumCameraSize);
+
+        // When the content is wider than max zoom can show, centering on the midpoint could push
+        // the piece the player is steering off-screen. Bias the centre so the active piece stays
+        // fully framed - the far tower side is what gets cropped, never the actionable piece.
+        float halfWidth = size * aspect;
+        if (TryGetActivePieceHorizontalExtent(out float pieceMinX, out float pieceMaxX))
+        {
+            centerX = Mathf.Clamp(centerX, pieceMaxX - halfWidth, pieceMinX + halfWidth);
+        }
+        return true;
     }
 
-    private bool TryGetFocusedBlockBounds(out Bounds focusedBounds)
+    private bool TryGetContentHorizontalBounds(out float minX, out float maxX)
     {
-        focusedBounds = default;
+        minX = 0f;
+        maxX = 0f;
         bool hasBounds = false;
-        float focusHalfHeight = MinimumCameraSize;
-        float minY = transform.position.y - focusHalfHeight;
-        float maxY = transform.position.y + focusHalfHeight;
-        IReadOnlyList<BlockController> blocks = BlockController.AllBlocks;
 
+        // Floor is always part of the frame so the camera is sensible from the first frame
+        // (before any block lands) and never zooms in tighter than the play area.
+        GameModeConfig config = ActiveGameModeConfig;
+        if (config != null)
+        {
+            HorizontalBounds.AddFloorSegments(config.FloorSegments, config.GridSpacing,
+                ref minX, ref maxX, ref hasBounds);
+        }
+
+        float focusHalfHeight = MinimumCameraSize;
+        float windowMinY = transform.position.y - focusHalfHeight;
+        float windowMaxY = transform.position.y + focusHalfHeight;
+
+        AddFocusedBlockHorizontalBounds(windowMinY, windowMaxY, ref minX, ref maxX, ref hasBounds);
+
+        if (StaticSupportIslandManager.TryGetWorldHorizontalExtentInRange(windowMinY, windowMaxY,
+                out float islandMinX, out float islandMaxX))
+        {
+            HorizontalBounds.Encapsulate(islandMinX, islandMaxX, ref minX, ref maxX, ref hasBounds);
+        }
+
+        AddActivePieceHorizontalBounds(ref minX, ref maxX, ref hasBounds);
+
+        return hasBounds;
+    }
+
+    private void AddFocusedBlockHorizontalBounds(float minY, float maxY, ref float minX, ref float maxX, ref bool hasBounds)
+    {
+        IReadOnlyList<BlockController> blocks = BlockController.AllBlocks;
         for (int i = 0; i < blocks.Count; i++)
         {
             BlockController block = blocks[i];
-            if (block == null) continue;
-            if (!block.HasLanded) continue;
+            if (block == null || !block.HasLanded) continue;
             if (!block.TryGetWorldBounds(out Bounds blockBounds)) continue;
             if (blockBounds.max.y < minY || blockBounds.min.y > maxY) continue;
-
-            if (!hasBounds)
-            {
-                focusedBounds = blockBounds;
-                hasBounds = true;
-            }
-            else
-            {
-                focusedBounds.Encapsulate(blockBounds);
-            }
+            HorizontalBounds.Encapsulate(blockBounds.min.x, blockBounds.max.x, ref minX, ref maxX, ref hasBounds);
         }
+    }
 
-        return hasBounds;
+    // The piece under player control is what makes the camera follow a push. No vertical window:
+    // it is always the thing the player is acting on, wherever they have steered it.
+    private void AddActivePieceHorizontalBounds(ref float minX, ref float maxX, ref bool hasBounds)
+    {
+        if (!TryGetActivePieceHorizontalExtent(out float pieceMinX, out float pieceMaxX)) return;
+        HorizontalBounds.Encapsulate(pieceMinX, pieceMaxX, ref minX, ref maxX, ref hasBounds);
+    }
+
+    private bool TryGetActivePieceHorizontalExtent(out float minX, out float maxX)
+    {
+        minX = 0f;
+        maxX = 0f;
+        BlockController active = BlockController.ActiveControlled;
+        if (active == null || active.HasLanded) return false;
+        if (!active.TryGetWorldBounds(out Bounds bounds)) return false;
+        minX = bounds.min.x;
+        maxX = bounds.max.x;
+        return true;
     }
 
     private float GetTargetCameraY()
@@ -186,6 +260,14 @@ public class TowerCameraController : MonoBehaviour
         transform.position = position;
     }
 
+    private void SetCameraPosition(float x, float y)
+    {
+        Vector3 position = transform.position;
+        position.x = x;
+        position.y = y;
+        transform.position = position;
+    }
+
     private void UpdateVerticalFollowers()
     {
         if (verticalFollowers == null) return;
@@ -209,6 +291,5 @@ public class TowerCameraController : MonoBehaviour
     private float MinimumCameraSize => ActiveGameModeConfig != null ? ActiveGameModeConfig.MinimumCameraSize : fallbackMinimumCameraSize;
     private float MaximumCameraSize => ActiveGameModeConfig != null ? ActiveGameModeConfig.MaximumCameraSize : fallbackMaximumCameraSize;
     private float HorizontalCameraPadding => ActiveGameModeConfig != null ? ActiveGameModeConfig.HorizontalCameraPadding : fallbackHorizontalPadding;
-    private float HorizontalCameraSafeArea => ActiveGameModeConfig != null ? ActiveGameModeConfig.HorizontalCameraSafeArea : Mathf.Clamp(fallbackHorizontalSafeArea, 0.5f, 1f);
     private float CameraZoomSmoothTime => ActiveGameModeConfig != null ? ActiveGameModeConfig.CameraZoomSmoothTime : fallbackZoomSmoothTime;
 }

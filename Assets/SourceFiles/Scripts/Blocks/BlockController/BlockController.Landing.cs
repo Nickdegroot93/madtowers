@@ -139,6 +139,7 @@ public partial class BlockController
         _isControlEnabled = false;
         if (ActiveControlled == this) ActiveControlled = null;
         HasLanded = true;
+        InvalidateReachGeometry(); // this block now counts toward the reach bounds for the next piece
         DestroyPlacementBeam();
 
         FinalizeDynamicControl();

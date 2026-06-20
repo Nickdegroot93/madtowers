@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// A brick that grows onto whatever it lands against: shortly after placement it welds itself
-/// to every block (or static platform) it touches. A local, earned version of Cement Tower -
+/// to every block (or static platform) it touches. A local, earned version of Freeze -
 /// the welded cluster still moves as live physics, it just can't come apart at those seams
 /// unless the joint's break force is exceeded.
 /// </summary>

@@ -78,6 +78,15 @@ public class StatusEffects : MonoBehaviour
         return effect != null ? effect.Remaining : 0f;
     }
 
+    /// <summary>Fill <paramref name="buffer"/> with every active state's definition (cleared first).
+    /// Lets a presenter surface states generically - it reads each definition's own config (e.g. its
+    /// screen-effect prefab) with no per-kind code.</summary>
+    public void GetActiveDefinitions(List<StatusEffectDefinition> buffer)
+    {
+        buffer.Clear();
+        for (int i = 0; i < _active.Count; i++) buffer.Add(_active[i].Definition);
+    }
+
     /// <summary>Product of all active fall-speed multipliers (1 when none).</summary>
     public float GetFallSpeedFactor()
     {

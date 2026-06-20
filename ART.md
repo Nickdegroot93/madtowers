@@ -58,11 +58,15 @@ transparent icon per special type, drawn as a bold, readable symbol.
 Keep ~24px of empty margin around the symbol. White or light icons work best
 (they get a subtle dark outline in code for readability).
 
-## 3. Background (layered, no images)
+## 3. Backgrounds / backdrop packs
 
-Backgrounds are **not images** — each chapter has a `BackdropPreset` asset
-(`Assets/Data/Backdrops/`, assigned to the chapter's `backdrop` field) that
-composes generated layers at runtime:
+Each chapter has a `BackdropPreset` asset (`Assets/Data/Backdrops/`, assigned
+to the chapter's `backdrop` field). Backdrops can be either procedural, imported
+sprite layers from an Asset Store pack, or a mix of both. The full workflow for
+landscape parallax packs in portrait vertical gameplay lives in
+[BACKDROPS.md](BACKDROPS.md).
+
+Procedural backdrop features:
 
 - **Sky**: vertical gradient glued to the camera, crossfading to a second
   "high altitude" color pair as the tower climbs (`altitudeFadeMeters`).
@@ -79,11 +83,14 @@ composes generated layers at runtime:
   to the camera so it floats through view over a long band of the climb.
 - **Ground props**: procedural cacti (etc.) flanking the floor, sinking away as
   the tower climbs.
+- **Imported sprite layers**: full background plates can be scaled to cover the
+  portrait camera while separated far/mid/near scenery layers use vertical
+  parallax.
 
 A chapter without a preset gets the classic dark sky. To design a new chapter's
 backdrop, give Claude an **inspiration image** (screenshot, painting, photo) —
-palette and mood translate directly into preset values. Hand-made art can
-still join later as additional layers if a hero chapter needs it.
+palette and mood translate directly into preset values. For Asset Store packs,
+import the pack and configure its layers according to [BACKDROPS.md](BACKDROPS.md).
 
 ## 4. Ground / floor
 

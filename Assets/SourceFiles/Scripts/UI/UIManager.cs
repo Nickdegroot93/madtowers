@@ -24,16 +24,16 @@ public class UIManager : MonoBehaviour
     private static readonly Color NextSecondaryTint = new Color(1f, 1f, 1f, 0.32f); // dimmer next-next slot
     // Top bar: one dark rounded master card, two darker stat cards inside it, and a
     // taller NEXT card vertically centered on it (equal overhang above and below).
-    // Warm near-opaque tones: translucent layers stacking over each other is what read
-    // as "weird lines" - the mockup's layers barely let each other through.
-    private static readonly Color BarColor = new Color(0.16f, 0.13f, 0.10f, 0.62f);
-    private static readonly Color BarInsetColor = new Color(0.10f, 0.08f, 0.06f, 0.78f);
-    private static readonly Color NextCardColor = new Color(0.17f, 0.14f, 0.11f, 0.78f);
-    private static readonly Color NextCardBorder = new Color(0.95f, 0.92f, 0.86f, 0.38f);
-    private static readonly Color StatLabelColor = new Color(0.88f, 0.80f, 0.70f, 0.55f);
-    private static readonly Color StatValueColor = new Color(0.99f, 0.97f, 0.93f, 1f);
+    // Pure greyscale: near-opaque black tones so translucent layers stacking over each
+    // other don't read as "weird lines" - each layer barely lets the one below through.
+    private static readonly Color BarColor = new Color(0f, 0f, 0f, 0.62f);
+    private static readonly Color BarInsetColor = new Color(0f, 0f, 0f, 0.78f);
+    private static readonly Color NextCardColor = new Color(0f, 0f, 0f, 0.78f);
+    private static readonly Color NextCardBorder = new Color(0.92f, 0.92f, 0.92f, 0.38f);
+    private static readonly Color StatLabelColor = new Color(0.80f, 0.80f, 0.80f, 0.55f);
+    private static readonly Color StatValueColor = new Color(0.97f, 0.97f, 0.97f, 1f);
     private static readonly Color PauseFillColor = new Color(0f, 0f, 0f, 0.45f);
-    private static readonly Color PauseIconColor = new Color(0.88f, 0.80f, 0.70f, 0.85f);
+    private static readonly Color PauseIconColor = new Color(0.85f, 0.85f, 0.85f, 0.85f);
     private const float BarHeight = 104f;
     private const float BarSideMargin = 120f; // breathing room per the design - nothing reserves this space
     private const float BarCardInset = 14f;   // stat cards float inside their segment on all sides
@@ -79,6 +79,7 @@ public class UIManager : MonoBehaviour
     private GameObject _nextPanel;
     private Image[] _nextPreviews;
     private int _activeSlotCount = 1;
+    private bool _nextPanelSuppressed;
     private GameObject _pauseButton;
     private PauseMenuController _pauseMenu;
     private RectTransform _hudRoot;
@@ -184,6 +185,11 @@ public class UIManager : MonoBehaviour
     private void HandleNextBlockChanged(System.Collections.Generic.IReadOnlyList<string> blockNames)
     {
         if (_nextPreviews == null) return;
+        if (OverdrawSession.SuppressesNextPreview)
+        {
+            SetNextPanelSuppressed(true);
+            return;
+        }
 
         int count = blockNames != null ? blockNames.Count : 0;
         EnsureSlotLayout(count);
@@ -194,6 +200,19 @@ public class UIManager : MonoBehaviour
         {
             if (_nextPreviews[i] == null) continue;
             SetSlotSprite(_nextPreviews[i], i < count ? blockNames[i] : null);
+        }
+    }
+
+    private void SetNextPanelSuppressed(bool suppressed)
+    {
+        if (_nextPanelSuppressed == suppressed) return;
+
+        _nextPanelSuppressed = suppressed;
+        if (_nextPanel != null) _nextPanel.SetActive(!suppressed);
+
+        if (!suppressed && _spawner != null)
+        {
+            HandleNextBlockChanged(_spawner.GetUpcomingBlockNames());
         }
     }
 
@@ -401,7 +420,7 @@ public class UIManager : MonoBehaviour
         // Icon + caption + value as one center-anchored group.
         RectTransform group = CreateCenteredGroup(card, new Vector2(186f, 60f), 0f);
         CreateBarIcon(group, RuntimeSprites.CubeGlyph(), new Vector2(24f, 0f), 42f,
-            new Color(0.92f, 0.86f, 0.78f, 0.85f));
+            new Color(0.90f, 0.90f, 0.90f, 0.85f));
         CreateBarCaption(group, "BLOCKS", new Vector2(60f, 16f));
         if (scoreText != null) PlaceBarValue(scoreText, group, new Vector2(60f, -12f));
     }
@@ -465,7 +484,7 @@ public class UIManager : MonoBehaviour
         caption.characterSpacing = 16f;
         caption.fontStyle = FontStyles.Bold;
         caption.alignment = TextAlignmentOptions.MidlineLeft;
-        caption.color = StatLabelColor; // warm + translucent: the mockup's overlay-blend look
+        caption.color = StatLabelColor; // neutral grey + translucent: greyscale overlay-blend look
         caption.raycastTarget = false;
     }
 
@@ -684,6 +703,8 @@ public class UIManager : MonoBehaviour
             if (_pauseButton.activeSelf != show) _pauseButton.SetActive(show);
         }
 
+        SetNextPanelSuppressed(OverdrawSession.SuppressesNextPreview);
+
         bool dim = BlockController.NudgeLockoutRemaining > 0f;
         if (dim == _nudgePillsDimmed) return;
         _nudgePillsDimmed = dim;
@@ -697,6 +718,52 @@ public class UIManager : MonoBehaviour
             // identity lives in alpha; scale it, keep the tint
             image.color = new Color(baseColor.r, baseColor.g, baseColor.b, baseColor.a * factor);
         }
+    }
+
+    private readonly Vector3[] _hudCornerBuffer = new Vector3[4];
+
+    /// <summary>
+    /// World-space Y of the LOWEST edge of the top HUD (bar segments + the NEXT card, whichever
+    /// hangs lowest), for the given gameplay camera. Lets a gameplay overlay (the Fission shard
+    /// queue) sit clear of the HUD on any aspect / safe-area instead of guessing a screen fraction.
+    /// Returns false if the bar has not been built yet.
+    /// </summary>
+    public bool TryGetTopHudBottomWorldY(Camera worldCamera, out float worldY)
+    {
+        worldY = 0f;
+        if (worldCamera == null) return false;
+
+        Canvas canvas = HudRoot() != null ? HudRoot().GetComponentInParent<Canvas>() : null;
+        Camera uiCamera = (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
+            ? canvas.worldCamera
+            : null;
+        float depth = Mathf.Abs(worldCamera.transform.position.z);
+
+        bool any = false;
+        float lowestWorldY = float.MaxValue;
+        RectTransform nextRect = _nextPanel != null && _nextPanel.activeInHierarchy && !OverdrawSession.SuppressesNextPreview
+            ? (RectTransform)_nextPanel.transform
+            : null;
+        any |= AccumulateLowestBottom(_barLeft, uiCamera, worldCamera, depth, ref lowestWorldY);
+        any |= AccumulateLowestBottom(_barRight, uiCamera, worldCamera, depth, ref lowestWorldY);
+        any |= AccumulateLowestBottom(nextRect, uiCamera, worldCamera, depth, ref lowestWorldY);
+        if (!any) return false;
+
+        worldY = lowestWorldY;
+        return true;
+    }
+
+    private bool AccumulateLowestBottom(RectTransform rect, Camera uiCamera, Camera worldCamera, float depth, ref float lowestWorldY)
+    {
+        if (rect == null) return false;
+
+        rect.GetWorldCorners(_hudCornerBuffer); // [0]=bottom-left, [3]=bottom-right
+        float screenBottomY = Mathf.Min(
+            RectTransformUtility.WorldToScreenPoint(uiCamera, _hudCornerBuffer[0]).y,
+            RectTransformUtility.WorldToScreenPoint(uiCamera, _hudCornerBuffer[3]).y);
+        float wy = worldCamera.ScreenToWorldPoint(new Vector3(Screen.width * 0.5f, screenBottomY, depth)).y;
+        if (wy < lowestWorldY) lowestWorldY = wy;
+        return true;
     }
 
     private RectTransform HudRoot()

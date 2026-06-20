@@ -4,7 +4,7 @@ using UnityEngine;
 /// The Bullet projectile's variant: a normal falling piece in every way (steering,
 /// fast drop, flick) until first contact - then it destroys whatever dynamic tower
 /// block it landed on, and itself, in one burst. Floors, islands and frozen
-/// (cemented/anchored) blocks are bulletproof: the shot is wasted.
+/// (frozen/anchored) blocks are bulletproof: the shot is wasted.
 ///
 /// The two impact looks are authored prefab fields (Cartoon FX CFXR prefabs) - swap
 /// the effect by dragging a different prefab onto the slot, no code change.

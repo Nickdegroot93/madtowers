@@ -14,7 +14,7 @@ Code: `Assets/SourceFiles/Scripts/Abilities/` · Assets: `Assets/Data/PowerUps/`
 | Kind | Class | Lifecycle | Example |
 |---|---|---|---|
 | **Instant** | `InstantAbility` | `Apply()` once at pick, then gone | Extra Life, Slow Motion, Next-Block Variant |
-| **Consumable** | `ConsumableAbility` | Held in one of 2 HUD slots; player taps to `Activate()` | Cement Tower (Flash Freeze), Stasis |
+| **Consumable** | `ConsumableAbility` | Held in one of 2 HUD slots; player taps to `Activate()` | Freeze, Extract, Shrink |
 | **Passive** | `PassiveAbility` | Always on from pick; `charges` makes it one-shot | Recovery (permanent), Sacrifice (charges = 1) |
 | **Combo** | `ComboAbility` | Fires `OnComboFired()` when its trigger pattern lands | Overdrive (two upright I-pieces) |
 
@@ -34,15 +34,17 @@ the details view). Short and long fall back to each other, so half-authored asse
 degrade gracefully.
 
 There is also a player-facing **type badge** (`AbilityDefinition.Type`), shown small at
-the top of every card: Instant / Consumable / Passive / One-Time Passive. It is
-**derived, never authored** - kind from the class, "one-time" from charges - so the
-badge can never contradict what the ability does. Labels/colors in `AbilityTypeInfo`.
+the top of every card. It is **derived, never authored** - kind from the class,
+"one-time" from charges. The `Type` enum still distinguishes `OneTimePassive`, but the
+badge **text** collapses it to "PASSIVE" (a one-shot passive IS a passive; the one-time
+distinction is intentionally not surfaced to players), so the labels shown are
+**CONSUMABLE / PASSIVE / INSTANT**. Labels/colors in `AbilityTypeInfo`.
 
 Consumption today: choice cards are the mockup chrome - a dark cut-corner plate + a
 rarity-tinted glowing frame (both SDF sprites in `RuntimeSprites.AbilityCards`), title,
-a badge plate with a generated type glyph (infinity = passive, ring-and-one =
-one-time, flask = consumable, spark = instant), the icon (a spark placeholder until
-real icons land), "Owned xN", short description and an outlined rarity-tinted
+a badge plate showing the type as **text** (`AbilityTypeInfo.GetLabel`), the authored
+icon on a white rounded tile with a rarity-tinted border (off-white / blue / purple,
+via `RuntimeUiKit.CreateIconTile`), "Owned xN", short description and an outlined rarity-tinted
 **Details** button; titles render in Rajdhani (Resources/Fonts, OFL) best-fit to one
 line; legendary cards get an animated
 shine sweep (`AbilityCardShine`). Details opens the detail view (type + rarity, icon,
@@ -69,9 +71,14 @@ state across runs (documented bug class — don't reintroduce it).
 ## 4. Ordering rules (deterministic, documented here on purpose)
 
 - Inventory is ONE list in **acquisition order**.
-- **Intercepting hooks** (`TryInterceptLoss`): first armed ability to return true
-  handles the event and SHORT-CIRCUITS; later abilities stay armed. Multiple lost
-  blocks in one sweep resolve in block-spawn order.
+- **Intercepting hooks** (`TryInterceptLoss`): highest `LossInterceptPriority` gets
+  first refusal, ties resolve in acquisition order. The first armed ability to return
+  true handles the event and SHORT-CIRCUITS; later abilities stay armed. Multiple lost
+  blocks in one sweep resolve in block-spawn order. Keep the default priority unless
+  the UI/FX implies a physical order (Hardline's catch beam sits above Sacrifice's
+  destroy beam, so it wins first). `LossInterceptLineOffset` can raise the sweep line
+  while an upper catch beam is armed, keeping the visual trigger and gameplay trigger
+  aligned.
 - **Notification hooks** (`OnLifeLost`, `OnBlockSpawned`, combo fan-out): EVERY
   subscriber runs, in acquisition order; a charge is consumed right after the owning
   handler returns. Handlers observe live state mutated by earlier handlers.
@@ -97,6 +104,17 @@ Stack policies: `RefreshDuration` (timer restarts), `ExtendDuration` (durations 
 `StackMagnitude` (magnitudes add, timer refreshes). Timers tick on scaled time —
 pauses freeze every state for free. A new shareable state = one new asset; new code
 only when a new KIND needs a new consult point in a core system.
+
+**Surfacing a state on screen** (so the player knows it's active): the state carries its own
+look — `StatusEffectDefinition.screenEffect` is an optional prefab. `StatusFieldController` (on
+the GameManager object) is **fully data-driven**: it shows the prefab of *any* active state that
+has one and tears it down when the state ends, driven by the STATE not the ability. So surfacing
+a new state, or pointing a second ability at an existing one, is **zero code here** — author the
+status asset, drop a prefab on it. Today only `LifeLossImmunity` (opened by Brace) carries one:
+the **Hovl "Screen buff" overlay** (`Assets/Hovl Studio/Fullscreen effects`), a camera-parented
+particle quad whose `HS_ScreenEffect` sizes it to the view, tuned to a warm edge-weighted smoke
+haze (arrow sub-effect disabled, smoke recoloured). The controller loops every system for the
+window and stops them to fade out.
 
 Note: `ScorePerBlockBonus` amplifies score, and score is the progression currency (win
 targets, picker milestones, wave counts all accelerate — that's the designed effect).
@@ -188,7 +206,11 @@ when unusable, same affordance as the nudge pills.
    |---|---|---|---|
    | `StatusConsumableAbility` | Consumable | status | "activate: enter state X" |
    | `TransmuteAbility` | Consumable | targetShape (+ transformEffect) | "activate: active piece becomes shape X" |
+   | `FlipAbility` | Consumable | - | "activate: swap active shape with next queued shape" |
    | `SlowWindowConsumable` | Consumable | slowFactor, blocks | "activate: next N blocks fall slower" |
+   | `OverdrawAbility` | Consumable (unique) | choiceCount | "activate: hold three shapes and choose drop order" |
+   | `ScrapAbility` | Consumable | vaporColor | "activate: destroy the last placed block" |
+   | `SuspensionAbility` | Consumable | - | "activate: select one placed block and freeze it in place" |
    | `RecoveryWindowAbility` | Passive (unique) | slowFactor, blocksPerTrigger | "on life lost: next N blocks fall slower" |
    | `StatusPassiveAbility` | Passive | triggerEvent, status (+ charges) | "on life lost / on spawn: enter state X" |
    | `StatusComboAbility` | Combo | trigger, status (+ charges) | "pattern lands: enter state X" |
@@ -202,6 +224,7 @@ when unusable, same affordance as the nudge pills.
    | `QueueVisibilityPowerUp` | Passive (unique) | visibleDepth | "see N upcoming shapes instead of 1" |
    | `EdgePortalAbility` | Passive (unique) | — | "active pieces wrap across screen edges" |
    | `PocketCacheAbility` | Passive (unique) | — | "unlocks a Tetris-style hold/swap cache" |
+   | `HardlineAbility` | Passive (unique, charges = 1) | laserColor, laserYOffset, settleSeconds | "first lost landed block becomes an airborne platform" |
    | `NextBlockVariantPowerUp` | Instant | variant | "next block becomes variant V" |
    | `ExtraLifePowerUp` | Instant | lives | flat life grant |
    | `SlowMotionPowerUp` | Instant | duration | timed timescale effect |
@@ -379,6 +402,38 @@ While armed, a layered blue laser line follows `LossZone.CurrentLossLineY`: the 
 trigger top early in the run, or the camera-relative cull once that becomes higher.
 `charges = 1`, `unique = true`.
 
+### Hardline (Epic, one-shot passive, unique)
+`HardlineAbility` is the constructive sibling of Sacrifice. While armed, it renders a
+purple laser line slightly above Sacrifice's blue line and has a higher
+`LossInterceptPriority`, so if both are owned the visible upper catch line gets first
+refusal. The first **landed** block lost below the screen is immediately neutralised
+as kinematic, eased into a platform pose, and left as a `Static` Rigidbody2D that
+remains in `BlockController.AllBlocks` as real stackable terrain.
+
+The platform pose is computed from the block's cell colliders, not hardcoded per shape:
+it tests the four cardinal rotations, maximises horizontal width, then breaks ties by
+the number of cells forming the upper surface, lower height, and smallest rotation.
+That makes I/domino pieces lie flat and favours L/T-style orientations with the broad
+side on top. A small overlap nudge tries to keep the rescued platform out of the tower
+without teleporting it far from where it fell. `charges = 1`, `unique = true`.
+
+Juice: the catch flashes the laser line, plays a swoosh + `ImpactPunch`, and bursts a
+swappable per-cell `catchEffect` (a serialized CFXR prefab, base prefabs only per the §13
+gotcha) across the block — unassigned by default, so it degrades to the flash+punch until
+an effect is dragged in.
+
+### Brace (Epic, passive, unique)
+A `StatusPassiveAbility` asset (`triggerEvent = LifeLost`) that applies the shared
+`LifeLossImmunity` status (the same 10 s `Status_LifeImmunity10s` the old Stasis consumable
+used). Losing a life opens a 10 s window in which `GameManager.GameOver()` absorbs every
+further charge, so a whole-tower collapse during it costs exactly the one life that opened it.
+`charges = 0` (permanent — re-arms every life loss), `unique = true`. No new logic: it's a pure
+status grant, and during the window no life is actually lost, so the next loss *after* it
+expires re-opens it. Replaces the Stasis consumable (removed). The active window is surfaced by
+the reusable status presenter (§5): a warm orange edge-haze (the Hovl "Screen buff" overlay with
+its arrows disabled, smoke recoloured), held for the 10 s, plus a soft "shield up" swoosh on
+engage.
+
 ### High Friction (Common, passive)
 `BlockFrictionPowerUp` adds a run-local multiplier delta to the shared standard-block
 fallback physics material. Existing and future standard blocks share that runtime
@@ -424,6 +479,21 @@ relayout only fires when the slot count actually changes (`UIManager.EnsureSlotL
 `unique = true`; resets per run with the fresh Spawner. Note: a Spike/Cube Supply picked
 *after* a shape is already queued won't bias that already-locked shape (the bias applies
 going forward) — acceptable.
+
+### Flip (Common, consumable, max stack 1)
+`FlipAbility` swaps the active falling shape with the front of the Spawner's stable
+look-ahead queue via `Spawner.SwapActiveWithNextQueued`. The incoming queued shape is
+instantiated at the active piece's current world position, wired through the same path as
+a normal spawn, and raises `BlockSpawned` because it is a queued piece entering play early.
+The outgoing active shape becomes the new front of `_upcoming`, so the NEXT preview updates
+immediately to show the piece the player just traded away; activation is refused if the
+next shape is identical to the active one. This is shape-only, matching
+Hold/Rebound queue semantics: any variant on the outgoing piece is not preserved and will
+reroll when that shape later spawns. Activation is refused unless there is a live controlled
+piece, a valid queued next shape, and the active piece has not fallen below the loss cull.
+Like other consumables, Flip is locked out while Fission/Overdraw-style consumable sessions
+own the active-piece state. The asset uses `maxStacks = 1`, not `unique`, so it can be
+offered again after spending it.
 
 ### Vector Guide (Common, passive, unique)
 `VectorGuideAbility` toggles a run-local landing ghost on `BlockController`. The active
@@ -484,6 +554,55 @@ and query `context.Runtime.GetOwnedStacks(prereq) > 0`.
 Same `BlockDropChancePowerUp` pattern targeting the **Domino** (1×2) brick at `0.05`. Two
 injected bricks just sum their chances in the roll (Pip + Domino owned = ~10% forced, split
 between them; the bag fills the remaining ~90%). `unique = true`.
+
+### Scrap (Rare, consumable, max stack 1)
+`ScrapAbility` deletes the latest counted placed block. `GameManager` records
+`LastPlacedBlock` when a block successfully scores/enters the live placed-block count, and
+clears that reference when the block is destroyed or resolved by the loss system. This is
+deliberately not a tower scan: "last placed" means the last piece the player added, even if
+physics has already pulled it away from the tower and it is falling toward the loss line.
+Activation calls `AbilityEffects.DestroyBlockWithShatter`, which removes the block from
+the live count and destroys the object before `LossZone` can charge a life. It cannot undo
+a loss that has already been resolved. Like other consumables, Scrap is locked out while
+a consumable-driven piece sequence such as Fission or Overdraw is active. The asset uses
+`maxStacks = 1`, not `unique`, so the player can hold one Scrap at a time but may be offered
+another after spending it.
+
+### Suspension (Rare, consumable, max stack 1)
+`SuspensionAbility` reuses the Extract targeting presentation: visible landed tower blocks
+are hidden behind floating visual proxies, the game pauses, and the player taps one proxy.
+Instead of deleting the chosen block, the shared `ExtractTargetingSession` runs in Suspension
+mode and, on the real block, applies the **Anchor** `BlockData` variant (`ApplyData`, wired as
+the ability's `anchorVariant` field) and then calls `BlockController.FreezeInPlace()`. Applying
+the anchor data re-tints the existing skin so the block visually *becomes* an anchor brick (it
+adopts whatever look the Anchor variant carries — today the bluish `colorTint` — so future anchor
+styling flows to suspended blocks for free); the freeze turns it into a `Static` Rigidbody2D at
+its current world coordinates, so it remains as permanent anchor-like terrain even if every
+supporting block underneath later disappears.
+
+Suspension only offers/selects landed blocks that are not already frozen/static, so a held
+charge cannot be wasted on an existing anchor brick, Freeze target, or previous Suspension
+target. It uses the same visible-screen filter as Extract and the normal consumable lockout
+while Fission/Overdraw-style sessions own active-piece state. The asset uses `maxStacks = 1`,
+not `unique`, so the player can hold one Suspension at a time but may be offered another
+after spending it.
+
+### Overdraw (Rare, consumable, unique)
+`OverdrawAbility` replaces the current active falling piece with a three-shape draft.
+Activation destroys the active piece without locking/scoring, suspends the Spawner's
+automatic lock-to-next-bag-piece path, and draws three upcoming definitions via
+`Spawner.TakeDistinctQueued` (preferring different shapes; duplicates only fill if the
+mode cannot supply enough distinct draws). `OverdrawSession` presents those choices as
+world-space, chapter-skinned previews just below the top HUD. The player clicks or taps
+the first two choices; the final remaining choice auto-commits. A selected preview glides
+into the spawn lane, then `Spawner.SpawnControlledPieceAt(..., asNewSpawn: true)` creates
+the real controllable piece so `BlockSpawned` passives, variants, slow windows and scoring
+all treat each chosen shape as a fresh piece. The NEXT preview is hidden only while the
+draft UI is active; it returns as soon as the final Overdraw piece starts falling. When
+that last chosen piece locks, the session clears auto-spawn suspension before the Spawner
+continues, so normal play resumes on the next bag piece. Audio currently reuses
+`swoosh_01` for activation and manual choice commits; the final auto-commit stays silent
+so the third-piece handoff does not double-hit the ear.
 
 ### Bullet (Common, consumable)
 `BulletAbility` — the active falling piece transforms into a 1×1 shell
@@ -560,3 +679,34 @@ behind the standard, so the next consumable composes instead of copy-pasting:
 `BulletImpact` is the reference composition: `SupportBlockBelow` → `BurstFromEveryCell`
 + `ImpactPunch` + sfx → destroy. ~45 lines, all of it Bullet's own decisions
 (guards, which sounds); every reusable mechanic is one of the calls above.
+
+### Fission (Epic, consumable)
+`FissionAbility` shatters the active falling piece into one independent **1×1 Pip shard per
+cell** (a tetromino → 4, a domino → 2). `Activate` plays the per-cell shatter (`BurstFromEveryCell`
++ `ImpactPunch` + `impact_shatter_01`) then hands off to `FissionSession`, a runtime-only driver
+(the `ExtractTargetingSession`/`HoldCache` pattern: static `IsActive`, created via `Begin`):
+- Shard #1 reuses `Spawner.ReplaceActivePiece(pip, SpawnPosition)` (cleanly disposes the original,
+  no lock/score) lifted to the **top spawn line**, then `BlockController.SetDescentSuspended(true)`
+  so it **hovers** — steerable L/R but not falling. A downward **flick** (the normal commit
+  gesture) auto-clears the suspension and the shard plummets and lands through the ordinary
+  landing/lock path. See PHYSICS.md for why the suspension is I1/I5-safe (Kinematic, contact
+  merely deferred).
+- The remaining shards float above as a small **queue** of ghost sprites (cloned from the live
+  shard's renderers, so they match the theme skin), with an idle hover bob. Each time the active
+  shard locks (`GameEvents.BlockLocked`, like `HoldCache`), the next shard is fed via the new
+  `Spawner.SpawnControlledPieceAt(pip, SpawnPosition, suspended:true)` and the front ghost glides
+  into the drop slot (smooth lerp, no teleport snaps); the row recentres.
+- The session **withholds bag pieces** for its duration via `Spawner.SetAutoSpawnSuspended(true)`
+  (guards `SpawnNextBlock`); it does **not** pause `Time.timeScale` (that would freeze the
+  controllable shard — the "kinda paused" feel comes from no bag pieces + hovering shards). On the
+  last shard's lock it clears the suspension so the Spawner's own lock→spawn chain resumes normal
+  play; game-over mid-session tears down cleanly.
+
+Each shard is a real `Block_Pip` (Normal data — counts +1, costs a life), so a tetromino that
+normally scores +1 places **four counting blocks** (BLOCKS.md): the power, and the cost. The
+original piece is destroyed without locking, so it was never counted (no `−1`). `CanActivate`
+reuses `AbilityEffects.CanTransmuteActivePiece(context, pip)` (live piece in air, not mid-lock,
+not past the loss line, Pip wired, **not already a Pip**) plus cell-count ≥ 2 and no session
+already active. `splitEffect` is a swappable serialized CFXR field (base prefabs only; degrades to
+flash+punch until assigned). **Deferred:** the spec's "infinite stacks / +1 charge" — consumables
+don't stack today; ships single-use, revisit with a general stackable-consumable pass.

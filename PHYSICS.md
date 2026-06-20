@@ -126,10 +126,51 @@ Code-level details that are part of the contract (not inspector values):
 - The High Friction ability may raise the runtime shared fallback material used by
   standard blocks. It must not mutate `BlockData` or authored `PhysicsMaterial2D`
   assets; explicit-material variants such as Ice keep their authored surface.
+- **The reach guarantee:** a falling piece can always reach ≥ `BlockController.WidestBlockColumns`
+  (4 = the widest piece, the horizontal 1×4) of clear grid past the outermost obstacle —
+  tower block **or** sky island — on each side, so any piece can drop down a structure's
+  outer side and fall off. Horizontal movement is gated **only** by the gameplay reach bounds,
+  never by the camera: `TryGetGameplayHorizontalBounds` folds in island extent
+  (`AddStaticIslandHorizontalBounds`, fed by `StaticSupportIslandManager.TryGetWorldHorizontalExtent`)
+  and expands by `max(designerBuffer, WidestBlockColumns)`; both `IsColumnTargetWithinBounds`
+  (grid step) and `ClampHorizontalToReachBounds` (continuous steering) clamp to those bounds.
+  `WidestBlockColumns` is a **code constant** tied to block geometry, not a designer dial — a
+  correctness floor, separate from the aesthetic `horizontalPlacementBufferColumns`. The bounds are
+  **cached per piece** against a static `_reachGeometryVersion` (`InvalidateReachGeometry`), bumped
+  only when the placed geometry changes — a block lands (`LockBlock`), a landed block leaves tracking
+  (`DetachFromTracking`/`OnDestroy`), or an island spawns (`SpawnCluster`) — so the hot-path clamp and
+  legality checks don't rescan every block + island each tick. (Post-landing settle drift is
+  intentionally not tracked: sub-cell vs the 4-column margin, refreshed on the next landing.) The
+  floor-edge math is shared with the camera via `HorizontalBounds` so the two can't drift apart.
+- **The camera is a follow camera, decoupled from movement** (`TowerCameraController`): it does
+  NOT clamp the piece and does NOT statically reserve the reach margin (an earlier version did,
+  via `GetTargetCameraSize` reach-padding — that read as permanently zoomed-out with dead space
+  on the pushed side). Instead `GetTargetFraming` frames the horizontal span of the content —
+  floor (always), nearby landed tower (vertical window), nearby islands
+  (`StaticSupportIslandManager.TryGetWorldHorizontalExtentInRange` — a windowed query that advances a
+  monotonic low-water index, so it scans only the in-view island cells, not the whole climb's
+  history), and the active piece (`BlockController.ActiveControlled`, no window) — with a fixed
+  `HorizontalCameraPadding` margin,
+  then **pans (X) and zooms** to fit. Normal play keeps the active piece over the tower → span =
+  tower → camera sits still and tight; pushing a piece out past the tower grows the span on that
+  side → the camera glides to follow, so reaching the drop lane stays possible without permanent
+  zoom-out. When the content is wider than `MaximumCameraSize` can show, the centre is biased to keep
+  the **active piece** fully framed (the far tower side crops, never the piece being steered), so a
+  reachable column is never off-screen. Framing is snapped on the first frame that has content (held
+  at Awake values until then) so the first piece causes no zoom pop. The only camera-bounded movement
+  is **Edge Portal**, which wraps targets across the *visible* screen edges
+  (`TryGetCameraHorizontalBounds`, gameplay bounds excluded for it).
 - The Edge Portal ability may override horizontal placement bounds for the active
   falling piece only. It wraps target columns across the current camera bounds, snaps
   them back onto the placement grid, then runs the normal side-step collision
   classification; landed blocks are never moved.
+- The Fission ability may **suspend the controlled descent** of the active piece
+  (`BlockController.SetDescentSuspended`): while suspended, `SteerWhileFalling` still runs
+  the horizontal grid step and rotation but skips the Y advance and the landing cast, so the
+  shard hovers and is steerable but does not fall. Any descent intent (flick / held fast-drop /
+  down) auto-clears it, so the normal commit gesture starts the drop. The body stays Kinematic
+  and never-landed throughout — this only **defers** first contact (I5), it never writes a
+  transform on a landed block (I1). Active-piece-only, like Edge Portal.
 - `Physics2D.SyncTransforms()` is called before every landing cast (`SteerWhileFalling`,
   `SettleOntoContact`) because **AutoSyncTransforms is off** project-wide. Without it,
   casts see last step's collider poses → landings measured at the wrong X.
@@ -163,12 +204,12 @@ Code-level details that are part of the contract (not inspector values):
 - A failed **nudge** (the corner-zone dash refused by bricks or islands) shoves the
   blocking landed bricks with a horizontal **velocity impulse** (`SlamBlockingBricks` —
   I1-sanctioned: never positions) and arms a 0.5 s nudge lockout (`NudgeFailLockoutSeconds`,
-  static across pieces). Anchored/cemented (non-Dynamic) bricks and islands never move.
+  static across pieces). Anchored/frozen (non-Dynamic) bricks and islands never move.
   Drag steps stay silent on refusal — only the nudge is high-stakes.
 - Cast/overlap buffers are reused instance arrays — no per-FixedUpdate allocations
   (GC spikes read as physics stutter).
-- Anchored/cemented blocks (`FreezeInPlace()`, used by the anchor-brick variant and the
-  cement-tower power-up) become Static bodies; landed maintenance skips any non-Dynamic
+- Anchored/frozen blocks (`FreezeInPlace()`, used by the anchor-brick variant and the
+  Freeze power-up) become Static bodies; landed maintenance skips any non-Dynamic
   body. Static blocks are allowed to violate grid registration — they freeze as-is by design.
 
 ## 3. Floor & Sky Platforms (must match the blocks)
@@ -181,6 +222,7 @@ Code-level details that are part of the contract (not inspector values):
 | StaticSupportIslandManager | `_islandFootprintScale` | 0.94 width only | **Must equal** the blocks' width scale or pieces wedge beside/between islands. Height stays 1.0 to preserve support height. |
 | StaticSupportIslandManager | `_islandCornerRadiusFraction` | 0.06 | Match blocks. |
 | StaticSupportIslandManager | spawn-clearance check | (code) | A platform never materializes intersecting the falling piece / tower / another island — an overlapped piece can't land on it and ghosts through (the original "fall through platforms" bug). Platforms must also spawn **below the spawn line** to be usable (see camera settings). |
+| StaticSupportIslandManager | reachable-column guardrail | (code) | A platform never spawns where it could **never** be reached, even at full zoom-out: each side band is clipped (`TryGetReachableColumnRange`) to leave ≥ `BlockController.WidestBlockColumns` (4 = the horizontal 1×4) of clear grid between an island's outer edge and the viewport edge at `MaximumCameraSize`, anchored to the **floor centre** (stable) rather than the live, panning camera X. The follow camera pans/zooms to keep that margin past the farthest obstacle; this clip is the backstop for islands past what even max zoom could ever show. With the default ±6 band on a normal phone aspect it clips nothing — it bites only on very narrow screens or an over-wide band. |
 
 The StaticBlock prefab is intentionally bare (Static body, plain 1×1 collider) — all
 physics dressing happens in `ConfigureIslandCellPhysics`, idempotently (pooled cells are

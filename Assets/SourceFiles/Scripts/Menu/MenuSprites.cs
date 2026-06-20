@@ -109,6 +109,119 @@ public static class MenuSprites
         return Cache[key] = Finish(tex, S);
     }
 
+    public static Sprite PointHexBadge(Color top, Color bottom, Color border)
+    {
+        string key = $"point-hex:{Key(top)}:{Key(bottom)}:{Key(border)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 192;
+        Texture2D tex = NewTexture(S, S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                float u = ((x + 0.5f) / S) * 2f - 1f;
+                float v = ((y + 0.5f) / S) * 2f - 1f;
+                float au = Mathf.Abs(u);
+                float av = Mathf.Abs(v);
+
+                // Point-up hexagon: flat sides, small peak at top/bottom.
+                float d = Mathf.Max(au, av * 0.8660254f + au * 0.5f) - 0.74f;
+                float edge = Mathf.Clamp01(0.5f - d * 70f);
+                float stroke = Mathf.Clamp01(1.05f - Mathf.Abs(d) * 95f);
+
+                Color fill = Color.Lerp(bottom, top, (v + 1f) * 0.5f);
+                Color c = Color.Lerp(fill, border, stroke * 0.72f);
+                c.a = Mathf.Max(fill.a * edge, border.a * stroke) * edge;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    public static Sprite DiamondBadge(Color fill, Color border)
+    {
+        string key = $"diamond:{Key(fill)}:{Key(border)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 128;
+        Texture2D tex = NewTexture(S, S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                float u = ((x + 0.5f) / S) * 2f - 1f;
+                float v = ((y + 0.5f) / S) * 2f - 1f;
+                float d = Mathf.Abs(u) + Mathf.Abs(v) - 0.80f;
+                float inside = Mathf.Clamp01(0.5f - d * 80f);
+                // ~3.5px stroke in the 128px source so it survives the downscale to ~62px as a
+                // clean, crisp ~1.6px line (the old *74 gave a sub-pixel, near-invisible border).
+                float stroke = Mathf.Clamp01(1.05f - Mathf.Abs(d) * 38f);
+                Color c = Color.Lerp(fill, border, stroke);
+                // Border alpha must NOT be re-multiplied by the fill mask. The old trailing
+                // "* inside" halved every border (inside == 0.5 at the rim) and clipped it to the
+                // fill edge - that is why the diamond/circle borders read as missing. The stroke
+                // band already carries its own AA on both sides.
+                c.a = Mathf.Max(fill.a * inside, border.a * stroke);
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // A crisp diamond OUTLINE: a bright thin stroke on the diamond edge, inset from the sprite
+    // border. The "line around the diamond" for the active timeline node (its soft glow halo is
+    // a separate UIEffect-blurred layer behind it).
+    public static Sprite DiamondRing(Color color)
+    {
+        string key = $"diamond-ring:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 160;
+        const float Ring = 0.46f; // diamond edge radius
+        Texture2D tex = NewTexture(S, S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                float u = ((x + 0.5f) / S) * 2f - 1f;
+                float v = ((y + 0.5f) / S) * 2f - 1f;
+                float d = Mathf.Abs(u) + Mathf.Abs(v) - Ring; // signed distance to the diamond edge
+                float line = Mathf.Clamp01(1f - Mathf.Abs(d) / 0.045f);
+                Color c = color;
+                c.a = color.a * line;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    public static Sprite CircleBadge(Color fill, Color border)
+    {
+        string key = $"circle:{Key(fill)}:{Key(border)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 128;
+        Texture2D tex = NewTexture(S, S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                float u = ((x + 0.5f) / S) * 2f - 1f;
+                float v = ((y + 0.5f) / S) * 2f - 1f;
+                float d = Mathf.Sqrt(u * u + v * v) - 0.80f;
+                float inside = Mathf.Clamp01(0.5f - d * 80f);
+                // ~3.5px stroke in the 128px source so it survives the downscale to ~62px as a
+                // clean, crisp ~1.6px line (the old *74 gave a sub-pixel, near-invisible border).
+                float stroke = Mathf.Clamp01(1.05f - Mathf.Abs(d) * 38f);
+                Color c = Color.Lerp(fill, border, stroke);
+                c.a = Mathf.Max(fill.a * inside, border.a * stroke);
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
     public static Sprite TrianglePlay()
     {
         const string key = "play-triangle";

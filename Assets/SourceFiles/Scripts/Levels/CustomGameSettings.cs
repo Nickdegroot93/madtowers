@@ -39,13 +39,18 @@ public sealed class CustomGameSettings
     public readonly HashSet<BlockDefinition> EnabledBlocks = new HashSet<BlockDefinition>();
     public readonly HashSet<AbilityDefinition> EnabledAbilities = new HashSet<AbilityDefinition>();
 
+    // Testing-friendly defaults that intentionally override the preset (Custom Game is a dev tool):
+    // a few lives to survive losses, and frequent picks so an ability under test shows up fast.
+    private const int DefaultStartingLives = 3;
+    private const int DefaultPowerUpEveryBlocks = 5;
+
     /// <summary>Seed the numeric knobs from a preset config. Content (blocks/abilities) is
-    /// filled separately by the screen from the catalogs so newly-added assets default on.</summary>
+    /// filled separately by the screen from the catalogs.</summary>
     public static CustomGameSettings FromConfig(GameModeConfig c)
     {
         var s = new CustomGameSettings
         {
-            StartingLives = c != null ? c.StartingLives : 3,
+            StartingLives = DefaultStartingLives,
             InitialFallSpeed = c != null ? c.InitialFallSpeed : 2f,
             MaxFallSpeed = c != null ? c.MaxFallSpeed : 5f,
             DifficultyScalingMode = c != null ? c.DifficultyScalingMode : DifficultyScalingMode.PerBlock,
@@ -55,7 +60,7 @@ public sealed class CustomGameSettings
             SpeedIncreasePerInterval = c != null ? c.SpeedIncreasePerInterval : 0.1f,
             FloorColumns = c != null ? c.FloorColumnCount : 9,
             SpawnDelay = c != null ? c.SpawnDelay : 0f,
-            PowerUpChoiceEveryBlocks = c != null ? c.PowerUpChoiceEveryBlocks : 10,
+            PowerUpChoiceEveryBlocks = DefaultPowerUpEveryBlocks,
             StaticIslandsEnabled = c != null && c.StaticSupportIslandsEnabled,
             StaticIslandSpawnChance = c != null ? c.StaticSupportIslandSpawnChance : 0.25f,
             TargetType = LevelTargetType.Endless,

@@ -30,6 +30,10 @@ public class Spawner : MonoBehaviour
     private readonly List<VariantChance> _variantChances = new List<VariantChance>();
     private BlockData _queuedVariantOverride;
 
+    // Set by the Fission session: while true the lock->spawn chain stops auto-spawning bag
+    // pieces so the session can feed its own 1x1 shards. Run-local; resets with a fresh Spawner.
+    private bool _suppressAutoSpawn;
+
     // Stable look-ahead queue: holds exactly _visibleQueueDepth rolled shapes, front =
     // next to spawn. A queued shape is NEVER re-rolled, so what the HUD previews is exactly
     // what spawns. Foresight widens the depth (SetVisibleQueueDepth); default is one.
@@ -146,6 +150,61 @@ public class Spawner : MonoBehaviour
     /// <summary>Where a fresh piece spawns (the top). The Hold cache drops a banked-in piece here.</summary>
     public Vector3 SpawnPosition => spawnPoint != null ? spawnPoint.position : Vector3.zero;
 
+    /// <summary>Can the active falling piece trade places with the front of the look-ahead queue?</summary>
+    public bool CanSwapActiveWithNextQueued()
+    {
+        BlockController active = BlockController.ActiveControlled;
+        if (active == null || active != _currentBlock || active.HasLanded) return false;
+
+        BlockDefinition outgoing = ActiveDefinition;
+        if (outgoing == null || outgoing.Prefab == null) return false;
+
+        if (_upcoming.Count == 0) return false;
+        BlockDefinition incoming = _upcoming[0];
+        if (incoming == null || incoming.Prefab == null) return false;
+        if (incoming == outgoing) return false;
+        if (incoming.Prefab.GetComponent<BlockController>() == null) return false;
+
+        Camera camera = Camera.main;
+        if (camera != null && camera.orthographic && active.transform.position.y < LossZone.CullY(camera)) return false;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Swap the active falling shape with the next queued shape. The outgoing active shape becomes
+    /// the queue front, and the incoming queued shape enters play at the active piece's position.
+    /// </summary>
+    public bool SwapActiveWithNextQueued()
+    {
+        if (!CanSwapActiveWithNextQueued()) return false;
+
+        BlockController active = BlockController.ActiveControlled;
+        BlockDefinition outgoing = ActiveDefinition;
+        BlockDefinition incoming = _upcoming[0];
+        Vector3 spawnPos = active.transform.position;
+
+        GameObject blockObj = Instantiate(incoming.Prefab, spawnPos, Quaternion.identity);
+        BlockController replacement = blockObj.GetComponent<BlockController>();
+        if (replacement == null)
+        {
+            Debug.LogError($"SwapActiveWithNextQueued: '{incoming.name}' prefab has no BlockController.", incoming);
+            Destroy(blockObj);
+            return false;
+        }
+
+        active.OnBlockLocked -= HandleBlockLocked;
+        Destroy(active.gameObject);
+        _currentBlock = replacement;
+        _upcoming[0] = outgoing;
+
+        BlockData data = RollVariantChances(GetBlockData(incoming));
+        WireBlock(replacement, incoming, data);
+        AnnounceUpcoming();
+        GameEvents.RaiseBlockSpawned(replacement, data);
+        return true;
+    }
+
     /// <summary>Pop the next queued shape off the front and refill (the Hold cache's bank case:
     /// the banked piece leaves the field and this becomes the new active piece).</summary>
     public BlockDefinition TakeNextQueued()
@@ -157,6 +216,65 @@ public class Spawner : MonoBehaviour
         _upcoming.RemoveAt(0);
         RefillQueue();
         return next;
+    }
+
+    /// <summary>Draw a small hand of upcoming definitions, preferring distinct shapes.
+    /// Overdraw uses this to turn one active piece into a three-shape choice without
+    /// permanently duplicating the look-ahead queue. Duplicate rolls are returned to the
+    /// queue front in their original order where possible.</summary>
+    public List<BlockDefinition> TakeDistinctQueued(int count)
+    {
+        var choices = new List<BlockDefinition>(Mathf.Max(0, count));
+        if (count <= 0) return choices;
+
+        var duplicates = new List<BlockDefinition>();
+        int attempts = Mathf.Max(count * 8, count);
+        while (choices.Count < count && attempts-- > 0)
+        {
+            BlockDefinition next = TakeNextQueued();
+            if (next == null) break;
+
+            bool alreadyChosen = false;
+            for (int i = 0; i < choices.Count; i++)
+            {
+                if (choices[i] == next)
+                {
+                    alreadyChosen = true;
+                    break;
+                }
+            }
+
+            if (alreadyChosen) duplicates.Add(next);
+            else choices.Add(next);
+        }
+
+        while (choices.Count < count && duplicates.Count > 0)
+        {
+            int last = duplicates.Count - 1;
+            choices.Add(duplicates[last]);
+            duplicates.RemoveAt(last);
+        }
+
+        for (int i = duplicates.Count - 1; i >= 0; i--)
+        {
+            RequeueDefinition(duplicates[i]);
+        }
+
+        return choices;
+    }
+
+    /// <summary>Remove the live falling piece without locking or scoring. Used by
+    /// active-state abilities that replace the turn with their own controlled sequence.</summary>
+    public bool DestroyActivePieceWithoutLock()
+    {
+        BlockController active = BlockController.ActiveControlled;
+        if (active == null || active != _currentBlock || active.HasLanded) return false;
+
+        active.OnBlockLocked -= HandleBlockLocked;
+        Destroy(active.gameObject);
+        _currentBlock = null;
+        if (GameManager.Instance != null) GameManager.Instance.SetActivePiece(null, null);
+        return true;
     }
 
     // Restarts the lock->spawn chain after an external gate (win verification) suppressed
@@ -210,8 +328,54 @@ public class Spawner : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// While true, the lock->spawn chain does NOT auto-spawn the next bag piece. The Fission
+    /// session owns spawning for its duration (it feeds 1x1 shards itself); it clears this on
+    /// the final shard's lock so the very next SpawnNextBlock resumes normal play.
+    /// </summary>
+    public void SetAutoSpawnSuspended(bool suspended) => _suppressAutoSpawn = suspended;
+
+    /// <summary>
+    /// Spawn a fresh controlled piece of the given definition at a position, wired exactly like
+    /// a normal spawn (same WireBlock path) so it cannot drift from it. Used by sessions to feed
+    /// authored choice pieces; <paramref name="suspended"/> starts it hovering (descent deferred
+    /// until the player commits a drop). By default it uses DefaultData and does not raise
+    /// BlockSpawned (Fission shards are the same logical turn); pass <paramref name="asNewSpawn"/>
+    /// for genuine new choice pieces such as Overdraw.
+    /// </summary>
+    public BlockController SpawnControlledPieceAt(
+        BlockDefinition definition,
+        Vector3 position,
+        bool suspended,
+        bool asNewSpawn = false)
+    {
+        if (definition == null || definition.Prefab == null) return null;
+
+        GameObject blockObj = Instantiate(definition.Prefab, position, Quaternion.identity);
+        BlockController block = blockObj.GetComponent<BlockController>();
+        if (block == null)
+        {
+            Debug.LogError($"SpawnControlledPieceAt: '{definition.name}' prefab has no BlockController.", definition);
+            Destroy(blockObj);
+            return null;
+        }
+
+        _currentBlock = block;
+        BlockData data = asNewSpawn ? RollVariantChances(GetBlockData(definition)) : definition.DefaultData;
+        WireBlock(block, definition, data);
+        if (suspended) block.SetDescentSuspended(true);
+        if (asNewSpawn) GameEvents.RaiseBlockSpawned(block, data);
+        return block;
+    }
+
     private void SpawnNextBlock()
     {
+        // The Fission session feeds its own shards; never inject a bag piece mid-session.
+        if (_suppressAutoSpawn)
+        {
+            return;
+        }
+
         // Never two controlled pieces: a pending SpawnWithDelay coroutine and an external
         // ResumeSpawning can otherwise race (latent today - every config uses SpawnDelay 0).
         if (BlockController.ActiveControlled != null)
@@ -227,6 +391,14 @@ public class Spawner : MonoBehaviour
         // Hold-steady countdown after the win target is met: nothing spawns until the
         // tower has proven itself (LevelRuntimeController restarts spawning if it fails).
         if (LevelRuntimeController.IsVerifyingWin)
+        {
+            return;
+        }
+
+        // Puzzle-mode wave transition: the cleared wave's line is rising and the next island
+        // band is popping in. Don't drop the next piece into a board that is still changing -
+        // HeightLimitWavesModifier resumes spawning once the reveal has fully settled.
+        if (WaveRevealGate.IsHoldingSpawn)
         {
             return;
         }

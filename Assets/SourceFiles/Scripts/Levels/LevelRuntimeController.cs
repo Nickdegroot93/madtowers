@@ -127,6 +127,7 @@ public class LevelRuntimeController : MonoBehaviour
         GameEvents.HeightChanged -= HandleHeightChanged;
         GameEvents.GameOver -= HandleGameOver;
         IsVerifyingWin = false; // static: must not leak a stale gate into the next scene
+        DestroyCountdownUi();   // also stops the countdown loop - SfxPlayer persists across scenes
     }
 
     // Personal bests are recorded at every end-of-run (monotonic - only improvements stick).
@@ -265,6 +266,7 @@ public class LevelRuntimeController : MonoBehaviour
     {
         if (_countdownRoot != null) return;
 
+        SfxPlayer.PlayLoop("countdown", 0.8f); // clock runs for the 5->0 hold; stopped in DestroyCountdownUi
         _countdownRoot = RuntimeUiKit.CreateOverlayCanvas("Win Verification", 3200);
 
         GameObject strip = new GameObject("Strip");
@@ -334,6 +336,7 @@ public class LevelRuntimeController : MonoBehaviour
     private void DestroyCountdownUi()
     {
         if (_countdownRoot == null) return;
+        SfxPlayer.StopLoop(); // ends the countdown clock on win, abort, or teardown
         Destroy(_countdownRoot);
         _countdownRoot = null;
         _countdownLabel = null;

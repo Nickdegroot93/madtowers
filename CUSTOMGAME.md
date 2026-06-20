@@ -1,8 +1,17 @@
 # Custom Game (the testing setup screen)
 
 Binding for the dev/testing entry point. The hand-made "test levels" are gone; to test, open
-**Level Select → Custom Game** and dial in a run. Editor-only (it discovers content via
-`AssetDatabase`), so the button shows and the toggles populate **only in the Unity editor**.
+**Settings tab → Custom Game** and dial in a run.
+
+**Availability:** the Unity editor **and (temporarily) all player builds**. The
+`Debug.isDebugBuild` gate that normally hid it from release builds is currently disabled in
+`ContentCatalog.IsAvailable` (marked `TEMPORARY`) so the button is reachable on device for testing
+— restore that gate before shipping. Gated by `ContentCatalog.IsAvailable`, which both the
+Settings-tab button
+([MainMenuRuntime](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs)) and the no-chapters fallback
+check. In the editor it discovers content live via `AssetDatabase`; a player build has no
+AssetDatabase, so it reads a [ContentManifest](Assets/SourceFiles/Scripts/Levels/ContentManifest.cs)
+baked under `Resources/` by a build preprocessor (see below).
 
 ## What it does
 
@@ -19,12 +28,29 @@ from a **preset** (any `GameModeConfig` in `Resources/GameModes`, e.g. Classic).
 The runtime config/level are throwaway `ScriptableObject` instances held alive by the static
 `LevelSelectionState`; they are never written to disk. Settings persist for the editor session.
 
+**Testing defaults** (override the preset on purpose, since this is a dev tool): **all abilities
+OFF** (enable one at a time to test it in isolation), **3 starting lives**, **power-up choice
+every 5 blocks**. Blocks default to the preset's bag. Set in `CustomGameSettings.FromConfig`
+(lives / interval) and `CustomGameMenu.EnsureState` (abilities).
+
+## Build-safe content (how it works on device)
+
+[ContentCatalog](Assets/SourceFiles/Scripts/Levels/ContentCatalog.cs) has two backends behind one
+API: in the **editor** it queries `AssetDatabase` live; in a **player build** it reads a
+[ContentManifest](Assets/SourceFiles/Scripts/Levels/ContentManifest.cs) asset under `Resources/`.
+The manifest is **baked automatically before every build** by
+[ContentManifestBuilder](Assets/SourceFiles/Scripts/Editor/ContentManifestBuilder.cs) (an
+`IPreprocessBuildWithReport`), which runs the same editor discovery and writes the result in. You
+can also rebuild it by hand via **Tools ▸ MadTowers ▸ Rebuild Content Manifest** (the committed
+asset is empty until first baked; the editor never needs it, so that's fine). Because the manifest
+is regenerated from a full project scan, the no-maintenance rule below still holds.
+
 ## The maintenance rule (read this before adding content)
 
-- **New ability or block → nothing to do.** [ContentCatalog](Assets/SourceFiles/Scripts/Levels/ContentCatalog.cs)
-  loops over *every* `AbilityDefinition` / `BlockDefinition` in the project, so anything you author
-  appears as a toggle automatically (abilities grouped by rarity, dummies excluded). This was the
-  whole point — no list to keep in sync.
+- **New ability or block → nothing to do.** ContentCatalog loops over *every* `AbilityDefinition` /
+  `BlockDefinition` in the project (and the build manifest is re-baked from that same scan), so
+  anything you author appears as a toggle automatically (abilities grouped by rarity, dummies
+  excluded). This was the whole point — no list to keep in sync.
 - **New tweakable FIELD on `GameModeConfig` that you want exposed → three edits.** Add the field to
   `CustomGameSettings` (+ seed it in `FromConfig`), add a control for it in the matching
   `Build*Section` of `CustomGameMenu`, and write it through in `GameModeConfig.ApplyCustomGameOverrides`.

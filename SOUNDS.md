@@ -1,44 +1,145 @@
 # Sound inventory
 
-Every sound the game currently triggers, what fires it, and what it should "be"
-so a replacement (sourced or hand-made) drops in cleanly. **All SFX today are
-procedurally synthesized** by `Tools/generate_sfx.py` — placeholders. Music is
-real `.ogg` files. To swap a sound: drop a new `<name>.wav`/`.ogg` into
-`Assets/Resources/Audio/Sfx/` with the SAME file name and it plays through
-`SfxPlayer` unchanged (pooled, cached, pitch-jittered). No code edit needed.
+Every sound the game triggers, **every** place it fires, and what it should "be" so a
+replacement drops in cleanly. To swap a sound: drop a file with the SAME base name into
+`Assets/Resources/Audio/Sfx/` (any Unity-importable format — `.wav`/`.ogg`/`.mp3`) and it
+plays through `SfxPlayer` unchanged (pooled, cached, optional pitch jitter). **File name
+is the contract — keep the name, replace the bytes.** Music lives in
+`Assets/Resources/Audio/Music/` (menu) and `Assets/Audio/Music/` (chapters).
 
 Prefer **CC0 / royalty-free** (freesound.org CC0, Kenney, Sonniss GDC packs).
 
-## SFX (placeholders — to be replaced)
+Two tiers of SFX today:
+- **Authored** (real sounds, leading/trailing silence trimmed, mostly `.wav`): `freeze`,
+  `transmute`, `nudge`, `rotate-swoosh`, `pop`, `countdown`, `ui-button-click`,
+  `ui-leave-game`, `ui-start-game` (+ unwired `zap`).
+- **Placeholder** (procedurally synthesized by `Tools/generate_sfx.py`, rough — still to be
+  replaced): `impact_heavy_01/02`, `impact_soft_01`, `impact_shatter_01`, `gun_cock_01`,
+  `swoosh_01`, `nudge_thud_01`, `pop_01`.
 
-| Name (file) | Triggered by | What it should be | Category |
-|---|---|---|---|
-| `impact_heavy_01`, `impact_heavy_02` | A piece flick-drops and lands ([BlockController.Landing.cs:34](Assets/SourceFiles/Scripts/Blocks/BlockController/BlockController.Landing.cs#L34)) — `PlayVariant` randomly picks one of the two each landing | Satisfying weighty block/stone *thud*. Two slightly different takes so repeats don't fatigue. The core "game feels good" sound — heard constantly. | Impact |
-| `impact_soft_01` | Bullet **wasted shot** (hits floor/island/frozen — [BulletImpact.cs:51](Assets/SourceFiles/Scripts/Blocks/Variants/BulletImpact.cs#L51)); also a generic destroy-a-block effect ([AbilityEffects.cs:27](Assets/SourceFiles/Scripts/Abilities/Effects/AbilityEffects.cs#L27)) | Quiet, dull *thud* / "nothing happened". MUST read clearly softer & duller than `impact_shatter_01`. | Impact (dud) |
-| `impact_shatter_01` | Bullet **destroys a block** ([BulletImpact.cs:51](Assets/SourceFiles/Scripts/Blocks/Variants/BulletImpact.cs#L51)) | Sharp, bright *crack/shatter* — stone or glass breaking. The payoff "kill" sound. | Block break |
-| `gun_cock_01` | Bullet ability **activation / transform** ([BulletAbility.cs:41](Assets/SourceFiles/Scripts/Abilities/Definitions/BulletAbility.cs#L41)) | A single gun cock (pull back, slam home) — "weapon readied". | Spell / ability |
-| `swoosh_01` | Corner-nudge **dash** ([BlockController.Input.cs:60](Assets/SourceFiles/Scripts/Blocks/BlockController/BlockController.Input.cs#L60)) | Short airy *whoosh* — air pushed aside. | Movement |
-| `nudge_thud_01` | **Failed** nudge (blocked) ([BlockController.Input.cs:87](Assets/SourceFiles/Scripts/Blocks/BlockController/BlockController.Input.cs#L87)) | Dry *knock* — a refusal, distinct from a landing. | UI / feedback |
-| `pop_01` | Support island materializes ([IslandPopFx.cs:49](Assets/SourceFiles/Scripts/World/IslandPopFx.cs#L49)); **also the generic ability-activate sound** for status consumables/combos ([StatusConsumableAbility.cs:19](Assets/SourceFiles/Scripts/Abilities/Definitions/StatusConsumableAbility.cs#L19), [StatusComboAbility.cs:21](Assets/SourceFiles/Scripts/Abilities/Definitions/StatusComboAbility.cs#L21), [DummyConsumableAbility.cs:10](Assets/SourceFiles/Scripts/Abilities/Definitions/DummyConsumableAbility.cs#L10)) | Friendly rising *blip/pop*. **Overloaded** — see gaps below; most abilities want their own sound. | UI / spawn |
+`swoosh_01` (10 sites) and `pop_01` (3 sites) are still overloaded — one clip standing in
+for many unrelated events. Splitting those into purpose-made sounds is the next big win
+(see *Gaps*).
 
-### Sounds we don't have yet but the game will want
-- **Per-ability activation sounds.** Right now every non-Bullet ability reuses `pop_01`. Each ability should get its own (Cement Tower = a heavy *set/pour*; Stasis = a shimmer/freeze; Overdrive = a power-up surge; etc.).
-- **Combo / pattern fired** — a distinct chime, separate from the generic pop.
+## SFX
+
+Each heading is one clip; the bullets are **every** call site that plays it.
+
+### `impact_heavy_01`, `impact_heavy_02` — Impact (the core game-feel sound) · *placeholder*
+Played via `SfxPlayer.PlayVariant("impact_heavy", 2, …)` — randomly one of two takes.
+- A **flick-dropped** piece lands ([BlockController.Landing.cs:34](Assets/SourceFiles/Scripts/Blocks/BlockController/BlockController.Landing.cs#L34)) — committed auto-drop only, not gentle landings.
+
+**Should be:** a satisfying weighty block/stone *thud*. Two takes so repeats don't fatigue.
+
+### `impact_soft_01` — Impact (dud / quiet removal) · *placeholder*
+- Bullet **wasted shot** ([BulletImpact.cs:51](Assets/SourceFiles/Scripts/Blocks/Variants/BulletImpact.cs#L51)).
+- Generic **destroy a placed block** shatter ([AbilityEffects.cs:52](Assets/SourceFiles/Scripts/Abilities/Effects/AbilityEffects.cs#L52)) — shared by every shatter, incl. Scrap.
+- **Extract** deletes the chosen block ([ExtractTargetingSession.cs:359](Assets/SourceFiles/Scripts/Abilities/Effects/ExtractTargetingSession.cs#L359)).
+
+**Should be:** a quiet, dull *thud*. Clearly softer & duller than `impact_shatter_01`.
+
+### `impact_shatter_01` — Block break (the payoff "kill") · *placeholder*
+- Bullet **destroys a block** ([BulletImpact.cs:43](Assets/SourceFiles/Scripts/Blocks/Variants/BulletImpact.cs#L43)).
+- **Sacrifice** destroys the lost + cost block ([SacrificeAbility.cs:87](Assets/SourceFiles/Scripts/Abilities/Definitions/SacrificeAbility.cs#L87)).
+- **Fission** shatters the active piece into shards ([FissionAbility.cs:47](Assets/SourceFiles/Scripts/Abilities/Definitions/FissionAbility.cs#L47)).
+
+**Should be:** a sharp, bright *crack/shatter* — stone or glass breaking.
+
+### `gun_cock_01` — Bullet ability · *placeholder*
+- Bullet ability **activation / transform** ([BulletAbility.cs:34](Assets/SourceFiles/Scripts/Abilities/Definitions/BulletAbility.cs#L34)).
+
+**Should be:** a single gun cock — "weapon readied".
+
+### `swoosh_01` — Movement / generic ability (OVERLOADED — 10 sites) · *placeholder*
+The catch-all "something moved/activated". Most of these want their own sound.
+- **Hold button** reveals when Pocket Cache unlocks ([HoldButton.cs:138](Assets/SourceFiles/Scripts/UI/HoldButton.cs#L138)).
+- **Pocket Cache** bank / swap ([HoldCache.cs:116](Assets/SourceFiles/Scripts/Spawning/HoldCache.cs#L116)).
+- A **status screen-field** appears, e.g. Brace's shield-up haze ([StatusFieldController.cs:59](Assets/SourceFiles/Scripts/Abilities/StatusFieldController.cs#L59)).
+- **Rebound** rescue lift ([RescueLift.cs:126](Assets/SourceFiles/Scripts/Abilities/Effects/RescueLift.cs#L126)).
+- **Hardline** catch ([HardlineAbility.cs:64](Assets/SourceFiles/Scripts/Abilities/Definitions/HardlineAbility.cs#L64)).
+- **Flip** swaps active piece with next queued ([FlipAbility.cs:23](Assets/SourceFiles/Scripts/Abilities/Definitions/FlipAbility.cs#L23)).
+- **Slo-Mo / slow-window** activate ([SlowWindowConsumable.cs:22](Assets/SourceFiles/Scripts/Abilities/Definitions/SlowWindowConsumable.cs#L22)).
+- **Fission** shard advances from the queue ([FissionSession.cs:160](Assets/SourceFiles/Scripts/Abilities/Effects/FissionSession.cs#L160)).
+- **Overdraw** activates ([OverdrawAbility.cs:39](Assets/SourceFiles/Scripts/Abilities/Definitions/OverdrawAbility.cs#L39)).
+- **Overdraw** manual draft choice commits ([OverdrawSession.cs:269](Assets/SourceFiles/Scripts/Abilities/Effects/OverdrawSession.cs#L269)).
+
+**Should be:** a short airy *whoosh*. **Split me up** — a whoosh is wrong for a shield-up, a save, etc.
+
+### `nudge_thud_01` — Failed nudge · *placeholder*
+- A **failed** nudge, blocked by bricks/islands ([BlockController.Input.cs:87](Assets/SourceFiles/Scripts/Blocks/BlockController/BlockController.Input.cs#L87)).
+
+**Should be:** a dry *knock* — a refusal, distinct from a landing.
+
+### `pop_01` — Generic activate (OVERLOADED — 3 sites) · *placeholder*
+- Generic **status consumable** activate ([StatusConsumableAbility.cs:19](Assets/SourceFiles/Scripts/Abilities/Definitions/StatusConsumableAbility.cs#L19)).
+- Generic **status combo** fired, e.g. Overdrive ([StatusComboAbility.cs:21](Assets/SourceFiles/Scripts/Abilities/Definitions/StatusComboAbility.cs#L21)).
+- **Suspension** locks the selected block in place ([ExtractTargetingSession.cs:368](Assets/SourceFiles/Scripts/Abilities/Effects/ExtractTargetingSession.cs#L368)).
+
+**Should be:** a friendly rising *blip/pop*. **Overloaded** — most of these want their own.
+
+### `freeze` — Freeze ability · *authored*
+- **Freeze** power-up activate ([FreezePowerUp.cs:29](Assets/SourceFiles/Scripts/Abilities/Definitions/FreezePowerUp.cs#L29)).
+
+### `transmute` — Morph a shape · *authored*
+- **Transmute / Shrink** morphs the active piece into another shape ([TransmuteAbility.cs:34](Assets/SourceFiles/Scripts/Abilities/Definitions/TransmuteAbility.cs#L34)). Covers any morph (Shrink→Pip + the generic transmute), NOT Flip's shape-swap.
+
+### `nudge` — Successful nudge · *authored*
+- A **successful** left/right nudge dash ([BlockController.Input.cs:60](Assets/SourceFiles/Scripts/Blocks/BlockController/BlockController.Input.cs#L60)).
+
+### `rotate-swoosh` — Rotate a block · *authored*
+- Rotate the active piece, both directions ([BlockController.Input.cs:113](Assets/SourceFiles/Scripts/Blocks/BlockController/BlockController.Input.cs#L113) / [:120](Assets/SourceFiles/Scripts/Blocks/BlockController/BlockController.Input.cs#L120)).
+
+### `pop` — Sky block materializes · *authored*
+- A support / sky block **pops in out of thin air** ([IslandPopFx.cs:49](Assets/SourceFiles/Scripts/World/IslandPopFx.cs#L49)).
+
+### `countdown` — Level-finish clock (sustained) · *authored*
+A clock that **starts** when the 5→0 hold-steady countdown arms and **stops** at 0 / abort /
+teardown. Played via `SfxPlayer.PlayLoop("countdown")` / `StopLoop()` (dedicated source).
+- Armed in [LevelRuntimeController.cs:268](Assets/SourceFiles/Scripts/Levels/LevelRuntimeController.cs#L268); stopped in `DestroyCountdownUi` ([:338](Assets/SourceFiles/Scripts/Levels/LevelRuntimeController.cs#L338)).
+
+### `ui-button-click` — UI button (5 sites) · *authored*
+- Bottom nav tabs ([MainMenuRuntime.cs:746](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L746)), Play tab ([:783](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L783)), chapter switch ([:512](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L512)), generic menu button ([:826](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L826)), and opening the level-summary modal ([:808](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L808)).
+
+### `ui-leave-game` — Leave to menu · *authored*
+- Confirmed "Back to Menu" / quit a run ([PauseMenuController.cs:147](Assets/SourceFiles/Scripts/UI/PauseMenuController.cs#L147)).
+
+### `ui-start-game` — Start a level · *authored*
+- **Start Game** button in the level-summary modal ([MainMenuRuntime.cs:889](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L889)).
+
+### `zap` — *authored, UNWIRED*
+Present in `Resources/Audio/Sfx/` but not triggered anywhere yet. Earmarked for the **laser
+line clear** gap below.
+
+## Music
+
+Played by [MusicPlayer.cs](Assets/SourceFiles/Scripts/Core/MusicPlayer.cs): a random opener,
+then a fixed A→B→A rotation. Survives scene loads, ignores pause, stops on game over.
+
+| Context | Tracks | Trigger |
+|---|---|---|
+| **Menu** (menu, settings, custom game — everywhere outside a level) | [menu-a.ogg](Assets/Resources/Audio/Music/menu-a.ogg), [menu-b.ogg](Assets/Resources/Audio/Music/menu-b.ogg) | `MusicPlayer.PlayMenu()` ([MainMenuRuntime.cs:125](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L125)) |
+| Training Wheels | training_wheels_a/b.ogg | `MusicPlayer.PlayForChapter` ([GameManager.cs:78](Assets/SourceFiles/Scripts/Core/GameManager.cs#L78)) |
+| Desert | desert_a/b.ogg | same |
+
+Entering a level swaps menu → chapter music; returning to the menu swaps back.
+
+## How playback works
+- `SfxPlayer.Play(name, volume, pitchJitter)` — pooled one-shot from `Resources/Audio/Sfx/<name>`.
+- `SfxPlayer.PlayVariant(baseName, count, …)` — random `<baseName>_01..0N` (used by `impact_heavy`).
+- `SfxPlayer.PlayLoop(name, volume)` / `StopLoop()` — sustained, stoppable clip (the countdown).
+- `MusicPlayer.PlayForChapter(chapter)` / `PlayMenu()` — playlist with random opener + A→B rotation.
+- **All audio is cleanly split** into `SfxPlayer` (SFX) and `MusicPlayer` (music) — nothing else
+  makes sound — so independent music/SFX volume control is a straightforward future add (an
+  `AudioMixer` with Music + SFX groups, both players routed to them).
+
+## Gaps — sounds the game wants but does not have
+- **Per-ability identity** for everything still on `swoosh_01` / `pop_01`: Brace shield-up,
+  Slo-Mo time-warp, Flip queue-swap flick, Hardline catch, Rebound save, Pocket Cache,
+  Overdraw shuffle, Suspension gravity-lock, status consumable/combo.
+- **Combo / pattern fired** — a distinct chime, separate from the generic `pop_01`.
+- **Per-shard drop / land in Fission** — a lighter "tick" per micro-cube.
+- **Gentle (non-flick) landings** — silent today; only flick-drops play `impact_heavy`.
 - **Life lost** / **game over** — none wired.
-- **Level win / hold-steady success** — none wired.
-- **Power-up offer appears** / **card pick** (UI) — none wired.
-- **Countdown ticks** (5-4-3-2-1 hold-steady) — none wired.
-- **Laser line clear** (puzzle modes) — none wired.
-
-## Music (real tracks, per chapter — `ChapterDefinition.musicPlaylist`)
-| Chapter | Tracks |
-|---|---|
-| Training Wheels | [training_wheels_a.ogg](Assets/Audio/Music/training_wheels_a.ogg), [training_wheels_b.ogg](Assets/Audio/Music/training_wheels_b.ogg) |
-| Desert | [desert_a.ogg](Assets/Audio/Music/desert_a.ogg), [desert_b.ogg](Assets/Audio/Music/desert_b.ogg) |
-
-Played by [MusicPlayer.cs](Assets/SourceFiles/Scripts/Core/MusicPlayer.cs) (crossfades through the chapter's playlist). Source `.ogg` originals also live under `Assets/SourceFiles/SoundFX/`.
-
-## How playback works (for whoever wires replacements)
-- `SfxPlayer.Play(name, volume, pitchJitter)` — loads `Resources/Audio/Sfx/<name>`, plays a pooled one-shot with random pitch ±jitter.
-- `SfxPlayer.PlayVariant(baseName, count, …)` — picks `<baseName>_01..0N` at random (used by `impact_heavy`). Add takes by adding `_03`, `_04`, … and bumping the count at the call site.
-- File name IS the contract. Keep names; replace bytes.
+- **Level win / hold-steady success** — none wired (the countdown plays, but not the win itself).
+- **Power-up offer appears** / **ability card pick** — none wired (`ui-button-click` is menu-only).
+- **Laser line clear** (puzzle modes) — none wired; `zap` is the earmarked clip.

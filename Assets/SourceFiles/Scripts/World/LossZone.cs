@@ -100,13 +100,23 @@ public class LossZone : MonoBehaviour
         if (_camera == null || !_camera.isActiveAndEnabled) _camera = Camera.main;
         if (_camera == null || !_camera.orthographic) return;
 
+        EnsureAbilities();
+
         float cullY = CullY(_camera);
+        float landedInterceptCullY = cullY;
+        if (_abilities != null)
+        {
+            landedInterceptCullY += Mathf.Max(0f, _abilities.LossInterceptLineOffset);
+        }
 
         var blocks = BlockController.AllBlocks;
         for (int i = 0; i < blocks.Count; i++)
         {
             BlockController block = blocks[i];
-            if (block == null || !block.IsLostBelow(cullY)) continue;
+            if (block == null) continue;
+
+            float blockCullY = block.HasLanded ? landedInterceptCullY : cullY;
+            if (!block.IsLostBelow(blockCullY)) continue;
 
             ResolveLostBlock(block);
 
@@ -136,11 +146,18 @@ public class LossZone : MonoBehaviour
     {
         if (!block.HasLanded) return false;
 
+        EnsureAbilities();
+        return _abilities != null && _abilities.TryInterceptLoss(block);
+    }
+
+    // Lazily cache the AbilityRuntime. Both the sweep and the backstop trigger consult it, and
+    // the trigger can fire before the first sweep, so the lookup lives in one place.
+    private void EnsureAbilities()
+    {
         if (_abilities == null && GameManager.Instance != null)
         {
             _abilities = GameManager.Instance.GetComponent<AbilityRuntime>();
         }
-        return _abilities != null && _abilities.TryInterceptLoss(block);
     }
 
     private AbilityRuntime _abilities;

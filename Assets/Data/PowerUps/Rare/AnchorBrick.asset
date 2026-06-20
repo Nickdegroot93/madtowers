@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: AnchorBrick
   m_EditorClassIdentifier: Assembly-CSharp::NextBlockVariantPowerUp
   displayName: Anchor Brick
+  icon: {fileID: 21300000, guid: 1d1d8dfad4504201b1130d923119c0d8, type: 3}
   description: Your next brick becomes an anchor brick - it locks in place exactly
     where it lands. One brick only.
   rarity: 1

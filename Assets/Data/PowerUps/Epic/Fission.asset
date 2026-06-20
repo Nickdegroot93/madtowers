@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 483e52fbb2174dc6a9465067b9aa7c76, type: 3}
+  m_Name: Fission
+  m_EditorClassIdentifier: Assembly-CSharp::FissionAbility
+  displayName: Fission
+  icon: {fileID: 21300000, guid: 58432a4b5eb74373aa05e79bf883fbfd, type: 3}
+  shortDescription: Splits the active block into 1x1 pieces.
+  description: Activating this mid-air shatters the active block into one independent
+    1x1 micro-cube per cell. They float at the top; aim each one and flick it down
+    one at a time. Every shard counts as a full block, so this lets you pepper several
+    tight gaps across your tower top at once instead of fighting one awkward shape.
+  rarity: 2
+  category: 2
+  pipDefinition: {fileID: 11400000, guid: 33fd63a3dc394755935440d6f6849a70, type: 2}
+  splitEffect: {fileID: 0}
+  splitScale: 0.6

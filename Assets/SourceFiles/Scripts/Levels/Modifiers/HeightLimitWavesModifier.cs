@@ -65,6 +65,17 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     private float _flash;
     private bool _finished;
 
+    // Wave-transition spawn hold (WaveRevealGate). While true the next piece is held until the
+    // line has settled at its new height and the freshly revealed island band has finished
+    // popping in. _settledGenTick is the island manager's pass counter captured the moment the
+    // line settles, so we can tell generation has run against the raised ceiling before trusting
+    // "no pops pending". _holdElapsed backs a safety timeout so the spawn chain can never
+    // soft-lock if the island system is absent or quiet.
+    private const float RevealHoldTimeout = 2f;
+    private bool _waitingForReveal;
+    private int _settledGenTick;
+    private float _holdElapsed;
+
     public int TotalBlockCount
     {
         get
@@ -110,6 +121,8 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
         _waveIndex = 0;
         _blocksPlaced = 0; // ScriptableObject state survives scene reloads; a retry starts at wave 1
         _finished = waves.Length == 0;
+        _waitingForReveal = false;
+        WaveRevealGate.Reset(); // GameManager.Awake also clears it; belt-and-braces for a retry
 
         // The win comes from the level's PlaceBlocks goal; catch a mismatched wiring early.
         if (context.Level != null &&
@@ -151,6 +164,9 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
             // following the camera once the ceiling lifts).
             _finished = true;
             TowerHeightLimit.Reset();
+            // The line is gone and the level's win flow (verification hold-steady) now owns
+            // spawning; never leave a wave-reveal hold dangling behind it.
+            EndRevealHold();
             if (_line != null) _line.gameObject.SetActive(false);
             if (_counter != null) _counter.gameObject.SetActive(false);
             return;
@@ -160,6 +176,63 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
         {
             _waveIndex = reachedWave;
             _lineTargetY = CurrentLineWorldY();
+            BeginRevealHold();
+        }
+    }
+
+    // A wave just cleared: hold the next piece until the line settles at the new height and the
+    // band it reveals has popped in. SpawnNextBlock was about to run for this very lock (the lock
+    // raised ScoreChanged -> here -> the gate, all before BlockController fires OnBlockLocked ->
+    // Spawner), so setting the gate now suppresses that imminent spawn; OnUpdate resumes it.
+    private void BeginRevealHold()
+    {
+        _waitingForReveal = true;
+        _settledGenTick = -1; // captured once the line reaches its new height
+        _holdElapsed = 0f;
+        WaveRevealGate.Hold();
+    }
+
+    private void EndRevealHold()
+    {
+        if (!_waitingForReveal)
+        {
+            // Still clear the gate on the all-waves-cleared path even if no hold was pending.
+            WaveRevealGate.Release();
+            return;
+        }
+        _waitingForReveal = false;
+        WaveRevealGate.Release();
+        // The lock->spawn chain is event-driven and was suppressed at lock time; restart it.
+        _context?.Spawner?.ResumeSpawning();
+    }
+
+    // Release the next piece once the transition has fully settled: the line has reached its new
+    // height AND the island manager has run a generation pass against the raised ceiling (so any
+    // band it was going to reveal now exists) AND no revealed island is still popping. When the
+    // new band is empty (or islands are disabled) there are no pops to wait on, so this releases
+    // the instant the line settles. A timeout backstops a missing/quiet island system.
+    private void TickRevealHold(float deltaTime, bool lineSettled)
+    {
+        _holdElapsed += deltaTime;
+
+        if (lineSettled && _settledGenTick < 0)
+        {
+            _settledGenTick = StaticSupportIslandManager.GenerationTick;
+        }
+
+        bool generationRan = _settledGenTick >= 0 &&
+            StaticSupportIslandManager.GenerationTick > _settledGenTick;
+        bool revealComplete = generationRan && !StaticSupportIslandManager.HasPendingPops;
+
+        // Backstop only for a missing/quiet island system (generation never ran): gated on no
+        // pops pending so it can never truncate a band still scaling in - a dense reveal whose
+        // staggered pops outlast the budget is always waited out in full.
+        bool timedOut = _holdElapsed > lineRiseSeconds + RevealHoldTimeout &&
+            !StaticSupportIslandManager.HasPendingPops;
+
+        if (revealComplete || timedOut)
+        {
+            EndRevealHold();
         }
     }
 
@@ -184,7 +257,10 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
 
         // The ceiling follows the SETTLED line, so the freshly revealed island band pops
         // in after the rise completes, not while the line is still gliding through it.
-        if (Mathf.Approximately(_lineY, _lineTargetY)) TowerHeightLimit.Set(_lineY);
+        bool lineSettled = Mathf.Approximately(_lineY, _lineTargetY);
+        if (lineSettled) TowerHeightLimit.Set(_lineY);
+
+        if (_waitingForReveal) TickRevealHold(deltaTime, lineSettled);
 
         Camera cam = Camera.main;
         float x = cam != null ? cam.transform.position.x : 0f;

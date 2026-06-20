@@ -11,7 +11,9 @@ public static class SfxPlayer
 {
     private const int PoolSize = 6;
 
+    private static GameObject _host;
     private static AudioSource[] _pool;
+    private static AudioSource _loop; // dedicated, stoppable source for sustained sounds (e.g. countdown)
     private static int _next;
     private static readonly Dictionary<string, AudioClip> _clips = new Dictionary<string, AudioClip>();
 
@@ -36,6 +38,29 @@ public static class SfxPlayer
         Play($"{baseName}_{pick:00}", volume, pitchJitter);
     }
 
+    /// <summary>Start a sustained, looping clip on a dedicated source. Call <see cref="StopLoop"/>
+    /// to end it (e.g. a level-finish countdown that runs while the timer counts down). Idempotent:
+    /// starting the same clip again while it plays is a no-op so it doesn't restart each frame.</summary>
+    public static void PlayLoop(string name, float volume = 1f)
+    {
+        AudioClip clip = LoadClip(name);
+        if (clip == null) return;
+
+        EnsureLoop();
+        if (_loop.isPlaying && _loop.clip == clip) return;
+        _loop.clip = clip;
+        _loop.volume = Mathf.Clamp01(volume);
+        _loop.pitch = 1f;
+        _loop.loop = true;
+        _loop.Play();
+    }
+
+    /// <summary>Stop the sustained loop started by <see cref="PlayLoop"/> (safe if nothing is playing).</summary>
+    public static void StopLoop()
+    {
+        if (_loop != null) _loop.Stop();
+    }
+
     private static AudioClip LoadClip(string name)
     {
         if (_clips.TryGetValue(name, out AudioClip cached)) return cached;
@@ -49,12 +74,21 @@ public static class SfxPlayer
         return clip;
     }
 
+    private static GameObject EnsureHost()
+    {
+        if (_host == null)
+        {
+            _host = new GameObject("SfxPlayer");
+            Object.DontDestroyOnLoad(_host);
+        }
+        return _host;
+    }
+
     private static void EnsurePool()
     {
         if (_pool != null && _pool.Length > 0 && _pool[0] != null) return;
 
-        GameObject host = new GameObject("SfxPlayer");
-        Object.DontDestroyOnLoad(host);
+        GameObject host = EnsureHost();
         _pool = new AudioSource[PoolSize];
         for (int i = 0; i < PoolSize; i++)
         {
@@ -63,5 +97,13 @@ public static class SfxPlayer
             source.spatialBlend = 0f; // plain 2D
             _pool[i] = source;
         }
+    }
+
+    private static void EnsureLoop()
+    {
+        if (_loop != null) return;
+        _loop = EnsureHost().AddComponent<AudioSource>();
+        _loop.playOnAwake = false;
+        _loop.spatialBlend = 0f;
     }
 }

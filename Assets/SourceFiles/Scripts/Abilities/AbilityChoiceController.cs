@@ -252,7 +252,9 @@ public class AbilityChoiceController : MonoBehaviour
             _panelRoot.transform, new Vector2(1000f, 880f), drawBackground: false);
         // The shared panel builder leaves child heights uncontrolled; this layout is
         // height-budgeted (header + cards), so LayoutElement heights must be honored.
-        panel.GetComponent<UnityEngine.UI.VerticalLayoutGroup>().childControlHeight = true;
+        var panelLayout = panel.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
+        panelLayout.childControlHeight = true;
+        panelLayout.spacing = 10f; // tighten the gap between the header and the cards
 
         Color offerAccent = _rollBuffer.Count > 0
             ? AbilityRarityInfo.GetColor(_rollBuffer[0].Rarity)
@@ -261,8 +263,10 @@ public class AbilityChoiceController : MonoBehaviour
 
         GameObject cardRow = new GameObject("Cards");
         cardRow.transform.SetParent(panel.transform, false);
-        LayoutElement rowElement = cardRow.AddComponent<LayoutElement>();
-        rowElement.preferredHeight = 640f;
+        // No fixed height: the row reports the height of its TALLEST card, and
+        // childForceExpandHeight (below) stretches all three to match - so a long short-
+        // description lengthens every card equally. minHeight is just a floor for short text.
+        cardRow.AddComponent<LayoutElement>().minHeight = 460f;
 
         HorizontalLayoutGroup rowLayout = cardRow.AddComponent<HorizontalLayoutGroup>();
         rowLayout.spacing = 24f;
@@ -285,7 +289,7 @@ public class AbilityChoiceController : MonoBehaviour
         GameObject header = new GameObject("Header", typeof(RectTransform));
         header.transform.SetParent(parent, false);
         LayoutElement headerElement = header.AddComponent<LayoutElement>();
-        headerElement.preferredHeight = 110f;
+        headerElement.preferredHeight = 72f;
 
         HorizontalLayoutGroup row = header.AddComponent<HorizontalLayoutGroup>();
         row.childAlignment = TextAnchor.MiddleCenter;
@@ -299,10 +303,6 @@ public class AbilityChoiceController : MonoBehaviour
         title.font = RuntimeUiKit.TitleFont;
         ((RectTransform)title.transform).sizeDelta = new Vector2(520f, 64f);
         CreateHeaderFlourish(header.transform, accent, leftSide: false);
-
-        Text subtitle = RuntimeUiKit.CreateLabel(parent, "Select one ability to empower your run",
-            24, 34f, FontStyle.Normal, Color.Lerp(accent, Color.white, 0.35f));
-        subtitle.font = RuntimeUiKit.TitleFont;
     }
 
     private static void CreateHeaderFlourish(Transform parent, Color accent, bool leftSide)
@@ -402,7 +402,7 @@ public class AbilityChoiceController : MonoBehaviour
         button.targetGraphic = plate;
 
         VerticalLayoutGroup cardLayout = cardObject.AddComponent<VerticalLayoutGroup>();
-        cardLayout.padding = new RectOffset(28, 28, 16, 16);
+        cardLayout.padding = new RectOffset(28, 28, 16, 76); // bottom reserves the pinned DETAILS button
         cardLayout.spacing = 10f;
         cardLayout.childAlignment = TextAnchor.UpperCenter;
         cardLayout.childControlWidth = true;
@@ -414,40 +414,86 @@ public class AbilityChoiceController : MonoBehaviour
         CreateCardHeader(cardObject.transform, definition.DisplayName.ToUpperInvariant(),
             definition.Type, rarityColor);
 
-        // Top group: the owned-stack note rides directly under the header.
+        // Fixed breathing room between the header and the icon. Being a fixed height (not a
+        // flexible spacer), the icon's Y is identical on every card -> all icons share one line.
+        GameObject topGap = new GameObject("TopGap", typeof(RectTransform));
+        topGap.transform.SetParent(cardObject.transform, false);
+        topGap.AddComponent<LayoutElement>().preferredHeight = 34f;
+
+        // Artwork is TOP-ALIGNED at a fixed height (no flexible spacers), so every card's icon
+        // lands on the same horizontal line no matter how long the description is. The card
+        // itself grows to fit the description (the row sizes to its tallest card), and the
+        // DETAILS button is pinned to the bottom, so leftover space sits between them.
+        RectTransform iconArea;
+        if (definition.Icon != null)
+        {
+            // Authored icons are transparent glyphs, so they ride on a white rounded tile
+            // with a thin rarity-tinted border. A fixed centered square keeps the tile from
+            // stretching to the full card width in the vertical layout.
+            GameObject iconSlot = new GameObject("IconSlot", typeof(RectTransform));
+            iconSlot.transform.SetParent(cardObject.transform, false);
+            iconSlot.AddComponent<LayoutElement>().preferredHeight = 200f;
+            iconArea = (RectTransform)iconSlot.transform;
+
+            // Slick rarity border (off-white/blue/purple) is owned by CreateIconTile.
+            Image glyph = RuntimeUiKit.CreateIconTile(iconSlot.transform, 1f, 8f, out Image tile, rarityColor);
+            RectTransform tileRect = tile.rectTransform;
+            tileRect.anchorMin = tileRect.anchorMax = new Vector2(0.5f, 0.5f);
+            tileRect.sizeDelta = new Vector2(200f, 200f);
+            glyph.sprite = definition.Icon;
+        }
+        else
+        {
+            GameObject iconObject = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            iconObject.transform.SetParent(cardObject.transform, false);
+            Image icon = iconObject.GetComponent<Image>();
+            icon.sprite = RuntimeSprites.AbilityGlyph();
+            icon.color = Color.Lerp(rarityColor, Color.white, 0.25f);
+            icon.preserveAspect = true;
+            icon.raycastTarget = false;
+            iconObject.AddComponent<LayoutElement>().preferredHeight = 200f;
+            iconArea = (RectTransform)iconObject.transform;
+        }
+
+        // "Owned xN" overlays the top of the icon (out of the layout flow via ignoreLayout),
+        // so an owned card's icon stays on the exact same line as an un-owned one.
         int stacks = _runtime != null ? _runtime.GetOwnedStacks(definition) : 0;
         if (stacks > 0)
         {
-            RuntimeUiKit.CreateLabel(cardObject.transform, $"Owned ×{stacks}",
-                22, 28f, FontStyle.Bold, new Color(0.6f, 0.9f, 0.65f, 1f), TextAnchor.MiddleCenter);
+            Text owned = RuntimeUiKit.CreateLabel(iconArea, $"Owned ×{stacks}",
+                20, 24f, FontStyle.Bold, new Color(0.6f, 0.9f, 0.65f, 1f), TextAnchor.UpperCenter);
+            owned.GetComponent<LayoutElement>().ignoreLayout = true;
+            RectTransform ownedRect = owned.rectTransform;
+            ownedRect.anchorMin = new Vector2(0f, 1f);
+            ownedRect.anchorMax = new Vector2(1f, 1f);
+            ownedRect.pivot = new Vector2(0.5f, 1f);
+            ownedRect.offsetMin = new Vector2(0f, -28f);
+            ownedRect.offsetMax = new Vector2(0f, 2f);
         }
 
-        // Middle group: the artwork, CENTERED in the leftover space - equal flexible
-        // spacers above and below it push the header group up and the text group down.
-        CreateFlexibleSpacer(cardObject.transform);
-
-        GameObject iconObject = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        iconObject.transform.SetParent(cardObject.transform, false);
-        Image icon = iconObject.GetComponent<Image>();
-        icon.sprite = definition.Icon != null ? definition.Icon : RuntimeSprites.AbilityGlyph();
-        icon.color = definition.Icon != null ? Color.white : Color.Lerp(rarityColor, Color.white, 0.25f);
-        icon.preserveAspect = true;
-        icon.raycastTarget = false;
-        LayoutElement iconLayout = iconObject.AddComponent<LayoutElement>();
-        iconLayout.preferredHeight = 165f;
-
-        CreateFlexibleSpacer(cardObject.transform);
-
-        // Bottom group: description sits just above the button.
+        // Description sits directly under the icon, bold + large, hugging its own wrapped-text
+        // height. Truncates rather than drawing over the pinned button on overlong text.
         Text shortText = RuntimeUiKit.CreateLabel(cardObject.transform, definition.ShortDescription,
-            21, 100f, FontStyle.Normal, new Color(0.76f, 0.8f, 0.88f, 0.95f), TextAnchor.LowerCenter);
+            28, 0f, FontStyle.Bold, new Color(0.9f, 0.93f, 0.98f, 1f), TextAnchor.UpperCenter);
         shortText.lineSpacing = 1.05f;
+        shortText.verticalOverflow = VerticalWrapMode.Truncate;
+        shortText.GetComponent<LayoutElement>().preferredHeight = -1f; // -1 => hug wrapped text
 
         // Nested button: UGUI raycasts stop at the inner target, so tapping Details
-        // never also picks the card.
+        // never also picks the card. Pinned to the card bottom (out of the vertical layout)
+        // so an overlong description - ShortDescription falls back to the full description -
+        // can never push it off the card or under the RectMask2D; worst case the text is
+        // clipped behind it, but the button stays visible and tappable.
         Button details = RuntimeUiKit.CreateButton(cardObject.transform, "DETAILS", 52f,
             () => ShowDetailPanel(definition));
         StyleDetailsButton(details, rarityColor);
+        details.GetComponent<LayoutElement>().ignoreLayout = true;
+        RectTransform detailsRect = (RectTransform)details.transform;
+        detailsRect.anchorMin = new Vector2(0f, 0f);
+        detailsRect.anchorMax = new Vector2(1f, 0f);
+        detailsRect.pivot = new Vector2(0.5f, 0f);
+        detailsRect.offsetMin = new Vector2(28f, 16f);
+        detailsRect.offsetMax = new Vector2(-28f, 16f + 52f);
 
         if (definition.Rarity == AbilityRarity.Legendary)
         {
@@ -456,14 +502,6 @@ public class AbilityChoiceController : MonoBehaviour
 
         AbilityDefinition picked = definition;
         button.onClick.AddListener(() => Pick(picked));
-    }
-
-    private static void CreateFlexibleSpacer(Transform parent)
-    {
-        GameObject spacer = new GameObject("Spacer", typeof(RectTransform));
-        spacer.transform.SetParent(parent, false);
-        LayoutElement element = spacer.AddComponent<LayoutElement>();
-        element.flexibleHeight = 1f;
     }
 
     // Card top padding + this header's height = where the header band's bottom edge
@@ -506,7 +544,7 @@ public class AbilityChoiceController : MonoBehaviour
         pill.SetParent(header.transform, false);
         pill.anchorMin = pill.anchorMax = new Vector2(0.5f, 0f);
         pill.anchoredPosition = new Vector2(0f, 0f);
-        pill.sizeDelta = new Vector2(84f, 32f);
+        pill.sizeDelta = new Vector2(168f, 34f);
         Image pillImage = pillObject.GetComponent<Image>();
         pillImage.sprite = RuntimeSprites.RoundedPanel();
         pillImage.type = Image.Type.Sliced;
@@ -515,16 +553,22 @@ public class AbilityChoiceController : MonoBehaviour
 
         RuntimeUiKit.AddOutline(pillObject.transform, new Color(rarityColor.r, rarityColor.g, rarityColor.b, 0.9f));
 
-        GameObject glyphObject = new GameObject("Glyph", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform glyphRect = (RectTransform)glyphObject.transform;
-        glyphRect.SetParent(pillObject.transform, false);
-        glyphRect.anchorMin = glyphRect.anchorMax = new Vector2(0.5f, 0.5f);
-        glyphRect.sizeDelta = new Vector2(38f, 20f);
-        Image glyph = glyphObject.GetComponent<Image>();
-        glyph.sprite = AbilityTypeInfo.GetGlyphSprite(type);
-        glyph.preserveAspect = true;
-        glyph.raycastTarget = false;
-        glyph.color = Color.Lerp(rarityColor, Color.white, 0.35f);
+        // The type as text (CONSUMABLE / PASSIVE / INSTANT) instead of a glyph - clearer.
+        GameObject labelObject = new GameObject("BadgeLabel", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+        RectTransform labelRect = (RectTransform)labelObject.transform;
+        labelRect.SetParent(pillObject.transform, false);
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = new Vector2(10f, 0f);
+        labelRect.offsetMax = new Vector2(-10f, 0f);
+        Text badge = labelObject.GetComponent<Text>();
+        badge.font = RuntimeUiKit.TitleFont;
+        badge.text = AbilityTypeInfo.GetLabel(type);
+        badge.fontSize = 17;
+        badge.fontStyle = FontStyle.Bold;
+        badge.alignment = TextAnchor.MiddleCenter;
+        badge.color = Color.Lerp(rarityColor, Color.white, 0.45f);
+        badge.raycastTarget = false;
     }
 
     // Mockup-style Details button: near-transparent fill with a thin rarity outline.
@@ -570,14 +614,16 @@ public class AbilityChoiceController : MonoBehaviour
 
         if (definition.Icon != null)
         {
-            GameObject iconObject = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-            iconObject.transform.SetParent(panel.transform, false);
-            Image icon = iconObject.GetComponent<Image>();
-            icon.sprite = definition.Icon;
-            icon.preserveAspect = true;
-            icon.raycastTarget = false;
-            LayoutElement iconLayout = iconObject.AddComponent<LayoutElement>();
-            iconLayout.preferredHeight = 150f;
+            GameObject iconSlot = new GameObject("IconSlot", typeof(RectTransform));
+            iconSlot.transform.SetParent(panel.transform, false);
+            iconSlot.AddComponent<LayoutElement>().preferredHeight = 160f;
+
+            Image glyph = RuntimeUiKit.CreateIconTile(iconSlot.transform, 1f, 8f, out Image tile,
+                AbilityRarityInfo.GetColor(definition.Rarity));
+            RectTransform tileRect = tile.rectTransform;
+            tileRect.anchorMin = tileRect.anchorMax = new Vector2(0.5f, 0.5f);
+            tileRect.sizeDelta = new Vector2(160f, 160f);
+            glyph.sprite = definition.Icon;
         }
 
         RuntimeUiKit.CreateLabel(panel.transform, definition.DisplayName, 44, 64f,
