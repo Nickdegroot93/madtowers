@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 487831c0481de5a479b5db99fd7e80b3
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 296235
+  packageName: Desert Vibe / 2D Background
+  packageVersion: 1.0
+  assetPath: Assets/Jungle Landscape/Scripts/BackgroundParalax.cs
+  uploadId: 759839

@@ -1,10 +1,11 @@
 using UnityEngine;
 
 /// <summary>
-/// Layered, chapter-driven gameplay backdrop - no background images. Driven entirely by the
-/// active chapter's BackdropPreset (or the built-in classic defaults):
+/// Layered, chapter-driven gameplay backdrop, driven entirely by the active chapter's
+/// BackdropPreset (or the built-in classic defaults):
 ///   - sky: a generated vertical gradient glued to the camera, crossfading to a second
 ///     "high altitude" gradient as the tower climbs
+///   - optional imported sprite layers: authored parallax scenery near the floor
 ///   - clouds: procedural sprites drifting horizontally, recycled around the camera so
 ///     coverage is infinite in height
 ///   - hills: ground-level silhouettes with slight parallax that sink out of view as the
@@ -25,6 +26,7 @@ public partial class LevelPresentationController : MonoBehaviour
     [SerializeField] private int sortingOrder = -100;
 
     private const int CloudSortingOrder = -90;
+    private const int SpriteBackdropSortingOrder = -89;
     private const int HillFarSortingOrder = -85; // three hill layers: -85, -84, -83
     private const int PropSortingOrder = -82;
     private const int ParticleSortingOrder = -80;
@@ -41,6 +43,7 @@ public partial class LevelPresentationController : MonoBehaviour
                                   // from here, NOT from the floor (the camera starts well
                                   // above the floor, which lifted parallax elements)
     private Transform _worldRoot; // clouds/hills/sun/props/particles live in world space
+    private SpriteRenderer[][] _spriteBackdropLayerTiles;
     private SpriteRenderer[] _clouds;
     private float[] _cloudSpeeds;
     private float[] _cloudBobPhases;
@@ -62,6 +65,7 @@ public partial class LevelPresentationController : MonoBehaviour
         if (!Application.isPlaying) return;
 
         EnsureWorldElements();
+        UpdateSpriteBackdropLayers();
         UpdateClouds();
         UpdateHills();
         UpdateSun();
@@ -104,6 +108,8 @@ public partial class LevelPresentationController : MonoBehaviour
             SkyGradientCurve, SkyTopReachedAt);
         _skyHighSprite = RuntimeSprites.VerticalGradient(_preset.SkyTopHigh, _preset.SkyBottomHigh,
             SkyGradientCurve, SkyTopReachedAt);
+
+        DestroyWorldElements();
     }
 
     private static void DestroySprite(ref Sprite sprite)
@@ -120,6 +126,26 @@ public partial class LevelPresentationController : MonoBehaviour
     {
         DestroySprite(ref _skyLowSprite);
         DestroySprite(ref _skyHighSprite);
+        DestroyWorldElements();
+    }
+
+    private void DestroyWorldElements()
+    {
+        if (_worldRoot == null) return;
+        if (Application.isPlaying) Destroy(_worldRoot.gameObject);
+        else DestroyImmediate(_worldRoot.gameObject);
+        _worldRoot = null;
+        _spriteBackdropLayerTiles = null;
+        _clouds = null;
+        _cloudSpeeds = null;
+        _cloudBobPhases = null;
+        _hills = null;
+        _hillBase = null;
+        _sun = null;
+        _props = null;
+        _propOffsets = null;
+        _particles = null;
+        _particlePhases = null;
     }
 
     // ---- sky -----------------------------------------------------------------------------

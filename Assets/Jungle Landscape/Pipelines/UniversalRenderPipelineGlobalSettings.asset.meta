@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 6f9db5ee4948cbf49af31590e20db0a4
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 296235
+  packageName: Desert Vibe / 2D Background
+  packageVersion: 1.0
+  assetPath: Assets/Jungle Landscape/Pipelines/UniversalRenderPipelineGlobalSettings.asset
+  uploadId: 759839

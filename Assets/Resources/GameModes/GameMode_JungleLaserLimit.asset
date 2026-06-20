@@ -1,0 +1,122 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0fe95161ec248308119ac199c73fdda, type: 3}
+  m_Name: GameMode_JungleLaserLimit
+  m_EditorClassIdentifier:
+  startingLives: 1
+  initialFallSpeed: 2.35
+  maxFallSpeed: 6
+  difficultyScalingMode: 0
+  difficultyAdjustmentMode: 0
+  speedIncreasePerBlock: 0.035
+  speedIncreaseIntervalSeconds: 60
+  speedIncreasePerInterval: 0.1
+  blockBag:
+  - {fileID: 11400000, guid: 399bae529a5644488f2583a430caa834, type: 2}
+  - {fileID: 11400000, guid: 02ed6b9bb4d34cfea6a86b09df8598be, type: 2}
+  - {fileID: 11400000, guid: 76d6700acbdc4b2791222d3bc24f2d98, type: 2}
+  - {fileID: 11400000, guid: 8c2807b281774ad7a04617c108654dbe, type: 2}
+  - {fileID: 11400000, guid: 2163ab145d2748509c37da320f7ef2f8, type: 2}
+  - {fileID: 11400000, guid: 2a34b69853aa48a3bdb72edbe7ad549f, type: 2}
+  - {fileID: 11400000, guid: 3be6106228ed4acea64c37519f7bb64e, type: 2}
+  fallbackBlockDataVariants:
+  - {fileID: 11400000, guid: d47f69c0549f64a78b7a3dde80d0f06a, type: 2}
+  - {fileID: 11400000, guid: 7704ea0a0cb0b4d94b1c5a90200dab18, type: 2}
+  ambientBlockVariantChances: []
+  spawnDelay: 0
+  gridSpacing: 1
+  horizontalPlacementBufferColumns: 2
+  groundedCheckDistance: 0.03
+  maxLandingImpactSpeed: 2
+  settleLinearThreshold: 0.08
+  settleAngularThreshold: 8
+  settleTime: 0.35
+  sleepSettledBlocksOnLock: 1
+  microAlignSettledBlocks: 1
+  microAlignMaxColumnFraction: 0.08
+  microAlignMaxRotationDegrees: 4
+  maxControlTime: 12
+  powerUpChoiceEveryBlocks: 12
+  powerUpChoicePool:
+  - {fileID: 11400000, guid: 0dca35f837a34a25996ebab97183f7aa, type: 2}
+  - {fileID: 11400000, guid: ab3b38f4ef6c4ee09db11741e7fab0d9, type: 2}
+  - {fileID: 11400000, guid: 6470a3ad296e48478c6cb9447a928492, type: 2}
+  - {fileID: 11400000, guid: 7b487e5f478044db94d833da9f8ab16d, type: 2}
+  - {fileID: 11400000, guid: ab2fe7abf100443dab8293f4d68f0bf4, type: 2}
+  - {fileID: 11400000, guid: 29562a5c071a4abc8cdefbc3e6a3a260, type: 2}
+  - {fileID: 11400000, guid: e4e5c84922e14d3e8cfae645f64aeda3, type: 2}
+  - {fileID: 11400000, guid: c6b3edea5bf84c4eba83f986fc74d091, type: 2}
+  - {fileID: 11400000, guid: d6be9e0c4ae44667b07078bfad5c8790, type: 2}
+  - {fileID: 11400000, guid: e0574457da574a17ae2231d605f6254e, type: 2}
+  - {fileID: 11400000, guid: 25d31027b1d54da4b48db44571d07aa2, type: 2}
+  - {fileID: 11400000, guid: 2c13d00250af446d935ec601b0cb1e12, type: 2}
+  - {fileID: 11400000, guid: 6d3401c19dfd45e78cb61cfe19dcd22d, type: 2}
+  - {fileID: 11400000, guid: 982abbadbb5b4913b7242de34dc9028e, type: 2}
+  - {fileID: 11400000, guid: c32e1c21722b4300b40e69ceb0b6d101, type: 2}
+  - {fileID: 11400000, guid: 5fbde9516a7c498f9c96bf8222a8bc48, type: 2}
+  - {fileID: 11400000, guid: cfdb7beb7e9043199bac80f5d8b7e1a9, type: 2}
+  - {fileID: 11400000, guid: e28f154f7fe04e8c804cb5e2e8f4b35b, type: 2}
+  - {fileID: 11400000, guid: ae0ce8266bce4680b028c7bbd8bbf799, type: 2}
+  - {fileID: 11400000, guid: 6f8e54c503fd42b4b7d7ff3363937e1a, type: 2}
+  - {fileID: 11400000, guid: 6fcbcbb0ac3a48ef88c48a93b05920fd, type: 2}
+  - {fileID: 11400000, guid: c3c22db8ce624969a88a897e9028af48, type: 2}
+  - {fileID: 11400000, guid: 62bc830e1a4c42f7a6bbbed0423dea2d, type: 2}
+  slowMotionScale: 0.5
+  staticSupportIslandsEnabled: 1
+  staticSupportIslandHeightInterval: 1
+  staticSupportIslandSpawnChance: 0.3
+  staticSupportIslandFirstHeight: 9
+  staticSupportIslandSpawnAheadHeight: 6
+  staticSupportIslandMinColumn: -6
+  staticSupportIslandMaxColumn: 6
+  staticSupportIslandCenterClearColumns: 3
+  staticSupportIslandShapes:
+  - displayName: Single
+    weight: 12
+    cellOffsets:
+    - x: 0
+      y: 0
+  - displayName: Two Wide
+    weight: 2
+    cellOffsets:
+    - x: 0
+      y: 0
+    - x: 1
+      y: 0
+  - displayName: Two Tall
+    weight: 2
+    cellOffsets:
+    - x: 0
+      y: 0
+    - x: 0
+      y: 1
+  - displayName: Corner
+    weight: 1
+    cellOffsets:
+    - x: 0
+      y: 0
+    - x: 1
+      y: 0
+    - x: 0
+      y: 1
+  floorSegments:
+  - centerColumn: 0
+    columnCount: 9
+  minimumCameraY: 0
+  towerPeakScreenY: 0.56
+  spawnPointScreenY: 0.9
+  cameraSmoothTime: 0.28
+  minimumCameraSize: 15
+  maximumCameraSize: 24
+  horizontalCameraPadding: 1.5
+  horizontalCameraSafeArea: 0.78
+  cameraZoomSmoothTime: 0.35

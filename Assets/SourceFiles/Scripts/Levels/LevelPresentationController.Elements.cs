@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -16,6 +17,30 @@ public partial class LevelPresentationController
 
         _worldRoot = new GameObject("BackdropElements").transform;
         _climbBaseY = targetCamera.transform.position.y;
+
+        const int BackdropTileRadius = 2;
+        const int BackdropTileCount = BackdropTileRadius * 2 + 1;
+
+        IReadOnlyList<BackdropPreset.SpriteBackdropLayer> spriteLayers = _preset.SpriteBackdropLayers;
+        int spriteLayerCount = spriteLayers != null ? spriteLayers.Count : 0;
+        _spriteBackdropLayerTiles = new SpriteRenderer[spriteLayerCount][];
+        for (int i = 0; i < spriteLayerCount; i++)
+        {
+            BackdropPreset.SpriteBackdropLayer layer = spriteLayers[i];
+            if (layer == null || layer.Sprite == null) continue;
+
+            _spriteBackdropLayerTiles[i] = new SpriteRenderer[BackdropTileCount];
+            for (int tile = 0; tile < BackdropTileCount; tile++)
+            {
+                GameObject go = new GameObject($"SpriteBackdrop{i}_{tile - BackdropTileRadius}");
+                go.transform.SetParent(_worldRoot, false);
+                SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = layer.Sprite;
+                sr.color = new Color(1f, 1f, 1f, layer.Alpha);
+                sr.sortingOrder = SpriteBackdropSortingOrder + i;
+                _spriteBackdropLayerTiles[i][tile] = sr;
+            }
+        }
 
         // Clouds: spread through a band around the camera, recycled as it climbs.
         int cloudCount = _preset.CloudCount;
@@ -126,6 +151,50 @@ public partial class LevelPresentationController
 
     private float CameraHalfHeight => targetCamera.orthographicSize;
     private float CameraHalfWidth => targetCamera.orthographicSize * targetCamera.aspect;
+
+    private void UpdateSpriteBackdropLayers()
+    {
+        if (_spriteBackdropLayerTiles == null || _spriteBackdropLayerTiles.Length == 0 || targetCamera == null) return;
+
+        IReadOnlyList<BackdropPreset.SpriteBackdropLayer> layers = _preset.SpriteBackdropLayers;
+        if (layers == null) return;
+
+        Vector3 cam = targetCamera.transform.position;
+        float floorY = GameManager.Instance != null
+            ? GameManager.Instance.floorOriginY
+            : cam.y - CameraHalfHeight;
+        float climbed = Climbed(cam);
+
+        for (int i = 0; i < _spriteBackdropLayerTiles.Length && i < layers.Count; i++)
+        {
+            SpriteRenderer[] tiles = _spriteBackdropLayerTiles[i];
+            BackdropPreset.SpriteBackdropLayer layer = layers[i];
+            if (tiles == null || tiles.Length == 0 || layer == null) continue;
+
+            SpriteRenderer sample = tiles[0];
+            if (sample == null || sample.sprite == null) continue;
+
+            Vector2 size = sample.sprite.bounds.size;
+            if (size.x <= 0f || size.y <= 0f) continue;
+
+            float targetHeight = layer.WorldHeight > 0f ? layer.WorldHeight : CameraHalfHeight * 2.15f;
+            float scale = targetHeight / size.y;
+            float scaledHeight = size.y * scale;
+            float tileSpacing = Mathf.Max(0.1f, size.x * scale - 0.08f);
+            float baseX = cam.x + layer.WorldOffsetX;
+            float y = floorY + layer.FloorOffsetY + scaledHeight * 0.5f + climbed * layer.VerticalParallax;
+            int center = tiles.Length / 2;
+
+            for (int tile = 0; tile < tiles.Length; tile++)
+            {
+                SpriteRenderer sr = tiles[tile];
+                if (sr == null) continue;
+
+                sr.transform.localScale = new Vector3(scale, scale, 1f);
+                sr.transform.position = new Vector3(baseX + (tile - center) * tileSpacing, y, 0f);
+            }
+        }
+    }
 
     private Vector3 RandomCloudPosition(bool initialSpread)
     {

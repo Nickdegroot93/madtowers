@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 441b8ad77b4948f0af95820f8275ed2a, type: 3}
+  m_Name: Level_JD2_CanopyTrial
+  m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
+  displayName: Canopy Trial
+  menuThumbnail: {fileID: 0}
+  menuChallengeLabelOverride:
+  gameModeConfig: {fileID: 11400000, guid: 157c61c28f674daaa3b9a47c0827fa20, type: 2}
+  targetType: 1
+  targetValue: 65
+  instruction: Clear 5 larger waves - stay beneath the vine-light.
+  modifiers:
+  - {fileID: 11400000, guid: 5cf9f8462bfc4165b9b9ebc1e53a1079, type: 2}

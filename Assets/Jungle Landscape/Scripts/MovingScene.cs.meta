@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 927fc6a30967ab84ab25daf6f197bd08
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 296235
+  packageName: Desert Vibe / 2D Background
+  packageVersion: 1.0
+  assetPath: Assets/Jungle Landscape/Scripts/MovingScene.cs
+  uploadId: 759839

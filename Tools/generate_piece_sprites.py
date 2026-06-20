@@ -54,6 +54,23 @@ THEME_PRESETS = {
         "outline": 0.42,
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},  # faint extra top-edge highlight
     },
+    # Jungle Depths: saturated canopy light with dark organic outlines. Hue identities
+    # stay intact, but every piece is pulled into leaf, orchid, clay, and river tones.
+    "Jungle": {
+        "colors": {
+            "I": (82, 205, 188),   # river teal
+            "O": (226, 198, 82),   # filtered sun
+            "T": (156, 96, 194),   # orchid
+            "S": (91, 177, 82),    # leaf green
+            "Z": (207, 88, 82),    # red bromeliad
+            "J": (78, 121, 210),   # deep blue flower
+            "L": (220, 136, 62),   # clay orange
+            "Pip": (214, 96, 172),     # bright jungle fruit
+            "Domino": (164, 80, 154),  # deeper fruit-vine
+        },
+        "outline": 0.28,
+        "edgeShine": {"Pip": 0.15, "Domino": 0.15},
+    },
 }
 
 SHAPES = {  # (col,row), row 0 = top of canvas, matches prefab spawn orientation

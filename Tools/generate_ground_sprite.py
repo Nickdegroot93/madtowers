@@ -191,3 +191,10 @@ if __name__ == "__main__":
                    blocks=1, top=(243, 190, 132))
     render_islands("Desert", (206, 118, 82))
     remove_legacy("Desert")
+
+    # Jungle: damp dark stone capped with moss, matching the imported jungle layers
+    # without making the floor read like scenery.
+    render_plateau("Jungle", (74, 103, 76), line=(35, 55, 43),
+                   blocks=1, top=(83, 151, 79), top_h=30)
+    render_islands("Jungle", (74, 103, 76), line=(35, 55, 43))
+    remove_legacy("Jungle")

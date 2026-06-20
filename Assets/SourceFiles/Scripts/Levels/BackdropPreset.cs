@@ -1,15 +1,40 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
 /// A chapter's layered backdrop, as data: sky colors that crossfade with tower altitude,
-/// drifting procedural clouds, ground-level hill silhouettes that fall away as you climb,
-/// and optional ambient particles (snow, petals, embers - it's just color + motion).
-/// Rendered by LevelPresentationController; no background images involved.
+/// drifting procedural clouds or imported sprite layers, ground-level hill silhouettes
+/// that fall away as you climb, and optional ambient particles (snow, petals, embers -
+/// it's just color + motion). Rendered by LevelPresentationController.
 /// A chapter without a preset gets the built-in classic dark sky (see Defaults).
 /// </summary>
 [CreateAssetMenu(fileName = "BackdropPreset", menuName = "Stacking/Levels/Backdrop Preset")]
 public class BackdropPreset : ScriptableObject
 {
+    [System.Serializable]
+    public sealed class SpriteBackdropLayer
+    {
+        [SerializeField] private Sprite sprite;
+        [Tooltip("World height for this layer. 0 = fit the camera height.")]
+        [SerializeField] private float worldHeight = 0f;
+        [Tooltip("Y offset from the floor to the bottom of the layer.")]
+        [SerializeField] private float floorOffsetY = 0f;
+        [Tooltip("World X offset from the camera center.")]
+        [SerializeField] private float worldOffsetX = 0f;
+        [Tooltip("How much this layer follows the camera as the tower climbs. 0 = pinned to the floor, 1 = glued to the camera.")]
+        [Range(0f, 1f)]
+        [SerializeField] private float verticalParallax = 0.15f;
+        [Range(0f, 1f)]
+        [SerializeField] private float alpha = 1f;
+
+        public Sprite Sprite => sprite;
+        public float WorldHeight => worldHeight;
+        public float FloorOffsetY => floorOffsetY;
+        public float WorldOffsetX => worldOffsetX;
+        public float VerticalParallax => verticalParallax;
+        public float Alpha => alpha;
+    }
+
     [Header("Sky (vertical gradient, crossfades with altitude)")]
     [SerializeField] private Color skyTopLow = new Color(0.10f, 0.14f, 0.20f);
     [SerializeField] private Color skyBottomLow = new Color(0.05f, 0.07f, 0.10f);
@@ -61,6 +86,9 @@ public class BackdropPreset : ScriptableObject
     [SerializeField] private Color hillFarColor = new Color(0.17f, 0.21f, 0.29f);
     [SerializeField] private Color hillNearColor = new Color(0.13f, 0.16f, 0.23f);
 
+    [Header("Imported backdrop layers (optional, far to near)")]
+    [SerializeField] private SpriteBackdropLayer[] spriteBackdropLayers;
+
     [Header("Ambient particles (0 = off; snow, petals, embers... color + motion)")]
     [Min(0)]
     [SerializeField] private int particleCount = 0;
@@ -93,6 +121,7 @@ public class BackdropPreset : ScriptableObject
     public HillStyle Hills => hillStyle;
     public Color HillFarColor => hillFarColor;
     public Color HillNearColor => hillNearColor;
+    public IReadOnlyList<SpriteBackdropLayer> SpriteBackdropLayers => spriteBackdropLayers;
     public int ParticleCount => particleCount;
     public Color ParticleColor => particleColor;
     public float ParticleSize => particleSize;
