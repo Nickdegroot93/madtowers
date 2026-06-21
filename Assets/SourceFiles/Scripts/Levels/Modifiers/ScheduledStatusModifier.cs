@@ -46,17 +46,17 @@ public class ScheduledStatusModifier : LevelModifier
         [Tooltip("If off, this entry waits for the same status to end before applying it again.")]
         [SerializeField] private bool reapplyWhileActive = true;
 
-        string Label => string.IsNullOrWhiteSpace(label) ? "Scheduled Status" : label;
-        StatusEffectDefinition Status => status;
-        TriggerMode Mode => triggerMode;
-        float IntervalSeconds => Mathf.Max(0.1f, intervalSeconds);
-        int IntervalBlocks => Mathf.Max(1, intervalBlocks);
-        float FirstDelaySeconds => firstDelaySeconds > 0f ? firstDelaySeconds : IntervalSeconds;
-        int GraceBlocks => Mathf.Max(0, graceBlocks);
-        bool TriggerAtLevelStart => triggerAtLevelStart;
-        bool ReapplyWhileActive => reapplyWhileActive;
-        float DurationOverride => overrideDuration ? Mathf.Max(0.1f, durationSeconds) : -1f;
-        float MagnitudeOverride => overrideMagnitude ? magnitude : float.NaN;
+        public string Label => string.IsNullOrWhiteSpace(label) ? "Scheduled Status" : label;
+        public StatusEffectDefinition Status => status;
+        public TriggerMode Mode => triggerMode;
+        public float IntervalSeconds => Mathf.Max(0.1f, intervalSeconds);
+        public int IntervalBlocks => Mathf.Max(1, intervalBlocks);
+        public float FirstDelaySeconds => firstDelaySeconds > 0f ? firstDelaySeconds : IntervalSeconds;
+        public int GraceBlocks => Mathf.Max(0, graceBlocks);
+        public bool TriggerAtLevelStart => triggerAtLevelStart;
+        public bool ReapplyWhileActive => reapplyWhileActive;
+        public float DurationOverride => overrideDuration ? Mathf.Max(0.1f, durationSeconds) : -1f;
+        public float MagnitudeOverride => overrideMagnitude ? magnitude : float.NaN;
     }
 
     private sealed class RuntimeEntry
