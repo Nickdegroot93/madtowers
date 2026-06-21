@@ -42,42 +42,51 @@ MonoBehaviour:
     floorOffsetY: 0
     worldOffsetX: 0
     verticalParallax: 0.7
+    horizontalParallax: 1
+    fillView: 1
     alpha: 1
   - sprite: {fileID: 21300000, guid: dfdc1d7b58712a745b45d0ba3d77d6f9, type: 3}
     worldHeight: 5
     floorOffsetY: 22
     worldOffsetX: 0
     verticalParallax: 0.8
+    horizontalParallax: 0.7
     alpha: 0.65
   - sprite: {fileID: 21300000, guid: 038d28f89962f6349b31a8a187cff218, type: 3}
     worldHeight: 16
     floorOffsetY: 4
     worldOffsetX: 0
     verticalParallax: 0.4
+    horizontalParallax: 0.4
     alpha: 1
   - sprite: {fileID: 21300000, guid: 97e441ef8e5f04b40a853f9ae27e506b, type: 3}
     worldHeight: 13
     floorOffsetY: 2
     worldOffsetX: 0
     verticalParallax: 0.3
+    horizontalParallax: 0.3
     alpha: 1
   - sprite: {fileID: 21300000, guid: f924ac498134a88409ebc504c42de111, type: 3}
     worldHeight: 12
     floorOffsetY: 1
     worldOffsetX: 0
     verticalParallax: 0.2
+    horizontalParallax: 0.18
     alpha: 1
   - sprite: {fileID: 21300000, guid: bab1d0afeb048c8488e9eebdedf9e2b7, type: 3}
     worldHeight: 11
     floorOffsetY: 0
     worldOffsetX: 0
     verticalParallax: 0.13
+    horizontalParallax: 0.1
     alpha: 1
   - sprite: {fileID: 21300000, guid: 955d8b3b30fc69448969558ca02bee01, type: 3}
     worldHeight: 10
     floorOffsetY: -0.3
     worldOffsetX: 0
     verticalParallax: 0.07
+    horizontalParallax: 0.04
+    groundFillColor: {r: 0.24, g: 0.16, b: 0.16, a: 1}
     alpha: 1
   particleCount: 0
   particleColor: {r: 1, g: 1, b: 1, a: 1}

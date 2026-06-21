@@ -42,60 +42,72 @@ MonoBehaviour:
     floorOffsetY: 0
     worldOffsetX: 0
     verticalParallax: 0.65
+    horizontalParallax: 1
+    fillView: 1
     alpha: 1
   - sprite: {fileID: 21300000, guid: cf4b205c4da89a141ab0f25b7f6c08f4, type: 3}
     worldHeight: 4.2
     floorOffsetY: 20
     worldOffsetX: 0
     verticalParallax: 0.8
+    horizontalParallax: 0.7
     alpha: 0.7
   - sprite: {fileID: 21300000, guid: fc40f905a0ee49f4b909e4d2b7eb2aa5, type: 3}
     worldHeight: 15
     floorOffsetY: 5
     worldOffsetX: 0
     verticalParallax: 0.38
+    horizontalParallax: 0.4
     alpha: 1
   - sprite: {fileID: 21300000, guid: 102766e3e0e20924da6c21ed3d732c17, type: 3}
     worldHeight: 13
     floorOffsetY: 2
     worldOffsetX: 0
     verticalParallax: 0.3
+    horizontalParallax: 0.3
+    groundFillColor: {r: 0.17, g: 0.18, b: 0.24, a: 1}
     alpha: 1
   - sprite: {fileID: 21300000, guid: 17e7cafec500aea40a2867474b47ea28, type: 3}
     worldHeight: 12
     floorOffsetY: 0.4
     worldOffsetX: -4.5
     verticalParallax: 0.22
+    horizontalParallax: 0.2
     alpha: 1
   - sprite: {fileID: 21300000, guid: 1f3bc8cd204078c45a49e15cc3bb9430, type: 3}
     worldHeight: 12
     floorOffsetY: 0.4
     worldOffsetX: 5
     verticalParallax: 0.22
+    horizontalParallax: 0.2
     alpha: 1
   - sprite: {fileID: 21300000, guid: 0a21431be38864648b7d294750da4ae2, type: 3}
     worldHeight: 11
     floorOffsetY: -0.2
     worldOffsetX: -5
     verticalParallax: 0.14
+    horizontalParallax: 0.12
     alpha: 1
   - sprite: {fileID: 21300000, guid: b4249a604a1868340bee95cbaeb9c8ca, type: 3}
     worldHeight: 11
     floorOffsetY: -0.2
     worldOffsetX: 5.5
     verticalParallax: 0.14
+    horizontalParallax: 0.12
     alpha: 1
   - sprite: {fileID: 21300000, guid: 31d47200e05fc594c90f824e63af4d82, type: 3}
     worldHeight: 9
     floorOffsetY: -0.4
     worldOffsetX: -5.5
     verticalParallax: 0.08
+    horizontalParallax: 0.05
     alpha: 1
   - sprite: {fileID: 21300000, guid: 567ef58e648b6d748bc904d5cb1d4408, type: 3}
     worldHeight: 9
     floorOffsetY: -0.4
     worldOffsetX: 5.5
     verticalParallax: 0.08
+    horizontalParallax: 0.05
     alpha: 1
   particleCount: 28
   particleColor: {r: 0.68, g: 1, b: 0.55, a: 0.34}

@@ -17,16 +17,22 @@ public partial class LevelPresentationController
 
         _worldRoot = new GameObject("BackdropElements").transform;
         _climbBaseY = targetCamera.transform.position.y;
+        // Horizontal parallax measures sideways drift from the resting framing center, not from
+        // wherever the opening pan starts the camera - so layers settle to neutral during play
+        // and slide into place as the pan glides back to center.
+        _panBaseX = TowerCameraController.FramingCenterX;
 
         IReadOnlyList<BackdropPreset.SpriteBackdropLayer> spriteLayers = _preset.SpriteBackdropLayers;
         int spriteLayerCount = spriteLayers != null ? spriteLayers.Count : 0;
         _spriteBackdropLayerTiles = new SpriteRenderer[spriteLayerCount][];
+        _spriteBackdropAprons = new SpriteRenderer[spriteLayerCount];
         for (int i = 0; i < spriteLayerCount; i++)
         {
             BackdropPreset.SpriteBackdropLayer layer = spriteLayers[i];
             if (layer == null || layer.Sprite == null) continue;
 
-            int tileRadius = layer.HorizontalTileRadius;
+            // A fill layer is a single full-screen panorama (no tiling); others tile sideways.
+            int tileRadius = layer.FillView ? 0 : layer.HorizontalTileRadius;
             int tileCount = tileRadius * 2 + 1;
             _spriteBackdropLayerTiles[i] = new SpriteRenderer[tileCount];
             for (int tile = 0; tile < tileCount; tile++)
@@ -38,6 +44,19 @@ public partial class LevelPresentationController
                 sr.color = new Color(1f, 1f, 1f, layer.Alpha);
                 sr.sortingOrder = SpriteBackdropSortingOrder + i;
                 _spriteBackdropLayerTiles[i][tile] = sr;
+            }
+
+            // Solid ground apron below an opaque ground layer: guarantees no seam or plain gap
+            // beneath it at any camera size, and sinks away with the layer as the tower climbs.
+            if (!layer.FillView && layer.GroundFillColor.a > 0f)
+            {
+                GameObject apronGo = new GameObject($"SpriteBackdropApron{i}");
+                apronGo.transform.SetParent(_worldRoot, false);
+                SpriteRenderer apron = apronGo.AddComponent<SpriteRenderer>();
+                apron.sprite = RuntimeSprites.Square();
+                apron.color = layer.GroundFillColor;
+                apron.sortingOrder = SpriteBackdropSortingOrder + i; // behind its layer's detail, with it
+                _spriteBackdropAprons[i] = apron;
             }
         }
 
@@ -151,6 +170,15 @@ public partial class LevelPresentationController
     private float CameraHalfHeight => targetCamera.orthographicSize;
     private float CameraHalfWidth => targetCamera.orthographicSize * targetCamera.aspect;
 
+    // Overscan for fill-view panoramas: a hair larger than the view so no edge ever shows.
+    private const float FillViewOverscan = 1.04f;
+    // Fill-view panoramas darken slightly toward this tint at full altitude, preserving the
+    // "the air thins as you climb" feel the old parallaxing sky layer gave before it cut off.
+    private static readonly Color FillViewHighTint = new Color(0.72f, 0.74f, 0.8f, 1f);
+    // How far a ground apron runs below its layer's bottom; deep enough to clear the screen
+    // bottom at the start, finite so it sinks out of view with the layer as the tower climbs.
+    private const float ApronDepth = 50f;
+
     private void UpdateSpriteBackdropLayers()
     {
         if (_spriteBackdropLayerTiles == null || _spriteBackdropLayerTiles.Length == 0 || targetCamera == null) return;
@@ -163,6 +191,8 @@ public partial class LevelPresentationController
             ? GameManager.Instance.floorOriginY
             : cam.y - CameraHalfHeight;
         float climbed = Climbed(cam);
+        float panX = cam.x - _panBaseX; // sideways drift from the neutral framing center
+        float altitude01 = Altitude01();
 
         for (int i = 0; i < _spriteBackdropLayerTiles.Length && i < layers.Count; i++)
         {
@@ -176,11 +206,19 @@ public partial class LevelPresentationController
             Vector2 size = sample.sprite.bounds.size;
             if (size.x <= 0f || size.y <= 0f) continue;
 
+            if (layer.FillView)
+            {
+                UpdateFillViewLayer(sample, layer, size, cam, altitude01);
+                continue;
+            }
+
             float targetHeight = layer.WorldHeight > 0f ? layer.WorldHeight : CameraHalfHeight * 2.15f;
             float scale = targetHeight / size.y;
             float scaledHeight = size.y * scale;
             float tileSpacing = Mathf.Max(0.1f, size.x * scale - layer.HorizontalTileOverlap);
-            float baseX = cam.x + layer.WorldOffsetX;
+            // Sideways parallax: anchor drifts LESS than the camera (factor < 1) so near layers
+            // track the pan and far layers lag, reading as depth. factor 1 == glued (no parallax).
+            float anchorX = _panBaseX + panX * layer.HorizontalParallax + layer.WorldOffsetX;
             float y = floorY + layer.FloorOffsetY + scaledHeight * 0.5f + climbed * layer.VerticalParallax;
             int center = tiles.Length / 2;
 
@@ -190,9 +228,43 @@ public partial class LevelPresentationController
                 if (sr == null) continue;
 
                 sr.transform.localScale = new Vector3(scale, scale, 1f);
-                sr.transform.position = new Vector3(baseX + (tile - center) * tileSpacing, y, 0f);
+                sr.transform.position = new Vector3(anchorX + (tile - center) * tileSpacing, y, 0f);
             }
+
+            UpdateLayerApron(i, cam, y - scaledHeight * 0.5f);
         }
+    }
+
+    // A full-screen panorama (the back-most sky/atmosphere). Scaled UNIFORMLY to cover the camera
+    // view plus overscan and centered on it - its edges can never enter the frame, so it never cuts
+    // off at the top however high the tower climbs. Uniform (not per-axis) so the artwork keeps its
+    // aspect: a round sun stays round. The overflowing side/edge is simply cropped off-screen.
+    private void UpdateFillViewLayer(SpriteRenderer sr, BackdropPreset.SpriteBackdropLayer layer,
+        Vector2 size, Vector3 cam, float altitude01)
+    {
+        float scale = Mathf.Max(
+            (CameraHalfWidth * 2f) / size.x,
+            (CameraHalfHeight * 2f) / size.y) * FillViewOverscan;
+        sr.transform.localScale = new Vector3(scale, scale, 1f);
+        sr.transform.position = new Vector3(cam.x, cam.y, 0f);
+
+        Color tint = Color.Lerp(Color.white, FillViewHighTint, altitude01);
+        tint.a = layer.Alpha;
+        sr.color = tint;
+    }
+
+    // Solid apron pinned to a layer's opaque bottom, running deep down so the ground always
+    // reaches the screen bottom with no seam, and sinking with the layer as the tower climbs.
+    private void UpdateLayerApron(int index, Vector3 cam, float layerBottomY)
+    {
+        if (_spriteBackdropAprons == null || index >= _spriteBackdropAprons.Length) return;
+        SpriteRenderer apron = _spriteBackdropAprons[index];
+        if (apron == null) return;
+
+        float width = CameraHalfWidth * 2.6f; // always spans the view, whatever the pan
+        apron.transform.localScale = new Vector3(width, ApronDepth, 1f);
+        // Top edge at the layer's bottom (small overlap to hide the seam), extending downward.
+        apron.transform.position = new Vector3(cam.x, layerBottomY + 0.06f - ApronDepth * 0.5f, 0f);
     }
 
     private Vector3 RandomCloudPosition(bool initialSpread)

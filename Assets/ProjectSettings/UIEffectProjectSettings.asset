@@ -13,6 +13,8 @@ ShaderVariantCollection:
       variants:
       - keywords: COLOR_FILTER
         passType: 0
+      - keywords: SAMPLING_BLUR_FAST
+        passType: 0
       - keywords: SAMPLING_BLUR_MEDIUM
         passType: 0
 --- !u!114 &11400000

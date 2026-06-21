@@ -42,8 +42,12 @@ public partial class LevelPresentationController : MonoBehaviour
     private float _climbBaseY;    // camera Y when the backdrop spawned; parallax measures
                                   // from here, NOT from the floor (the camera starts well
                                   // above the floor, which lifted parallax elements)
+    private float _panBaseX;      // the resting framing center X; horizontal parallax measures
+                                  // sideways drift from here, so layers sit neutral during
+                                  // normal play and slide into place during the opening pan
     private Transform _worldRoot; // clouds/hills/sun/props/particles live in world space
     private SpriteRenderer[][] _spriteBackdropLayerTiles;
+    private SpriteRenderer[] _spriteBackdropAprons; // optional solid ground fill below ground layers
     private SpriteRenderer[] _clouds;
     private float[] _cloudSpeeds;
     private float[] _cloudBobPhases;
@@ -136,6 +140,7 @@ public partial class LevelPresentationController : MonoBehaviour
         else DestroyImmediate(_worldRoot.gameObject);
         _worldRoot = null;
         _spriteBackdropLayerTiles = null;
+        _spriteBackdropAprons = null;
         _clouds = null;
         _cloudSpeeds = null;
         _cloudBobPhases = null;

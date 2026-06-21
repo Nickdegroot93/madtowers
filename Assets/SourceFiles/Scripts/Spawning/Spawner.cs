@@ -403,6 +403,13 @@ public class Spawner : MonoBehaviour
             return;
         }
 
+        // Opening camera pan: the level reveals its scenery before play begins. Hold the first
+        // piece until the pan finishes (TowerCameraController releases this and kicks the spawn).
+        if (CameraIntroGate.IsPlaying)
+        {
+            return;
+        }
+
         if (_upcoming.Count == 0) RefillQueue();
         BlockDefinition definition = _upcoming.Count > 0 ? _upcoming[0] : null;
         GameObject prefab = definition != null ? definition.Prefab : null;

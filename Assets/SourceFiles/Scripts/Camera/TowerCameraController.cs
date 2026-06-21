@@ -18,12 +18,27 @@ public class TowerCameraController : MonoBehaviour
     [SerializeField] private float fallbackHorizontalPadding = 1.5f;
     [SerializeField] private float fallbackZoomSmoothTime = 0.35f;
 
+    [Header("Opening pan")]
+    [Tooltip("Play a short left->right reveal before the first piece drops: the camera starts offset to the left and glides to center, showing off the scenery and the horizontal parallax.")]
+    [SerializeField] private bool playIntroPan = true;
+    [Tooltip("Seconds the opening pan takes. Block spawning is held until it finishes.")]
+    [Min(0f)]
+    [SerializeField] private float introPanDuration = 2f;
+    [Tooltip("World units the camera starts to the LEFT of the framing center before gliding right to it.")]
+    [Min(0f)]
+    [SerializeField] private float introPanDistance = 8f;
+
     // Horizontal follow is its own motion (it tracks the piece being steered, not the tower
     // climb), so it gets its own responsiveness rather than borrowing the vertical CameraSmoothTime.
     // Snappier than the vertical climb so following a flick-to-edge doesn't feel like drag.
     private const float HorizontalFollowSmoothTime = 0.21f;
 
     private static TowerCameraController _instance;
+
+    // The resting framing center X (ignores the opening pan's temporary offset). The backdrop
+    // reads this so its horizontal parallax measures sideways drift from the gameplay center.
+    private static float _framingCenterX;
+    public static float FramingCenterX => _framingCenterX;
 
     private Camera _camera;
     private float _verticalVelocity;
@@ -33,6 +48,10 @@ public class TowerCameraController : MonoBehaviour
     private float _baseY;
     private float _baseX;
     private bool _hasInitializedFraming;
+    private bool _introActive;
+    private bool _introStarted;
+    private float _introElapsed;
+    private float _introStartX;
     private float _shakeTime;
     private float _shakeDuration;
     private float _shakeAmplitude;
@@ -49,6 +68,13 @@ public class TowerCameraController : MonoBehaviour
         _highestCameraY = Mathf.Max(transform.position.y, MinimumCameraY);
         _baseY = _highestCameraY;
         _baseX = transform.position.x;
+        _framingCenterX = transform.position.x; // until the first real framing resolves
+        // The camera is the sole authority on the opening-pan spawn hold: commit here (before any
+        // Spawner.Start runs) so a level that pans never drops its first piece early, and one that
+        // doesn't pan never leaves a stale hold from a previous level.
+        _introActive = playIntroPan;
+        if (_introActive) CameraIntroGate.Begin();
+        else CameraIntroGate.End();
         SetCameraY(_highestCameraY);
         UpdateSpawnPoint();
         UpdateVerticalFollowers();
@@ -57,6 +83,7 @@ public class TowerCameraController : MonoBehaviour
     private void OnDestroy()
     {
         if (_instance == this) _instance = null;
+        if (_introActive) CameraIntroGate.End(); // never leak the hold if torn down mid-pan
     }
 
     // Purely visual impact shake (e.g. a flick-dropped piece landing). The shake is a
@@ -85,7 +112,16 @@ public class TowerCameraController : MonoBehaviour
         // Horizontal pan + zoom only when there is content to frame. Until then (degenerate first
         // frames before the floor/config resolves) we hold the Awake values rather than latching a
         // placeholder - so the first real frame still snaps cleanly with no zoom pop.
-        if (GetTargetFraming(out float targetX, out float targetSize))
+        bool framed = GetTargetFraming(out float targetX, out float targetSize);
+        if (framed) _framingCenterX = targetX; // resting center for the backdrop's parallax base (ignores the pan offset)
+
+        if (_introActive)
+        {
+            // The timer advances every frame, framed or not, so the spawn gate is always released
+            // even if framing never resolves - the pan visual only runs once content can be framed.
+            TickIntroPan(framed, targetX, targetSize);
+        }
+        else if (framed)
         {
             if (!_hasInitializedFraming)
             {
@@ -115,6 +151,44 @@ public class TowerCameraController : MonoBehaviour
 
         float remaining = _shakeTime / Mathf.Max(0.0001f, _shakeDuration); // 1 -> 0
         return Mathf.Sin((1f - remaining) * 30f) * _shakeAmplitude * remaining * remaining;
+    }
+
+    // Opening reveal: hold the gameplay zoom, start offset to the LEFT of the framing center and
+    // glide right to it over introPanDuration. The plateau slides into view and the new horizontal
+    // parallax pushes the scenery into place. The first piece is gated until this finishes.
+    private void TickIntroPan(bool framed, float targetX, float targetSize)
+    {
+        _introElapsed += Time.deltaTime;
+
+        if (framed)
+        {
+            if (!_introStarted)
+            {
+                _introStarted = true;
+                _hasInitializedFraming = true;
+                if (_camera != null && _camera.orthographic) _camera.orthographicSize = targetSize;
+                _introStartX = targetX - introPanDistance;
+            }
+            else
+            {
+                UpdateZoom(targetSize);
+            }
+
+            float t = introPanDuration > 0f ? Mathf.Clamp01(_introElapsed / introPanDuration) : 1f;
+            float eased = t * t * (3f - 2f * t); // smoothstep ease-in-out
+            _baseX = Mathf.Lerp(_introStartX, targetX, eased);
+        }
+
+        if (introPanDuration <= 0f || _introElapsed >= introPanDuration) EndIntroPan();
+    }
+
+    private void EndIntroPan()
+    {
+        _introActive = false;
+        _horizontalVelocity = 0f; // hand off to the follow with no residual velocity
+        CameraIntroGate.End();
+        // The lock->spawn chain was gated through the pan and never retries on its own - kick it.
+        Object.FindAnyObjectByType<Spawner>()?.ResumeSpawning();
     }
 
     private void UpdateZoom(float targetSize)

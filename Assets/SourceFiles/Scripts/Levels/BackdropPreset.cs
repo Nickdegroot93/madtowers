@@ -30,6 +30,13 @@ public class BackdropPreset : ScriptableObject
         [Tooltip("How much this layer follows the camera as the tower climbs. 0 = pinned to the floor, 1 = glued to the camera.")]
         [Range(0f, 1f)]
         [SerializeField] private float verticalParallax = 0.15f;
+        [Tooltip("How much this layer follows the camera as it pans sideways (building wide / opening pan). 1 = glued to the camera (no sideways parallax, the old behaviour); lower = the layer lags, reading as depth; 0 = fixed in the world (maximum parallax). Near layers want low values, far layers high.")]
+        [Range(0f, 1f)]
+        [SerializeField] private float horizontalParallax = 1f;
+        [Tooltip("Treat this layer as a full-screen panorama (the back-most sky/atmosphere). It is always scaled to blanket the whole camera view like the sky, so its edges can never enter the frame - it never cuts off at the top however high the tower climbs. Parallax/tiling/offset are ignored for a fill layer.")]
+        [SerializeField] private bool fillView = false;
+        [Tooltip("If alpha > 0, a solid apron of this colour fills the area below this layer down past the screen bottom, so an opaque ground layer never shows a seam or a plain gap beneath it. Set it to the layer's solid ground colour. Ignored for a fill layer.")]
+        [SerializeField] private Color groundFillColor = new Color(0f, 0f, 0f, 0f);
         [Range(0f, 1f)]
         [SerializeField] private float alpha = 1f;
 
@@ -40,6 +47,9 @@ public class BackdropPreset : ScriptableObject
         public int HorizontalTileRadius => Mathf.Clamp(horizontalTileRadius, 0, 8);
         public float HorizontalTileOverlap => Mathf.Max(0f, horizontalTileOverlap);
         public float VerticalParallax => verticalParallax;
+        public float HorizontalParallax => horizontalParallax;
+        public bool FillView => fillView;
+        public Color GroundFillColor => groundFillColor;
         public float Alpha => alpha;
     }
 
