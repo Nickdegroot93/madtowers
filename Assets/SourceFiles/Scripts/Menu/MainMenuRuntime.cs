@@ -56,6 +56,7 @@ public static class MainMenuRuntime
     private static GameObject _topStatusRoot;
     private static GameObject _navRoot;
     private static ChapterDefinition _backgroundChapter;
+    private static MenuChapterPager _pager;
     private static ChapterDefinition[] _chapters = Array.Empty<ChapterDefinition>();
     private static int _chapterIndex;
     private static bool _chapterIndexInitialized;
@@ -260,6 +261,7 @@ public static class MainMenuRuntime
         _topStatusRoot = null;
         _navRoot = null;
         _backgroundChapter = null;
+        _pager = null;
         ReleaseVideoTexture();
     }
 
@@ -272,6 +274,7 @@ public static class MainMenuRuntime
         _contentLayer = CreateLayer(_root.transform, "ContentLayer");
         _topStatusLayer = CreateLayer(_root.transform, "TopStatusLayer");
         _navLayer = CreateLayer(_root.transform, "NavigationLayer");
+        _pager = _root.AddComponent<MenuChapterPager>();
     }
 
     private static Transform CreateLayer(Transform parent, string name)
@@ -326,15 +329,21 @@ public static class MainMenuRuntime
         Color top = Color.Lerp(chapter.MenuAccentSecondaryColor, Color.black, 0.35f);
         Color bottom = Color.Lerp(chapter.MenuAccentColor, Color.black, 0.68f);
 
+        // The chapter imagery (image + video) lives on a movable track so a swipe can slide
+        // it - and the incoming chapter's background, parented into the same track - as one
+        // motion with the foreground. The dimming overlays below sit on the fixed layer so
+        // the whole screen stays evenly dimmed no matter where the track is panned.
+        RectTransform track = (RectTransform)CreateLayer(parent, "BgTrack");
+
         if (chapter.MenuBackgroundImage != null)
         {
-            Image image = CreateImage(parent, "BackgroundImage", chapter.MenuBackgroundImage, Color.white);
+            Image image = CreateImage(track, "BackgroundImage", chapter.MenuBackgroundImage, Color.white);
             Stretch(image.rectTransform);
             image.preserveAspect = false;
         }
         else
         {
-            Image fallback = CreateImage(parent, "GeneratedBackground",
+            Image fallback = CreateImage(track, "GeneratedBackground",
                 MenuSprites.Background(top, bottom, chapter.MenuAccentColor), Color.white);
             Stretch(fallback.rectTransform);
         }
@@ -346,12 +355,12 @@ public static class MainMenuRuntime
             _videoTexture.hideFlags = HideFlags.HideAndDontSave;
             _videoTexture.Create();
 
-            RawImage videoImage = CreateRawImage(parent, "BackgroundVideo", _videoTexture, Color.white);
+            RawImage videoImage = CreateRawImage(track, "BackgroundVideo", _videoTexture, Color.white);
             Stretch(videoImage.rectTransform);
             videoImage.color = new Color(1f, 1f, 1f, 0f);
 
             GameObject playerObject = new GameObject("BackgroundVideoPlayer");
-            playerObject.transform.SetParent(parent, false);
+            playerObject.transform.SetParent(track, false);
             VideoPlayer player = playerObject.AddComponent<VideoPlayer>();
             player.playOnAwake = false;
             player.isLooping = true;
@@ -512,7 +521,33 @@ public static class MainMenuRuntime
 
     private static void BuildPlayScreen(Transform parent, ChapterDefinition chapter)
     {
-        bool chapterUnlocked = Campaign.IsChapterUnlocked(_chapters, _chapterIndex);
+        // Full-screen, transparent swipe catcher behind the chapter content. As the parent
+        // of every play-screen graphic it picks up drags that bubble up from buttons and
+        // empty space; the level list's DirectionalScrollRect forwards its horizontal drags
+        // here too. Taps fall through to the buttons on top. The drag is handed to the pager,
+        // which slides this content root and the background together so a swipe feels
+        // continuous instead of snapping.
+        Image swipeCatcher = parent.gameObject.AddComponent<Image>();
+        swipeCatcher.color = Color.clear;
+        swipeCatcher.raycastTarget = true;
+        MenuSwipeArea swipe = parent.gameObject.AddComponent<MenuSwipeArea>();
+        if (_pager != null)
+        {
+            ConfigurePager((RectTransform)parent);
+            swipe.OnPanBegin = _pager.BeginPan;
+            swipe.OnPanMove = _pager.PanMove;
+            swipe.OnPanEnd = _pager.EndPan;
+        }
+
+        BuildChapterContent(parent, chapter, _chapterIndex);
+    }
+
+    // Builds a single chapter's foreground (title block, next-chapter card, level list) into
+    // an arbitrary container. The live screen passes the content root; the pager passes an
+    // off-screen neighbour panel so the incoming chapter is fully rendered while it slides in.
+    private static void BuildChapterContent(Transform parent, ChapterDefinition chapter, int chapterIndex)
+    {
+        bool chapterUnlocked = Campaign.IsChapterUnlocked(_chapters, chapterIndex);
         Color chapterMarkColor = Color.Lerp(chapter.MenuAccentSecondaryColor, chapter.MenuAccentColor, 0.62f);
         Color eyebrowColor = Color.Lerp(chapter.MenuAccentColor, TextPrimary, 0.42f);
 
@@ -537,7 +572,7 @@ public static class MainMenuRuntime
         title.characterSpacing = 6f;
         AutoSize(title, 40, 68);
 
-        BuildNextChapterCard(parent, chapter);
+        BuildNextChapterCard(parent, chapter, chapterIndex);
 
         if (!chapterUnlocked)
         {
@@ -549,11 +584,73 @@ public static class MainMenuRuntime
         BuildLevelList(parent, chapter, currentIndex);
     }
 
-    private static void BuildNextChapterCard(Transform parent, ChapterDefinition current)
+    // Hands the pager everything it needs to drive a chapter transition against the freshly
+    // built content root. Re-run on every BuildMenu so the pager never holds a stale root.
+    private static void ConfigurePager(RectTransform contentRoot)
+    {
+        RectTransform bgTrack = _backgroundLayer != null
+            ? _backgroundLayer.Find("BgTrack") as RectTransform
+            : null;
+
+        _pager.Configure(
+            contentRoot,
+            bgTrack,
+            (RectTransform)_contentLayer,
+            _chapters.Length,
+            ResolveSwipeTarget,
+            (panel, index) => BuildChapterContent(panel, _chapters[index], index),
+            index => BuildNeighborBackgroundImage(_chapters[index]),
+            index =>
+            {
+                SfxPlayer.Play("ui-button-click");
+                _chapterIndex = index;
+                _activeTab = MenuTab.Play;
+                BuildMenu();
+            });
+    }
+
+    // Swipe target for one step: +1 forward (only if unlocked), -1 back (always allowed -
+    // reaching the current chapter unlocked it). No wrap; returns -1 when there is nowhere
+    // to go that way, which the pager renders as a rubber-band resist.
+    private static int ResolveSwipeTarget(int direction)
+    {
+        if (_chapters == null || _chapters.Length <= 1) return -1;
+
+        int target = _chapterIndex + direction;
+        if (target < 0 || target >= _chapters.Length) return -1;
+        if (direction > 0 && !Campaign.IsChapterUnlocked(_chapters, target)) return -1;
+        return target;
+    }
+
+    // A lightweight background for the incoming chapter (static image only - no video) that
+    // rides the background track during a transition. Parented into the track, it sits below
+    // the fixed dimming overlays and so shares the same dimming as the current background.
+    private static RectTransform BuildNeighborBackgroundImage(ChapterDefinition chapter)
+    {
+        if (_backgroundLayer == null || chapter == null) return null;
+
+        Transform track = _backgroundLayer.Find("BgTrack");
+        if (track == null) return null;
+
+        Sprite sprite = chapter.MenuBackgroundImage;
+        if (sprite == null)
+        {
+            Color top = Color.Lerp(chapter.MenuAccentSecondaryColor, Color.black, 0.35f);
+            Color bottom = Color.Lerp(chapter.MenuAccentColor, Color.black, 0.68f);
+            sprite = MenuSprites.Background(top, bottom, chapter.MenuAccentColor);
+        }
+
+        Image image = CreateImage(track, "NeighborBackground", sprite, Color.white);
+        Stretch(image.rectTransform);
+        image.preserveAspect = false;
+        return image.rectTransform;
+    }
+
+    private static void BuildNextChapterCard(Transform parent, ChapterDefinition current, int chapterIndex)
     {
         if (_chapters.Length <= 1) return;
 
-        int nextIndex = (_chapterIndex + 1) % _chapters.Length;
+        int nextIndex = (chapterIndex + 1) % _chapters.Length;
         ChapterDefinition next = _chapters[nextIndex];
         bool unlocked = Campaign.IsChapterUnlocked(_chapters, nextIndex);
 
@@ -589,10 +686,9 @@ public static class MainMenuRuntime
         button.interactable = unlocked;
         button.onClick.AddListener(() =>
         {
-            SfxPlayer.Play("ui-button-click");
-            _chapterIndex = nextIndex;
-            _activeTab = MenuTab.Play;
-            BuildMenu();
+            // Slide to the next chapter (entering from the right) through the same transition
+            // a swipe uses, so the card and the gesture feel identical.
+            if (_pager != null) _pager.AnimateToChapter(nextIndex, 1);
         });
     }
 
@@ -660,7 +756,7 @@ public static class MainMenuRuntime
         ContentSizeFitter fitter = content.gameObject.AddComponent<ContentSizeFitter>();
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-        ScrollRect scroll = viewport.gameObject.AddComponent<ScrollRect>();
+        ScrollRect scroll = viewport.gameObject.AddComponent<DirectionalScrollRect>();
         scroll.content = content;
         scroll.viewport = viewport;
         scroll.horizontal = false;
