@@ -20,7 +20,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: e3c71d3e9e274806b34f38e698aef248, type: 2}
   - {fileID: 11400000, guid: bf752bc1877f4e249ea30b389ace5037, type: 2}
   menuBackgroundVideo: {fileID: 0}
-  menuBackgroundImage: {fileID: 21300000, guid: 2f0c259dcd0d494f8e24eaf7fb840cc0, type: 3}
+  menuBackgroundImage: {fileID: 21300000, guid: 346158104a4049d89bc31977ef1418e3, type: 3}
   nextChapterPreviewImage: {fileID: 0}
   menuAccentColor: {r: 0.46, g: 0.95, b: 0.38, a: 1}
   menuAccentSecondaryColor: {r: 0.12, g: 0.42, b: 0.22, a: 1}

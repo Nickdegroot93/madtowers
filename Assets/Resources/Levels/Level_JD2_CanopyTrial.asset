@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_JD2_CanopyTrial
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Canopy Trial
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 75eb4dd51b744ad2ab6ea35f5f361ef9, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: 157c61c28f674daaa3b9a47c0827fa20, type: 2}
   targetType: 1

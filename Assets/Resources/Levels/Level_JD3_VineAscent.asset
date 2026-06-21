@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_JD3_VineAscent
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Vine Ascent
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: eff1acf41fe741e19fff9b470a9b6091, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: d5ef5a8d6a9949148da443c32739fe8c, type: 2}
   targetType: 2

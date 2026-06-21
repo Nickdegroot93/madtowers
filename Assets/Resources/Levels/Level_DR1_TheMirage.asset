@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_DR1_TheMirage
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: The Mirage
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 325937a75dfc4937967071a197eb2dd3, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: e7daa3104128405ba51018e33535bbb8, type: 2}
   targetType: 1

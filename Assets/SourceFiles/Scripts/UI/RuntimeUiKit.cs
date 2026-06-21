@@ -11,7 +11,8 @@ public static class RuntimeUiKit
 {
     public static Font DefaultFont => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
-    // Display font for titles/buttons (Rajdhani, OFL - Resources/Fonts). Falls back to
+    // Display font for titles/buttons (Inter, OFL - Resources/Fonts): a humanist sans that
+    // reads warmer and less mechanical than a geometric/condensed display face. Falls back to
     // the built-in font if the asset is ever missing, so UI never hard-fails.
     private static Font _titleFont;
     public static Font TitleFont
@@ -20,7 +21,7 @@ public static class RuntimeUiKit
         {
             if (_titleFont == null)
             {
-                _titleFont = Resources.Load<Font>("Fonts/Rajdhani-Bold");
+                _titleFont = Resources.Load<Font>("Fonts/Inter-Variable");
                 if (_titleFont == null) _titleFont = DefaultFont;
             }
             return _titleFont;
@@ -83,6 +84,49 @@ public static class RuntimeUiKit
         image.color = color;
         image.raycastTarget = false;
         return image;
+    }
+
+    // Fills `size` with `sprite` cropped to cover (like CSS object-fit: cover): the sprite is
+    // scaled up to whichever axis needs it so it fully covers the slot, and the overflow is
+    // clipped by a RectMask2D. Lets one photographic sprite (e.g. a level thumbnail) sit
+    // undistorted in slots of any aspect ratio. Returns the clipping frame so callers can
+    // outline/anchor it. preserveAspect is unnecessary: the child is pre-sized to the sprite's
+    // own aspect, so it never stretches.
+    public static RectTransform CreateCoverImage(Transform parent, string name, Sprite sprite,
+        Color tint, Vector2 anchoredPosition, Vector2 size, Vector2 anchor)
+    {
+        RectTransform frame = CreateRect(parent, name, anchor, anchor, anchor, anchoredPosition, size);
+        // Rounded clip so the cropped image takes the card's corner radius (no square corners).
+        MakeRoundedMask(frame);
+
+        Image image = CreateImage(frame, "Image", sprite, tint);
+        RectTransform rect = image.rectTransform;
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = Vector2.zero;
+
+        float spriteWidth = sprite != null ? sprite.rect.width : size.x;
+        float spriteHeight = sprite != null ? sprite.rect.height : size.y;
+        float scale = Mathf.Max(size.x / Mathf.Max(spriteWidth, 1f), size.y / Mathf.Max(spriteHeight, 1f));
+        rect.sizeDelta = new Vector2(spriteWidth * scale, spriteHeight * scale);
+        return frame;
+    }
+
+    // Turns `target` into a rounded clip region: a RoundedPanel stencil (invisible) under a Mask,
+    // so its children are clipped to the panel's corner radius. Shared by cover-images and the
+    // menu's frosted-glass panels so both pick up the exact same rounding.
+    public static void MakeRoundedMask(RectTransform target)
+    {
+        Image stencil = target.GetComponent<Image>();
+        if (stencil == null) stencil = target.gameObject.AddComponent<Image>();
+        stencil.sprite = RuntimeSprites.RoundedPanel();
+        stencil.type = Image.Type.Sliced;
+        stencil.color = Color.white;
+        stencil.raycastTarget = false;
+
+        Mask mask = target.gameObject.AddComponent<Mask>();
+        mask.showMaskGraphic = false;
     }
 
     // A white rounded tile that backs a TRANSPARENT ability glyph, so cards and the
@@ -149,8 +193,8 @@ public static class RuntimeUiKit
         {
             if (_tmpTitleFont == null)
             {
-                Font rajdhani = Resources.Load<Font>("Fonts/Rajdhani-Bold");
-                _tmpTitleFont = rajdhani != null ? TMP_FontAsset.CreateFontAsset(rajdhani) : TmpBodyFont;
+                Font inter = Resources.Load<Font>("Fonts/Inter-Variable");
+                _tmpTitleFont = inter != null ? TMP_FontAsset.CreateFontAsset(inter) : TmpBodyFont;
             }
             return _tmpTitleFont;
         }

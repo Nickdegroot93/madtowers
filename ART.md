@@ -9,6 +9,8 @@ import settings are applied automatically to anything dropped there.
 
 General rules for every image:
 - **Format:** PNG. Transparency only where the spec says "transparent".
+  **Exception:** opaque photographic art (level thumbnails, chapter backgrounds)
+  ships as downscaled JPG — far smaller, no alpha to lose. See [images.md](images.md).
 - **Color:** Where the spec says "grayscale", paint in white/gray only — the
   game tints it at runtime, so any color you bake in will distort the tint.
 - **Sizes** are exact unless marked "~". Power-of-two sizes are nice but not

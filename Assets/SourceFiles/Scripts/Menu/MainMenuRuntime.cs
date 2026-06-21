@@ -16,6 +16,13 @@ using static RuntimeUiKit;
 public static class MainMenuRuntime
 {
     private const string LevelsResourcesPath = "Levels";
+
+    // Frosted-glass darkness: alpha of the dark wash drawn over each panel's blur (higher = more
+    // black / more readable). Tuned per surface; see AddFrostedGlass.
+    private const float TopBarFrostWash = 0.68f;
+    private const float CurrencyCardFrostWash = 0.82f;
+    private const float LevelCardFrostWash = 0.95f;
+
     private const float LevelListTopInset = 485f;
     private const float LevelListBottomInset = 205f;
     private const float LevelRowHeight = 220f;
@@ -380,21 +387,13 @@ public static class MainMenuRuntime
         Image dim = CreateImage(parent, "ReadabilityOverlay", RuntimeSprites.Square(),
             new Color(0.02f, 0.018f, 0.014f, 0.24f));
         Stretch(dim.rectTransform);
-
-        Image bottomShade = CreateImage(parent, "BottomShade", RuntimeSprites.Square(),
-            new Color(0.02f, 0.018f, 0.014f, 0.42f));
-        RectTransform shadeRect = bottomShade.rectTransform;
-        shadeRect.anchorMin = new Vector2(0f, 0f);
-        shadeRect.anchorMax = new Vector2(1f, 0f);
-        shadeRect.pivot = new Vector2(0.5f, 0f);
-        shadeRect.anchoredPosition = Vector2.zero;
-        shadeRect.sizeDelta = new Vector2(0f, 360f);
     }
 
     private static void BuildTopStatusBar(Transform parent, ChapterDefinition chapter)
     {
         PlayerProfileStore.Snapshot profile = PlayerProfileStore.Current;
         Color chapterTint = chapter != null ? chapter.MenuAccentSecondaryColor : GoldBase;
+        Sprite statBackground = chapter != null ? chapter.MenuBackgroundImage : null;
 
         RectTransform bar = CreateRect(parent, "TopStatusBar",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
@@ -403,6 +402,7 @@ public static class MainMenuRuntime
         barImage.sprite = RuntimeSprites.RoundedPanel();
         barImage.type = Image.Type.Sliced;
         barImage.color = WithAlpha(Color.Lerp(chapterTint, TextPrimary, 0.18f), 0.07f);
+        AddFrostedGlass(bar, statBackground, TopBarFrostWash);
         RuntimeUiKit.AddOutline(bar, GlassBorder);
 
         HorizontalLayoutGroup layout = bar.gameObject.AddComponent<HorizontalLayoutGroup>();
@@ -416,8 +416,8 @@ public static class MainMenuRuntime
 
         Image badge = CreateImage(bar, "LevelBadge",
             MenuSprites.PointHexBadge(
-                new Color(0.32f, 0.30f, 0.26f, 0.36f),
-                new Color(0.06f, 0.055f, 0.048f, 0.42f),
+                new Color(0.10f, 0.095f, 0.085f, 0.62f),
+                new Color(0.035f, 0.032f, 0.028f, 0.72f),
                 GlassBorder),
             Color.white);
         LayoutElement badgeLayout = badge.gameObject.AddComponent<LayoutElement>();
@@ -470,13 +470,43 @@ public static class MainMenuRuntime
         spacerLayout.minWidth = 24f;
         spacerLayout.flexibleWidth = 1f;
 
-        BuildCurrencyCard(bar, "$", profile.Coins.ToString("N0", CultureInfo.InvariantCulture), null);
-        BuildCurrencyCard(bar, null,
+        BuildCurrencyCard(bar, statBackground, "$", profile.Coins.ToString("N0", CultureInfo.InvariantCulture), null);
+        BuildCurrencyCard(bar, statBackground, null,
             $"{profile.Lives}/{profile.MaxLives}",
             $"{profile.LifeRefillRemaining.Minutes:00}:{profile.LifeRefillRemaining.Seconds:00}");
     }
 
-    private static void BuildCurrencyCard(Transform parent, string coinGlyph, string primary, string secondary)
+    // Turns a freshly-built card (root = RoundedPanel fill) into a frosted-glass panel: a blurred
+    // copy of the chapter background, clipped to the card's rounded silhouette and kept aligned to
+    // the screen as the card scrolls/swipes, under a dark wash for legibility. Call right after the
+    // fill image and BEFORE adding content so content draws on top. No-op without a background
+    // (the card keeps its plain darkened fill).
+    private static void AddFrostedGlass(RectTransform card, Sprite background, float washAlpha, float blurScale = 2f)
+    {
+        if (background == null) return;
+
+        // Rounded clip frame, ignored by layout groups (e.g. the top bar's HorizontalLayoutGroup)
+        // so it never counts as a layout item.
+        RectTransform frame = CreateRect(card, "FrostedGlass",
+            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+        MakeRoundedMask(frame);
+        frame.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+
+        // Blurred backdrop: the chapter background, screen-locked (so each card shows the slice
+        // behind it) and blurred via UIEffect (which blurs the element's own texture).
+        Image blur = CreateImage(frame, "Blur", background, Color.white);
+        blur.gameObject.AddComponent<MenuFrostedBackdrop>();
+        UIEffect blurFx = blur.gameObject.AddComponent<UIEffect>();
+        blurFx.samplingFilter = SamplingFilter.BlurFast;
+        blurFx.samplingScale = blurScale;
+
+        // Dark wash over the blur so text stays readable against bright backgrounds.
+        Image wash = CreateImage(frame, "Wash", RuntimeSprites.RoundedPanel(), new Color(0.03f, 0.028f, 0.025f, washAlpha));
+        wash.type = Image.Type.Sliced;
+        Stretch(wash.rectTransform);
+    }
+
+    private static void BuildCurrencyCard(Transform parent, Sprite background, string coinGlyph, string primary, string secondary)
     {
         RectTransform card = CreateRect(parent, "StatusCard",
             Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f),
@@ -487,20 +517,43 @@ public static class MainMenuRuntime
         Image cardImage = card.gameObject.AddComponent<Image>();
         cardImage.sprite = RuntimeSprites.RoundedPanel();
         cardImage.type = Image.Type.Sliced;
-        cardImage.color = new Color(0.025f, 0.023f, 0.021f, 0.32f);
+        cardImage.color = new Color(0.02f, 0.018f, 0.016f, 0.68f);
+        AddFrostedGlass(card, background, CurrencyCardFrostWash);
         RuntimeUiKit.AddOutline(card, GlassBorder);
 
         if (!string.IsNullOrEmpty(coinGlyph))
         {
-            Image coin = CreateImage(card, "Coin", RuntimeSprites.Bubble(), new Color(1f, 0.7f, 0.16f, 1f));
-            SetRect(coin.rectTransform, new Vector2(18f, 0f), new Vector2(46f, 46f), new Vector2(0f, 0.5f));
-            CreateTmp(coin.transform, "CoinGlyph", coinGlyph, 20, new Color(0.28f, 0.15f, 0.02f, 1f),
-                TextAnchor.MiddleCenter, FontStyle.Normal, RuntimeUiKit.DefaultFont);
+            Sprite coinIcon = MenuIcon("coin");
+            if (coinIcon != null)
+            {
+                Image coin = CreateImage(card, "Coin", coinIcon, Color.white);
+                coin.preserveAspect = true;
+                SetRect(coin.rectTransform, new Vector2(18f, 0f), new Vector2(48f, 48f), new Vector2(0f, 0.5f));
+            }
+            else
+            {
+                // Fallback if the coin art is missing: the procedural golden bubble with a "$".
+                Image coin = CreateImage(card, "Coin", RuntimeSprites.Bubble(), new Color(1f, 0.7f, 0.16f, 1f));
+                SetRect(coin.rectTransform, new Vector2(18f, 0f), new Vector2(46f, 46f), new Vector2(0f, 0.5f));
+                CreateTmp(coin.transform, "CoinGlyph", coinGlyph, 20, new Color(0.28f, 0.15f, 0.02f, 1f),
+                    TextAnchor.MiddleCenter, FontStyle.Normal, RuntimeUiKit.DefaultFont);
+            }
         }
         else
         {
-            Image heart = CreateImage(card, "Heart", RuntimeSprites.Heart(), new Color(1f, 0.22f, 0.15f, 1f));
-            SetRect(heart.rectTransform, new Vector2(18f, 0f), new Vector2(50f, 50f), new Vector2(0f, 0.5f));
+            Sprite heartIcon = MenuIcon("heart");
+            if (heartIcon != null)
+            {
+                Image heart = CreateImage(card, "Heart", heartIcon, Color.white);
+                heart.preserveAspect = true;
+                SetRect(heart.rectTransform, new Vector2(18f, 0f), new Vector2(50f, 50f), new Vector2(0f, 0.5f));
+            }
+            else
+            {
+                // Fallback if the heart art is missing: the procedural heart sprite.
+                Image heart = CreateImage(card, "Heart", RuntimeSprites.Heart(), new Color(1f, 0.22f, 0.15f, 1f));
+                SetRect(heart.rectTransform, new Vector2(18f, 0f), new Vector2(50f, 50f), new Vector2(0f, 0.5f));
+            }
         }
 
         Vector2 primaryPosition = string.IsNullOrEmpty(secondary) ? new Vector2(78f, 0f) : new Vector2(78f, 12f);
@@ -517,6 +570,21 @@ public static class MainMenuRuntime
         SetRect(divider.rectTransform, new Vector2(178f, 0f), new Vector2(1f, 36f), new Vector2(0f, 0.5f));
         CreateTmp(card, "Plus", "+", 32, TextPrimary, TextAnchor.MiddleCenter,
             FontStyle.Normal, RuntimeUiKit.DefaultFont, new Vector2(197f, 0f), new Vector2(40f, 42f), new Vector2(0f, 0.5f));
+    }
+
+    // Cached menu icons loaded by short name from Resources/Menu (e.g. "coin", "heart"). Drop a
+    // transparent PNG into Assets/Resources/Menu and it imports as a sprite automatically (see
+    // MenuArtImportSettings); a missing file returns null so call sites can fall back.
+    private static readonly Dictionary<string, Sprite> MenuIconCache = new Dictionary<string, Sprite>();
+
+    private static Sprite MenuIcon(string name)
+    {
+        if (!MenuIconCache.TryGetValue(name, out Sprite sprite))
+        {
+            sprite = Resources.Load<Sprite>($"Menu/{name}");
+            MenuIconCache[name] = sprite;
+        }
+        return sprite;
     }
 
     private static void BuildPlayScreen(Transform parent, ChapterDefinition chapter)
@@ -548,40 +616,33 @@ public static class MainMenuRuntime
     private static void BuildChapterContent(Transform parent, ChapterDefinition chapter, int chapterIndex)
     {
         bool chapterUnlocked = Campaign.IsChapterUnlocked(_chapters, chapterIndex);
-        Color chapterMarkColor = Color.Lerp(chapter.MenuAccentSecondaryColor, chapter.MenuAccentColor, 0.62f);
         Color eyebrowColor = Color.Lerp(chapter.MenuAccentColor, TextPrimary, 0.42f);
 
-        Image leftDiamond = CreateImage(parent, "ChapterDiamondLeft", RuntimeSprites.Square(), eyebrowColor);
-        leftDiamond.color = chapterMarkColor;
-        SetRect(leftDiamond.rectTransform, new Vector2(82f, -252f), new Vector2(8f, 8f), new Vector2(0f, 1f));
-        leftDiamond.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
-
-        Image rightDiamond = CreateImage(parent, "ChapterDiamondRight", RuntimeSprites.Square(), eyebrowColor);
-        rightDiamond.color = chapterMarkColor;
-        SetRect(rightDiamond.rectTransform, new Vector2(267f, -252f), new Vector2(8f, 8f), new Vector2(0f, 1f));
-        rightDiamond.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
-
+        // "CHAPTER N" eyebrow, left-aligned with the title below and sitting close to it.
         TextMeshProUGUI eyebrow = CreateTmp(parent, "ChapterEyebrow", $"{TrackedUpper("Chapter", " ", "   ")}  {chapter.ChapterNumber}", 20,
             eyebrowColor, TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.TitleFont,
-            new Vector2(105f, -232f), new Vector2(180f, 42f), new Vector2(0f, 1f));
+            new Vector2(76f, -252f), new Vector2(180f, 42f), new Vector2(0f, 1f));
         AutoSize(eyebrow, 16, 20);
 
         TextMeshProUGUI title = CreateTmp(parent, "ChapterTitle", chapter.DisplayName.ToUpperInvariant(), 68,
-            TextPrimary, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            TextPrimary, TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.TitleFont,
             new Vector2(76f, -276f), new Vector2(700f, 104f), new Vector2(0f, 1f));
         title.characterSpacing = 6f;
         AutoSize(title, 40, 68);
 
-        BuildNextChapterCard(parent, chapter, chapterIndex);
-
         if (!chapterUnlocked)
         {
             BuildLockedChapterMessage(parent);
-            return;
+        }
+        else
+        {
+            int currentIndex = CurrentLevelIndex(chapter);
+            BuildLevelList(parent, chapter, currentIndex);
         }
 
-        int currentIndex = CurrentLevelIndex(chapter);
-        BuildLevelList(parent, chapter, currentIndex);
+        // Built last so it renders on top of the level list and stays tappable in its
+        // bottom-right home (the list's scroll viewport would otherwise sit over it).
+        BuildNextChapterCard(parent, chapter, chapterIndex);
     }
 
     // Hands the pager everything it needs to drive a chapter transition against the freshly
@@ -655,8 +716,8 @@ public static class MainMenuRuntime
         bool unlocked = Campaign.IsChapterUnlocked(_chapters, nextIndex);
 
         RectTransform card = CreateRect(parent, "NextChapterCard",
-            new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
-            new Vector2(-60f, -238f), new Vector2(300f, 160f));
+            new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f),
+            new Vector2(-60f, 210f), new Vector2(300f, 160f));
         Image cardImage = card.gameObject.AddComponent<Image>();
         cardImage.sprite = RuntimeSprites.RoundedPanel();
         cardImage.type = Image.Type.Sliced;
@@ -668,9 +729,8 @@ public static class MainMenuRuntime
             : next.MenuBackgroundImage;
         if (preview != null)
         {
-            Image previewImage = CreateImage(card, "Preview", preview, new Color(1f, 1f, 1f, 0.42f));
-            Stretch(previewImage.rectTransform);
-            previewImage.preserveAspect = false;
+            CreateCoverImage(card, "Preview", preview, new Color(1f, 1f, 1f, 0.42f),
+                Vector2.zero, new Vector2(300f, 160f), new Vector2(0.5f, 0.5f));
         }
 
         CreateTmp(card, "NextLabel", "NEXT CHAPTER", 15, TextMuted, TextAnchor.MiddleLeft,
@@ -852,8 +912,10 @@ public static class MainMenuRuntime
         Image cardImage = card.gameObject.AddComponent<Image>();
         cardImage.sprite = RuntimeSprites.RoundedPanel();
         cardImage.type = Image.Type.Sliced;
-        Color cardFill = MenuGlassFill(chapter, unlocked ? 0.62f : 0.50f);
+        Color cardFill = MenuGlassFill(chapter, unlocked ? 0.80f : 0.68f);
         cardImage.color = cardFill;
+
+        AddFrostedGlass(card, chapter != null ? chapter.MenuBackgroundImage : null, LevelCardFrostWash);
 
         // Every card gets a thin cream border; the active one uses the CHAPTER colour (a bright
         // warm gold) at full strength plus the glow, so it reads as "this chapter's" highlight.
@@ -880,10 +942,10 @@ public static class MainMenuRuntime
         Sprite thumbSprite = level.MenuThumbnail != null
             ? level.MenuThumbnail
             : MenuSprites.LevelThumbnail(index, chapter.MenuAccentColor, chapter.MenuAccentSecondaryColor);
-        Image thumb = CreateImage(card, "Thumbnail", thumbSprite, unlocked ? Color.white : new Color(0.55f, 0.55f, 0.55f, 0.55f));
-        SetRect(thumb.rectTransform, new Vector2(22f, -16f), new Vector2(132f, 152f), new Vector2(0f, 1f));
-        thumb.preserveAspect = false;
-        RuntimeUiKit.AddOutline(thumb.transform, WithAlpha(TextPrimary, unlocked ? 0.18f : 0.08f));
+        RectTransform thumb = CreateCoverImage(card, "Thumbnail", thumbSprite,
+            unlocked ? Color.white : new Color(0.55f, 0.55f, 0.55f, 0.55f),
+            new Vector2(22f, -16f), new Vector2(132f, 152f), new Vector2(0f, 1f));
+        RuntimeUiKit.AddOutline(thumb, WithAlpha(TextPrimary, unlocked ? 0.18f : 0.08f));
 
         // Hollow diamond outline (faint fill, bright crisp cream border), aligned to the TITLE
         // row near the top of the card - sitting in the gap between the thumbnail and the title.
@@ -917,7 +979,7 @@ public static class MainMenuRuntime
         columnLayout.childForceExpandHeight = false;
 
         TextMeshProUGUI title = CreateTmp(column, "Title", level.DisplayName, 40, titleColor, TextAnchor.LowerLeft,
-            FontStyle.Bold, RuntimeUiKit.DefaultFont);
+            FontStyle.Normal, RuntimeUiKit.TitleFont);
         AutoSize(title, 28, 40);
         LayoutElement titleLayout = title.gameObject.AddComponent<LayoutElement>();
         titleLayout.preferredHeight = 48f;
@@ -954,7 +1016,7 @@ public static class MainMenuRuntime
     private static void BuildProgressLine(Transform column, LevelMenuPresentation.Snapshot presentation,
         bool unlocked, bool completed, Color primaryColor, Color suffixColor)
     {
-        Color completeColor = new Color(0.68f, 0.9f, 0.24f, 1f);
+        Color completeColor = new Color(0.56f, 0.74f, 0.5f, 1f);
         Color valueColor = !unlocked ? LockedColor : (completed ? completeColor : primaryColor);
         Color restColor = !unlocked ? LockedColor : (completed ? Color.Lerp(completeColor, TextPrimary, 0.18f) : suffixColor);
 
@@ -1166,10 +1228,9 @@ public static class MainMenuRuntime
         Sprite thumb = level.MenuThumbnail != null
             ? level.MenuThumbnail
             : MenuSprites.LevelThumbnail(index, chapter.MenuAccentColor, chapter.MenuAccentSecondaryColor);
-        Image image = CreateImage(panel, "Image", thumb, Color.white);
-        SetRect(image.rectTransform, new Vector2(0f, -60f), new Vector2(760f, 440f), new Vector2(0.5f, 1f));
-        image.preserveAspect = false;
-        RuntimeUiKit.AddOutline(image.transform, GoldOutline(0.2f));
+        RectTransform image = CreateCoverImage(panel, "Image", thumb, Color.white,
+            new Vector2(0f, -60f), new Vector2(760f, 440f), new Vector2(0.5f, 1f));
+        RuntimeUiKit.AddOutline(image, GoldOutline(0.2f));
 
         // Title + stat lines (same source the level cards use).
         CreateTmp(panel, "Title", level.DisplayName, 56, TextPrimary, TextAnchor.MiddleCenter,
