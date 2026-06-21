@@ -30,6 +30,15 @@ game reads.** Keep them matching when you move things.
 To add a power-up, see the doc comment on `Scripts/PowerUps/PowerUpDefinition.cs`.
 A power-up only appears in-game once it's added to a game mode's `powerUpChoicePool`.
 
+`PowerUps/Status/` holds reusable `StatusEffectDefinition` assets. These are timed game
+states, not necessarily power-up-only content: abilities can apply them, and levels can
+schedule them through `ScheduledStatusModifier` for chapter/theme pressure events.
+
+## Modifiers/ — per-level custom behaviour
+One `.asset` per `LevelModifier` configuration. Assign these to `LevelDefinition.modifiers`.
+Use `ScheduledStatusModifier` assets here for repeatable chapter effects such as snowstorms,
+sandstorms, wind windows, rain slip, or cyberpunk neon-sync states.
+
 ## GameModes/ + ../Resources/GameModes/
 One asset per mode (rules, physics tuning dials, camera, islands, power-up pool/cadence).
 Modes used by the level-select menu live in `Resources/` (loaded by name at runtime);

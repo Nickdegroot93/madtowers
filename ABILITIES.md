@@ -116,10 +116,28 @@ particle quad whose `HS_ScreenEffect` sizes it to the view, tuned to a warm edge
 haze (arrow sub-effect disabled, smoke recoloured). The controller loops every system for the
 window and stops them to fade out.
 
-Note: `ScorePerBlockBonus` amplifies score, and score is the progression currency (win
-targets, picker milestones, wave counts all accelerate — that's the designed effect).
-The picker milestone check is crossing-based so jumps can't skip offers, and the
-difficulty ramp deliberately uses the UNAMPLIFIED amount.
+Note: `ScorePerBlockBonus` amplifies score-based rewards/progression such as picker
+milestones and personal-best score. It does not create extra physical pieces: live
+`PlaceBlocks` goals, height checks, and `ScheduledStatusModifier` block-count schedules use
+real placed blocks instead. The picker milestone check is crossing-based so jumps can't skip
+offers, and the difficulty ramp deliberately uses the UNAMPLIFIED amount.
+
+### Scheduled level/chapter states
+
+Abilities are not the only source of statuses. A level can apply the same
+`StatusEffectDefinition` assets through `ScheduledStatusModifier` (see **LEVELS.md**):
+for example, a snowstorm every 60 seconds, a sandstorm every 30 physical placed blocks,
+or a cyberpunk "all blocks glow the same neon color" window. The status asset still owns
+the timed state and screen overlay; the modifier only owns the schedule.
+
+Use this split for chapter-flavoured pressure events:
+
+- Status asset = "what state is active, for how long, and what overlay appears."
+- Optional listener component = "what custom gameplay changes while this specific status is active."
+- Scheduled modifier asset = "when this level applies the state."
+
+Block-count schedules use `GameEvents.BlockPlaced`, not score, so score-amplifying effects do
+not accidentally accelerate "every N blocks" hazards.
 
 ## 6. Combo triggers — patterns separate from effects
 
@@ -265,6 +283,11 @@ anything).
 
 **New status effect**: a `StatusEffectDefinition` asset. New kind = enum member + its
 consult point in the relevant core system.
+
+**New scheduled chapter/level effect**: usually no new scheduler code. Create a
+`StatusEffectDefinition`, add visuals via `screenEffect`, add a listener component only if
+the state needs custom gameplay, then schedule it with `ScheduledStatusModifier` on the
+`LevelDefinition`.
 
 **New combo trigger**: a `ComboTriggerDefinition` asset; new relation = enum member +
 one case in `ComboDetector.Matches`.

@@ -67,8 +67,45 @@ fields are safe per-play state), and they receive a context (GameManager + Spawn
 periodic velocity jolts to the whole tower. Wind, fog, timed events, starting towers — all
 belong here.
 
+`OnBlockLocked(context, totalBlocksPlaced)` is driven by physical pieces that successfully
+joined the tower. It is not score, and score/status bonuses do not inflate it.
+
 Rule of thumb: if two levels could ever want it with different numbers, it's a modifier with
 serialized fields, not a one-off hack.
+
+#### Scheduled chapter/theme effects
+
+For "every N seconds / every N blocks, enter a temporary state" levels, use
+`ScheduledStatusModifier` instead of writing a bespoke scheduler. The modifier lives in
+`Scripts/Levels/Modifiers/`; create an asset with **Create > Stacking > Levels > Modifiers >
+Scheduled Status**, store it under `Assets/Data/Modifiers/`, then drag it onto a
+`LevelDefinition.modifiers` slot.
+
+Each scheduled entry points at a `StatusEffectDefinition` asset and chooses one trigger:
+
+- `Time`: starts after `firstDelaySeconds` (or `intervalSeconds` when first delay is 0), then
+  repeats every `intervalSeconds`.
+- `BlockCount`: repeats every `intervalBlocks` **physical placed pieces**. This deliberately
+  ignores score bonuses such as Overdrive, so "every 30 blocks" means 30 real pieces joined
+  the tower.
+
+Shared knobs: `graceBlocks` delays activation until the player has built a small base;
+`triggerAtLevelStart` applies the state immediately once grace rules allow; duration and
+magnitude overrides can replace the status asset's defaults per level; multiple entries in
+one modifier can overlap naturally (snow + wind, sand + lightning, etc.).
+
+Authoring recipe for a chapter-flavoured pressure event:
+
+1. Create or reuse a `StatusEffectDefinition` asset (currently under
+   `Assets/Data/PowerUps/Status/`). Use `Custom` when no built-in core consult point exists.
+2. Put the player-facing field/overlay prefab on `StatusEffectDefinition.screenEffect` when
+   the state needs obvious feedback (snowstorm veil, sand haze, neon pulse).
+3. If the status changes gameplay beyond the built-in kinds, add a small runtime listener
+   component that queries `StatusEffects.IsActive(status)` and owns that behaviour
+   (wind jolts, block visual override, temporary friction change). Keep the scheduler unaware
+   of the effect details.
+4. Create a `ScheduledStatusModifier` asset per level/chapter difficulty, add one or more
+   entries, then assign it to the level's Modifiers list.
 
 ### Level types (the catalog)
 
@@ -81,6 +118,7 @@ touch engine code.
 |---|---|---|
 | **Classic stacking** | any mode, no modifiers — the base game | `Endless` (free play), `ReachHeight` (climb to X m), or `PlaceBlocks` (stack N) — three sub-flavours for free |
 | **Height-Limit Waves** ("Laser Limit" — Tricky Towers' puzzle mode) | `HeightLimitWavesModifier` asset on the level | `PlaceBlocks` = sum of wave counts |
+| **Scheduled theme pressure** (snowstorms, sandstorms, neon sync, rain...) | `ScheduledStatusModifier` applying one or more `StatusEffectDefinition` assets | any standard goal |
 | *future: rising water, timed rush, wind gauntlet…* | one modifier subclass each, same recipe | standard goals |
 
 **Building a new type** (the recipe Height-Limit Waves followed):

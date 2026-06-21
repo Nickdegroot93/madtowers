@@ -182,7 +182,7 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
 
     // A wave just cleared: hold the next piece until the line settles at the new height and the
     // band it reveals has popped in. SpawnNextBlock was about to run for this very lock (the lock
-    // raised ScoreChanged -> here -> the gate, all before BlockController fires OnBlockLocked ->
+    // raised BlockPlaced -> here -> the gate, all before BlockController fires OnBlockLocked ->
     // Spawner), so setting the gate now suppresses that imminent spawn; OnUpdate resumes it.
     private void BeginRevealHold()
     {

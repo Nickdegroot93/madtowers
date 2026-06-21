@@ -44,6 +44,7 @@ public class LevelRuntimeController : MonoBehaviour
         {
             GameManager = GameManager.Instance,
             Spawner = FindAnyObjectByType<Spawner>(),
+            Status = GetComponent<StatusEffects>(),
             Level = _level
         };
 
@@ -114,7 +115,7 @@ public class LevelRuntimeController : MonoBehaviour
 
     private void OnEnable()
     {
-        GameEvents.ScoreChanged += HandleScoreChanged;
+        GameEvents.BlockPlaced += HandleBlockPlaced;
         GameEvents.StandingBlocksChanged += HandleStandingBlocksChanged;
         GameEvents.HeightChanged += HandleHeightChanged;
         GameEvents.GameOver += HandleGameOver;
@@ -122,7 +123,7 @@ public class LevelRuntimeController : MonoBehaviour
 
     private void OnDisable()
     {
-        GameEvents.ScoreChanged -= HandleScoreChanged;
+        GameEvents.BlockPlaced -= HandleBlockPlaced;
         GameEvents.StandingBlocksChanged -= HandleStandingBlocksChanged;
         GameEvents.HeightChanged -= HandleHeightChanged;
         GameEvents.GameOver -= HandleGameOver;
@@ -361,12 +362,12 @@ public class LevelRuntimeController : MonoBehaviour
         }
     }
 
-    private void HandleScoreChanged(int score)
+    private void HandleBlockPlaced(int totalBlocksPlaced)
     {
-        // Cumulative progression - modifiers ramp per real placement.
+        // Cumulative physical placements - modifiers ramp per real piece, never score bonuses.
         for (int i = 0; i < _activeModifiers.Count; i++)
         {
-            _activeModifiers[i].OnBlockLocked(_modifierContext, score);
+            _activeModifiers[i].OnBlockLocked(_modifierContext, totalBlocksPlaced);
         }
     }
 

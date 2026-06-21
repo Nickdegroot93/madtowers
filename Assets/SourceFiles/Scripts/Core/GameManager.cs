@@ -16,6 +16,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float _maxHeight = 0f;
     [SerializeField] private int _score = 0;
     [SerializeField] private int _standingBlocks = 0;
+    [SerializeField] private int _totalPlacedBlocks = 0;
     [SerializeField] private int _lives = 1;
 
     public bool isGameOver { get; private set; }
@@ -346,6 +347,8 @@ public class GameManager : MonoBehaviour
             identity.MarkCountedAsPlaced();
             _lastPlacedBlock = _activeBlock;
         }
+        _totalPlacedBlocks++;
+        GameEvents.RaiseBlockPlaced(_totalPlacedBlocks);
     }
 
     // The live count of real placed blocks present (HUD total + PlaceBlocks win). Clamped
