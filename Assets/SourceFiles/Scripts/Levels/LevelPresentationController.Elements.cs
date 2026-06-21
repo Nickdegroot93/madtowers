@@ -18,9 +18,6 @@ public partial class LevelPresentationController
         _worldRoot = new GameObject("BackdropElements").transform;
         _climbBaseY = targetCamera.transform.position.y;
 
-        const int BackdropTileRadius = 2;
-        const int BackdropTileCount = BackdropTileRadius * 2 + 1;
-
         IReadOnlyList<BackdropPreset.SpriteBackdropLayer> spriteLayers = _preset.SpriteBackdropLayers;
         int spriteLayerCount = spriteLayers != null ? spriteLayers.Count : 0;
         _spriteBackdropLayerTiles = new SpriteRenderer[spriteLayerCount][];
@@ -29,10 +26,12 @@ public partial class LevelPresentationController
             BackdropPreset.SpriteBackdropLayer layer = spriteLayers[i];
             if (layer == null || layer.Sprite == null) continue;
 
-            _spriteBackdropLayerTiles[i] = new SpriteRenderer[BackdropTileCount];
-            for (int tile = 0; tile < BackdropTileCount; tile++)
+            int tileRadius = layer.HorizontalTileRadius;
+            int tileCount = tileRadius * 2 + 1;
+            _spriteBackdropLayerTiles[i] = new SpriteRenderer[tileCount];
+            for (int tile = 0; tile < tileCount; tile++)
             {
-                GameObject go = new GameObject($"SpriteBackdrop{i}_{tile - BackdropTileRadius}");
+                GameObject go = new GameObject($"SpriteBackdrop{i}_{tile - tileRadius}");
                 go.transform.SetParent(_worldRoot, false);
                 SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
                 sr.sprite = layer.Sprite;
@@ -180,7 +179,7 @@ public partial class LevelPresentationController
             float targetHeight = layer.WorldHeight > 0f ? layer.WorldHeight : CameraHalfHeight * 2.15f;
             float scale = targetHeight / size.y;
             float scaledHeight = size.y * scale;
-            float tileSpacing = Mathf.Max(0.1f, size.x * scale - 0.08f);
+            float tileSpacing = Mathf.Max(0.1f, size.x * scale - layer.HorizontalTileOverlap);
             float baseX = cam.x + layer.WorldOffsetX;
             float y = floorY + layer.FloorOffsetY + scaledHeight * 0.5f + climbed * layer.VerticalParallax;
             int center = tiles.Length / 2;

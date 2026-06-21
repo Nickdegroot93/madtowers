@@ -11,11 +11,10 @@ using UnityEngine;
 /// </summary>
 public static class Campaign
 {
-    // DEV ONLY: short-circuits every lock so all chapters/levels are playable while building
-    // content. Progress and personal bests still record normally (the save stays honest).
-    // Compile-gated so a release build can never ship with it true; development builds and
-    // the editor keep it on.
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    // DEV ONLY: add MADTOWERS_UNLOCK_ALL to scripting define symbols when a local build
+    // needs every chapter/level open. Keep off by default so editor testing exercises
+    // the same progression rules as release.
+#if MADTOWERS_UNLOCK_ALL
     public static readonly bool UnlockAllForTesting = true;
 #else
     public static readonly bool UnlockAllForTesting = false;
@@ -36,9 +35,24 @@ public static class Campaign
         if (_cachedChapters == null)
         {
             _cachedChapters = Resources.LoadAll<ChapterDefinition>("Chapters");
-            Array.Sort(_cachedChapters, (a, b) => a.SortOrder.CompareTo(b.SortOrder));
+            Array.Sort(_cachedChapters, CompareChapters);
         }
         return _cachedChapters;
+    }
+
+    private static int CompareChapters(ChapterDefinition a, ChapterDefinition b)
+    {
+        if (ReferenceEquals(a, b)) return 0;
+        if (a == null) return 1;
+        if (b == null) return -1;
+
+        int order = a.SortOrder.CompareTo(b.SortOrder);
+        if (order != 0) return order;
+
+        int number = a.ChapterNumber.CompareTo(b.ChapterNumber);
+        if (number != 0) return number;
+
+        return string.Compare(a.name, b.name, StringComparison.Ordinal);
     }
 
     /// <summary>All chapters, sorted by play order.</summary>
@@ -73,7 +87,7 @@ public static class Campaign
 
         for (int i = 0; i < levels.Count; i++)
         {
-            if (levels[i] != null && !ProgressStore.IsLevelCompleted(levels[i])) return false;
+            if (levels[i] == null || !ProgressStore.IsLevelCompleted(levels[i])) return false;
         }
         return true;
     }
@@ -100,10 +114,12 @@ public static class Campaign
     public static bool IsLevelUnlocked(ChapterDefinition chapter, int levelIndex)
     {
         if (UnlockAllForTesting) return true;
+        if (chapter == null) return false;
         if (chapter.AlwaysUnlocked) return true;
+        if (chapter.Levels == null || levelIndex < 0 || levelIndex >= chapter.Levels.Count) return false;
         if (levelIndex <= 0) return true;
 
         LevelDefinition previous = chapter.Levels[levelIndex - 1];
-        return previous == null || ProgressStore.IsLevelCompleted(previous);
+        return previous != null && ProgressStore.IsLevelCompleted(previous);
     }
 }

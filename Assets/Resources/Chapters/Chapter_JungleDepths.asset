@@ -30,8 +30,8 @@ MonoBehaviour:
   backdrop: {fileID: 11400000, guid: 9774c5991d154ae18affdf92a7b92cd8, type: 2}
   music: {fileID: 0}
   musicPlaylist:
-  - {fileID: 8300000, guid: 8597e6dec47742bc9898fedff4a07a36, type: 3}
-  - {fileID: 8300000, guid: b1f536913deb486da7cfc0a903a23087, type: 3}
+  - {fileID: 8300000, guid: fbd331c6c4994403b17a30aa6f0bd519, type: 3}
+  - {fileID: 8300000, guid: 000e5f93a6d148cc853a93b97bce0891, type: 3}
   skinFolder: Skins/Jungle
   alwaysUnlocked: 0
   featuredUnlocks: []

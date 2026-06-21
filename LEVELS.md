@@ -124,12 +124,10 @@ previous chapter's levels are ALL completed; levels within a chapter unlock sequ
 Rules live in `Campaign.cs` (read-side only); completions and personal bests persist via
 `ProgressStore` (see **DATA.md** for the persistence architecture and cloud-sync plan).
 A chapter with `alwaysUnlocked: true` is a sandbox — always playable, never gates the
-campaign (that's Testing Grounds, parked at sortOrder 1000). The menu shows campaign
-chapters as a carousel (one chapter per screen, arrows cycle); sandbox + unthemed levels
-live behind the "Test Levels" button.
-`Campaign.UnlockAllForTesting` is compile-gated: **true** in the editor and development
-builds (everything playable while building content), automatically **false** in release
-builds — nothing to remember to flip.
+campaign. The menu shows chapters as a carousel (one chapter per screen).
+`Campaign.UnlockAllForTesting` is **off by default everywhere** so editor testing exercises
+real progression. Add the `MADTOWERS_UNLOCK_ALL` scripting define only when a temporary
+local build truly needs every chapter open.
 Each chapter's `skinFolder` drives all generated art (blocks/ground/laser) via
 `ChapterSkins`; empty = Classic skin.
 
@@ -140,30 +138,35 @@ Each chapter's `skinFolder` drives all generated art (blocks/ground/laser) via
 |---|---|---|---|
 | Foundations | GameMode_Classic | Place 100 | Plain stacking endurance. |
 
-**Chapter: Dune Realm (sortOrder 20)** — sunset gradient with sky shimmer, faint sun revealed
-while climbing, streak clouds, rolling dunes at ground level
+**Chapter: Dune Realm (sortOrder 20)** — imported Desert Vibe menu art, layered desert
+gameplay backdrop, desert skin, desert A/B music
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
 | The Mirage | GameMode_Classic | Place 100 | Stacking endurance, desert dressing. |
 | Sandswept Path | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
 | Rising Dunes | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
 
-**Chapter: Testing Grounds (sortOrder 1000, alwaysUnlocked)** — sandboxes, not part of the campaign
-| Level | Mode asset | Goal | What's different |
+**Chapter: Jungle Depths (sortOrder 30)** — imported Jungle Landscape menu art, layered
+jungle gameplay backdrop, jungle skin folder, jungle A/B music
+| Level | Mode | Goal | Notes |
 |---|---|---|---|
-| Classic | GameMode_Classic | Reach 10m | The baseline (canonical values in §2). |
-| Narrow Tower | GameMode_Narrow | Endless | ~5-column floor, slightly faster, stricter camera. |
-| Sky Platforms | GameMode_SkyPlatforms | Endless | Island sandbox — same island settings as Classic now (islands are on everywhere). |
-| Hard Mode | GameMode_Hard | Reach 12m | Classic + pressure: fall 2.6 → cap 6.5, ramp 0.04/block, 7-column floor, peak 0.65, buffer 2, power-ups every 15, ambient **Ice 8% / Heavy 6% / Dizzy 4% / Stubborn 4%**. Physics contract untouched. |
-| Laser Limit | GameMode_LaserLimit | Place 52 | **Height-limit waves type** (above). No speed ramp, no power-up pauses, 2 lives, classic 9-column floor. |
-| 10 Blocks | GameMode_Classic | Place 10 | Minimal goal sandbox for exercising the win-verification countdown quickly. |
-| Ability Range | GameMode_AbilityTest | Place 30 | Ability-system proving ground: picker every **3** blocks, tiny hand-edited pool for the abilities currently under test (see ABILITIES.md §12). |
+| The Undergrowth | GameMode_JungleClassic | Place 125 | Faster classic variant; fewer placement buffer columns; choices every 12 blocks. |
+| Canopy Trial | GameMode_JungleLaserLimit | Place 65 | Height-limit waves with larger waves and fewer lives. |
+| Vine Ascent | GameMode_JungleNarrow3 | Reach 60m | Faster 3-column climb with denser side islands and stricter camera framing. |
 
 | Path | Contents |
 |---|---|
 | `Assets/Resources/Chapters/` | ChapterDefinition assets. **Must stay here** (loaded by path at runtime). |
 | `Assets/Resources/Levels/` | LevelDefinition assets. **Must stay here** (loaded by path at runtime). |
 | `Assets/Resources/GameModes/` | GameModeConfig assets used by levels. |
+| `Assets/Data/Backdrops/` | BackdropPreset assets assigned by chapters. |
+| `Assets/Data/LegacyLevels/` | Retired LevelDefinition assets kept for reference; not loaded by runtime menus. |
+| `Assets/Data/Modifiers/` | Shared or chapter-specific LevelModifier assets. |
+| `Assets/Art/Chapters/` | Chapter menu background images, referenced directly by ChapterDefinition. |
+| `Assets/Audio/Music/` | Chapter music clips, referenced directly by ChapterDefinition. |
+| `Assets/Audio/Source~/` | Ignored source audio exports, such as pre-conversion WAVs. |
+| `Assets/Resources/Audio/Music/` | Menu music only, loaded by path. |
+| `Assets/Resources/Skins/<Theme>/` | Runtime-loaded chapter skin sprites (`piece_*`, `plateau`, `island_*`, optional `laser`). |
 | `Assets/SourceFiles/Scripts/Levels/Modifiers/` | LevelModifier behaviour classes (code). |
 | `Assets/Data/Blocks/` | BlockData variant assets (Normal, Heavy, Anchor, ...). |
 | `Assets/Data/BlockDefinitions/` | BlockDefinition assets — one per tetromino shape (Block_I ... Block_Z); these are what block bags list. |
@@ -320,6 +323,8 @@ a chapter's `levels` array at the position it should play. The menu groups by ch
    Specs in ART.md.
 5. Levels: per the "New level" recipe, each with a one-sentence `instruction`.
    Locks/unlocks and menu placement come automatically from `sortOrder` + completion.
+6. Run `Tools > MadTowers > Validate Chapter Content` before committing. Fix errors;
+   warnings are intentional review prompts (for example, WAV music or orphan levels).
 
 **"1-grid floor, stack 5" level:** mode with `floorSegments: columnCount 1` + level with
 `targetType: PlaceBlocks`, `targetValue: 5`. Pure settings — no code.

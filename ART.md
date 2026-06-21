@@ -2,8 +2,9 @@
 
 This is the spec for all images Nick supplies. Everything else (randomization,
 tinting, parallax, particles, animations) is done in code. Drop finished files
-into `Assets/Art/<Chapter>/` using the names below — Claude wires them up.
-**Exception:** block skins live in `Assets/Resources/BlockSkins/<Chapter>/` —
+into the `Assets/Art/` subfolder named by the section below; chapter menu
+backgrounds live in `Assets/Art/Chapters/`.
+**Exception:** block skins live in `Assets/Resources/Skins/<Theme>/` —
 import settings are applied automatically to anything dropped there.
 
 General rules for every image:
@@ -35,7 +36,7 @@ Hand-made art can still override any shape: export a transparent PNG at
 others 832×576; paint guides in `ArtTemplates/template_piece_X.svg`, drawn in
 spawn orientation — T stem up, L corner top-right, J top-left, S top row
 right, Z top row left) and overwrite the file. Import settings are applied
-automatically to `piece_*` files in any BlockSkins folder.
+automatically to `piece_*` files in any `Assets/Resources/Skins/<Theme>/` folder.
 
 ## 2. Special block emblems
 
@@ -150,7 +151,7 @@ A chapter = one folder with the same file names:
 
 ```
 Assets/Resources/Skins/Classic/   piece_I..Z, plateau, island_1..3, (optional) laser
-Assets/Art/Classic/               bg_sky, bg_far, clouds, ...
+Assets/Art/Chapters/              <chapter-slug>.png menu backgrounds
 (<Theme2>: same file names in sibling folders, different art)
 ```
 
@@ -319,8 +320,8 @@ HideAndDontSave. Generators in `Tools/` own all themed PNGs (pieces, plateau, sf
 
 - Generating the block and ground sprites (`Tools/generate_piece_sprites.py`,
   `Tools/generate_ground_sprite.py`)
-- The entire layered backdrop (sky gradient + altitude crossfade, clouds, hill/mesa
-  silhouettes, ambient particles) — per-chapter `BackdropPreset` data, zero image assets
+- The layered backdrop (sky gradient + altitude crossfade, procedural clouds/hills/particles,
+  plus optional imported pack sprites) — per-chapter `BackdropPreset` data
 - Wiring each shape's sprite onto the physics piece (colliders never change)
 - Per-chapter block skins; runtime tints/sprite-swaps for power-ups (e.g. cement)
 - Vertical parallax (sky stretch/fade, silhouette layers, procedural clouds)

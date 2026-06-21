@@ -21,6 +21,12 @@ public class BackdropPreset : ScriptableObject
         [SerializeField] private float floorOffsetY = 0f;
         [Tooltip("World X offset from the camera center.")]
         [SerializeField] private float worldOffsetX = 0f;
+        [Tooltip("How many duplicate tiles to place to each side. 0 = draw this sprite once. Use >0 for cropped horizontal pack layers.")]
+        [Min(0)]
+        [SerializeField] private int horizontalTileRadius = 2;
+        [Tooltip("World units to overlap neighboring tiles. Small overlap hides tiny transparent/cropped seams.")]
+        [Min(0f)]
+        [SerializeField] private float horizontalTileOverlap = 0.08f;
         [Tooltip("How much this layer follows the camera as the tower climbs. 0 = pinned to the floor, 1 = glued to the camera.")]
         [Range(0f, 1f)]
         [SerializeField] private float verticalParallax = 0.15f;
@@ -31,6 +37,8 @@ public class BackdropPreset : ScriptableObject
         public float WorldHeight => worldHeight;
         public float FloorOffsetY => floorOffsetY;
         public float WorldOffsetX => worldOffsetX;
+        public int HorizontalTileRadius => Mathf.Clamp(horizontalTileRadius, 0, 8);
+        public float HorizontalTileOverlap => Mathf.Max(0f, horizontalTileOverlap);
         public float VerticalParallax => verticalParallax;
         public float Alpha => alpha;
     }

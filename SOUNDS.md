@@ -120,6 +120,7 @@ then a fixed A→B→A rotation. Survives scene loads, ignores pause, stops on g
 | **Menu** (menu, settings, custom game — everywhere outside a level) | [menu-a.ogg](Assets/Resources/Audio/Music/menu-a.ogg), [menu-b.ogg](Assets/Resources/Audio/Music/menu-b.ogg) | `MusicPlayer.PlayMenu()` ([MainMenuRuntime.cs:125](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L125)) |
 | Training Wheels | training_wheels_a/b.ogg | `MusicPlayer.PlayForChapter` ([GameManager.cs:78](Assets/SourceFiles/Scripts/Core/GameManager.cs#L78)) |
 | Desert | desert_a/b.ogg | same |
+| Jungle Depths | jungle-depths-a/b.ogg | same |
 
 Entering a level swaps menu → chapter music; returning to the menu swaps back.
 
