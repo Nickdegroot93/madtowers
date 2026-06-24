@@ -37,10 +37,11 @@ public class ContentManifestBuilder : IPreprocessBuildWithReport
         manifest.EditorPopulate(
             ContentCatalog.AllAbilities().ToArray(),
             ContentCatalog.AllBlocks().ToArray(),
+            ContentCatalog.AllVariants().ToArray(),
             ContentCatalog.EqualRarityProfile());
 
         EditorUtility.SetDirty(manifest);
         AssetDatabase.SaveAssets();
-        Debug.Log($"[ContentManifest] Baked {manifest.Abilities.Length} abilities, {manifest.Blocks.Length} blocks.");
+        Debug.Log($"[ContentManifest] Baked {manifest.Abilities.Length} abilities, {manifest.Blocks.Length} blocks, {manifest.Variants.Length} variants.");
     }
 }

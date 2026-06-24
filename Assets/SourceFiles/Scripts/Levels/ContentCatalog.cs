@@ -108,9 +108,9 @@ public static class ContentCatalog
         return list;
     }
 
-    /// <summary>Every BlockData variant (Anchor, Boulder, Ice, ...), sorted by name; excludes the
-    /// plain Normal brick. Editor-discovered - a dev/testing convenience (forcing a variant to spawn
-    /// from Custom Game), so it is empty in player builds.</summary>
+    /// <summary>Every BlockData variant (Anchor, Boulder, Ice, ...), sorted by name; excludes the plain
+    /// Normal brick. Editor-discovered live; in player builds it reads the baked manifest (so the Custom
+    /// Game "Block Variants" section works on device too).</summary>
     public static List<BlockData> AllVariants()
     {
         var list = new List<BlockData>();
@@ -124,6 +124,12 @@ public static class ContentCatalog
             list.Add(variant);
         }
         list.Sort((a, b) => string.Compare(a.DisplayName, b.DisplayName, StringComparison.Ordinal));
+#else
+        if (Manifest != null)
+        {
+            foreach (BlockData variant in Manifest.Variants)
+                if (variant != null) list.Add(variant);
+        }
 #endif
         return list;
     }
