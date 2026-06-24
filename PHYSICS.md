@@ -240,8 +240,12 @@ configured once, detected via `edgeRadius > 0`).
 | `m_DefaultContactOffset` | 0.01 | Far smaller than the 0.06 inter-block clearance, so neighbours don't generate phantom contacts. |
 | Sleep tolerances | 0.5 s / 0.01 / 2 | Native sleep is effectively unreachable on stacks — irrelevant because sleep is self-managed (I3). |
 
-Block data: Normal mass 1, Heavy mass 3. A 3:1 ratio is fine for Box2D at these iteration
-counts (mushiness starts ~10:1). Don't "fix" stability by changing masses.
+Block data: Normal mass 1, Boulder mass 4, Feather mass 0.25. Normal↔Boulder (4:1) is
+comfortably within Box2D's tolerance at these iteration counts (mushiness starts ~10:1).
+Feather's 0.25 keeps the worst case — a Boulder resting directly on a Feather — at ~16:1,
+just past that threshold rather than well beyond it (it was 0.1 → 40:1 before being raised
+for exactly this reason); if that *specific* pairing ever reads mushy or penetrating, the
+mass ratio is the cause, not the solver. Don't "fix" general stability by changing masses.
 
 ## 5. Per-Level Tuning (GameModeConfig assets)
 

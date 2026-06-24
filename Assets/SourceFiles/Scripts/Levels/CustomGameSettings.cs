@@ -39,6 +39,11 @@ public sealed class CustomGameSettings
     public readonly HashSet<BlockDefinition> EnabledBlocks = new HashSet<BlockDefinition>();
     public readonly HashSet<AbilityDefinition> EnabledAbilities = new HashSet<AbilityDefinition>();
 
+    // Per-variant ambient spawn chance (0..1). A dev/testing knob: set a special brick (Anchor,
+    // Boulder, ...) to 1.0 to make every piece spawn as that variant. Seeded from the preset's
+    // ambient variants; written back into ambientBlockVariantChances by ApplyCustomGameOverrides.
+    public readonly Dictionary<BlockData, float> VariantChances = new Dictionary<BlockData, float>();
+
     // Testing-friendly defaults that intentionally override the preset (Custom Game is a dev tool):
     // a few lives to survive losses, and frequent picks so an ability under test shows up fast.
     private const int DefaultStartingLives = 3;
@@ -66,6 +71,13 @@ public sealed class CustomGameSettings
             TargetType = LevelTargetType.Endless,
             TargetValue = 25f
         };
+
+        if (c != null && c.AmbientBlockVariantChances != null)
+        {
+            foreach (AmbientBlockVariantChance a in c.AmbientBlockVariantChances)
+                if (a != null && a.Variant != null) s.VariantChances[a.Variant] = a.ChancePerBlock;
+        }
+
         return s;
     }
 }

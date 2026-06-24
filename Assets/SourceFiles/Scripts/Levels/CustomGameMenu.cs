@@ -117,6 +117,7 @@ public static class CustomGameMenu
         BuildPlayAreaSection(panel);
         BuildSpawningSection(panel);
         BuildBlocksSection(panel);
+        BuildVariantsSection(panel);
         BuildAbilitiesSection(panel);
 
         Spacer(panel);
@@ -193,6 +194,26 @@ public static class CustomGameMenu
             BlockDefinition captured = block;
             RuntimeUiKit.CreateToggleRow(panel, block.DisplayName, _settings.EnabledBlocks.Contains(block),
                 on => { if (on) _settings.EnabledBlocks.Add(captured); else _settings.EnabledBlocks.Remove(captured); });
+        }
+    }
+
+    private static void BuildVariantsSection(Transform panel)
+    {
+        Header(panel, "Block Variants");
+        List<BlockData> variants = ContentCatalog.AllVariants();
+        if (variants.Count == 0)
+        {
+            RuntimeUiKit.CreateLabel(panel, EditorOnlyNote(), 22, 60f, FontStyle.Italic, SectionColor);
+            return;
+        }
+        RuntimeUiKit.CreateLabel(panel, "Ambient spawn chance per piece (1.00 = every block).", 20, 36f,
+            FontStyle.Italic, SectionColor);
+        foreach (BlockData variant in variants)
+        {
+            BlockData captured = variant;
+            float current = _settings.VariantChances.TryGetValue(captured, out float c) ? c : 0f;
+            RuntimeUiKit.CreateStepperRow(panel, variant.DisplayName, current, 0f, 1f, 0.05f, "0.00",
+                v => _settings.VariantChances[captured] = v);
         }
     }
 

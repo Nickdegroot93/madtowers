@@ -315,7 +315,6 @@ MonoBehaviour:
   - {fileID: 22256625884276184, guid: 5bf85494235894ec19d4bb0ebb879d08, type: 3}
   blockDataVariants:
   - {fileID: 11400000, guid: d47f69c0549f64a78b7a3dde80d0f06a, type: 2}
-  - {fileID: 11400000, guid: 7704ea0a0cb0b4d94b1c5a90200dab18, type: 2}
   spawnPoint: {fileID: 1899654529}
   spawnDelay: 0
 --- !u!4 &160897713

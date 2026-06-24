@@ -107,4 +107,24 @@ public static class ContentCatalog
 #endif
         return list;
     }
+
+    /// <summary>Every BlockData variant (Anchor, Boulder, Ice, ...), sorted by name; excludes the
+    /// plain Normal brick. Editor-discovered - a dev/testing convenience (forcing a variant to spawn
+    /// from Custom Game), so it is empty in player builds.</summary>
+    public static List<BlockData> AllVariants()
+    {
+        var list = new List<BlockData>();
+#if UNITY_EDITOR
+        foreach (string guid in AssetDatabase.FindAssets("t:BlockData"))
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            var variant = AssetDatabase.LoadAssetAtPath<BlockData>(path);
+            if (variant == null) continue;
+            if (string.Equals(variant.DisplayName, "Normal", StringComparison.Ordinal)) continue;
+            list.Add(variant);
+        }
+        list.Sort((a, b) => string.Compare(a.DisplayName, b.DisplayName, StringComparison.Ordinal));
+#endif
+        return list;
+    }
 }

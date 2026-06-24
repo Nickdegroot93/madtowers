@@ -16,6 +16,6 @@ MonoBehaviour:
   mass: 1
   physicsMaterial: {fileID: 0}
   gravityScaleMultiplier: 1
-  colorTint: {r: 0.45, g: 0.66, b: 0.85, a: 1}
+  colorTint: {r: 1, g: 1, b: 1, a: 1}
   spriteOverride: {fileID: 0}
   materialOverride: {fileID: 0}

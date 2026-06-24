@@ -59,7 +59,9 @@ public class BlockData : ScriptableObject
         return data == null || data.costsLifeWhenLost;
     }
 
-    /// <summary>Called once when the variant is assigned to a freshly spawned piece.</summary>
+    /// <summary>Called once when the variant is assigned to a freshly spawned piece (after the chapter
+    /// skin is built). Variants with a procedural look (Anchor, Boulder, Vine, Magma) override this to
+    /// add their <c>…BlockSkin</c> component; see BLOCKVARIANTS.md.</summary>
     public virtual void OnApplied(BlockController block) { }
 
     /// <summary>Called when the piece lands and control hands off to physics.</summary>

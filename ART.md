@@ -40,26 +40,13 @@ spawn orientation — T stem up, L corner top-right, J top-left, S top row
 right, Z top row left) and overwrite the file. Import settings are applied
 automatically to `piece_*` files in any `Assets/Resources/Skins/<Theme>/` folder.
 
-## 2. Special block emblems
+## 2. Special block looks (procedural, theme-independent)
 
-Special blocks = same cell texture + tint + a **centered icon overlay**. One
-transparent icon per special type, drawn as a bold, readable symbol.
-
-| File | Size | Transparent? | Symbol idea |
-|---|---|---|---|
-| `emblem_ice.png` | 256×256 | Yes | snowflake |
-| `emblem_bomb.png` | 256×256 | Yes | bomb / fuse |
-| `emblem_anchor.png` | 256×256 | Yes | anchor |
-| `emblem_vine.png` | 256×256 | Yes | leaf / tendril |
-| `emblem_heavy.png` | 256×256 | Yes | weight (1-ton block) |
-| `emblem_feather.png` | 256×256 | Yes | feather |
-| `emblem_boulder.png` | 256×256 | Yes | rough rock cracks |
-| `emblem_stubborn.png` | 256×256 | Yes | padlock |
-| `emblem_dizzy.png` | 256×256 | Yes | spiral / stars |
-| `emblem_tremor.png` | 256×256 | Yes | zigzag crack |
-
-Keep ~24px of empty margin around the symbol. White or light icons work best
-(they get a subtle dark outline in code for readability).
+Special bricks (Anchor, Boulder, Vine, Magma, …) do **not** use a flat icon/emblem overlay — that
+approach was tried and dropped (it read as a sticker, not part of the brick). Each instead gets a
+**fixed, procedural look** drawn per cell by a small URP shader and a `BlockVariantSkin` subclass, so it
+needs **no hand-authored art**. The catalog and the full "add a brick" recipe live in
+[BLOCKVARIANTS.md](BLOCKVARIANTS.md); the theme-independence rule is §13 below.
 
 ## 3. Backgrounds / backdrop packs
 
@@ -261,8 +248,8 @@ tetromino pieces.
 
 ## 13. Special blocks look the same in every chapter (theme-independent)
 
-A **unique/special block** (Magma; later Anvil, Anchor, Stubborn, …) must be
-instantly recognizable and look **identical regardless of the chapter theme** —
+A **unique/special block** (Magma, Anchor, Boulder, Vine today; Ice/Dizzy/Stubborn/Tremor/Feather
+pending) must be instantly recognizable and look **identical regardless of the chapter theme** —
 it does NOT adopt the chapter's local block art the way normal bricks do.
 (Exception: when a special block decomposes into normal bricks — Magma melting
 into 1×1 cells — those resulting bricks use the level's ordinary skin; only the
@@ -271,10 +258,11 @@ special block *itself* is theme-locked.)
 The look overrides the chapter skin in `ApplyData`/`OnApplied`, which run *after*
 `ApplyBlockSkin`, so the override always wins:
 - **Static look:** set `BlockData.spriteOverride` / `materialOverride`.
-- **Animated/procedural look:** a component added in `OnApplied` that swaps the
-  `PieceSkin` renderer's material. Reference: `MagmaBlockSkin` → `Resources/Lava.shader`
-  (procedural URP sprite shader; world-space fbm flow, bloom-lit veins, self-animating
-  via `_Time`, no texture asset). Cribbed from `Resources/Frost.shader` + `BuildFrostOverlay`.
+- **Animated/procedural look (the standard):** a `BlockVariantSkin` subclass added in `OnApplied` that
+  draws a per-cell procedural overlay (`Resources/<Name>.shader`). References: `AnchorBlockSkin` →
+  `Anchor.shader`, `BoulderBlockSkin` → `Boulder.shader`, `VineBlockSkin` → `Vine.shader`, `MagmaBlockSkin`
+  → `Lava.shader`. The shared base owns the per-cell scaffold; see **[BLOCKVARIANTS.md](BLOCKVARIANTS.md)**
+  for the catalog + recipe.
 
 Theme independence comes from the material being procedural/fixed (it ignores the
 chapter art and uses only the sprite alpha as the silhouette mask).

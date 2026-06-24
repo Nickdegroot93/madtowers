@@ -30,12 +30,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 3be6106228ed4acea64c37519f7bb64e, type: 2}
   fallbackBlockDataVariants:
   - {fileID: 11400000, guid: d47f69c0549f64a78b7a3dde80d0f06a, type: 2}
-  - {fileID: 11400000, guid: 7704ea0a0cb0b4d94b1c5a90200dab18, type: 2}
   ambientBlockVariantChances:
   - variant: {fileID: 11400000, guid: 07271310580a44288615f8cb89bef7c6, type: 2}
     chancePerBlock: 0.08
-  - variant: {fileID: 11400000, guid: 7704ea0a0cb0b4d94b1c5a90200dab18, type: 2}
-    chancePerBlock: 0.06
   - variant: {fileID: 11400000, guid: f407db141c344b22a57fef07160d72bd, type: 2}
     chancePerBlock: 0.04
   - variant: {fileID: 11400000, guid: 20f52ff3e5474cc9886fb134535a9417, type: 2}

@@ -206,7 +206,7 @@ jungle gameplay backdrop, jungle skin folder, jungle A/B music
 | `Assets/Resources/Audio/Music/` | Menu music only, loaded by path. |
 | `Assets/Resources/Skins/<Theme>/` | Runtime-loaded chapter skin sprites (`piece_*`, `plateau`, `island_*`, optional `laser`). |
 | `Assets/SourceFiles/Scripts/Levels/Modifiers/` | LevelModifier behaviour classes (code). |
-| `Assets/Data/Blocks/` | BlockData variant assets (Normal, Heavy, Anchor, ...). |
+| `Assets/Data/Blocks/` | BlockData variant assets (Normal, Boulder, Anchor, ...). |
 | `Assets/Data/BlockDefinitions/` | BlockDefinition assets — one per tetromino shape (Block_I ... Block_Z); these are what block bags list. |
 | `Assets/Data/PowerUps/Common|Rare|Epic/` | PowerUpDefinition assets, foldered by rarity (the asset's rarity **field** is what the game reads). |
 | `Assets/Prefabs/Blocks/` | The 7 tetromino shape prefabs (I, O, T, S, Z, L, J). |
@@ -222,7 +222,7 @@ jungle gameplay backdrop, jungle skin folder, jungle A/B music
 | Group | Values |
 |---|---|
 | Round | lives **0** · fall speed **2** → cap **5** · scaling **PerBlock, Additive, +0.025/block** (OverTime alt: +0.1 per 60s) · spawnDelay **0** |
-| Spawning | bag: **all 7 tetrominoes ×1 copy** · fallback variants: Normal, Heavy · ambient variant rolls: **none** |
+| Spawning | bag: **all 7 tetrominoes ×1 copy** · fallback variants: Normal · ambient variant rolls: **none** |
 | Placement | gridSpacing **1** · placement buffer **3 columns** (effective steer reach is `max(buffer, 4)` — the widest block always fits past the edge; see PHYSICS.md reach guarantee) |
 | Floor | 1 segment: center **0**, **9 columns** (Narrow: ~5) |
 | Power-ups | choice every **10** blocks · pool: Extra Life, Slow Time, Anchor Brick, Freeze, Extract, Hardline, Brace · slowMotionScale **0.5** |
@@ -256,14 +256,16 @@ jungle gameplay backdrop, jungle skin folder, jungle A/B music
 | `ambientBlockVariantChances` | **Level-flavour rolls**: list of (variant, chance). Example: Boulder at 0.03 → 3% of all spawns are Boulders. Stacks with power-up-granted chances. |
 
 ### Brick variants (Assets/Data/Blocks/)
+Canonical catalog, looks & the "add a brick" recipe: **[BLOCKVARIANTS.md](BLOCKVARIANTS.md)**.
+Level-design quick reference (polarity = help or hazard to the player):
+
 | Variant | What it is | Polarity |
 |---|---|---|
 | Normal | Mass 1 baseline. | — |
-| Heavy | Mass 3, dark tint. | Neutral |
-| Anchor | Freezes exactly where it lands (player-made platform). Blue. | Positive |
-| Vine | Welds itself to everything it touches shortly after landing (breakable joints — local freeze). Green. | Positive |
-| Boulder | Mass 4 — strains everything below it. Brown. | Negative |
-| Feather | Mass 0.4 — shoved around by every later landing. Pale yellow. | Negative |
+| Anchor | Freezes exactly where it lands (player-made platform). Gunmetal look. | Positive |
+| Vine | Welds instantly to everything it touches on landing, and creeps vines onto those blocks. Keeps the chapter colour. | Positive |
+| Boulder | Mass 4 — strains everything below it; heavy landing slam. Dark-basalt look. | Negative |
+| Feather | Mass 0.25 — shoved around by every later landing. Pale yellow. | Negative |
 | Ice | Near-zero friction — slides off anything not flat. Pale cyan. | Negative |
 | Stubborn | Cannot be rotated while falling. Orange. | Negative |
 | Dizzy | Left/right steering mirrored. Pink. | Negative |
@@ -272,7 +274,7 @@ jungle gameplay backdrop, jungle skin folder, jungle A/B music
 
 Classic is vanilla (no ambient rolls) — special variants enter levels via
 `ambientBlockVariantChances`; production levels should pick 1–2 signature variants each.
-Keep mass between 0.4 and 4: Box2D contacts go mushy past ~10:1 ratios between touching blocks.
+Keep mass between ~0.25 and 4 (Feather↔Boulder ≈ 16:1, near Box2D's ~10:1 mushiness threshold — don't widen it further; see PHYSICS.md).
 
 New stat-only variants (different mass, friction material, control quirks via canRotate /
 invertHorizontalControls, tint) are pure assets: right-click
@@ -391,7 +393,7 @@ Already possible with today's data (no code):
 
 - **Piece-diet levels** — only S/Z pieces (pain), only I/O (zen), double bag copies of one shape.
 - **Ice level** — variant with a slippery PhysicsMaterial2D at high ambient chance + lower floor friction.
-- **Heavy industry** — Heavy as the default data for every definition; landing rhythm changes completely.
+- **Heavy industry** — Boulder as the default data for every definition; landing rhythm changes completely.
 - **Two towers** — two floor segments with a gap; islands disabled; narrow camera.
 - **Gift run** — power-up choice every 5 blocks, pool of Epics only.
 - **Hardcore** — `powerUpChoiceEveryBlocks 0`, peak at 0.7, fast ramp, 3% Boulders, no islands.

@@ -167,7 +167,7 @@ public class GameModeConfig : ScriptableObject
 
     /// <summary>Runtime only (Custom Game screen): overwrite the curated gameplay knobs on a
     /// CLONED config from the setup screen's settings. Everything not listed here keeps the
-    /// preset's value (physics tuning, camera smoothing, ambient variants, ...). Call on an
+    /// preset's value (physics tuning, camera smoothing, settle thresholds, ...). Call on an
     /// Instantiate() copy, never on a project asset.</summary>
     public void ApplyCustomGameOverrides(CustomGameSettings s)
     {
@@ -191,6 +191,14 @@ public class GameModeConfig : ScriptableObject
 
         blockBag = new List<BlockDefinition>(s.EnabledBlocks).ToArray();
         powerUpChoicePool = new List<AbilityDefinition>(s.EnabledAbilities).ToArray();
+
+        // Variant spawn chances (dev/testing): rebuild the ambient table from the screen's per-variant
+        // sliders, keeping only the ones actually dialed up.
+        var ambient = new List<AmbientBlockVariantChance>();
+        foreach (var kv in s.VariantChances)
+            if (kv.Key != null && kv.Value > 0f)
+                ambient.Add(new AmbientBlockVariantChance(kv.Key, kv.Value));
+        ambientBlockVariantChances = ambient.ToArray();
     }
 }
 
@@ -231,6 +239,14 @@ public sealed class AmbientBlockVariantChance
 
     public BlockData Variant => variant;
     public float ChancePerBlock => Mathf.Clamp01(chancePerBlock);
+
+    public AmbientBlockVariantChance() { }
+
+    public AmbientBlockVariantChance(BlockData variant, float chancePerBlock)
+    {
+        this.variant = variant;
+        this.chancePerBlock = Mathf.Clamp01(chancePerBlock);
+    }
 }
 
 [System.Serializable]

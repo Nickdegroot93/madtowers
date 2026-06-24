@@ -18,9 +18,9 @@ MonoBehaviour:
   gravityScaleMultiplier: 1
   canRotate: 1
   invertHorizontalControls: 0
-  colorTint: {r: 0.45, g: 0.8, b: 0.4, a: 1}
+  colorTint: {r: 1, g: 1, b: 1, a: 1}
   spriteOverride: {fileID: 0}
   materialOverride: {fileID: 0}
-  attachDelaySeconds: 0.4
+  attachDelaySeconds: 0
   breakForce: 150
   touchRange: 0.15

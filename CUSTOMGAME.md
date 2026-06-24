@@ -61,9 +61,11 @@ is regenerated from a full project scan, the no-maintenance rule below still hol
 Exposed: goal (Endless / Place Blocks / Reach Height + target), starting lives, initial/max fall
 speed, difficulty ramp (None / Per Block / Over Time + amounts — "Over Time" is the time-based
 difficulty), floor width, spawn delay, power-up frequency, static islands (+ chance), block bag,
-ability pool (per-rarity All/None). The fiddly physics/camera tuning (settle thresholds,
-micro-align, camera smoothing, ambient variants) is **left at the preset's values** — change those on
-the preset asset if you need to. Widen the curated set by following the maintenance rule above.
+**block-variant spawn chances** (a dev knob — set Anchor/Boulder/… to 1.00 to force every piece to
+that variant; editor-only, empty in player builds), ability pool (per-rarity All/None). The fiddly
+physics/camera tuning (settle thresholds, micro-align, camera smoothing) is **left at the preset's
+values** — change those on the preset asset if you need to. Widen the curated set by following the
+maintenance rule above.
 
 ## Removed
 

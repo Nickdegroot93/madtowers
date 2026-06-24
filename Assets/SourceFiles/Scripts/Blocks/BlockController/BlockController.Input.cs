@@ -34,7 +34,7 @@ public partial class BlockController
     // blocked it - the impact shoves those bricks (loose ones can fall) and the rebound
     // locks further nudges out long enough that spamming can never be the optimal play.
     private const float NudgeFailLockoutSeconds = 0.5f;
-    private const float NudgeSlamImpulse = 2f; // per blocking brick; Heavy (mass 3) barely budges
+    private const float NudgeSlamImpulse = 2f; // per blocking brick; Boulder (mass 4) barely budges
 
     // Shared across pieces on purpose: a rebound must not reset just because the old
     // piece locked and a fresh one spawned. UIManager dims the corner pills from this.

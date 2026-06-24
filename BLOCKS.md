@@ -74,5 +74,6 @@ clamp-masked bug).
 - Normal landed block knocked off → `placedBlocks −1` and a life.
 - Bomb detonation → `−1` per destroyed neighbour and the bomb itself.
 
-See also: [ABILITIES.md](ABILITIES.md) (abilities that create/destroy blocks),
+See also: [BLOCKVARIANTS.md](BLOCKVARIANTS.md) (the variant catalog, looks & "add a brick" recipe),
+[ABILITIES.md](ABILITIES.md) (abilities that create/destroy blocks),
 [PHYSICS.md](PHYSICS.md) (never write transforms on landed blocks).

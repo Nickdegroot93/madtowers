@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Feather
   m_EditorClassIdentifier: Assembly-CSharp::BlockData
   displayName: Feather
-  mass: 0.4
+  mass: 0.25
   physicsMaterial: {fileID: 0}
   gravityScaleMultiplier: 1
   canRotate: 1
