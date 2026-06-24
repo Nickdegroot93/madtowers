@@ -21,9 +21,10 @@ public abstract class BlockVariantSkin : MonoBehaviour
     // One material per Resources name, shared across every skin instance of that brick.
     private static readonly Dictionary<string, Material> MaterialCache = new Dictionary<string, Material>();
 
-    /// <summary>The built overlay renderers and their un-animated local scales (parallel lists).</summary>
+    /// <summary>The built overlay renderers and their un-animated local scales/positions (parallel lists).</summary>
     protected readonly List<SpriteRenderer> Cells = new List<SpriteRenderer>();
     protected readonly List<Vector3> BaseScales = new List<Vector3>();
+    protected readonly List<Vector3> BasePositions = new List<Vector3>();
 
     private MaterialPropertyBlock _mpb;
 
@@ -115,6 +116,7 @@ public abstract class BlockVariantSkin : MonoBehaviour
 
             Cells.Add(overlay);
             BaseScales.Add(go.transform.localScale);
+            BasePositions.Add(go.transform.localPosition);
             index++;
         }
     }
