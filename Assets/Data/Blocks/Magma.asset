@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 091e2d9295dc47a9972903849649c156, type: 3}
+  m_Name: Magma
+  m_EditorClassIdentifier: Assembly-CSharp::MagmaBlockData
+  displayName: Magma
+  mass: 1
+  physicsMaterial: {fileID: 0}
+  gravityScaleMultiplier: 1
+  canRotate: 1
+  invertHorizontalControls: 0
+  colorTint: {r: 1, g: 0.52, b: 0.14, a: 0.85}
+  spriteOverride: {fileID: 0}
+  materialOverride: {fileID: 0}
+  countsAsPlacedBlock: 0
+  costsLifeWhenLost: 1
+  stoneCell: {fileID: 11400000, guid: 33fd63a3dc394755935440d6f6849a70, type: 2}
+  solidifyEffect: {fileID: 0}
+  solidifyEffectScale: 0.6
+  moltenColor: {r: 1, g: 0.52, b: 0.14, a: 1}

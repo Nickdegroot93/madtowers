@@ -33,6 +33,16 @@ saves); infinite stays infinite. Author abilities where a second copy means noth
 the details view). Short and long fall back to each other, so half-authored assets
 degrade gracefully.
 
+A stackable ability may also author an **owned short description**: the card swaps to it
+once the player already owns ≥1 (`ShortDescriptionFor(ownedStacks)`, fed the stack count the
+card already computes for the "Owned ×N" badge), so a second+ pick reads as *what another
+stack adds* (e.g. Magma → "Drops molten blocks more often") instead of repeating the
+first-time intro. Blank falls back to the short description; the long/detail text is left
+alone — it stays the full mechanic explainer at any stack count. This is the lightweight
+alternative to a separate self-gating "More X" booster asset (the Pip pattern, §13): use the
+owned line for a plain stack-the-knob passive, a booster only when the upgrade deserves its
+own card identity/rarity.
+
 There is also a player-facing **type badge** (`AbilityDefinition.Type`), shown small at
 the top of every card. It is **derived, never authored** - kind from the class,
 "one-time" from charges. The `Type` enum still distinguishes `OneTimePassive`, but the

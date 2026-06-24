@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7f9bc412c4d54df8902eaac401f193b3, type: 3}
+  m_Name: MagmaSpawn
+  m_EditorClassIdentifier: Assembly-CSharp::BlockVariantChancePowerUp
+  displayName: Magma
+  icon: {fileID: 0}
+  shortDescription: Rare molten blocks that pour into gaps and harden to stone.
+  ownedShortDescription: Drops molten blocks more often.
+  description: 'Every so often an incoming piece arrives molten. When it lands it pours
+    like lava into the empty gaps directly beneath it, then cools and hardens into solid
+    stone - each cell a counting block, so one piece fills holes, flattens your tower,
+    and scores several at once.'
+  rarity: 2
+  unique: 0
+  maxStacks: 2
+  requiresVariantsInLevel: []
+  charges: 0
+  variant: {fileID: 11400000, guid: 3aece4d0ef2e4260b4dfea7fdd74084a, type: 2}
+  chancePerBlock: 0.03

@@ -207,7 +207,8 @@ public class AbilityRuntime : MonoBehaviour
             return gm != null && !gm.isGameOver && !gm.IsGamePaused
                    && !LevelRuntimeController.IsVerifyingWin
                    && !FissionSession.IsActive
-                   && !OverdrawSession.IsActive;
+                   && !OverdrawSession.IsActive
+                   && !MagmaMeltSession.IsActive;
         }
     }
 

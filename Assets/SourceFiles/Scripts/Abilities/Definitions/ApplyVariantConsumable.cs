@@ -1,0 +1,55 @@
+using UnityEngine;
+
+/// <summary>
+/// Consumable that applies a BlockData VARIANT to the active falling piece, keeping its
+/// shape (Magma: the current piece becomes a molten version of itself). Unlike
+/// TransmuteAbility - which swaps the whole shape via ReplaceActivePiece - this re-skins the
+/// piece in place through Spawner.ApplyVariantToNextBlock, which also re-reports the piece's
+/// identity and accounting flags so a variant with non-default count/life flags is never
+/// scored against the original (BLOCKS.md). Generic: any "tap: current piece becomes
+/// variant V" ability is just another asset, no new code.
+/// </summary>
+[CreateAssetMenu(fileName = "ApplyVariant", menuName = "Stacking/Abilities/Apply Variant")]
+public class ApplyVariantConsumable : ConsumableAbility
+{
+    [Tooltip("The variant data applied to the active falling piece (same shape, new behaviour).")]
+    [SerializeField] private BlockData variant;
+
+    [Header("Transform FX (swappable)")]
+    [Tooltip("Plays on the piece as it transforms (a CFXR transform/poof effect). Null-safe.")]
+    [SerializeField] private GameObject transformEffect;
+    [Tooltip("Scale for the transform effect - CFXR effects are character-sized, a block usually wants < 1.")]
+    [SerializeField] private float transformScale = 0.6f;
+
+    // The slot is consumed BEFORE Activate, so refuse every way the apply could fail: no live
+    // piece in the air / one mid-lock / already this variant / fallen past the loss line / no
+    // variant wired (mirrors AbilityEffects.CanTransmuteActivePiece, for variants not shapes).
+    public override bool CanActivate(AbilityContext context)
+    {
+        if (context == null || context.Spawner == null || variant == null) return false;
+
+        BlockController active = BlockController.ActiveControlled;
+        if (active == null || active.HasLanded) return false;
+        if (active.TryGetComponent(out BlockIdentity identity) && identity.Variant == variant) return false;
+
+        Camera camera = Camera.main;
+        if (camera != null && camera.orthographic && active.transform.position.y < LossZone.CullY(camera)) return false;
+
+        return true;
+    }
+
+    public override void Activate(AbilityContext context)
+    {
+        BlockController active = BlockController.ActiveControlled;
+        if (active == null || active.HasLanded) return;
+
+        // Apply the variant to the in-air piece. ApplyVariantToNextBlock re-assigns the
+        // BlockIdentity and GameManager's active-piece cache, so the new count/life flags
+        // take effect for this piece's lock and loss.
+        context.Spawner.ApplyVariantToNextBlock(variant);
+
+        Vfx.Spawn(transformEffect, active.transform.position, transformScale); // null-safe
+        AbilityEffects.ImpactPunch(0.03f, 0.08f, 0.12f);
+        SfxPlayer.Play("transmute", 0.9f);
+    }
+}

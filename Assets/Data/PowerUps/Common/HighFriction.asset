@@ -15,6 +15,7 @@ MonoBehaviour:
   displayName: High Friction
   icon: {fileID: 21300000, guid: 51cf56c709b64cf5ac633131804278ad, type: 3}
   shortDescription: Helps standard blocks grip better.
+  ownedShortDescription: Standard blocks grip even harder.
   description: Standard blocks gain a little extra grip, helping new pieces slide less
     when they land on angled or uneven layers.
   rarity: 0

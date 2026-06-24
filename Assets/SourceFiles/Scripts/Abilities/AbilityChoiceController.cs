@@ -473,7 +473,7 @@ public class AbilityChoiceController : MonoBehaviour
 
         // Description sits directly under the icon, bold + large, hugging its own wrapped-text
         // height. Truncates rather than drawing over the pinned button on overlong text.
-        Text shortText = RuntimeUiKit.CreateLabel(cardObject.transform, definition.ShortDescription,
+        Text shortText = RuntimeUiKit.CreateLabel(cardObject.transform, definition.ShortDescriptionFor(stacks),
             28, 0f, FontStyle.Bold, new Color(0.9f, 0.93f, 0.98f, 1f), TextAnchor.UpperCenter);
         shortText.lineSpacing = 1.05f;
         shortText.verticalOverflow = VerticalWrapMode.Truncate;

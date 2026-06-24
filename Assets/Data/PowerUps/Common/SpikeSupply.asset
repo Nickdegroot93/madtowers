@@ -15,6 +15,7 @@ MonoBehaviour:
   displayName: Spike Supply
   icon: {fileID: 21300000, guid: 4a1a6273c85a4a578f78a32c348be366, type: 3}
   shortDescription: Slightly increases straight piece spawns.
+  ownedShortDescription: Straight pieces appear even more often.
   description: Straight line pieces become a little more common, giving you more chances
     to build clean columns, bridges, and quick height.
   rarity: 0

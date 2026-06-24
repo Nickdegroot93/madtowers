@@ -15,6 +15,7 @@ MonoBehaviour:
   displayName: Cube Supply
   icon: {fileID: 21300000, guid: 1724e1180f6544e8b90b66fb5f00925b, type: 3}
   shortDescription: Slightly increases square piece spawns.
+  ownedShortDescription: Square pieces appear even more often.
   description: Square pieces become a little more common, giving you more chances to
     build stable shelves, flat landings, and sturdy corners.
   rarity: 0

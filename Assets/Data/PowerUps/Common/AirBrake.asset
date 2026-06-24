@@ -15,6 +15,7 @@ MonoBehaviour:
   displayName: Air Brake
   icon: {fileID: 21300000, guid: 44242bb76d434f86aa02cc643078857d, type: 3}
   shortDescription: Slightly reduces overall block falling speed.
+  ownedShortDescription: Slows the fall speed even further.
   description: Eases the relentless speed-up that builds over a long run, letting future
     pieces fall a little more gently so the late game stays within reach. Each pick
     leans a bit harder on the brake.

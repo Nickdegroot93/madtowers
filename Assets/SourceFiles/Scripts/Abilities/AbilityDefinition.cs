@@ -71,6 +71,8 @@ public abstract class AbilityDefinition : ScriptableObject
     [SerializeField] private Sprite icon;
     [Tooltip("One line for cards and the swap dialog.")]
     [SerializeField] private string shortDescription = "";
+    [Tooltip("Optional one-liner shown on the card once the player ALREADY owns at least one - a stackable ability's 'what another pick adds' copy (e.g. \"Drops molten blocks more often\"), so a second+ card doesn't read like a first-time intro. Blank falls back to the short description.")]
+    [SerializeField] private string ownedShortDescription = "";
     [Tooltip("The full explanation for the (future) details view.")]
     [TextArea]
     [SerializeField] private string description = "";
@@ -93,6 +95,16 @@ public abstract class AbilityDefinition : ScriptableObject
     public Sprite Icon => icon;
     public string ShortDescription => string.IsNullOrWhiteSpace(shortDescription) ? description : shortDescription;
     public string LongDescription => string.IsNullOrWhiteSpace(description) ? shortDescription : description;
+
+    /// <summary>Card short line for a given owned stack count. Once the player owns at least
+    /// one and an "owned" line is authored, it explains what ANOTHER pick adds (a stackable's
+    /// second+ card otherwise reads like a first-time intro); blank falls back to the normal
+    /// short description. The long/detail text is intentionally left alone - it stays the full
+    /// mechanic explainer regardless of stacks.</summary>
+    public string ShortDescriptionFor(int ownedStacks) =>
+        ownedStacks > 0 && !string.IsNullOrWhiteSpace(ownedShortDescription)
+            ? ownedShortDescription
+            : ShortDescription;
     public AbilityRarity Rarity => rarity;
 
     /// <summary>Player-facing type badge - derived from the kind class + charges, never

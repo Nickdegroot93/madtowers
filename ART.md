@@ -259,6 +259,26 @@ same generator/folder as `block_<name>.png`, 256×256 at PPU 256 (one cell),
 reusing the same `shade()` lighting so they sit naturally next to the
 tetromino pieces.
 
+## 13. Special blocks look the same in every chapter (theme-independent)
+
+A **unique/special block** (Magma; later Anvil, Anchor, Stubborn, …) must be
+instantly recognizable and look **identical regardless of the chapter theme** —
+it does NOT adopt the chapter's local block art the way normal bricks do.
+(Exception: when a special block decomposes into normal bricks — Magma melting
+into 1×1 cells — those resulting bricks use the level's ordinary skin; only the
+special block *itself* is theme-locked.)
+
+The look overrides the chapter skin in `ApplyData`/`OnApplied`, which run *after*
+`ApplyBlockSkin`, so the override always wins:
+- **Static look:** set `BlockData.spriteOverride` / `materialOverride`.
+- **Animated/procedural look:** a component added in `OnApplied` that swaps the
+  `PieceSkin` renderer's material. Reference: `MagmaBlockSkin` → `Resources/Lava.shader`
+  (procedural URP sprite shader; world-space fbm flow, bloom-lit veins, self-animating
+  via `_Time`, no texture asset). Cribbed from `Resources/Frost.shader` + `BuildFrostOverlay`.
+
+Theme independence comes from the material being procedural/fixed (it ignores the
+chapter art and uses only the sprite alpha as the silhouette mask).
+
 ## Under the hood: how chapter skins work at runtime (exact pipeline)
 
 What happens when a level loads, in order:
