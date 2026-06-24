@@ -97,14 +97,14 @@ A clock that **starts** when the 5→0 hold-steady countdown arms and **stops** 
 teardown. Played via `SfxPlayer.PlayLoop("countdown")` / `StopLoop()` (dedicated source).
 - Armed in [LevelRuntimeController.cs:268](Assets/SourceFiles/Scripts/Levels/LevelRuntimeController.cs#L268); stopped in `DestroyCountdownUi` ([:338](Assets/SourceFiles/Scripts/Levels/LevelRuntimeController.cs#L338)).
 
-### `ui-button-click` — UI button (5 sites) · *authored*
-- Bottom nav tabs ([MainMenuRuntime.cs:746](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L746)), Play tab ([:783](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L783)), chapter switch ([:512](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L512)), generic menu button ([:826](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L826)), and opening the level-summary modal ([:808](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L808)).
+### `ui-button-click` — UI button (6 sites) · *authored*
+- Bottom nav tabs ([MainMenuRuntime.cs:1183](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L1183)), Home tab ([:1212](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L1212)), chapter switch ([:700](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L700)), generic menu button ([:1269](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L1269)), opening the level-summary modal ([:1287](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L1287)), and the Ranks button ([:1407](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L1407)).
 
 ### `ui-leave-game` — Leave to menu · *authored*
 - Confirmed "Back to Menu" / quit a run ([PauseMenuController.cs:147](Assets/SourceFiles/Scripts/UI/PauseMenuController.cs#L147)).
 
 ### `ui-start-game` — Start a level · *authored*
-- **Start Game** button in the level-summary modal ([MainMenuRuntime.cs:889](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L889)).
+- **Play** button in the level-summary modal ([MainMenuRuntime.cs:1389](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L1389)).
 
 ### `zap` — *authored, UNWIRED*
 Present in `Resources/Audio/Sfx/` but not triggered anywhere yet. Earmarked for the **laser

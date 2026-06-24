@@ -31,6 +31,7 @@ public class AbilityHud : MonoBehaviour
     private readonly bool[] _slotShownUsable = new bool[AbilityRuntime.ConsumableSlotCount];
     private readonly float[] _punchAge = new float[AbilityRuntime.ConsumableSlotCount];
     private System.Func<Rect> _exclusionRect;
+    private Vector3 _lastScreenState = new Vector3(-1f, -1f, -1f);
 
     private void Start()
     {
@@ -61,8 +62,14 @@ public class AbilityHud : MonoBehaviour
         float scale = _canvas != null ? _canvas.scaleFactor : 1f;
         float width = (SlotSize * AbilityRuntime.ConsumableSlotCount + SlotGap) * scale;
         float left = (Screen.width - width) * 0.5f;
-        return new Rect(left, 0f, width, (BottomInset + SlotSize) * scale);
+        // From the screen bottom up past the (safe-area-lifted) slot tops, so a tap on a slot
+        // never also steers the piece. SafeAreaInsetsPixels().w is the bottom inset in raw px.
+        float top = RuntimeUiKit.SafeAreaInsetsPixels().w + (BottomInset + SlotSize) * scale;
+        return new Rect(left, 0f, width, top);
     }
+
+    // Lift the slots above their base margin so they clear the home indicator (bottom safe inset).
+    private float SlotBottomOffset() => BottomInset + RuntimeUiKit.SafeAreaBottomInset(_canvas);
 
     private void BuildHud()
     {
@@ -84,7 +91,7 @@ public class AbilityHud : MonoBehaviour
         rect.anchorMax = new Vector2(0.5f, 0f);
         rect.pivot = new Vector2(0.5f, 0f);
         float offset = (index - (AbilityRuntime.ConsumableSlotCount - 1) * 0.5f) * (SlotSize + SlotGap);
-        rect.anchoredPosition = new Vector2(offset, BottomInset);
+        rect.anchoredPosition = new Vector2(offset, SlotBottomOffset());
         rect.sizeDelta = new Vector2(SlotSize, SlotSize);
 
         Image frame = slot.GetComponent<Image>();
@@ -146,6 +153,22 @@ public class AbilityHud : MonoBehaviour
     private void Update()
     {
         if (_runtime == null || _root == null) return;
+
+        // Re-seat the slots when the screen geometry / safe area changes (rotation, resize). The
+        // exclusion rect recomputes per query, so only the visual position needs refreshing.
+        Vector3 screenState = new Vector3(Screen.width, Screen.height, Screen.safeArea.yMin);
+        if (screenState != _lastScreenState)
+        {
+            _lastScreenState = screenState;
+            float slotY = SlotBottomOffset();
+            for (int i = 0; i < AbilityRuntime.ConsumableSlotCount; i++)
+            {
+                if (_slotFrames[i] == null) continue;
+                Vector2 p = _slotFrames[i].rectTransform.anchoredPosition;
+                p.y = slotY;
+                _slotFrames[i].rectTransform.anchoredPosition = p;
+            }
+        }
 
         for (int i = 0; i < AbilityRuntime.ConsumableSlotCount; i++)
         {

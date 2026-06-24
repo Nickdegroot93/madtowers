@@ -319,10 +319,12 @@ public class UIManager : MonoBehaviour
     // safe area and the canvas scale factor are guaranteed settled.
     private float SafeAreaTopOffset()
     {
-        Canvas canvas = HudRoot() != null ? HudRoot().GetComponentInParent<Canvas>() : null;
-        float scale = canvas != null ? canvas.scaleFactor : 1f;
-        float insetPixels = Mathf.Clamp(Screen.height - Screen.safeArea.yMax, 0f, Screen.height * 0.1f);
-        return insetPixels / Mathf.Max(0.01f, scale) + TopMarginBelowSafeArea;
+        return RuntimeUiKit.SafeAreaTopInset(HudCanvas()) + TopMarginBelowSafeArea;
+    }
+
+    private Canvas HudCanvas()
+    {
+        return HudRoot() != null ? HudRoot().GetComponentInParent<Canvas>() : null;
     }
 
     private void BuildTopBar()
@@ -693,6 +695,7 @@ public class UIManager : MonoBehaviour
             _topBarPositioned = true;
             _lastScreenState = screenState;
             ApplyTopBarPosition();
+            if (_heartsContainer != null) _heartsContainer.anchoredPosition = HeartsAnchoredPosition();
         }
 
         // The bar's pause button only shows during live play (same predicate the old
@@ -777,6 +780,14 @@ public class UIManager : MonoBehaviour
         return _hudRoot;
     }
 
+    // Bottom-left lives indicator, lifted clear of the home indicator (bottom safe inset) and any
+    // rounded/cutout left edge (left safe inset); 24/22 are the base margins on a clean screen.
+    private Vector2 HeartsAnchoredPosition()
+    {
+        Vector4 inset = RuntimeUiKit.SafeAreaInsets(HudCanvas()); // (left, right, top, bottom)
+        return new Vector2(24f + inset.x, 22f + inset.w);
+    }
+
     private void EnsureHearts()
     {
         if (_heartsContainer != null || HudRoot() == null) return;
@@ -787,7 +798,7 @@ public class UIManager : MonoBehaviour
         _heartsContainer.anchorMin = Vector2.zero;
         _heartsContainer.anchorMax = Vector2.zero;
         _heartsContainer.pivot = Vector2.zero;
-        _heartsContainer.anchoredPosition = new Vector2(24f, 22f);
+        _heartsContainer.anchoredPosition = HeartsAnchoredPosition();
         _heartsContainer.sizeDelta = new Vector2(MaxHearts * (HeartSize + HeartGap), HeartSize);
 
         _hearts = new Image[MaxHearts];

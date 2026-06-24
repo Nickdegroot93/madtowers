@@ -22,7 +22,7 @@ MonoBehaviour:
   menuBackgroundVideo: {fileID: 0}
   menuBackgroundImage: {fileID: 21300000, guid: b32f045e60c54bd98e7204d76f423999, type: 3}
   nextChapterPreviewImage: {fileID: 0}
-  menuAccentColor: {r: 1, g: 0.64, b: 0.18, a: 1}
+  menuAccentColor: {r: 0.85, g: 0.62, b: 0.34, a: 1}
   menuAccentSecondaryColor: {r: 0.62, g: 0.36, b: 0.13, a: 1}
   menuPanelColor: {r: 0.14, g: 0.1, b: 0.065, a: 0.76}
   playButtonTopColor: {r: 1, g: 0.72, b: 0.27, a: 1}

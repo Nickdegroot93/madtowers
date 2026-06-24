@@ -49,6 +49,7 @@ public class HoldButton : MonoBehaviour
     private float _waveTime;
     private bool _flying;
     private BlockDefinition _flyDef;
+    private float _appliedLeftInset = float.NaN;
 
     private readonly Dictionary<string, Sprite> _whiteGhosts = new Dictionary<string, Sprite>();
     private Func<Rect> _exclusionRect;
@@ -101,7 +102,7 @@ public class HoldButton : MonoBehaviour
         _buttonRect.anchorMin = new Vector2(0f, HeightAnchor);
         _buttonRect.anchorMax = new Vector2(0f, HeightAnchor);
         _buttonRect.pivot = new Vector2(0.5f, 0.5f);
-        _buttonRect.anchoredPosition = new Vector2(LeftMargin, 0f);
+        _buttonRect.anchoredPosition = new Vector2(LeftMargin + RuntimeUiKit.SafeAreaLeftInset(_canvas), 0f);
         _buttonRect.sizeDelta = new Vector2(Size, Size);
 
         _bubble = _button.GetComponent<Image>();
@@ -218,6 +219,19 @@ public class HoldButton : MonoBehaviour
 
     private void Update()
     {
+        // Keep the bubble clear of a curved/cutout left edge (left safe inset) even across a
+        // rotation/resize. Runs before the visibility guard so the position is right the moment
+        // the button is shown; near-zero on a normal portrait phone.
+        if (_buttonRect != null)
+        {
+            float leftInset = RuntimeUiKit.SafeAreaLeftInset(_canvas);
+            if (!Mathf.Approximately(leftInset, _appliedLeftInset))
+            {
+                _appliedLeftInset = leftInset;
+                _buttonRect.anchoredPosition = new Vector2(LeftMargin + leftInset, 0f);
+            }
+        }
+
         if (!_shown || _buttonRect == null) return;
 
         // Elastic tap/arrival punch (unscaled so UI feel never freezes on hit-stop).

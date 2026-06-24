@@ -97,7 +97,9 @@ public static class MenuSprites
                 float v = ((y + 0.5f) / S) * 2f - 1f;
                 float au = Mathf.Abs(u);
                 float av = Mathf.Abs(v);
-                float d = Mathf.Max(av, au * 0.8660254f + av * 0.5f) - 0.76f;
+                // Point-TOP hexagon: flat left/right edges, points at top and bottom (taller than
+                // wide). Swap the roles of u/v versus a flat-top hex.
+                float d = Mathf.Max(au, av * 0.8660254f + au * 0.5f) - 0.76f;
                 float edge = Mathf.Clamp01(0.5f - d * 55f);
                 float border = Mathf.Clamp01(1.3f - Mathf.Abs(d) * 85f);
                 Color c = Color.Lerp(bottom, top, (v + 1f) * 0.5f);
@@ -239,6 +241,396 @@ public static class MenuSprites
                 Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
                 float inside = PointInTriangle(p, a, b, c) ? 1f : 0f;
                 tex.SetPixel(x, y, new Color(1f, 1f, 1f, inside));
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // A crisp tick mark drawn as the union of two anti-aliased strokes (the short down-stroke
+    // and the long up-stroke). Tinted by `color`; the font's U+2713 glyph renders as tofu in our
+    // SDF font, so the completed badge uses this sprite instead.
+    public static Sprite CheckMark(Color color)
+    {
+        string key = $"check:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        // Three points of the tick (pixel space, y up): left start, bottom vertex, top-right end.
+        Vector2 p0 = new Vector2(0.22f * S, 0.50f * S);
+        Vector2 p1 = new Vector2(0.42f * S, 0.30f * S);
+        Vector2 p2 = new Vector2(0.78f * S, 0.68f * S);
+        float half = 0.058f * S; // half stroke width
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float d = Mathf.Min(DistToSegment(p, p0, p1), DistToSegment(p, p1, p2));
+                float a = Mathf.Clamp01(half - d + 0.5f);
+                Color c = color;
+                c.a = color.a * a;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // A right-pointing chevron drawn as two round-capped strokes meeting at the tip - a cleaner,
+    // lighter ">" than the font glyph for the action badge.
+    public static Sprite Chevron(Color color)
+    {
+        string key = $"chevron:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        // Nudged right of centre so the optical weight sits centred in a circular badge.
+        Vector2 top = new Vector2(0.40f * S, 0.72f * S);
+        Vector2 tip = new Vector2(0.64f * S, 0.50f * S);
+        Vector2 bot = new Vector2(0.40f * S, 0.28f * S);
+        float half = 0.050f * S;
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float d = Mathf.Min(DistToSegment(p, top, tip), DistToSegment(p, tip, bot));
+                Color c = color;
+                c.a = color.a * Mathf.Clamp01(half - d + 0.5f);
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // A padlock: a filled rounded-rect body with a round keyhole carved out, capped by a hollow
+    // semicircular shackle. Replaces the literal word "LOCK" on locked level/chapter badges.
+    public static Sprite Lock(Color color)
+    {
+        string key = $"lock:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        Vector2 bodyCenter = new Vector2(0.5f * S, 0.40f * S);
+        Vector2 bodyHalf = new Vector2(0.21f * S, 0.20f * S);
+        float bodyRadius = 0.06f * S;
+        Vector2 shackleCenter = new Vector2(0.5f * S, 0.60f * S);
+        float shackleOuter = 0.17f * S;
+        float shackleInner = 0.10f * S;
+        Vector2 keyholeCenter = new Vector2(0.5f * S, 0.42f * S);
+        float keyholeRadius = 0.05f * S;
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+
+                float bodyD = RoundedBoxDist(p, bodyCenter, bodyHalf, bodyRadius);
+                float bodyA = Mathf.Clamp01(0.5f - bodyD);
+
+                // Hollow shackle: the band between the two radii, upper half only so it reads as
+                // an inverted-U sitting on the body (the body hides the flat cut at its base).
+                float r = Vector2.Distance(p, shackleCenter);
+                float ringD = Mathf.Max(r - shackleOuter, shackleInner - r);
+                float ringA = p.y >= shackleCenter.y ? Mathf.Clamp01(0.5f - ringD) : 0f;
+
+                float a = Mathf.Max(bodyA, ringA);
+
+                // Carve the keyhole back out of the body.
+                float keyholeA = Mathf.Clamp01(0.5f - (Vector2.Distance(p, keyholeCenter) - keyholeRadius));
+                a = Mathf.Min(a, 1f - keyholeA);
+
+                Color c = color;
+                c.a = color.a * a;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // ---- Bottom-nav glyphs ------------------------------------------------------------------
+    // Clean line/solid icons for the menu's bottom navigation, drawn procedurally so they share
+    // the menu's look and scale crisply. `color` tints the whole glyph (alpha respected).
+    // Stroke icons use a ~4.3px source stroke that downsamples to a clean ~2px line at nav size.
+
+    // Outline alpha for a signed distance `d` (negative inside) at half-stroke `half`.
+    private static float StrokeAlpha(float d, float half) => Mathf.Clamp01(half - Mathf.Abs(d) + 0.5f);
+
+    public static Sprite NavBag(Color color)
+    {
+        string key = $"navbag:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        Vector2 bodyCenter = new Vector2(0.5f * S, 0.42f * S);
+        Vector2 bodyHalf = new Vector2(0.23f * S, 0.24f * S);
+        float bodyRadius = 0.07f * S;
+        Vector2 handleCenter = new Vector2(0.5f * S, 0.64f * S);
+        float handleRadius = 0.135f * S;
+        float half = 0.045f * S;
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float bodyA = StrokeAlpha(RoundedBoxDist(p, bodyCenter, bodyHalf, bodyRadius), half);
+                float handleA = p.y >= handleCenter.y
+                    ? StrokeAlpha(Vector2.Distance(p, handleCenter) - handleRadius, half)
+                    : 0f;
+                Color c = color;
+                c.a = color.a * Mathf.Max(bodyA, handleA);
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // Two offset rounded-square outlines - a "layers / stack" glyph for Chapters.
+    public static Sprite NavLayers(Color color)
+    {
+        string key = $"navlayers:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        Vector2 back = new Vector2(0.58f * S, 0.58f * S);
+        Vector2 front = new Vector2(0.42f * S, 0.42f * S);
+        Vector2 sq = new Vector2(0.22f * S, 0.22f * S);
+        float radius = 0.05f * S;
+        float half = 0.045f * S;
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float a = Mathf.Max(
+                    StrokeAlpha(RoundedBoxDist(p, back, sq, radius), half),
+                    StrokeAlpha(RoundedBoxDist(p, front, sq, radius), half));
+                Color c = color;
+                c.a = color.a * a;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // Filled house silhouette (roof + body) with a carved door - the Home glyph.
+    public static Sprite NavHouse(Color color)
+    {
+        string key = $"navhouse:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        Vector2 bodyCenter = new Vector2(0.5f * S, 0.34f * S);
+        Vector2 bodyHalf = new Vector2(0.23f * S, 0.17f * S);
+        float bodyRadius = 0.03f * S;
+        Vector2 apex = new Vector2(0.5f * S, 0.82f * S);
+        Vector2 eaveL = new Vector2(0.14f * S, 0.50f * S);
+        Vector2 eaveR = new Vector2(0.86f * S, 0.50f * S);
+        Vector2 doorCenter = new Vector2(0.5f * S, 0.26f * S);
+        Vector2 doorHalf = new Vector2(0.075f * S, 0.135f * S);
+        float doorRadius = 0.02f * S;
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float bodyA = Mathf.Clamp01(0.5f - RoundedBoxDist(p, bodyCenter, bodyHalf, bodyRadius));
+                float roofA = PointInTriangle(p, apex, eaveL, eaveR) ? 1f : 0f;
+                float a = Mathf.Max(bodyA, roofA);
+                float doorA = Mathf.Clamp01(0.5f - RoundedBoxDist(p, doorCenter, doorHalf, doorRadius));
+                a = Mathf.Min(a, 1f - doorA);
+                Color c = color;
+                c.a = color.a * a;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // 2x2 rounded-square outlines - a grid/vault glyph.
+    public static Sprite NavGrid(Color color)
+    {
+        string key = $"navgrid:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        Vector2 sq = new Vector2(0.135f * S, 0.135f * S);
+        float radius = 0.035f * S;
+        float half = 0.042f * S;
+        Vector2[] centers =
+        {
+            new Vector2(0.33f * S, 0.67f * S), new Vector2(0.67f * S, 0.67f * S),
+            new Vector2(0.33f * S, 0.33f * S), new Vector2(0.67f * S, 0.33f * S),
+        };
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float a = 0f;
+                for (int i = 0; i < centers.Length; i++)
+                    a = Mathf.Max(a, StrokeAlpha(RoundedBoxDist(p, centers[i], sq, radius), half));
+                Color c = color;
+                c.a = color.a * a;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // A cog: filled toothed ring with a center hole - the Settings glyph.
+    public static Sprite NavGear(Color color)
+    {
+        string key = $"navgear:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        Vector2 center = new Vector2(0.5f * S, 0.5f * S);
+        float baseR = 0.27f * S;
+        float toothH = 0.08f * S;
+        float holeR = 0.13f * S;
+        const int teeth = 8;
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                float dx = x + 0.5f - center.x;
+                float dy = y + 0.5f - center.y;
+                float r = Mathf.Sqrt(dx * dx + dy * dy);
+                float theta = Mathf.Atan2(dy, dx);
+                // Square-ish radial tooth wave: full radius on the tooth, base in the valley.
+                float t = Mathf.Clamp01(Mathf.Cos(theta * teeth) * 4f + 0.5f);
+                float outerR = baseR + toothH * t;
+                float outerA = Mathf.Clamp01(0.5f - (r - outerR));
+                float innerA = Mathf.Clamp01(0.5f - (holeR - r));
+                Color c = color;
+                c.a = color.a * Mathf.Min(outerA, innerA);
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    private static float DistToSegment(Vector2 p, Vector2 a, Vector2 b)
+    {
+        Vector2 ab = b - a;
+        float t = Mathf.Clamp01(Vector2.Dot(p - a, ab) / Mathf.Max(Vector2.Dot(ab, ab), 1e-5f));
+        return Vector2.Distance(p, a + ab * t);
+    }
+
+    // Signed distance to a rounded rectangle (negative inside), for anti-aliased fills.
+    private static float RoundedBoxDist(Vector2 p, Vector2 center, Vector2 halfSize, float radius)
+    {
+        Vector2 d = new Vector2(Mathf.Abs(p.x - center.x), Mathf.Abs(p.y - center.y))
+                    - (halfSize - new Vector2(radius, radius));
+        float outside = new Vector2(Mathf.Max(d.x, 0f), Mathf.Max(d.y, 0f)).magnitude;
+        return outside + Mathf.Min(Mathf.Max(d.x, d.y), 0f) - radius;
+    }
+
+    // A rounded-rect with a vertical gradient (bottom->top), 9-sliced. Every column carries the
+    // same vertical gradient, so horizontal AND vertical slice-stretching stay consistent - it
+    // tiles to any button size without distorting the gradient. Use with Image.Type.Sliced.
+    public static Sprite RoundedGradient(Color top, Color bottom)
+    {
+        string key = $"roundgrad:{Key(top)}:{Key(bottom)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        const float radius = 30f;
+        Texture2D tex = NewTexture(S, S);
+        Vector2 center = new Vector2(S * 0.5f, S * 0.5f);
+        Vector2 half = new Vector2(S * 0.5f - 1f, S * 0.5f - 1f);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float a = Mathf.Clamp01(0.5f - RoundedBoxDist(p, center, half, radius));
+                Color c = Color.Lerp(bottom, top, (y + 0.5f) / S);
+                c.a *= a;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        tex.Apply(false, true);
+        Sprite sprite = Sprite.Create(tex, new Rect(0f, 0f, S, S), new Vector2(0.5f, 0.5f), 100f, 0,
+            SpriteMeshType.FullRect, new Vector4(radius, radius, radius, radius));
+        sprite.hideFlags = HideFlags.HideAndDontSave;
+        return Cache[key] = sprite;
+    }
+
+    // A smooth vertical gradient (bottom->top), 1px wide, stretched by callers. Used as the
+    // scrim over a thumbnail so its lower edge fades into the panel. Alpha is honoured, so pass
+    // a transparent top and an opaque panel-coloured bottom.
+    public static Sprite VerticalFade(Color top, Color bottom)
+    {
+        string key = $"vfade:{Key(top)}:{Key(bottom)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int W = 4;
+        const int Hh = 128;
+        Texture2D tex = NewTexture(W, Hh);
+        for (int y = 0; y < Hh; y++)
+        {
+            Color c = Color.Lerp(bottom, top, (y + 0.5f) / Hh);
+            for (int x = 0; x < W; x++) tex.SetPixel(x, y, c);
+        }
+        return Cache[key] = Finish(tex, 100f);
+    }
+
+    // A filled trophy (tapered cup + side handles + stem + base) for the Ranks button.
+    public static Sprite Trophy(Color color)
+    {
+        string key = $"trophy:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        float cx = 0.5f * S;
+        float rimY = 0.78f * S, bowlBot = 0.44f * S;
+        float rimHalf = 0.21f * S, botHalf = 0.115f * S;
+        float handleOuter = 0.115f * S, handleInner = 0.072f * S;
+        Vector2 lh = new Vector2(cx - rimHalf, 0.68f * S);
+        Vector2 rh = new Vector2(cx + rimHalf, 0.68f * S);
+        Vector2 stemC = new Vector2(cx, 0.37f * S);
+        Vector2 stemH = new Vector2(0.045f * S, 0.075f * S);
+        Vector2 baseC = new Vector2(cx, 0.27f * S);
+        Vector2 baseH = new Vector2(0.11f * S, 0.035f * S);
+        Vector2 footC = new Vector2(cx, 0.215f * S);
+        Vector2 footH = new Vector2(0.17f * S, 0.03f * S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float a = 0f;
+
+                // Cup: tapers from the wide rim down to a rounded bottom (eased).
+                if (p.y <= rimY && p.y >= bowlBot)
+                {
+                    float t = (rimY - p.y) / (rimY - bowlBot);
+                    float halfw = Mathf.Lerp(rimHalf, botHalf, t * t);
+                    if (Mathf.Abs(p.x - cx) <= halfw) a = 1f;
+                }
+                // Handles: a ring on each side, outer half only.
+                float dl = Vector2.Distance(p, lh);
+                if (p.x <= lh.x && dl <= handleOuter && dl >= handleInner) a = 1f;
+                float dr = Vector2.Distance(p, rh);
+                if (p.x >= rh.x && dr <= handleOuter && dr >= handleInner) a = 1f;
+                // Stem + two base tiers.
+                if (RoundedBoxDist(p, stemC, stemH, 0.01f * S) < 0f) a = 1f;
+                if (RoundedBoxDist(p, baseC, baseH, 0.02f * S) < 0f) a = 1f;
+                if (RoundedBoxDist(p, footC, footH, 0.02f * S) < 0f) a = 1f;
+
+                Color c = color;
+                c.a *= a;
+                tex.SetPixel(x, y, c);
             }
         }
         return Cache[key] = Finish(tex, S);

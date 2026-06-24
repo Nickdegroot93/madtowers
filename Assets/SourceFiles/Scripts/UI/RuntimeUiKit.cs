@@ -59,6 +59,54 @@ public static class RuntimeUiKit
         return root;
     }
 
+    // ---- Safe area (notch / camera cutout / status bar / home indicator) --------------------
+    // Unity's device-safe region is Screen.safeArea (pixels). These helpers turn it into per-edge
+    // insets so any top/bottom/side-pinned element can keep clear of cutouts on every phone. See
+    // RESPONSIVE.md for the contract; SafeAreaFitter is the container-based way to consume this.
+
+    // Each raw inset is clamped to this fraction of the screen on its axis. Screen.safeArea can
+    // momentarily report a degenerate rect (first frame, simulator, mid-rotation); without the
+    // clamp that can shove a whole bar a full screen inward and make it vanish. Real notches /
+    // indicators are well under 10%, so the clamp only ever bites a bad read, never a real one.
+    public const float SafeAreaMaxInsetFraction = 0.1f;
+
+    /// <summary>
+    /// Device safe-area insets in SCREEN PIXELS as (left, right, top, bottom), each clamped to
+    /// <see cref="SafeAreaMaxInsetFraction"/> of the screen. Canvas-independent.
+    /// </summary>
+    public static Vector4 SafeAreaInsetsPixels()
+    {
+        int w = Screen.width;
+        int h = Screen.height;
+        if (w <= 0 || h <= 0) return Vector4.zero;
+
+        Rect safe = Screen.safeArea;
+        float maxX = w * SafeAreaMaxInsetFraction;
+        float maxY = h * SafeAreaMaxInsetFraction;
+        return new Vector4(
+            Mathf.Clamp(safe.xMin, 0f, maxX),          // left
+            Mathf.Clamp(w - safe.xMax, 0f, maxX),      // right
+            Mathf.Clamp(h - safe.yMax, 0f, maxY),      // top
+            Mathf.Clamp(safe.yMin, 0f, maxY));         // bottom
+    }
+
+    /// <summary>
+    /// Safe-area insets as (left, right, top, bottom) converted to the UI units of
+    /// <paramref name="canvas"/> (i.e. divided by its scaleFactor), ready to add to a
+    /// RectTransform offset. Pass the canvas the element lives under.
+    /// </summary>
+    public static Vector4 SafeAreaInsets(Canvas canvas)
+    {
+        Vector4 px = SafeAreaInsetsPixels();
+        float scale = canvas != null && canvas.scaleFactor > 0f ? canvas.scaleFactor : 1f;
+        return px / scale;
+    }
+
+    public static float SafeAreaTopInset(Canvas canvas) => SafeAreaInsets(canvas).z;
+    public static float SafeAreaBottomInset(Canvas canvas) => SafeAreaInsets(canvas).w;
+    public static float SafeAreaLeftInset(Canvas canvas) => SafeAreaInsets(canvas).x;
+    public static float SafeAreaRightInset(Canvas canvas) => SafeAreaInsets(canvas).y;
+
     public static RectTransform CreateRect(Transform parent, string name,
         Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot, Vector2 anchoredPosition, Vector2 size)
     {

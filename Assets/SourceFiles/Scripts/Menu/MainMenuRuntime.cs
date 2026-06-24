@@ -26,11 +26,15 @@ public static class MainMenuRuntime
     private const float LevelListTopInset = 485f;
     private const float LevelListBottomInset = 205f;
     private const float LevelRowHeight = 220f;
-    private const float LevelCardWidth = 790f;
     private const float LevelCardHeight = 184f;
-    private const float LevelCardX = 108f;
     private const float LevelCardTop = 6f;
-    private const float RailX = 52f;
+    // Phone-edge padding: the gap from each screen edge to a level card. Cards stretch to fill
+    // the row between these insets, so their width tracks the screen width on any device. Matches
+    // the chapter title's left inset (see ChapterTitle x) so the cards line up under the title.
+    private const float LevelCardSideInset = 76f;
+    // Action badge (the play / check / lock circle) centre, measured in from the card's RIGHT
+    // edge so it rides the edge as the card widens.
+    private const float LevelCardActionInsetRight = 72f;
     // Text column region inside a card: starts right of the thumbnail/number plate, ends
     // before the action badge. The column itself flows with a layout group, so these are
     // the only two card-internal x values left to tune.
@@ -41,16 +45,15 @@ public static class MainMenuRuntime
     private static readonly Color TextMuted = new Color(0.74f, 0.7f, 0.64f, 1f);
     private static readonly Color LockedColor = new Color(0.44f, 0.46f, 0.48f, 1f);
     private static readonly Color CardDark = new Color(0.07f, 0.06f, 0.05f, 0.76f);
-    private static readonly Color NavDark = new Color(0.045f, 0.04f, 0.035f, 0.92f);
     private static readonly Color GoldBase = new Color(1f, 0.9f, 0.68f, 1f);
     private static readonly Color GlassBorder = new Color(1f, 0.92f, 0.74f, 0.18f);
 
     private enum MenuTab
     {
         Shop,
-        Missions,
-        Play,
-        Heroes,
+        Chapters,
+        Home,
+        Vault,
         Settings
     }
 
@@ -67,7 +70,7 @@ public static class MainMenuRuntime
     private static ChapterDefinition[] _chapters = Array.Empty<ChapterDefinition>();
     private static int _chapterIndex;
     private static bool _chapterIndexInitialized;
-    private static MenuTab _activeTab = MenuTab.Play;
+    private static MenuTab _activeTab = MenuTab.Home;
     private static RenderTexture _videoTexture;
 
     private static Color GoldOutline(float alpha)
@@ -119,9 +122,14 @@ public static class MainMenuRuntime
     }
 
     private static void SetCentered(RectTransform rect, Vector2 anchoredPosition, Vector2 size)
+        => SetCenteredAt(rect, new Vector2(0f, 1f), anchoredPosition, size);
+
+    // As SetCentered but lets the caller pick which parent corner the element is pinned to, so a
+    // badge can ride the right edge (anchor (1, 1)) of a stretched card instead of a fixed x.
+    private static void SetCenteredAt(RectTransform rect, Vector2 anchor, Vector2 anchoredPosition, Vector2 size)
     {
-        rect.anchorMin = new Vector2(0f, 1f);
-        rect.anchorMax = new Vector2(0f, 1f);
+        rect.anchorMin = anchor;
+        rect.anchorMax = anchor;
         rect.pivot = new Vector2(0.5f, 0.5f);
         rect.anchoredPosition = anchoredPosition;
         rect.sizeDelta = size;
@@ -143,7 +151,7 @@ public static class MainMenuRuntime
         _chapters = Array.Empty<ChapterDefinition>();
         _chapterIndex = 0;
         _chapterIndexInitialized = false;
-        _activeTab = MenuTab.Play;
+        _activeTab = MenuTab.Home;
         ReleaseVideoTexture();
     }
 
@@ -223,7 +231,7 @@ public static class MainMenuRuntime
         BuildTopStatusBar(topRoot, chapter);
 
         Transform contentRoot = RecreateSection(ref _contentRoot, _contentLayer, "ContentRoot");
-        if (_activeTab == MenuTab.Play) BuildPlayScreen(contentRoot, chapter);
+        if (_activeTab == MenuTab.Home) BuildPlayScreen(contentRoot, chapter);
         else BuildDummyScreen(contentRoot, _activeTab);
 
         Transform navRoot = RecreateSection(ref _navRoot, _navLayer, "BottomNavRoot");
@@ -277,10 +285,15 @@ public static class MainMenuRuntime
         if (_root != null) return;
 
         _root = RuntimeUiKit.CreateOverlayCanvas("Main Menu", 5000);
+        // The background bleeds full-screen behind any notch/cutout; everything readable and
+        // interactive lives inside a SafeAreaFitter so the top bar clears the camera and the
+        // bottom nav clears the home indicator on every phone (no-op on notchless screens).
         _backgroundLayer = CreateLayer(_root.transform, "BackgroundLayer");
-        _contentLayer = CreateLayer(_root.transform, "ContentLayer");
-        _topStatusLayer = CreateLayer(_root.transform, "TopStatusLayer");
-        _navLayer = CreateLayer(_root.transform, "NavigationLayer");
+        Transform safeLayer = CreateLayer(_root.transform, "SafeAreaLayer");
+        safeLayer.gameObject.AddComponent<SafeAreaFitter>();
+        _contentLayer = CreateLayer(safeLayer, "ContentLayer");
+        _topStatusLayer = CreateLayer(safeLayer, "TopStatusLayer");
+        _navLayer = CreateLayer(safeLayer, "NavigationLayer");
         _pager = _root.AddComponent<MenuChapterPager>();
     }
 
@@ -566,10 +579,14 @@ public static class MainMenuRuntime
                 FontStyle.Normal, RuntimeUiKit.DefaultFont, new Vector2(78f, -14f), new Vector2(96f, 24f), new Vector2(0f, 0.5f));
         }
 
-        Image divider = CreateImage(card, "Divider", RuntimeSprites.Square(), WithAlpha(TextPrimary, 0.24f));
-        SetRect(divider.rectTransform, new Vector2(178f, 0f), new Vector2(1f, 36f), new Vector2(0f, 0.5f));
-        CreateTmp(card, "Plus", "+", 32, TextPrimary, TextAnchor.MiddleCenter,
-            FontStyle.Normal, RuntimeUiKit.DefaultFont, new Vector2(197f, 0f), new Vector2(40f, 42f), new Vector2(0f, 0.5f));
+        // Divider + add button, pinned to the card's RIGHT edge (pivot-centred) rather than a
+        // fixed left offset. Both cards then match exactly and the "+" keeps an even margin from
+        // the edge instead of overflowing it - independent of the card's laid-out width.
+        Image divider = CreateImage(card, "Divider", RuntimeSprites.Square(), WithAlpha(TextPrimary, 0.28f));
+        SetCenteredAt(divider.rectTransform, new Vector2(1f, 0.5f), new Vector2(-52f, 0f), new Vector2(1.5f, 38f));
+        TextMeshProUGUI plus = CreateTmp(card, "Plus", "+", 32, TextPrimary, TextAnchor.MiddleCenter,
+            FontStyle.Normal, RuntimeUiKit.DefaultFont);
+        SetCenteredAt(plus.rectTransform, new Vector2(1f, 0.5f), new Vector2(-26f, 0f), new Vector2(44f, 44f));
     }
 
     // Cached menu icons loaded by short name from Resources/Menu (e.g. "coin", "heart"). Drop a
@@ -610,6 +627,21 @@ public static class MainMenuRuntime
         BuildChapterContent(parent, chapter, _chapterIndex);
     }
 
+    // A soft drop shadow under light text, so titles stay legible on bright / low-contrast
+    // backdrops (which vary per chapter theme). Same UIEffect shadow the level cards use.
+    private static void AddTextShadow(TextMeshProUGUI text, float alpha, Vector2 distance, float blur)
+    {
+        UIEffect fx = text.gameObject.AddComponent<UIEffect>();
+        fx.shadowMode = ShadowMode.Shadow;
+        fx.shadowColorFilter = ColorFilter.Replace;
+        fx.shadowColor = new Color(0f, 0f, 0f, alpha);
+        fx.shadowDistance = distance;
+        fx.shadowBlurIntensity = blur;
+        // High iteration spreads the blur wide so the shadow reads as a soft feathered halo, not
+        // a crisp offset echo - keep alpha/distance low and let the blur do the work.
+        fx.shadowIteration = 8;
+    }
+
     // Builds a single chapter's foreground (title block, next-chapter card, level list) into
     // an arbitrary container. The live screen passes the content root; the pager passes an
     // off-screen neighbour panel so the incoming chapter is fully rendered while it slides in.
@@ -623,12 +655,14 @@ public static class MainMenuRuntime
             eyebrowColor, TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.TitleFont,
             new Vector2(76f, -252f), new Vector2(180f, 42f), new Vector2(0f, 1f));
         AutoSize(eyebrow, 16, 20);
+        AddTextShadow(eyebrow, 0.18f, new Vector2(0f, -1f), 1f);
 
         TextMeshProUGUI title = CreateTmp(parent, "ChapterTitle", chapter.DisplayName.ToUpperInvariant(), 68,
-            TextPrimary, TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.TitleFont,
+            TextPrimary, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(76f, -276f), new Vector2(700f, 104f), new Vector2(0f, 1f));
         title.characterSpacing = 6f;
         AutoSize(title, 40, 68);
+        AddTextShadow(title, 0.28f, new Vector2(0f, -2f), 1f);
 
         if (!chapterUnlocked)
         {
@@ -665,7 +699,7 @@ public static class MainMenuRuntime
             {
                 SfxPlayer.Play("ui-button-click");
                 _chapterIndex = index;
-                _activeTab = MenuTab.Play;
+                _activeTab = MenuTab.Home;
                 BuildMenu();
             });
     }
@@ -718,10 +752,11 @@ public static class MainMenuRuntime
         RectTransform card = CreateRect(parent, "NextChapterCard",
             new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f),
             new Vector2(-60f, 210f), new Vector2(300f, 160f));
+        Color cardFill = new Color(0.05f, 0.06f, 0.065f, 1f);
         Image cardImage = card.gameObject.AddComponent<Image>();
         cardImage.sprite = RuntimeSprites.RoundedPanel();
         cardImage.type = Image.Type.Sliced;
-        cardImage.color = new Color(0.05f, 0.06f, 0.065f, 0.72f);
+        cardImage.color = cardFill;
         RuntimeUiKit.AddOutline(card, GoldOutline(0.24f));
 
         Sprite preview = current.NextChapterPreviewImage != null
@@ -737,9 +772,18 @@ public static class MainMenuRuntime
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -22f), new Vector2(180f, 26f), new Vector2(0f, 1f));
         CreateTmp(card, "NextTitle", next.DisplayName.ToUpperInvariant(), 21, TextPrimary, TextAnchor.MiddleLeft,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -50f), new Vector2(206f, 34f), new Vector2(0f, 1f));
-        CreateTmp(card, "NextArrow", unlocked ? ">" : "LOCK", unlocked ? 42 : 18,
-            unlocked ? TextPrimary : LockedColor, TextAnchor.MiddleCenter, FontStyle.Bold,
-            RuntimeUiKit.TitleFont, new Vector2(236f, -48f), new Vector2(44f, 54f), new Vector2(0f, 1f));
+        if (unlocked)
+        {
+            Image nextArrow = CreateImage(card, "NextArrow", MenuSprites.Chevron(TextPrimary), Color.white);
+            nextArrow.preserveAspect = true;
+            SetCentered(nextArrow.rectTransform, new Vector2(258f, -75f), new Vector2(40f, 40f));
+        }
+        else
+        {
+            Image lockIcon = CreateImage(card, "NextLock", MenuSprites.Lock(LockedColor), Color.white);
+            lockIcon.preserveAspect = true;
+            SetCentered(lockIcon.rectTransform, new Vector2(258f, -75f), new Vector2(34f, 34f));
+        }
 
         Button button = card.gameObject.AddComponent<Button>();
         button.targetGraphic = cardImage;
@@ -750,6 +794,16 @@ public static class MainMenuRuntime
             // a swipe uses, so the card and the gesture feel identical.
             if (_pager != null) _pager.AnimateToChapter(nextIndex, 1);
         });
+
+        // Keep the card fully opaque in every state. Without this, a locked (non-interactable)
+        // card falls back to Unity's default disabledColor (alpha 0.5), which the ColorTint
+        // transition applies over the fill and makes the card look see-through.
+        ColorBlock colors = button.colors;
+        colors.normalColor = cardFill;
+        colors.highlightedColor = WithAlpha(Color.Lerp(cardFill, TextPrimary, 0.08f), 1f);
+        colors.pressedColor = WithAlpha(Color.Lerp(cardFill, Color.black, 0.12f), 1f);
+        colors.disabledColor = cardFill;
+        button.colors = colors;
     }
 
     private static void BuildLockedChapterMessage(Transform parent)
@@ -793,8 +847,11 @@ public static class MainMenuRuntime
     {
         RectTransform viewport = CreateRect(parent, "LevelListViewport",
             Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-        viewport.offsetMin = new Vector2(42f, LevelListBottomInset);
-        viewport.offsetMax = new Vector2(-42f, -LevelListTopInset);
+        // Full width horizontally so cards reach the phone padding themselves (and the active
+        // card's glow bleeds past its edge without the mask clipping it); the mask only trims
+        // the list top and bottom.
+        viewport.offsetMin = new Vector2(0f, LevelListBottomInset);
+        viewport.offsetMax = new Vector2(0f, -LevelListTopInset);
         Image viewportHitTarget = viewport.gameObject.AddComponent<Image>();
         viewportHitTarget.color = Color.clear;
         viewportHitTarget.raycastTarget = true;
@@ -840,64 +897,8 @@ public static class MainMenuRuntime
             bool isCurrent = i == currentIndex;
             bool current = isCurrent && unlocked && !completed;
 
-            BuildRailForRow(row, count, i, unlocked, completed, current,
-                chapter.MenuAccentColor, chapter.MenuAccentSecondaryColor);
             BuildLevelCard(row, chapter, level, i, unlocked, completed, current);
         }
-    }
-
-    private static void BuildRailForRow(Transform row, int levelCount, int index,
-        bool unlocked, bool completed, bool current, Color accentColor, Color secondaryColor)
-    {
-        float cardCenterY = -(LevelCardTop + LevelCardHeight * 0.5f);
-        float lineTop = index == 0 ? -cardCenterY : 0f;
-        float lineHeight = index == levelCount - 1 ? -cardCenterY : LevelRowHeight;
-        Color railColor = Color.Lerp(accentColor, TextPrimary, 0.58f);
-        Color currentColor = Color.Lerp(accentColor, TextPrimary, 0.45f);
-
-        Image railGlow = CreateImage(row, "RailGlow", RuntimeSprites.RoundedPanel(), WithAlpha(railColor, 0.10f));
-        railGlow.type = Image.Type.Sliced;
-        SetRect(railGlow.rectTransform, new Vector2(RailX - 3f, -lineTop), new Vector2(6f, lineHeight),
-            new Vector2(0f, 1f));
-
-        Image rail = CreateImage(row, "RailSegment", RuntimeSprites.RoundedPanel(), WithAlpha(railColor, 0.80f));
-        rail.type = Image.Type.Sliced;
-        SetRect(rail.rectTransform, new Vector2(RailX - 1.5f, -lineTop), new Vector2(3f, lineHeight),
-            new Vector2(0f, 1f));
-
-        if (current)
-        {
-            // The active node is a glowing hollow diamond: a soft UIEffect-blurred halo, a crisp
-            // diamond outline (the "line around the diamond"), and a small bright center dot.
-            Image glow = CreateImage(row, "RailNodeGlow",
-                MenuSprites.DiamondBadge(WithAlpha(currentColor, 0.9f), WithAlpha(currentColor, 0.9f)), Color.white);
-            SetCentered(glow.rectTransform, new Vector2(RailX, cardCenterY), new Vector2(46f, 46f));
-            UIEffect glowFx = glow.gameObject.AddComponent<UIEffect>();
-            glowFx.samplingFilter = SamplingFilter.BlurMedium;
-            glowFx.samplingIntensity = 1f;
-
-            Image ring = CreateImage(row, "RailNodeRing",
-                MenuSprites.DiamondRing(currentColor), Color.white);
-            SetCentered(ring.rectTransform, new Vector2(RailX, cardCenterY), new Vector2(50f, 50f));
-
-            Image center = CreateImage(row, "RailNodeCenter",
-                MenuSprites.DiamondBadge(WithAlpha(currentColor, 0.95f), WithAlpha(TextPrimary, 0.9f)), Color.white);
-            SetCentered(center.rectTransform, new Vector2(RailX, cardCenterY), new Vector2(16f, 16f));
-            return;
-        }
-
-        if (completed || unlocked)
-        {
-            Image node = CreateImage(row, "RailNode",
-                MenuSprites.DiamondBadge(WithAlpha(railColor, completed ? 0.88f : 0.60f),
-                    WithAlpha(railColor, completed ? 1f : 0.82f)), Color.white);
-            SetCentered(node.rectTransform, new Vector2(RailX, cardCenterY), new Vector2(24f, 24f));
-            return;
-        }
-
-        Image lockedNode = CreateImage(row, "RailNodeLocked",
-            MenuSprites.DiamondBadge(WithAlpha(Color.black, 0.01f), WithAlpha(railColor, 0.55f)), Color.white);
-        SetCentered(lockedNode.rectTransform, new Vector2(RailX, cardCenterY), new Vector2(18f, 18f));
     }
 
     private static void BuildLevelCard(Transform parent, ChapterDefinition chapter, LevelDefinition level,
@@ -906,9 +907,13 @@ public static class MainMenuRuntime
         Color chapterLight = ChapterLight(chapter);
         Color chapterDark = ChapterDark(chapter);
 
+        // Stretch across the row between the side insets so the card width tracks the screen;
+        // height stays fixed, hung LevelCardTop below the row's top.
         RectTransform card = CreateRect(parent, $"LevelCard{index + 1}",
-            new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(LevelCardX, -LevelCardTop), new Vector2(LevelCardWidth, LevelCardHeight));
+            new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
+            Vector2.zero, Vector2.zero);
+        card.offsetMin = new Vector2(LevelCardSideInset, -(LevelCardTop + LevelCardHeight));
+        card.offsetMax = new Vector2(-LevelCardSideInset, -LevelCardTop);
         Image cardImage = card.gameObject.AddComponent<Image>();
         cardImage.sprite = RuntimeSprites.RoundedPanel();
         cardImage.type = Image.Type.Sliced;
@@ -1040,25 +1045,42 @@ public static class MainMenuRuntime
     private static void BuildActionBadge(Transform card, bool unlocked, bool completed, Color chapterLight)
     {
         Color green = new Color(0.58f, 0.86f, 0.18f, 1f);
-        Vector2 center = new Vector2(718f, -LevelCardHeight * 0.5f);
+        // Pinned to the card's top-right corner (anchor (1, 1)) and offset in by the right inset,
+        // so the badge stays glued to the edge however wide the stretched card becomes.
+        Vector2 anchor = new Vector2(1f, 1f);
+        Vector2 center = new Vector2(-LevelCardActionInsetRight, -LevelCardHeight * 0.5f);
 
         if (completed)
         {
             Image completedGlow = CreateImage(card, "ActionGlow",
                 MenuSprites.CircleBadge(WithAlpha(green, 0.10f), WithAlpha(green, 0.20f)), Color.white);
-            SetCentered(completedGlow.rectTransform, center, new Vector2(72f, 72f));
+            SetCenteredAt(completedGlow.rectTransform, anchor, center, new Vector2(86f, 86f));
         }
 
         Color edgeColor = ChapterEdge(chapterLight);
         Color fill = completed ? WithAlpha(green, 0.20f) : WithAlpha(Color.black, 0.18f);
         Color border = completed ? WithAlpha(green, 0.95f) : WithAlpha(edgeColor, unlocked ? 1f : 0.42f);
         Image action = CreateImage(card, "Action", MenuSprites.CircleBadge(fill, border), Color.white);
-        SetCentered(action.rectTransform, center, new Vector2(62f, 62f));
+        SetCenteredAt(action.rectTransform, anchor, center, new Vector2(74f, 74f));
 
-        string actionText = completed ? "\u2713" : (unlocked ? ">" : "LOCK");
-        CreateTmp(action.transform, "ActionText", actionText, completed ? 31 : (unlocked ? 34 : 12),
-            completed ? green : (unlocked ? TextPrimary : LockedColor),
-            TextAnchor.MiddleCenter, FontStyle.Normal, RuntimeUiKit.DefaultFont);
+        if (completed)
+        {
+            Image check = CreateImage(action.transform, "ActionCheck", MenuSprites.CheckMark(green), Color.white);
+            check.preserveAspect = true;
+            SetCenteredAt(check.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(40f, 40f));
+        }
+        else if (unlocked)
+        {
+            Image chevron = CreateImage(action.transform, "ActionChevron", MenuSprites.Chevron(TextPrimary), Color.white);
+            chevron.preserveAspect = true;
+            SetCenteredAt(chevron.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(40f, 40f));
+        }
+        else
+        {
+            Image lockIcon = CreateImage(action.transform, "ActionLock", MenuSprites.Lock(LockedColor), Color.white);
+            lockIcon.preserveAspect = true;
+            SetCenteredAt(lockIcon.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(38f, 38f));
+        }
     }
 
     private static void BuildDummyScreen(Transform parent, MenuTab tab)
@@ -1088,36 +1110,74 @@ public static class MainMenuRuntime
         }
     }
 
+    // A gold-rimmed bar that STRETCHES to the screen width (constant side insets, so it fits any
+    // phone), five evenly-spaced tabs split by thin dividers, and a raised gold Home hexagon at
+    // the centre. Lives in the menu's safe-area layer, so it already clears the home indicator.
+    private const float NavSideInset = 60f;     // gap from each screen edge to the bar
+    private const float NavBottomMargin = 28f;  // gap from the safe-area bottom to the bar
+    private const float NavBarHeight = 150f;
+    private const float NavLabelY = -47f;       // label baseline, shared by every tab
+    private const float NavIconY = 20f;         // side-tab icon centre, above the label
+
     private static void BuildBottomNav(Transform parent)
     {
+        // Stretch horizontally between fixed side insets; fixed height pinned to the bottom.
         RectTransform nav = CreateRect(parent, "BottomNavigation",
-            new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(0f, 38f), new Vector2(940f, 145f));
+            new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), Vector2.zero, Vector2.zero);
+        nav.offsetMin = new Vector2(NavSideInset, NavBottomMargin);
+        nav.offsetMax = new Vector2(-NavSideInset, NavBottomMargin + NavBarHeight);
+
         Image navImage = nav.gameObject.AddComponent<Image>();
         navImage.sprite = RuntimeSprites.RoundedPanel();
         navImage.type = Image.Type.Sliced;
-        navImage.color = NavDark;
-        RuntimeUiKit.AddOutline(nav, GoldOutline(0.18f));
+        navImage.color = new Color(0.06f, 0.05f, 0.04f, 0.96f);
 
-        MenuTab[] tabs = { MenuTab.Shop, MenuTab.Missions, MenuTab.Play, MenuTab.Heroes, MenuTab.Settings };
+        ChapterDefinition chapter = _chapters.Length > 0 ? _chapters[_chapterIndex] : null;
+        Color gold = chapter != null ? ChapterLight(chapter) : GoldBase;
+        RuntimeUiKit.AddOutline(nav, WithAlpha(gold, 0.55f));
+
+        MenuTab[] tabs = { MenuTab.Shop, MenuTab.Chapters, MenuTab.Home, MenuTab.Vault, MenuTab.Settings };
+
+        // Thin vertical dividers on the four internal slot boundaries (not the rounded ends).
+        for (int i = 1; i < tabs.Length; i++)
+        {
+            Image divider = CreateImage(nav, $"NavDivider{i}", RuntimeSprites.Square(), WithAlpha(gold, 0.22f));
+            RectTransform d = divider.rectTransform;
+            float fx = i / (float)tabs.Length;
+            d.anchorMin = new Vector2(fx, 0.5f);
+            d.anchorMax = new Vector2(fx, 0.5f);
+            d.pivot = new Vector2(0.5f, 0.5f);
+            d.anchoredPosition = Vector2.zero;
+            d.sizeDelta = new Vector2(1.5f, NavBarHeight * 0.5f);
+        }
+
         for (int i = 0; i < tabs.Length; i++)
         {
-            if (tabs[i] == MenuTab.Play) BuildPlayNavButton(nav, i, tabs.Length);
-            else BuildNavButton(nav, tabs[i], i, tabs.Length);
+            if (tabs[i] == MenuTab.Home) BuildHomeNavButton(nav, i, tabs.Length, chapter, gold);
+            else BuildNavButton(nav, tabs[i], i, tabs.Length, gold);
         }
     }
 
-    private static void BuildNavButton(Transform nav, MenuTab tab, int index, int count)
+    // One tab = a slot stretched to a fraction (1/count) of the bar, so widths track the screen.
+    private static RectTransform CreateNavSlot(Transform nav, string name, int index, int count,
+        out Button button)
     {
-        float width = 940f / count;
-        RectTransform slot = CreateRect(nav, $"{tab}Nav",
-            new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f),
-            new Vector2(index * width, 14f), new Vector2(width, 116f));
+        RectTransform slot = CreateRect(nav, name,
+            new Vector2(index / (float)count, 0f), new Vector2((index + 1) / (float)count, 1f),
+            new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+        slot.offsetMin = Vector2.zero;
+        slot.offsetMax = Vector2.zero;
+
         Image target = slot.gameObject.AddComponent<Image>();
         target.color = Color.clear;
-
-        Button button = slot.gameObject.AddComponent<Button>();
+        button = slot.gameObject.AddComponent<Button>();
         button.targetGraphic = target;
+        return slot;
+    }
+
+    private static void BuildNavButton(Transform nav, MenuTab tab, int index, int count, Color activeColor)
+    {
+        RectTransform slot = CreateNavSlot(nav, $"{tab}Nav", index, count, out Button button);
         button.onClick.AddListener(() =>
         {
             SfxPlayer.Play("ui-button-click");
@@ -1125,47 +1185,71 @@ public static class MainMenuRuntime
             BuildMenu();
         });
 
-        Color color = _activeTab == tab ? TextPrimary : TextMuted;
-        string icon = tab switch
+        Color tint = _activeTab == tab ? activeColor : TextMuted;
+        Sprite glyph = tab switch
         {
-            MenuTab.Shop => "$",
-            MenuTab.Missions => "*",
-            MenuTab.Heroes => "H",
-            MenuTab.Settings => "#",
-            _ => ""
+            MenuTab.Shop => MenuSprites.NavBag(tint),
+            MenuTab.Chapters => MenuSprites.NavLayers(tint),
+            MenuTab.Vault => MenuSprites.NavGrid(tint),
+            MenuTab.Settings => MenuSprites.NavGear(tint),
+            _ => null
         };
-        CreateTmp(slot, "Icon", icon, 34, color, TextAnchor.MiddleCenter,
-            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -4f), new Vector2(width, 42f), new Vector2(0f, 1f));
-        CreateTmp(slot, "Label", tab.ToString().ToUpperInvariant(), 17, color, TextAnchor.MiddleCenter,
-            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -62f), new Vector2(width, 34f), new Vector2(0f, 1f));
+        if (glyph != null)
+        {
+            Image icon = CreateImage(slot, "Icon", glyph, Color.white);
+            icon.preserveAspect = true;
+            SetCenteredAt(icon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, NavIconY), new Vector2(48f, 48f));
+        }
+        CreateTmp(slot, "Label", tab.ToString().ToUpperInvariant(), 17, tint, TextAnchor.MiddleCenter,
+            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, NavLabelY), new Vector2(160f, 30f), new Vector2(0.5f, 0.5f));
     }
 
-    private static void BuildPlayNavButton(Transform nav, int index, int count)
+    private static void BuildHomeNavButton(Transform nav, int index, int count, ChapterDefinition chapter, Color gold)
     {
-        float width = 940f / count;
-        RectTransform buttonRect = CreateRect(nav, "PlayNav",
-            new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(index * width + width * 0.5f, -18f), new Vector2(174f, 190f));
-        Image image = buttonRect.gameObject.AddComponent<Image>();
-        ChapterDefinition chapter = _chapters.Length > 0 ? _chapters[_chapterIndex] : null;
-        image.sprite = chapter != null
-            ? MenuSprites.HexButton(chapter.PlayButtonTopColor, chapter.PlayButtonBottomColor)
-            : MenuSprites.HexButton(new Color(1f, 0.72f, 0.27f, 1f), new Color(0.88f, 0.38f, 0.08f, 1f));
-        image.color = _activeTab == MenuTab.Play ? Color.white : new Color(0.82f, 0.82f, 0.82f, 1f);
-
-        Button button = buttonRect.gameObject.AddComponent<Button>();
-        button.targetGraphic = image;
+        RectTransform slot = CreateNavSlot(nav, "HomeNav", index, count, out Button button);
         button.onClick.AddListener(() =>
         {
             SfxPlayer.Play("ui-button-click");
-            _activeTab = MenuTab.Play;
+            _activeTab = MenuTab.Home;
             BuildMenu();
         });
 
-        Image triangle = CreateImage(buttonRect, "PlayIcon", MenuSprites.TrianglePlay(), Color.white);
-        SetRect(triangle.rectTransform, new Vector2(0f, 54f), new Vector2(56f, 56f), new Vector2(0.5f, 0f));
-        CreateTmp(buttonRect, "Label", "PLAY", 21, Color.white, TextAnchor.MiddleCenter,
-            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, 22f), new Vector2(112f, 34f), new Vector2(0.5f, 0f));
+        bool active = _activeTab == MenuTab.Home;
+
+        // A point-top hexagon, centred on the bar and TALLER than it, so its top and bottom points
+        // overhang both bar edges - the reference's prominent centre button. Darker amber base
+        // with a gradient up to a lighter top (HexButton lerps bottom->top); the house glyph and
+        // the HOME label both sit INSIDE the hexagon.
+        Color topColor, bottomColor;
+        if (chapter != null)
+        {
+            topColor = chapter.PlayButtonTopColor;
+            bottomColor = Color.Lerp(chapter.PlayButtonBottomColor, Color.black, 0.36f);
+        }
+        else
+        {
+            topColor = new Color(0.96f, 0.66f, 0.26f, 1f);
+            bottomColor = new Color(0.55f, 0.24f, 0.05f, 1f);
+        }
+
+        RectTransform hex = CreateRect(slot, "HomeHex",
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+            Vector2.zero, new Vector2(208f, 208f));
+        Image image = hex.gameObject.AddComponent<Image>();
+        image.sprite = MenuSprites.HexButton(topColor, bottomColor);
+        image.preserveAspect = true;
+        image.color = active ? Color.white : new Color(0.66f, 0.64f, 0.62f, 1f);
+        button.targetGraphic = image;
+
+        // Light cream-gold glyph + label inside the hexagon, so it reads against the darker amber
+        // (the label uses the chapter light colour, lifted toward white for contrast on the fill).
+        Color glyphColor = active ? Color.Lerp(gold, Color.white, 0.3f) : Color.Lerp(TextMuted, gold, 0.35f);
+        Image house = CreateImage(hex, "HomeIcon", MenuSprites.NavHouse(glyphColor), Color.white);
+        house.preserveAspect = true;
+        SetCenteredAt(house.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, 26f), new Vector2(52f, 52f));
+
+        CreateTmp(hex, "Label", "HOME", 16, glyphColor, TextAnchor.MiddleCenter,
+            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -32f), new Vector2(124f, 26f), new Vector2(0.5f, 0.5f));
     }
 
     private static Button CreateMenuButton(Transform parent, string name, string label,
@@ -1191,7 +1275,7 @@ public static class MainMenuRuntime
     private static void OpenCustomGame()
     {
         TearDownRoot();
-        _activeTab = MenuTab.Play;
+        _activeTab = MenuTab.Home;
         CustomGameMenu.Show(BuildMenu);
     }
 
@@ -1205,66 +1289,191 @@ public static class MainMenuRuntime
         GameObject overlay = RuntimeUiKit.CreateOverlayCanvas("Level Summary", 5500);
         void Close() => UnityEngine.Object.Destroy(overlay);
 
-        // Dimmed backdrop - a tap anywhere outside the panel closes the modal.
-        Image backdrop = CreateImage(overlay.transform, "Backdrop", null, new Color(0f, 0f, 0f, 0.72f));
+        Color lightChapter = ChapterLight(chapter);                 // labels + challenge type
+        Color darkChapter = chapter.MenuAccentColor;                // "your best" value (the amber)
+
+        // Heavily blurred, darkened copy of the chapter backdrop so the sharp menu behind reads as
+        // fully out of focus; the modal itself stays 100% opaque on top of it.
+        Sprite backdropSprite = chapter.MenuBackgroundImage;
+        if (backdropSprite != null)
+        {
+            Image blur = CreateImage(overlay.transform, "BlurBackdrop", backdropSprite, Color.white);
+            Stretch(blur.rectTransform);
+            blur.preserveAspect = false;
+            UIEffect blurFx = blur.gameObject.AddComponent<UIEffect>();
+            blurFx.samplingFilter = SamplingFilter.BlurFast;
+            blurFx.samplingScale = 7f;
+        }
+        Image backdrop = CreateImage(overlay.transform, "Backdrop", null,
+            new Color(0.02f, 0.02f, 0.03f, backdropSprite != null ? 0.58f : 0.92f));
         Stretch(backdrop.rectTransform);
         backdrop.raycastTarget = true;
         Button backdropButton = backdrop.gameObject.AddComponent<Button>();
         backdropButton.transition = Selectable.Transition.None;
         backdropButton.onClick.AddListener(Close);
 
-        // Centered panel. Its own raycast target swallows taps so they don't reach the backdrop.
+        // Centered, fully opaque panel. Its own raycast target swallows taps so they don't reach
+        // the backdrop. Layout flows top-down: thumbnail, challenge type, title, stat cards,
+        // description, then the play / ranks buttons pinned to the bottom.
+        const float W = 880f;
+        const float H = 840f;
+        const float pad = 44f;
+        const float contentW = W - pad * 2f;
+        Color panelColor = new Color(0.075f, 0.065f, 0.058f, 1f);
         RectTransform panel = CreateRect(overlay.transform, "Panel",
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            Vector2.zero, new Vector2(860f, 1120f));
+            Vector2.zero, new Vector2(W, H));
         Image panelImage = panel.gameObject.AddComponent<Image>();
         panelImage.sprite = RuntimeSprites.RoundedPanel();
         panelImage.type = Image.Type.Sliced;
-        panelImage.color = CardDark;
+        panelImage.color = panelColor;
         panelImage.raycastTarget = true;
-        RuntimeUiKit.AddOutline(panel, GoldOutline(0.3f));
+        RuntimeUiKit.AddOutline(panel, GoldOutline(0.22f));
 
-        // Level image.
+        // Thumbnail, full-bleed across the top (rounded corners match the panel).
+        const float imgH = 360f;
         Sprite thumb = level.MenuThumbnail != null
             ? level.MenuThumbnail
             : MenuSprites.LevelThumbnail(index, chapter.MenuAccentColor, chapter.MenuAccentSecondaryColor);
-        RectTransform image = CreateCoverImage(panel, "Image", thumb, Color.white,
-            new Vector2(0f, -60f), new Vector2(760f, 440f), new Vector2(0.5f, 1f));
-        RuntimeUiKit.AddOutline(image, GoldOutline(0.2f));
+        CreateCoverImage(panel, "Image", thumb, Color.white,
+            new Vector2(0f, 0f), new Vector2(W, imgH), new Vector2(0.5f, 1f));
 
-        // Title + stat lines (same source the level cards use).
-        CreateTmp(panel, "Title", level.DisplayName, 56, TextPrimary, TextAnchor.MiddleCenter,
-            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -540f), new Vector2(780f, 72f), new Vector2(0.5f, 1f));
+        // Scrim: the image's lower half fades to the panel colour, so the type/title read on it
+        // and the bottom edge blends seamlessly into the panel body.
+        Image scrim = CreateImage(panel, "ImageScrim",
+            MenuSprites.VerticalFade(WithAlpha(panelColor, 0f), panelColor), Color.white);
+        SetRect(scrim.rectTransform, new Vector2(0f, -120f), new Vector2(W, imgH - 120f), new Vector2(0.5f, 1f));
+        scrim.raycastTarget = false;
+
+        // Challenge type + title sit on the image's lower-left, over the scrim.
         LevelMenuPresentation.Snapshot presentation = LevelMenuPresentation.Build(level, completed);
-        CreateTmp(panel, "Challenge", presentation.ChallengeLabel, 30, TextMuted, TextAnchor.MiddleCenter,
-            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -618f), new Vector2(780f, 44f), new Vector2(0.5f, 1f));
-        CreateTmp(panel, "Progress", presentation.ProgressLabel, 34, chapter.MenuAccentColor, TextAnchor.MiddleCenter,
-            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -666f), new Vector2(780f, 48f), new Vector2(0.5f, 1f));
+        TextMeshProUGUI challenge = CreateTmp(panel, "Challenge", presentation.ChallengeLabel, 20,
+            lightChapter, TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(pad, -258f), new Vector2(contentW, 28f), new Vector2(0f, 1f));
+        challenge.characterSpacing = 4f;
 
-        // Close (X), top-right of the panel.
-        Image closeBg = CreateImage(panel, "Close", RuntimeSprites.Bubble(), new Color(0.1f, 0.09f, 0.08f, 0.92f));
-        SetRect(closeBg.rectTransform, new Vector2(-28f, -28f), new Vector2(72f, 72f), new Vector2(1f, 1f));
-        closeBg.raycastTarget = true;
-        CreateTmp(closeBg.transform, "X", "X", 34, TextPrimary, TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
-        Button closeButton = closeBg.gameObject.AddComponent<Button>();
-        closeButton.targetGraphic = closeBg;
-        closeButton.onClick.AddListener(Close);
+        // Title (bold white), baseline near the image bottom.
+        CreateTmp(panel, "Title", level.DisplayName.ToUpperInvariant(), 50, TextPrimary, TextAnchor.UpperLeft,
+            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(pad, -290f), new Vector2(contentW, 64f), new Vector2(0f, 1f));
 
-        // Start Game, pinned to the bottom of the panel.
-        Image startBg = CreateImage(panel, "StartGame", RuntimeSprites.RoundedPanel(), chapter.MenuAccentColor);
-        startBg.type = Image.Type.Sliced;
-        SetRect(startBg.rectTransform, new Vector2(0f, 40f), new Vector2(720f, 124f), new Vector2(0.5f, 0f));
-        startBg.raycastTarget = true;
-        CreateTmp(startBg.transform, "StartLabel", "START GAME", 42, new Color(0.08f, 0.07f, 0.05f, 1f),
-            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
-        Button startButton = startBg.gameObject.AddComponent<Button>();
-        startButton.targetGraphic = startBg;
+        // Target + Your Best stat cards.
+        DeriveTargetAndBest(level, presentation, completed, out string targetText, out string bestText);
+        float cardW = (contentW - 18f) / 2f;
+        BuildSummaryStat(panel, "Target", new Vector2(pad, -394f), cardW, "TARGET", targetText, lightChapter, TextPrimary);
+        BuildSummaryStat(panel, "Best", new Vector2(pad + cardW + 18f, -394f), cardW, "YOUR BEST", bestText, lightChapter, darkChapter);
+
+        // Description (thin, muted) - the level's instruction line.
+        if (!string.IsNullOrWhiteSpace(level.Instruction))
+        {
+            CreateTmp(panel, "Description", level.Instruction, 23, new Color(0.78f, 0.75f, 0.70f, 1f),
+                TextAnchor.UpperLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont,
+                new Vector2(pad, -528f), new Vector2(contentW, 130f), new Vector2(0f, 1f));
+        }
+
+        // Play (gradient gold) + Ranks (dark) buttons, pinned to the bottom.
         LevelDefinition selected = level;
-        startButton.onClick.AddListener(() =>
+        float playW = 524f;
+        Image playBg = CreateImage(panel, "Play", MenuSprites.RoundedGradient(
+            Color.Lerp(chapter.PlayButtonTopColor, Color.white, 0.06f), chapter.PlayButtonBottomColor), Color.white);
+        playBg.type = Image.Type.Sliced;
+        SetRect(playBg.rectTransform, new Vector2(pad, 44f), new Vector2(playW, 112f), new Vector2(0f, 0f));
+        playBg.raycastTarget = true;
+        Image playIcon = CreateImage(playBg.transform, "PlayIcon", MenuSprites.TrianglePlay(), TextPrimary);
+        SetCenteredAt(playIcon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(-64f, 0f), new Vector2(38f, 38f));
+        CreateTmp(playBg.transform, "PlayLabel", "PLAY", 36, TextPrimary,
+            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(24f, 0f), new Vector2(220f, 48f), new Vector2(0.5f, 0.5f));
+        Button playButton = playBg.gameObject.AddComponent<Button>();
+        playButton.targetGraphic = playBg;
+        playButton.onClick.AddListener(() =>
         {
             SfxPlayer.Play("ui-start-game");
             SelectLevel(selected);
         });
+
+        float ranksX = pad + playW + 18f;
+        float ranksW = contentW - playW - 18f;
+        Image ranksBg = CreateImage(panel, "Ranks", RuntimeSprites.RoundedPanel(), new Color(0.13f, 0.12f, 0.10f, 1f));
+        ranksBg.type = Image.Type.Sliced;
+        SetRect(ranksBg.rectTransform, new Vector2(ranksX, 44f), new Vector2(ranksW, 112f), new Vector2(0f, 0f));
+        ranksBg.raycastTarget = true;
+        RuntimeUiKit.AddOutline(ranksBg.transform, WithAlpha(lightChapter, 0.4f));
+        Image trophy = CreateImage(ranksBg.transform, "RanksIcon", MenuSprites.Trophy(lightChapter), Color.white);
+        trophy.preserveAspect = true;
+        SetCenteredAt(trophy.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(-58f, 0f), new Vector2(36f, 36f));
+        CreateTmp(ranksBg.transform, "RanksLabel", "RANKS", 28, lightChapter, TextAnchor.MiddleCenter,
+            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(16f, 0f), new Vector2(150f, 40f), new Vector2(0.5f, 0.5f));
+        Button ranksButton = ranksBg.gameObject.AddComponent<Button>();
+        ranksButton.targetGraphic = ranksBg;
+        ranksButton.onClick.AddListener(() => SfxPlayer.Play("ui-button-click")); // leaderboards: TODO
+
+        // Close (X), top-right - a solid translucent dark circle (not a ring), over the thumbnail.
+        Color closeFill = new Color(0.03f, 0.03f, 0.04f, 0.55f);
+        Image closeBg = CreateImage(panel, "Close", MenuSprites.CircleBadge(closeFill, closeFill), Color.white);
+        SetRect(closeBg.rectTransform, new Vector2(-24f, -24f), new Vector2(64f, 64f), new Vector2(1f, 1f));
+        closeBg.raycastTarget = true;
+        CreateTmp(closeBg.transform, "X", "X", 30, TextPrimary, TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        Button closeButton = closeBg.gameObject.AddComponent<Button>();
+        closeButton.targetGraphic = closeBg;
+        closeButton.onClick.AddListener(Close);
+    }
+
+    // A small stat card (TARGET / YOUR BEST): label on top in the light chapter colour, value
+    // below. The two callers pass different value colours (white target, amber best).
+    private static void BuildSummaryStat(Transform panel, string name, Vector2 anchoredPosition,
+        float width, string label, string value, Color labelColor, Color valueColor)
+    {
+        RectTransform card = CreateRect(panel, $"Stat{name}",
+            new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
+            anchoredPosition, new Vector2(width, 104f));
+        Image fill = card.gameObject.AddComponent<Image>();
+        fill.sprite = RuntimeSprites.RoundedPanel();
+        fill.type = Image.Type.Sliced;
+        fill.color = new Color(0.11f, 0.10f, 0.085f, 1f);
+        RuntimeUiKit.AddOutline(card, GlassBorder);
+
+        TextMeshProUGUI labelText = CreateTmp(card, "Label", label, 16, labelColor, TextAnchor.UpperLeft,
+            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(22f, -18f), new Vector2(width - 36f, 24f), new Vector2(0f, 1f));
+        labelText.characterSpacing = 3f;
+        CreateTmp(card, "Value", value, 30, valueColor, TextAnchor.UpperLeft,
+            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(22f, -48f), new Vector2(width - 36f, 40f), new Vector2(0f, 1f));
+    }
+
+    // Goal text + the player's best (an em dash when never attempted). Handles the two built-in
+    // target types directly; provider-driven levels fall back to the presentation's parts.
+    private static void DeriveTargetAndBest(LevelDefinition level, LevelMenuPresentation.Snapshot presentation,
+        bool completed, out string targetText, out string bestText)
+    {
+        ProgressStore.LevelBest best = ProgressStore.GetBest(level);
+        bool attempted = completed || (best != null && (best.bestScore > 0 || best.bestHeightMeters > 0f));
+
+        switch (level.TargetType)
+        {
+            case LevelTargetType.PlaceBlocks:
+            {
+                int target = Mathf.RoundToInt(level.TargetValue);
+                targetText = $"{target} Blocks";
+                int reached = best != null && best.bestScore > 0 ? best.bestScore : target;
+                bestText = attempted ? $"{reached} Blocks" : "-";
+                break;
+            }
+            case LevelTargetType.ReachHeight:
+            {
+                int target = Mathf.RoundToInt(level.TargetValue);
+                targetText = $"{target}m";
+                float reached = best != null && best.bestHeightMeters > 0f ? best.bestHeightMeters : level.TargetValue;
+                bestText = attempted ? $"{Mathf.RoundToInt(reached)}m" : "-";
+                break;
+            }
+            default:
+            {
+                string suffix = presentation.ProgressSuffix.StartsWith("/")
+                    ? presentation.ProgressSuffix.Substring(1).Trim()
+                    : presentation.ProgressSuffix;
+                targetText = string.IsNullOrWhiteSpace(suffix) ? "Endless" : suffix;
+                bestText = attempted ? presentation.ProgressPrimary : "-";
+                break;
+            }
+        }
     }
 
     private static void SelectLevel(LevelDefinition level)
