@@ -21,4 +21,10 @@ MonoBehaviour:
   colorTint: {r: 0.75, g: 0.5, b: 0.2, a: 1}
   spriteOverride: {fileID: 0}
   materialOverride: {fileID: 0}
-  joltSpeed: 0.7
+  countsAsPlacedBlock: 1
+  costsLifeWhenLost: 1
+  shakeStrength: 1.5
+  shakeDuration: 0.5
+  shakeRadius: 8
+  quakeDustEffect: {fileID: 3432958286849152088, guid: 87ee7299dd44ed747af24dbb91bcd33b, type: 3}
+  dustScale: 1.2

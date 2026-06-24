@@ -48,7 +48,7 @@ Look status: ✅ procedural skin · 🟡 has a feel moment but only a colour tin
 | **Dizzy** | 1 | **inverts** left/right steering | inset pink-marble **vortex** per cell over the kept chapter art; churns and periodically **reverses** direction (the on-block cue for the flip) | ✅ (overlay) | `DizzyBlockData`, `DizzyBlockSkin`, `Dizzy.shader` |
 | **Stubborn** | 1 | **cannot rotate** | orange tint only (no cue) | 🔴 | `Stubborn.asset` |
 | **Feather** | 0.25 | very light — shoved around by later landings | pale-yellow tint only | 🔴 | `Feather.asset` |
-| **Tremor** | 1 | on land **jolts the whole tower** | brown tint only (jolt felt via the tower) | 🔴 | `TremorBlockData` |
+| **Tremor** | 1 | on land **shakes the whole tower** — a short shake burst (velocity kicks radiating from the brick, per-block shear topples bad placements); lock = shockwave ring + flash + camera kick + ground-dust puff | warm ochre **fault-stone** that never holds still: micro-buzz (calms a few seconds after landing) + amber fault cracks with a travelling pulse; lock discharge = ring + squash | ✅ | `TremorBlockData`, `TremorBlockSkin`, `TremorBlockBehaviour`, `Tremor.shader` |
 | **Bullet** | 1 | projectile — destroys the dynamic block below on lock; `counts:false`, `costsLife:false` | own `Block_Bullet` prefab + impact FX | ✅ (own prefab) | `BulletBlockData`, `BulletImpact` |
 
 The 🔴/🟡 rows are the **look backlog** — next candidates for the `BlockVariantSkin` treatment (Dizzy
