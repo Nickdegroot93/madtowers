@@ -45,7 +45,7 @@ Look status: ✅ procedural skin · 🟡 has a feel moment but only a colour tin
 | **Magma** | 1 | on land **melts** into one stone Pip per cell (conforms to terrain) | molten black/red, bloom glow, gentle wobble | ✅ | `MagmaBlockData`, `MagmaBlockSkin`, `MagmaMelt`, `MagmaBlobVisual`, `Lava.shader` |
 | **Bomb** | 1 | on land **detonates** (fuse), dropping neighbours' support | dark tint + accelerating **red fuse pulse** | 🟡 | `BombBlockData`, `BombBlockBehaviour` |
 | **Ice** | 1 | slippery (low-friction `IceSurface` material) | pale-cyan tint only | 🔴 | `Ice.asset` |
-| **Dizzy** | 1 | **inverts** left/right steering | pink tint only (no cue) | 🔴 | `Dizzy.asset` |
+| **Dizzy** | 1 | **inverts** left/right steering | inset pink-marble **vortex** per cell over the kept chapter art; churns and periodically **reverses** direction (the on-block cue for the flip) | ✅ (overlay) | `DizzyBlockData`, `DizzyBlockSkin`, `Dizzy.shader` |
 | **Stubborn** | 1 | **cannot rotate** | orange tint only (no cue) | 🔴 | `Stubborn.asset` |
 | **Feather** | 0.25 | very light — shoved around by later landings | pale-yellow tint only | 🔴 | `Feather.asset` |
 | **Tremor** | 1 | on land **jolts the whole tower** | brown tint only (jolt felt via the tower) | 🔴 | `TremorBlockData` |
