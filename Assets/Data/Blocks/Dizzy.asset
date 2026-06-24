@@ -18,6 +18,6 @@ MonoBehaviour:
   gravityScaleMultiplier: 1
   canRotate: 1
   invertHorizontalControls: 1
-  colorTint: {r: 0.95, g: 0.55, b: 0.78, a: 1}
+  colorTint: {r: 1, g: 1, b: 1, a: 1}
   spriteOverride: {fileID: 0}
   materialOverride: {fileID: 0}

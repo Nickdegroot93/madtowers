@@ -108,14 +108,16 @@ public partial class BlockController
     // falling, so they stay on the same grid rules as horizontal movement.
     public void RotateLeft()
     {
-        if (!_isControlEnabled || !CanRotateVariant) return;
+        if (!_isControlEnabled) return;
+        if (!CanRotateVariant) { _appliedData?.OnRotationDenied(this, -1); return; }
         _targetAngleZ -= RotationStep;
         SfxPlayer.Play("rotate-swoosh", 0.5f, 0.06f);
     }
 
     public void RotateRight()
     {
-        if (!_isControlEnabled || !CanRotateVariant) return;
+        if (!_isControlEnabled) return;
+        if (!CanRotateVariant) { _appliedData?.OnRotationDenied(this, 1); return; }
         _targetAngleZ += RotationStep;
         SfxPlayer.Play("rotate-swoosh", 0.5f, 0.06f);
     }

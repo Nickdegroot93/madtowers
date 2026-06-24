@@ -38,6 +38,11 @@ public abstract class BlockVariantSkin : MonoBehaviour
     /// <summary>Name of the per-cell overlay GameObjects; kept distinct so the sort scan skips them.</summary>
     protected virtual string CellName => "VariantCell";
 
+    /// <summary>How many sorting orders above the brick art the overlays draw. Default 2. Vine overrides
+    /// this higher so it ALWAYS draws on top of any other variant's overlay (e.g. ice frost) - so a vine
+    /// growing onto a brick is never tinted/washed out by that brick's own look. Applies to all bricks.</summary>
+    protected virtual int SortOrderOffset => 2;
+
     /// <summary>Whether the overlays have been built (idempotency guard for subclasses).</summary>
     protected bool IsBuilt => Cells.Count > 0;
 
@@ -108,7 +113,7 @@ public abstract class BlockVariantSkin : MonoBehaviour
             overlay.sprite = RuntimeSprites.Square();
             if (material != null) overlay.sharedMaterial = material;
             overlay.sortingLayerID = sortingLayer;
-            overlay.sortingOrder = sortingOrder + 2;
+            overlay.sortingOrder = sortingOrder + SortOrderOffset;
 
             overlay.GetPropertyBlock(_mpb);
             ConfigureCell(index, col, row, overlay, _mpb);

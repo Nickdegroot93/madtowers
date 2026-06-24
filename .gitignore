@@ -61,3 +61,7 @@ Assets/Tutorials/Media/
 # (placed after the meta-unignore above so the folder .meta is ignored too)
 /[Aa]ssets/_[Rr]ecovery/
 /[Aa]ssets/_[Rr]ecovery.meta
+
+# ---- Unity Performance Testing run artifacts (generated into Resources/, never project content) ----
+/[Aa]ssets/[Rr]esources/PerformanceTestRun*.json
+/[Aa]ssets/[Rr]esources/PerformanceTestRun*.json.meta

@@ -23,4 +23,4 @@ MonoBehaviour:
   materialOverride: {fileID: 0}
   attachDelaySeconds: 0
   breakForce: 150
-  touchRange: 0.15
+  touchRange: 0.22

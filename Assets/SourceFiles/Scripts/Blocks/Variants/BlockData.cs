@@ -66,4 +66,10 @@ public class BlockData : ScriptableObject
 
     /// <summary>Called when the piece lands and control hands off to physics.</summary>
     public virtual void OnLocked(BlockController block) { }
+
+    /// <summary>Called when the player presses rotate on a falling piece that <see cref="CanRotate"/>
+    /// forbids (Stubborn) - the moment the rotation is refused. <paramref name="direction"/> is -1 for a
+    /// left press, +1 for right. Lets a variant play an on-block "no" cue (Stubborn's gear strains against
+    /// its chain); see BLOCKVARIANTS.md. Purely cosmetic - the rotation itself stays blocked.</summary>
+    public virtual void OnRotationDenied(BlockController block, int direction) { }
 }

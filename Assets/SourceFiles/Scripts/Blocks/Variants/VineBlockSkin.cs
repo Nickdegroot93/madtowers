@@ -17,6 +17,7 @@ public sealed class VineBlockSkin : BlockVariantSkin
     protected override string MaterialResource => "Vine";
     protected override bool HidesChapterArt => false; // vines sit over the chapter colour
     protected override string CellName => "VineCell";
+    protected override int SortOrderOffset => 6;       // always above any other variant overlay (e.g. ice frost)
 
     private Vector2 _rootDir = new Vector2(0f, 1f);
     private float _blockSeed;
