@@ -12,7 +12,7 @@ public class SacrificeAbility : PassiveAbility
     [Header("Presentation")]
     [Tooltip("Visible bottom-of-screen warning line while this one-shot passive is armed.")]
     [SerializeField] private Color laserColor = new Color(0.35f, 0.65f, 1f, 1f);
-    [Tooltip("Bullet-style impact effect played from every cell of destroyed blocks.")]
+    [Tooltip("Impact effect played from every cell of destroyed blocks.")]
     [SerializeField] private GameObject impactEffect;
     [Tooltip("Size multiplier for the impact effect.")]
     [SerializeField] private float effectScale = 1f;

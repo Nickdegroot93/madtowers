@@ -32,26 +32,22 @@ Played via `SfxPlayer.PlayVariant("impact_heavy", 2, …)` — randomly one of t
 **Should be:** a satisfying weighty block/stone *thud*. Two takes so repeats don't fatigue.
 
 ### `impact_soft_01` — Impact (dud / quiet removal) · *placeholder*
-- Bullet **wasted shot** ([BulletImpact.cs:51](Assets/SourceFiles/Scripts/Blocks/Variants/BulletImpact.cs#L51)).
+- Zap **wasted shot** — empty column ([ZapSession.cs](Assets/SourceFiles/Scripts/Abilities/Effects/ZapSession.cs)).
 - Generic **destroy a placed block** shatter ([AbilityEffects.cs:52](Assets/SourceFiles/Scripts/Abilities/Effects/AbilityEffects.cs#L52)) — shared by every shatter, incl. Scrap.
 - **Extract** deletes the chosen block ([ExtractTargetingSession.cs:359](Assets/SourceFiles/Scripts/Abilities/Effects/ExtractTargetingSession.cs#L359)).
 
 **Should be:** a quiet, dull *thud*. Clearly softer & duller than `impact_shatter_01`.
 
 ### `impact_shatter_01` — Block break (the payoff "kill") · *placeholder*
-- Bullet **destroys a block** ([BulletImpact.cs:43](Assets/SourceFiles/Scripts/Blocks/Variants/BulletImpact.cs#L43)).
+- Zap **destroys the targeted block** ([ZapSession.cs](Assets/SourceFiles/Scripts/Abilities/Effects/ZapSession.cs)).
 - **Sacrifice** destroys the lost + cost block ([SacrificeAbility.cs:87](Assets/SourceFiles/Scripts/Abilities/Definitions/SacrificeAbility.cs#L87)).
 - **Fission** shatters the active piece into shards ([FissionAbility.cs:47](Assets/SourceFiles/Scripts/Abilities/Definitions/FissionAbility.cs#L47)).
 
 **Should be:** a sharp, bright *crack/shatter* — stone or glass breaking.
 
-### `gun_cock_01` — Bullet ability · *placeholder*
-- Bullet ability **activation / transform** ([BulletAbility.cs:34](Assets/SourceFiles/Scripts/Abilities/Definitions/BulletAbility.cs#L34)).
-
-**Should be:** a single gun cock — "weapon readied".
-
-### `swoosh_01` — Movement / generic ability (OVERLOADED — 10 sites) · *placeholder*
+### `swoosh_01` — Movement / generic ability (OVERLOADED — 11 sites) · *placeholder*
 The catch-all "something moved/activated". Most of these want their own sound.
+- **Zap** activation — the active piece vanishes into the laser ([ZapAbility.cs](Assets/SourceFiles/Scripts/Abilities/Definitions/ZapAbility.cs)).
 - **Hold button** reveals when Pocket Cache unlocks ([HoldButton.cs:138](Assets/SourceFiles/Scripts/UI/HoldButton.cs#L138)).
 - **Pocket Cache** bank / swap ([HoldCache.cs:116](Assets/SourceFiles/Scripts/Spawning/HoldCache.cs#L116)).
 - A **status screen-field** appears, e.g. Brace's shield-up haze ([StatusFieldController.cs:59](Assets/SourceFiles/Scripts/Abilities/StatusFieldController.cs#L59)).

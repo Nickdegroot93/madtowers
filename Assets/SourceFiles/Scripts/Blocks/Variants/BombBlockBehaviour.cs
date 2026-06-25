@@ -35,7 +35,7 @@ public class BombBlockBehaviour : MonoBehaviour
     private void Update()
     {
         // Once the run is over the fuse freezes - no detonation behind the game-over wreckage screen
-        // (it would destroy blocks in the final tower and play FX). Mirrors BulletImpact's guard.
+        // (it would destroy blocks in the final tower and play FX). Mirrors the shared impact guards.
         if (GameManager.Instance != null && GameManager.Instance.isGameOver) return;
 
         _elapsed += Time.deltaTime;
@@ -73,7 +73,7 @@ public class BombBlockBehaviour : MonoBehaviour
         SfxPlayer.Play("impact_shatter_01", 0.9f, 0.06f);
 
         // Each destroyed block (and the bomb itself) leaves the board, so drop it from the live
-        // placed-block total - same accounting as a Bullet hit or a fall-off (BLOCKS.md). Neighbours
+        // placed-block total - same accounting as any block destruction or a fall-off (BLOCKS.md). Neighbours
         // break with the game-standard shard shatter plus a small smoke puff from every cell.
         foreach (BlockController victim in victims)
         {

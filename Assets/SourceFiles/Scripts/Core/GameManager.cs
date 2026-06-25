@@ -217,7 +217,7 @@ public class GameManager : MonoBehaviour
     {
         if (isGameOver) return;
 
-        // A block flagged "free to lose" (e.g. the Bullet projectile) never costs a life
+        // A block flagged "free to lose" (e.g. a projectile-style piece) never costs a life
         // when it falls off - it isn't a real block. Set per-loss by ReportBlockLost.
         if (!_losingBlockCostsLife)
         {
@@ -317,7 +317,7 @@ public class GameManager : MonoBehaviour
         // this on the way out) - that is a loss, not a placement, so it never scores.
         if (_inBlockLoss) return;
 
-        // Pieces that aren't real blocks (the Bullet projectile) don't score or count.
+        // Pieces that aren't real blocks (a projectile-style piece) don't score or count.
         if (_activeBlockData != null && !_activeBlockData.CountsAsPlacedBlock) return;
 
         // Overdrive-style states amplify EVERY score grant while active. Score is the
@@ -361,7 +361,7 @@ public class GameManager : MonoBehaviour
         GameEvents.RaiseStandingBlocksChanged(_standingBlocks);
     }
 
-    /// <summary>A placed block has left the board by destruction (a Bullet hit now; the
+    /// <summary>A placed block has left the board by destruction (a Zap or Bomb hit now; the
     /// puzzle laser later). Drops it from the live total exactly once if its placement was
     /// counted (idempotent - a double-call is a no-op). The caller still destroys it.</summary>
     public void RemovePlacedBlock(BlockController block)

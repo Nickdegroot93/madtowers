@@ -158,6 +158,33 @@ public static partial class RuntimeSprites
         return sprite;
     }
 
+    private static readonly System.Collections.Generic.Dictionary<int, Sprite> _softVBars =
+        new System.Collections.Generic.Dictionary<int, Sprite>();
+
+    // Vertical twin of SoftHorizontalBar: soft-edged across X (the width), tall on Y (the length,
+    // stretched via localScale.y). PPU is set so the sprite's world width == worldThickness, so the
+    // Zap beam can drive width by scale alone. Cached per thickness like the horizontal bars.
+    public static Sprite SoftVerticalBar(float worldThickness)
+    {
+        int key = Mathf.RoundToInt(worldThickness * 1000f);
+        if (_softVBars.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int W = 16, H = 4;
+        Texture2D tex = NewTexture(W, H);
+        for (int x = 0; x < W; x++)
+        {
+            float edge = 1f - Mathf.Abs((x + 0.5f) / W * 2f - 1f); // 0 at edges, 1 in middle
+            float a = Mathf.SmoothStep(0f, 1f, edge * 1.6f);
+            for (int y = 0; y < H; y++)
+            {
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+            }
+        }
+        Sprite sprite = Finish(tex, W / Mathf.Max(0.01f, worldThickness));
+        _softVBars[key] = sprite;
+        return sprite;
+    }
+
     // ---- chevron (nudge ghost-button glyph) ------------------------------------------------
     // Left-pointing "<" drawn as two soft-edged strokes. White; tint via color; rotate the
     // Image 180 degrees for the right-pointing twin (the shape is vertically symmetric).

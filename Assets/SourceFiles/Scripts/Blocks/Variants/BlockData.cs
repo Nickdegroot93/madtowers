@@ -32,9 +32,9 @@ public class BlockData : ScriptableObject
     [SerializeField] private Material materialOverride;
 
     [Header("Scoring & loss (independent - any combination is valid)")]
-    [Tooltip("Does placing this piece count toward the live block total (+1 placed, -1 when it leaves)? Untick for pieces that aren't 'real' blocks, e.g. the Bullet projectile.")]
+    [Tooltip("Does placing this piece count toward the live block total (+1 placed, -1 when it leaves)? Untick for pieces that aren't 'real' blocks, e.g. a projectile-style piece.")]
     [SerializeField] private bool countsAsPlacedBlock = true;
-    [Tooltip("Does this piece cost a life when it falls off the bottom? Untick for pieces that should never punish a drop, e.g. the Bullet, or a future 'free' block that still counts when placed but is safe to lose.")]
+    [Tooltip("Does this piece cost a life when it falls off the bottom? Untick for pieces that should never punish a drop, e.g. a future 'free' block that still counts when placed but is safe to lose.")]
     [SerializeField] private bool costsLifeWhenLost = true;
 
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;

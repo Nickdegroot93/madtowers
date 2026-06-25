@@ -21,7 +21,7 @@ public class TransmuteAbility : ConsumableAbility
 
     // The slot is consumed BEFORE Activate, so the shared guard refuses every way the swap
     // could fail (no target/prefab/BlockController, no piece in the air or one mid-lock,
-    // already this shape, or fallen past the loss line) - same guard the Bullet uses.
+    // already this shape, or fallen past the loss line) - same shared transmute guard.
     public override bool CanActivate(AbilityContext context)
         => AbilityEffects.CanTransmuteActivePiece(context, targetShape);
 

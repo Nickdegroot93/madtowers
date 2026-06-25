@@ -7,7 +7,7 @@ using UnityEngine;
 /// stone Pip per cell straight down into the gap beneath it (the normal auto-drop landing
 /// path does the gap-finding and stacking for free).
 ///
-/// Deliberately thin, like BulletImpact: it owns only the magma's decisions - the guards,
+/// Deliberately thin: it owns only the magma's decisions - the guards,
 /// the cell capture, and the hand-off. The flow, counting and FX live in the session and
 /// the per-cell visual.
 /// </summary>
@@ -18,7 +18,7 @@ public static class MagmaMelt
         if (magma == null) return;
 
         // A magma caught by the game-over wreckage settle, or one that slid off and locked
-        // below the screen, must not melt (mirrors BulletImpact's guards). Just clean up.
+        // below the screen, must not melt (mirrors the shared impact guards). Just clean up.
         if (GameManager.Instance != null && GameManager.Instance.isGameOver)
         {
             Object.Destroy(magma.gameObject);

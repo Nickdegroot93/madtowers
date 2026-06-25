@@ -16,7 +16,7 @@ using UnityEngine;
 public static class AbilityEffects
 {
     /// <summary>
-    /// Shared CanActivate guard for transform consumables (Bullet, Shrink, future
+    /// Shared CanActivate guard for transform consumables (Shrink, future
     /// shape-swaps): the active piece may be replaced by <paramref name="target"/> only if
     /// everything Spawner.ReplaceActivePiece needs is present BEFORE the slot is consumed -
     /// target + prefab + BlockController wired; a piece in the air and not mid-lock; not

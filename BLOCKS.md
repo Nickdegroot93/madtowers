@@ -7,12 +7,12 @@ must respect. Lives on `BlockData` so it travels with the variant.
 
 ## The two flags (on `BlockData`, both default `true`)
 
-| Flag | Meaning | Normal block | Bullet | A future "free" block |
+| Flag | Meaning | Normal block | A non-counting piece | A future "free" block |
 |---|---|---|---|---|
 | `countsAsPlacedBlock` | Placing it `+1` to the live total; it leaving (destroyed **or** fallen) `−1`. | true | **false** | true |
 | `costsLifeWhenLost` | Falling off the bottom costs a life. | true | **false** | **false** |
 
-The Bullet is `false / false` — it isn't a real block: it never counts and never
+A non-counting piece is `false / false` — not a real block: it never counts and never
 costs a life when pushed off. A "free" block (`true / false`) is a real block that
 counts when placed but is safe to drop. The two are orthogonal — combine freely.
 
@@ -26,7 +26,7 @@ and save, or hand-author `countsAsPlacedBlock: 0` / `costsLifeWhenLost: 0`).
 
 - **`score`** — CUMULATIVE progression. Real placements only; **never decrements**.
   Drives the difficulty ramp, the ability-picker milestones, and rarity escalation.
-  Overdrive (`ScorePerBlockBonus`) amplifies it. A non-counting block (bullet) adds
+  Overdrive (`ScorePerBlockBonus`) amplifies it. A non-counting block adds
   nothing; a lost/destroyed block subtracts nothing.
 - **`placedBlocks`** (`GameManager.placedBlocks`, event `StandingBlocksChanged`) —
   the LIVE count of real placed blocks still standing. `+1` per *physical* placement
@@ -53,9 +53,9 @@ clamp-masked bug).
   `placedBlocks += 1`, and `BlockIdentity.MarkCountedAsPlaced()`.
 - **Destroyed** — *any* code that destroys a placed block MUST call
   `GameManager.RemovePlacedBlock(block)` first (it `−1`s only if the block's placement
-  was counted; idempotent). Current callers: `BulletImpact`, `AbilityEffects
-  .DestroyBlockWithShatter` (so every ability that shatters a block is covered),
-  `BombBlockBehaviour`, `HeightLimitWavesModifier`. **New destruction site → add the
+  was counted; idempotent). Current callers: `AbilityEffects
+  .DestroyBlockWithShatter` (so every ability that shatters a block is covered — Zap,
+  Scrap, Sacrifice…), `BombBlockBehaviour`, `HeightLimitWavesModifier`. **New destruction site → add the
   call**, or the live count silently desyncs above reality.
 - **Fell off** (`LossZone`, the single loss gateway, both the cull sweep and the
   trigger): runs the frozen `HandleLostBelowScreen` *inside*
@@ -73,9 +73,8 @@ clamp-masked bug).
 
 ## Quick effect check
 - Normal block placed → `score +1`, `placedBlocks +1`.
-- Bullet placed → nothing.
-- Bullet destroys a landed block → that block `placedBlocks −1`; net `−1`.
-- Bullet / other `costsLifeWhenLost:false` block pushed off → no life, no count change.
+- Zap destroys a landed block → that block `placedBlocks −1`.
+- A `costsLifeWhenLost:false` block pushed off → no life, no count change.
 - Normal landed block knocked off → `placedBlocks −1` and a life.
 - Bomb detonation → `−1` per destroyed neighbour and the bomb itself.
 - Maw devours a landed block → that block `placedBlocks −1` **and** a life — always, regardless of the eaten block's own flags.

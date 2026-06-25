@@ -208,7 +208,8 @@ public class AbilityRuntime : MonoBehaviour
                    && !LevelRuntimeController.IsVerifyingWin
                    && !FissionSession.IsActive
                    && !OverdrawSession.IsActive
-                   && !MagmaMeltSession.IsActive;
+                   && !MagmaMeltSession.IsActive
+                   && !ZapSession.IsActive;
         }
     }
 

@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d0fe95161ec248308119ac199c73fdda, type: 3}
   m_Name: GameMode_Narrow3
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   startingLives: 0
   initialFallSpeed: 2
   maxFallSpeed: 5
@@ -47,7 +47,7 @@ MonoBehaviour:
   powerUpChoiceEveryBlocks: 10
   powerUpChoicePool:
   - {fileID: 11400000, guid: 0dca35f837a34a25996ebab97183f7aa, type: 2}
-  - {fileID: 11400000, guid: ab3b38f4ef6c4ee09db11741e7fab0d9, type: 2}
+  - {fileID: 11400000, guid: b3f17664730f4d1da698648589ef9fa0, type: 2}
   - {fileID: 11400000, guid: 8f1e0a23bf6e4e89a8ed4d49a2f31d8c, type: 2}
   - {fileID: 11400000, guid: 6470a3ad296e48478c6cb9447a928492, type: 2}
   - {fileID: 11400000, guid: 7b487e5f478044db94d833da9f8ab16d, type: 2}
@@ -86,31 +86,23 @@ MonoBehaviour:
   - displayName: Single
     weight: 12
     cellOffsets:
-    - x: 0
-      y: 0
+    - {x: 0, y: 0}
   - displayName: Two Wide
     weight: 2
     cellOffsets:
-    - x: 0
-      y: 0
-    - x: 1
-      y: 0
+    - {x: 0, y: 0}
+    - {x: 1, y: 0}
   - displayName: Two Tall
     weight: 2
     cellOffsets:
-    - x: 0
-      y: 0
-    - x: 0
-      y: 1
+    - {x: 0, y: 0}
+    - {x: 0, y: 1}
   - displayName: Corner
     weight: 1
     cellOffsets:
-    - x: 0
-      y: 0
-    - x: 1
-      y: 0
-    - x: 0
-      y: 1
+    - {x: 0, y: 0}
+    - {x: 1, y: 0}
+    - {x: 0, y: 1}
   floorSegments:
   - centerColumn: 0
     columnCount: 3

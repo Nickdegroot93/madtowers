@@ -286,7 +286,7 @@ public class Spawner : MonoBehaviour
 
     /// <summary>
     /// Replaces the ACTIVE falling piece with another definition's piece at the same
-    /// position, mid-fall (the Bullet consumable). The old piece is destroyed without
+    /// position, mid-fall (Shrink / transform consumables). The old piece is destroyed without
     /// locking (no score, no spawn trigger); the replacement rejoins the normal
     /// lock->spawn chain exactly like a spawned piece. Validates the replacement
     /// FULLY before touching the old piece - a misconfigured prefab must leave the
@@ -300,7 +300,7 @@ public class Spawner : MonoBehaviour
         BlockController active = BlockController.ActiveControlled;
         if (active == null || active != _currentBlock || active.HasLanded) return false;
 
-        // Default: spawn in-place (mid-fall transmute - Bullet/Shrink/Pip). Hold passes a
+        // Default: spawn in-place (mid-fall transmute - Shrink/Pip). Hold passes a
         // position to lift the swapped piece slightly, or to drop the banked-in piece at the top.
         Vector3 spawnPos = atPosition ?? active.transform.position;
         GameObject blockObj = Instantiate(definition.Prefab, spawnPos, Quaternion.identity);
@@ -461,7 +461,7 @@ public class Spawner : MonoBehaviour
         block.gameObject.AddComponent<BlockIdentity>().Assign(definition, data);
 
         // Tell scoring which piece is now in play (covers mid-fall replacements like the
-        // Bullet, which never re-raise BlockSpawned) so its lock counts - or doesn't.
+        // transmutes, which never re-raise BlockSpawned) so its lock counts - or doesn't.
         if (GameManager.Instance != null) GameManager.Instance.SetActivePiece(block, data);
     }
 

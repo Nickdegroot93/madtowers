@@ -261,7 +261,7 @@ when unusable, same affordance as the nudge pills.
 2. Create the asset (Create > Stacking > Abilities > …) under `Assets/Data/PowerUps/`.
    Set rarity, unique/maxStacks, charges, conditions.
 3. Add it to a mode's Power Up Choice Pool.
-4. **Presentation is part of done** (the Bullet is the reference): card icon via
+4. **Presentation is part of done** (the §13 juice standard is the reference): card icon via
    `Tools/generate_ability_icons.py` per ART.md §12, and the §13 juice standard
    (slot punch is free; the ability owes its own transform/impact moment — pick
    Cartoon FX `CFXR…` prefabs into serialized effect fields and play them via
@@ -271,9 +271,10 @@ when unusable, same affordance as the nudge pills.
 covers "the active piece becomes shape X": set its `targetShape` to any `BlockDefinition`
 and it swaps via `Spawner.ReplaceActivePiece` (Shrink → the 1×1 Pip is just an asset; a
 1×2 Domino Shrink would be another asset, no code). Reach for the recipe below only when
-the replacement needs its OWN behaviour on lock (the Bullet's impact): the projectile/replacement is a full block variant — `BlockData`
-subclass + behaviour in `Blocks/Variants/`, a 1-cell prefab cribbed from
-`Block_Bullet.prefab`, a `BlockDefinition` + data asset, a `piece_<Name>.png`
+the replacement needs its OWN behaviour on lock (e.g. a piece that detonates where it lands): the
+replacement is a full block variant — `BlockData`
+subclass + behaviour in `Blocks/Variants/`, a 1-cell prefab cribbed from an existing 1×1
+prefab (`Block_Pip.prefab`), a `BlockDefinition` + data asset, a `piece_<Name>.png`
 skin sprite in `Skins/Classic/` (or ApplyBlockSkin warns per swap) — wired into
 the ability asset and swapped in via `Spawner.ReplaceActivePiece` (validates
 before destroying; by default `DefaultData` + does NOT re-raise `BlockSpawned`,
@@ -428,7 +429,7 @@ current zoom. `unique = true`.
 ### Sacrifice (Rare, one-shot passive, unique)
 `SacrificeAbility` uses the intercepting `TryInterceptLoss` hook: the first **landed**
 block that falls below the loss line is destroyed before it can charge a life, then the
-current topmost other landed block is destroyed as the cost. Both blocks use the Bullet
+current topmost other landed block is destroyed as the cost. Both blocks use the shared
 impact composition (`BurstFromEveryCell` with the authored `impactEffect`,
 `impact_shatter_01`, `ImpactPunch`) so it reads as a real detonation, not silent cleanup.
 While armed, a layered blue laser line follows `LossZone.CurrentLossLineY`: the fixed
@@ -554,11 +555,10 @@ shape-bag assets. `maxStacks = 5`.
 `TransmuteAbility` with `targetShape` = the **Pip** (1×1) `BlockDefinition`. Activating
 swaps the active falling piece for a Pip via `Spawner.ReplaceActivePiece` (same lock→spawn
 chain, re-reports flags), with a `swoosh` + a CFXR transform burst. The Pip is a **normal
-brick** (counts + costs a life — `Normal` data; not free like the Bullet), so a shrunk
+brick** (counts + costs a life — `Normal` data), so a shrunk
 piece scores and is at risk exactly like any block; it's just small enough to slot into a
-tight gap. `CanActivate` mirrors the Bullet guards (piece in the air, not mid-lock, not
-already a Pip, not past the loss line, target wired) via the shared
-`AbilityEffects.CanTransmuteActivePiece` guard (also used by the Bullet). `TransmuteAbility`
+tight gap. `CanActivate` uses the shared `AbilityEffects.CanTransmuteActivePiece` guard (piece in
+the air, not mid-lock, not already a Pip, not past the loss line, target wired). `TransmuteAbility`
 is generic, so a future 1×2 "Shrink" targeting the **Domino** is one more asset, no code.
 
 **The Pip (1×1) and Domino (1×2) bricks** are standalone `BlockDefinition`s
@@ -637,40 +637,35 @@ continues, so normal play resumes on the next bag piece. Audio currently reuses
 `swoosh_01` for activation and manual choice commits; the final auto-commit stays silent
 so the third-piece handoff does not double-hit the ear.
 
-### Bullet (Common, consumable)
-`BulletAbility` — the active falling piece transforms into a 1×1 shell
-(`Block_Bullet` prefab + `BulletBlockData`) via `Spawner.ReplaceActivePiece`,
-which keeps the lock→spawn chain intact: the projectile IS a normal piece
-(steering, fast drop, flick, rotation all free). On lock, `BulletBlockData
-.OnLocked` runs `BulletImpact.Run` (static — no lifecycle): a downward BoxCast
-finds the block it landed on; only a **dynamic, landed `BlockController`**
-counts — the floor,
-support islands, and frozen (Static-body) blocks are bulletproof, the shot is
-wasted. Victim + bullet are destroyed (the authored `impactEffect` plays on the
-victim — a Cartoon FX CFXR prefab — plus `impact_shatter_01`, a micro hit-stop,
-and a camera kick); a wasted shot gets the `wastedEffect` dud + soft thud. The old piece is replaced
-without locking (no score, no extra spawn). The bullet is flagged
-`countsAsPlacedBlock:false` + `costsLifeWhenLost:false` (it isn't a real block), so
-it never adds to the block total and never costs a life if pushed off; its victim
-drops the live total by one (see [BLOCKS.md](BLOCKS.md)). Guards: no detonation
-after game over or below the loss line (off-screen locks fizzle silently), and
-`CanActivate` refuses without a piece in the air, on a piece that is already a
-bullet, on a doomed below-screen piece, or with the projectile unwired.
+### Zap (Common, consumable)
+`ZapAbility` — the active falling piece **vanishes** (no lock, no score) and `ZapSession` (the
+Fission/Overdraw session pattern: a free GameObject, static `IsActive`, created via `Begin`) takes
+over. It captures the column X and the first **dynamic, landed `BlockController`** straight below the
+piece — the target; the floor, support islands and frozen (Static-body) blocks are zap-proof, the
+shot is wasted — then withholds bag pieces (`Spawner.SetAutoSpawnSuspended`) so the field holds
+still, and summons a vertical `ZapBeam` from the top of the screen down to the target. Over **exactly
+3 seconds** the beam charges from a wide glow to a thin needle; on full charge the target detonates
+through the shared shatter path (`AbilityEffects.DestroyBlockWithShatter` — removes it from the live
+count, [BLOCKS.md](BLOCKS.md), plus a per-cell `detonateEffect` burst + `ImpactPunch`), or a soft dud
+plays for an empty column. Then `Spawner.ResumeSpawning` kicks the next bag piece. The charge runs on
+**scaled time** and is held while paused / during win verification, so a Zap can never fire behind
+those screens (PHYSICS.md). It is **not a block variant** — nothing falls; the laser does the work.
 
-Known quirks (accepted, by design or frozen-code constraint): bulleting the very
-top block can briefly record a phantom max height (the bullet locks atop the
-victim before both vanish — monotonic `_maxHeight` lives in frozen BlockController
-code, and UpdateMaxHeight isn't suppressed the way scoring is);
-a milestone variant applied directly to the falling piece dies with it if the
-player then bullets that piece (their choice to sacrifice it).
+The beam is `ZapBeam`: layered soft **vertical** bars (outer glow → blue body → cyan filament →
+white needle, via `RuntimeSprites.SoftVerticalBar`) that glow through the global bloom — no shader, a
+crib of `SacrificeLaserLine`. Colours are HDR-bright (`beamColor`/`accentColor` on the asset) and it
+draws IN FRONT of the tower (a momentary dramatic overlay, unlike Sacrifice's persistent warning
+line). Lockout is one line: `AbilityRuntime.ConsumablesUsable` includes `!ZapSession.IsActive`, so no
+consumable (Zap included) can fire mid-charge. `CanActivate` refuses without a piece in the air, on a
+landed piece, or on a doomed below-screen piece.
 
 **Juice standard (applies to every future ability):** activating must FEEL
-like something happened. The Bullet sets the bar:
+like something happened. Zap, Bomb and Fission set the bar:
 - **Authored VFX prefabs**, played through `Vfx.Spawn(prefab, position, scale)`.
   The effects come from the **Cartoon FX Remaster** packs (`Assets/JMO Assets/`,
   prefab prefix `CFXR…`); each ability references its effects as **serialized
-  prefab fields** on its asset (Bullet: `transformEffect` on the ability,
-  `impactEffect`/`wastedEffect` on `BulletData`) so swapping a look is a
+  prefab fields** on its asset (e.g. Zap's `detonateEffect`, Bomb's blast
+  prefab) so swapping a look is a
   drag-and-drop in the Inspector, never a code change. Prefer **Unlit + HDR**
   CFXR variants (consistent in 2D, glow through the global bloom). CFXR prefabs
   self-destroy (`CFXR_Effect`), so `Vfx.Spawn` only instantiates.
@@ -709,9 +704,9 @@ behind the standard, so the next consumable composes instead of copy-pasting:
 | `BlockQuery.SupportBlockBelow(block)` | nearest dynamic, landed block beneath (statics/frozen excluded) |
 | `FxKit.Elastic(t, amp, damp, freq)` | the game's one elastic settle curve |
 
-`BulletImpact` is the reference composition: `SupportBlockBelow` → `BurstFromEveryCell`
-+ `ImpactPunch` + sfx → destroy. ~45 lines, all of it Bullet's own decisions
-(guards, which sounds); every reusable mechanic is one of the calls above.
+`ZapSession.Fire` and `BombBlockBehaviour` show the composition: find the target →
+`BurstFromEveryCell` + `ImpactPunch` + sfx → `DestroyBlockWithShatter`. Every reusable mechanic is
+one of the calls above; the ability owns only its own decisions (guards, which sounds).
 
 ### Fission (Epic, consumable)
 `FissionAbility` shatters the active falling piece into one independent **1×1 Pip shard per
