@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2296e23eae934b3e8929e1860bf7302, type: 3}
+  m_Name: BombSquad
+  m_EditorClassIdentifier: Assembly-CSharp::BlockVariantChanceReductionPowerUp
+  displayName: Bomb Squad
+  icon: {fileID: 0}
+  shortDescription: Bomb bricks show up less often.
+  ownedShortDescription: Bomb bricks show up far less often.
+  description: Defuses the supply line - Bomb bricks arrive less often for the rest of the run. Stack it to make them rarer still.
+  rarity: 1
+  unique: 0
+  maxStacks: 2
+  requiresVariantsInLevel:
+  - {fileID: 11400000, guid: aeb10794f4c742ee897eb08640f4c82b, type: 2}
+  charges: 0
+  variant: {fileID: 11400000, guid: aeb10794f4c742ee897eb08640f4c82b, type: 2}
+  reductionPerStack: 0.5

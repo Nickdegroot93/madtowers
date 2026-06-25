@@ -582,6 +582,31 @@ public class Spawner : MonoBehaviour
     }
 
     /// <summary>
+    /// Multiplicatively REDUCES an already-registered variant's spawn chance (an ability that
+    /// suppresses an annoying brick). Relative, so it scales with whatever the level's ambient
+    /// rate is: <paramref name="fraction"/> 0.5 halves it; stacking shrinks it further toward -
+    /// but never past - zero. No-op if the variant was never registered (the level can't spawn it),
+    /// which is also why such abilities gate on requiresVariantsInLevel.
+    /// </summary>
+    public void ReduceVariantChance(BlockData variant, float fraction)
+    {
+        if (variant == null) return;
+        fraction = Mathf.Clamp01(fraction);
+
+        for (int i = 0; i < _variantChances.Count; i++)
+        {
+            if (_variantChances[i].Variant != variant) continue;
+
+            _variantChances[i] = new VariantChance
+            {
+                Variant = variant,
+                Chance = Mathf.Clamp01(_variantChances[i].Chance * (1f - fraction))
+            };
+            return;
+        }
+    }
+
+    /// <summary>
     /// Registers a run-local chance to inject an extra shape before drawing from the
     /// normal bag. This never mutates BlockDefinition.bagCopies (asset data) and never
     /// removes cards from the authored bag; it simply makes the chosen shape appear a

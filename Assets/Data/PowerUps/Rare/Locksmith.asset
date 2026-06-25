@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2296e23eae934b3e8929e1860bf7302, type: 3}
+  m_Name: Locksmith
+  m_EditorClassIdentifier: Assembly-CSharp::BlockVariantChanceReductionPowerUp
+  displayName: Locksmith
+  icon: {fileID: 0}
+  shortDescription: Locked bricks show up less often.
+  ownedShortDescription: Locked bricks show up far less often.
+  description: Greases the gears - Locked bricks arrive less often for the rest of the run. Stack it to make them rarer still.
+  rarity: 1
+  unique: 0
+  maxStacks: 2
+  requiresVariantsInLevel:
+  - {fileID: 11400000, guid: 20f52ff3e5474cc9886fb134535a9417, type: 2}
+  charges: 0
+  variant: {fileID: 11400000, guid: 20f52ff3e5474cc9886fb134535a9417, type: 2}
+  reductionPerStack: 0.5
