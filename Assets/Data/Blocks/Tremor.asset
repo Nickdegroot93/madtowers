@@ -23,7 +23,7 @@ MonoBehaviour:
   materialOverride: {fileID: 0}
   countsAsPlacedBlock: 1
   costsLifeWhenLost: 1
-  shakeStrength: 1.5
+  shakeStrength: 2
   shakeDuration: 0.5
   shakeRadius: 8
   quakeDustEffect: {fileID: 3432958286849152088, guid: 87ee7299dd44ed747af24dbb91bcd33b, type: 3}

@@ -1,10 +1,10 @@
 using UnityEngine;
 
 /// <summary>
-/// A brick that jolts the whole tower the moment it lands - survive the shake. It carries its own fixed,
-/// theme-independent look - warm ochre fault-stone that constantly buzzes with held seismic energy and
-/// discharges a shockwave on landing (TremorBlockSkin) - so it reads as "this one shakes" in any chapter,
-/// even while still falling.
+/// A brick that jolts the whole tower a beat AFTER it lands - it settles quietly, then erupts; survive the
+/// shake. It carries its own fixed, theme-independent look - warm ochre fault-stone that constantly buzzes
+/// with held seismic energy and discharges a shockwave shortly after landing (TremorBlockSkin) - so it
+/// reads as "this one shakes" in any chapter, even while still falling.
 /// </summary>
 [CreateAssetMenu(fileName = "TremorBlockData", menuName = "Stacking/Blocks/Tremor Block Variant")]
 public class TremorBlockData : BlockData
@@ -21,6 +21,10 @@ public class TremorBlockData : BlockData
              "farther ones taper toward a floor (still felt across the tower).")]
     [Range(2f, 20f)]
     [SerializeField] private float shakeRadius = 8f;
+    [Tooltip("Seconds the brick settles after landing before the quake erupts. It lands quietly, then " +
+             "shakes violently. Set 0 for the old fire-on-impact behaviour.")]
+    [Range(0f, 3f)]
+    [SerializeField] private float quakeDelaySeconds = 1f;
 
     [Header("Landing FX")]
     [Tooltip("A one-shot ground-dust puff played at the brick's base on landing (e.g. CFXR2 Ground Hit).")]
@@ -41,15 +45,19 @@ public class TremorBlockData : BlockData
 
     public override void OnLocked(BlockController block)
     {
-        if (block == null) return;
+        if (block == null || !block.TryGetComponent(out TremorBlockSkin skin)) return;
 
-        // The seismic discharge: ring + flash + camera kick on the brick, and a dust kick at its base.
-        if (block.TryGetComponent(out TremorBlockSkin skin)) skin.PlayQuake();
-        if (quakeDustEffect != null && block.TryGetWorldBounds(out Bounds bounds))
-            Vfx.Spawn(quakeDustEffect, new Vector3(bounds.center.x, bounds.min.y, 0f), dustScale);
-
-        // The quake itself: a sustained shake burst radiating from this brick (see TremorBlockBehaviour).
-        block.gameObject.AddComponent<TremorBlockBehaviour>()
-            .Arm(block.transform.position, shakeStrength, shakeDuration, shakeRadius);
+        // The quake does NOT fire on impact - the brick lands quietly and settles, then erupts
+        // quakeDelaySeconds later: the skin's ring/flash/camera kick, a dust kick at its base, and the
+        // physical tower jolt radiating from the brick. The skin runs the countdown on scaled time.
+        skin.ArmQuake(quakeDelaySeconds, () =>
+        {
+            if (block == null) return; // gone during the wait (fell off / destroyed)
+            skin.PlayQuake();
+            if (quakeDustEffect != null && block.TryGetWorldBounds(out Bounds bounds))
+                Vfx.Spawn(quakeDustEffect, new Vector3(bounds.center.x, bounds.min.y, 0f), dustScale);
+            block.gameObject.AddComponent<TremorBlockBehaviour>()
+                .Arm(block.transform.position, shakeStrength, shakeDuration, shakeRadius);
+        });
     }
 }

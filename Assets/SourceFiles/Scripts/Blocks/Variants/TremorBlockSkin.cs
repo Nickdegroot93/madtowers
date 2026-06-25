@@ -32,6 +32,8 @@ public sealed class TremorBlockSkin : BlockVariantSkin
     private bool _landed;                      // set on lock; starts the calm-down
     private float _settleAge;                  // seconds since landing
     private Vector3[] _baseCellPositions;      // resting local positions, so the buzz springs back
+    private float _armDelay = -1f;             // >=0 = settling, counting down to the eruption
+    private System.Action _onArm;              // fired once the settle countdown elapses
 
     /// <summary>Build the fault-stone look. Called from TremorBlockData.OnApplied.</summary>
     public void Apply()
@@ -42,7 +44,15 @@ public sealed class TremorBlockSkin : BlockVariantSkin
             if (Cells[i] != null) _baseCellPositions[i] = Cells[i].transform.localPosition;
     }
 
-    /// <summary>The seismic discharge on landing. Called from TremorBlockData.OnLocked.</summary>
+    /// <summary>Arm the quake to erupt <paramref name="delay"/> seconds after landing - the brick settles
+    /// first, then discharges. From TremorBlockData.OnLocked; the countdown runs on scaled time.</summary>
+    public void ArmQuake(float delay, System.Action onFire)
+    {
+        _armDelay = Mathf.Max(0f, delay);
+        _onArm = onFire;
+    }
+
+    /// <summary>The seismic discharge. Called (after the settle delay) from TremorBlockData.OnLocked.</summary>
     public void PlayQuake()
     {
         _quakeAge = 0f;
@@ -56,6 +66,20 @@ public sealed class TremorBlockSkin : BlockVariantSkin
         if (!IsBuilt) return;
 
         float dt = Time.deltaTime; // scaled - a pause freezes the motion (PHYSICS.md)
+
+        // Armed but not yet erupted: settle for the delay, then fire the quake once (the callback calls
+        // PlayQuake + the tower jolt). The restless idle buzz keeps running until then (held energy).
+        if (_armDelay >= 0f)
+        {
+            _armDelay -= dt;
+            if (_armDelay <= 0f)
+            {
+                _armDelay = -1f;
+                System.Action cb = _onArm;
+                _onArm = null;
+                cb?.Invoke();
+            }
+        }
 
         // Travelling pulse along the faults, always looping.
         _wavePhase += dt * WaveSpeed;
