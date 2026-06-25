@@ -248,7 +248,7 @@ tetromino pieces.
 
 ## 13. Special blocks look the same in every chapter (theme-independent)
 
-A **unique/special block** (Magma, Anchor, Boulder, Vine today; Ice/Dizzy/Stubborn/Tremor/Feather
+A **unique/special block** (Magma, Anchor, Boulder, Vine today; Ice/Vortex/Locked/Tremor/Feather
 pending) must be instantly recognizable and look **identical regardless of the chapter theme** —
 it does NOT adopt the chapter's local block art the way normal bricks do.
 (Exception: when a special block decomposes into normal bricks — Magma melting

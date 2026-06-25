@@ -2,8 +2,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// The Stubborn look: a rusted iron gear bound by a chain and a screw-head locking pin per cell (procedural
-/// Resources/Stubborn shader), drawn OVER the kept chapter art - the brick stays solid; only the hardware
+/// The Locked look: a rusted iron gear bound by a chain and a screw-head locking pin per cell (procedural
+/// Resources/Locked shader), drawn OVER the kept chapter art - the brick stays solid; only the hardware
 /// reacts. The chain runs across mid-height and connects cell-to-cell (via <c>_Col</c>) into one chain
 /// binding the whole piece. Nothing spins idly (it's locked); instead it carries a faint involuntary
 /// <c>_Strain</c> twitch, and when the player tries to rotate, <see cref="PlayRefuse"/> kicks a damped
@@ -17,7 +17,7 @@ using UnityEngine;
 /// kinematic, grid-owned descent (I5) without ever feeding the solver. All on scaled time, so a pause
 /// freezes it. See BLOCKVARIANTS.md.
 /// </summary>
-public sealed class StubbornBlockSkin : BlockVariantSkin
+public sealed class LockedBlockSkin : BlockVariantSkin
 {
     private static readonly int StrainId = Shader.PropertyToID("_Strain");
     private static readonly int FlashId = Shader.PropertyToID("_Flash");
@@ -43,7 +43,7 @@ public sealed class StubbornBlockSkin : BlockVariantSkin
     private readonly List<Vector3> _brickBasePos = new List<Vector3>();
     private Vector3 _pivot; // piece visual centre, in controller-local space
 
-    /// <summary>Build the gear/chain look and capture the brick visuals to flinch. From StubbornBlockData.OnApplied.</summary>
+    /// <summary>Build the gear/chain look and capture the brick visuals to flinch. From LockedBlockData.OnApplied.</summary>
     public void Apply()
     {
         BuildCells();
@@ -65,9 +65,9 @@ public sealed class StubbornBlockSkin : BlockVariantSkin
         ApplyFlinch(0f); // the gear may still idle-twitch, but the brick itself rests
     }
 
-    protected override string MaterialResource => "Stubborn";
+    protected override string MaterialResource => "Locked";
     protected override bool HidesChapterArt => false; // the hardware sits over the chapter colour
-    protected override string CellName => "StubbornCell";
+    protected override string CellName => "LockedCell";
 
     protected override void ConfigureCell(int index, int col, int row, SpriteRenderer overlay, MaterialPropertyBlock mpb)
     {
@@ -109,7 +109,7 @@ public sealed class StubbornBlockSkin : BlockVariantSkin
         float dt = Mathf.Min(Time.deltaTime, MaxStep); // scaled - a pause freezes the strain (PHYSICS.md)
 
         // Faint involuntary twitch on a randomised cadence while falling, so the held piece feels under
-        // tension. Stops once locked, so a tower of placed Stubborn blocks doesn't fidget.
+        // tension. Stops once locked, so a tower of placed Locked blocks doesn't fidget.
         if (!_locked)
         {
             _nextTwitch -= dt;

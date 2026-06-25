@@ -267,8 +267,8 @@ Level-design quick reference (polarity = help or hazard to the player):
 | Boulder | Mass 4 — strains everything below it; heavy landing slam. Dark-basalt look. | Negative |
 | Feather | Mass 0.25 — shoved around by every later landing. Pale yellow. | Negative |
 | Ice | Near-zero friction — slides off anything not flat. Pale cyan. | Negative |
-| Stubborn | Cannot be rotated while falling. Orange. | Negative |
-| Dizzy | Left/right steering mirrored. Pink. | Negative |
+| Locked | Cannot be rotated while falling. Orange. | Negative |
+| Vortex | Left/right steering mirrored. Pink. | Negative |
 | Tremor | Jolts the whole tower the moment it lands. Amber. | Negative |
 | Bomb | Red-pulsing 1s fuse after landing, then deletes itself + every touching block (no blast impulse — the tower sags, not flies). Dark gray. | Negative |
 

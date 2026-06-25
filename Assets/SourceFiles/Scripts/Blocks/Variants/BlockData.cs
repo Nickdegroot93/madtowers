@@ -20,9 +20,9 @@ public class BlockData : ScriptableObject
     [SerializeField] private float gravityScaleMultiplier = 1f;
 
     [Header("Control")]
-    [Tooltip("Untick for bricks that cannot be rotated while falling (Stubborn brick).")]
+    [Tooltip("Untick for bricks that cannot be rotated while falling (Locked brick).")]
     [SerializeField] private bool canRotate = true;
-    [Tooltip("Tick to mirror left/right steering for this brick (Dizzy brick).")]
+    [Tooltip("Tick to mirror left/right steering for this brick (Vortex brick).")]
     [SerializeField] private bool invertHorizontalControls = false;
 
     [Header("Visuals")]
@@ -68,8 +68,8 @@ public class BlockData : ScriptableObject
     public virtual void OnLocked(BlockController block) { }
 
     /// <summary>Called when the player presses rotate on a falling piece that <see cref="CanRotate"/>
-    /// forbids (Stubborn) - the moment the rotation is refused. <paramref name="direction"/> is -1 for a
-    /// left press, +1 for right. Lets a variant play an on-block "no" cue (Stubborn's gear strains against
+    /// forbids (Locked) - the moment the rotation is refused. <paramref name="direction"/> is -1 for a
+    /// left press, +1 for right. Lets a variant play an on-block "no" cue (Locked's gear strains against
     /// its chain); see BLOCKVARIANTS.md. Purely cosmetic - the rotation itself stays blocked.</summary>
     public virtual void OnRotationDenied(BlockController block, int direction) { }
 }

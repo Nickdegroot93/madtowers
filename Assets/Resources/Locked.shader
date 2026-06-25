@@ -1,9 +1,9 @@
-Shader "MadTowers/Stubborn"
+Shader "MadTowers/Locked"
 {
-    // A Stubborn HARDWARE overlay: a rusted iron gear bound by a chain and a screw-head locking pin, drawn
-    // ON TOP of the kept chapter art (like Vine/Dizzy, unlike Anchor which replaces it) so the brick stays
+    // A Locked HARDWARE overlay: a rusted iron gear bound by a chain and a screw-head locking pin, drawn
+    // ON TOP of the kept chapter art (like Vine/Vortex, unlike Anchor which replaces it) so the brick stays
     // solid and the chapter colour shows in the frame around it. A gear is rotation made physical, so a
-    // chained, pinned gear reads as "rotation locked" - the cue Stubborn lacked. Theme-independent fixed
+    // chained, pinned gear reads as "rotation locked" - the cue Locked lacked. Theme-independent fixed
     // rust/iron colours. Driven props: _Strain (-1..1) lurches the gear (_MaxLurch) and snaps the chain taut;
     // _Flash sparks the pin. _GearAngle rests each cell's teeth at a different phase; _Col makes the chain's
     // links continuous from one cell to the next so a multi-cell piece reads as one bound chain. The skin

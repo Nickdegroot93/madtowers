@@ -1,8 +1,8 @@
-Shader "MadTowers/Dizzy"
+Shader "MadTowers/Vortex"
 {
-    // A Dizzy VORTEX overlay: an inset disc of swirling pink marble set into each cell, drawn ON TOP of the
+    // A Vortex VORTEX overlay: an inset disc of swirling pink marble set into each cell, drawn ON TOP of the
     // kept chapter art (like Vine, unlike Anchor/Boulder which replace it) so the brick stays solid and the
-    // chapter colour shows in the frame around the gem. "Dizzy" isn't a material, so this is an optical cue:
+    // chapter colour shows in the frame around the gem. "Vortex" isn't a material, so this is an optical cue:
     // a churning whirlpool that the skin winds and REVERSES (drives _Swirl) - the on-block metaphor for
     // inverted left/right steering. Fixed pink/plum marble (theme-independent). _Swirl (radians, driven on
     // scaled time so a pause freezes it) rotates the vortex; the inner winds more than the rim (_TwistAmt).

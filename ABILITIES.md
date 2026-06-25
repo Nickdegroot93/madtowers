@@ -194,7 +194,7 @@ roll. The default enforces, in order:
 3. Level bans (`LevelDefinition.bannedAbilities`) → out. **Manual** design lockouts.
 4. `requiresVariantsInLevel`: every listed `BlockData` must exist in the mode's spawn
    tables (ambient chances or fallback variants) → **automatic** content conditions
-   ("no Dizzy bricks in this level → don't offer the anti-Dizzy ability").
+   ("no Vortex bricks in this level → don't offer the anti-Vortex ability").
 
 Exotic conditions: override `IsAvailable`, call `base` for the standard rules. An
 offer whose candidates all filter out is quietly skipped (by design).

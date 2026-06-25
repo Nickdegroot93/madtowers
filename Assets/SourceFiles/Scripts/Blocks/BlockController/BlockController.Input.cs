@@ -67,7 +67,7 @@ public partial class BlockController
         }
     }
 
-    // The direction the piece actually dashed toward (Dizzy inverts the input) - the
+    // The direction the piece actually dashed toward (Vortex inverts the input) - the
     // slam impulse and impact FX must match the physical hit, not the button pressed.
     private int AttemptedStepDirection(int inputDirection)
     {

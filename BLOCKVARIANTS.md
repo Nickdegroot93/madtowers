@@ -24,7 +24,7 @@ A variant is up to three pieces, by **naming convention**:
 | `<Name>BlockBehaviour.cs` | `MonoBehaviour` | runtime **behaviour** added on lock (welds, explosions, …) |
 
 - A variant with **no behaviour and no custom look** is just a `BlockData` **asset** — no code (Ice,
-  Dizzy, Stubborn, Feather differ only by serialized stats/material).
+  Vortex, Locked, Feather differ only by serialized stats/material).
 - A variant with a **look** adds `<Name>BlockSkin` from `<Name>BlockData.OnApplied`.
 - A variant with **behaviour** adds `<Name>BlockBehaviour` (or acts directly) from `OnLocked`.
 
@@ -45,8 +45,8 @@ Look status: ✅ procedural skin · 🟡 has a feel moment but only a colour tin
 | **Magma** | 1 | on land **melts** into one stone Pip per cell (conforms to terrain) | molten black/red, bloom glow, gentle wobble | ✅ | `MagmaBlockData`, `MagmaBlockSkin`, `MagmaMelt`, `MagmaBlobVisual`, `Lava.shader` |
 | **Bomb** | 1 | on land **detonates** (fuse), dropping neighbours' support; blast = CFXR orange explosion + camera punch, each neighbour breaks with shard shatter + smoke puff | near-black riveted iron **powder-keg** casing; seams glow from a faint idle ember to white-hot; fuse = accelerating heartbeat + rising tremble + pre-flash | ✅ | `BombBlockData`, `BombBlockSkin`, `BombBlockBehaviour`, `Bomb.shader` |
 | **Ice** | 1 | slippery (low-friction `IceSurface` material) | reuses the **Freeze** ability's Frost material — translucent cyan ice pane: glass bevel, cloudy mottle, branching frost **cracks** (per-cell pattern); born fully iced, **dead still**; chapter colour shows faintly through (overlay). Distinct from Feather: cold + cracked + still vs warm + soft + floating | ✅ (overlay) | `IceBlockData`, `IceBlockSkin` (reuses `Frost.shader`) |
-| **Dizzy** | 1 | **inverts** left/right steering | inset pink-marble **vortex** per cell over the kept chapter art; churns and periodically **reverses** direction (the on-block cue for the flip) | ✅ (overlay) | `DizzyBlockData`, `DizzyBlockSkin`, `Dizzy.shader` |
-| **Stubborn** | 1 | **cannot rotate** | rusted iron **gear bound by a chain + locking pin** per cell over the kept chapter art (chain runs continuous across the piece); idle strains; on a denied rotate the gear **lurches against the chain and springs back** with a spark at the pin, and the whole brick gives a tiny **flinch** in the pressed direction (visual-only, falling-piece only — never the body, I1) so it visibly tries to turn but can't | ✅ (overlay) | `StubbornBlockData`, `StubbornBlockSkin`, `Stubborn.shader` |
+| **Vortex** | 1 | **inverts** left/right steering | inset pink-marble **vortex** per cell over the kept chapter art; churns and periodically **reverses** direction (the on-block cue for the flip) | ✅ (overlay) | `VortexBlockData`, `VortexBlockSkin`, `Vortex.shader` |
+| **Locked** | 1 | **cannot rotate** | rusted iron **gear bound by a chain + locking pin** per cell over the kept chapter art (chain runs continuous across the piece); idle strains; on a denied rotate the gear **lurches against the chain and springs back** with a spark at the pin, and the whole brick gives a tiny **flinch** in the pressed direction (visual-only, falling-piece only — never the body, I1) so it visibly tries to turn but can't | ✅ (overlay) | `LockedBlockData`, `LockedBlockSkin`, `Locked.shader` |
 | **Feather** | 0.25 | very light — shoved around by later landings | **translucent** frosted cloud-glass (see-through centre, frostier rim, soft glowing edge) — light because you see through it; keeps the brick bevel; a couple of faint **down wisps** suspended inside; perpetually **floats + sways**; soft landing **flutter**, no slam | ✅ | `FeatherBlockData`, `FeatherBlockSkin`, `Feather.shader` |
 | **Tremor** | 1 | on land **shakes the whole tower** — a short shake burst (velocity kicks radiating from the brick, per-block shear topples bad placements); lock = shockwave ring + flash + camera kick + ground-dust puff | warm ochre **fault-stone** that never holds still: micro-buzz (calms a few seconds after landing) + amber fault cracks with a travelling pulse; lock discharge = ring + squash | ✅ | `TremorBlockData`, `TremorBlockSkin`, `TremorBlockBehaviour`, `Tremor.shader` |
 | **Bullet** | 1 | projectile — destroys the dynamic block below on lock; `counts:false`, `costsLife:false` | own `Block_Bullet` prefab + impact FX | ✅ (own prefab) | `BulletBlockData`, `BulletImpact` |
@@ -120,7 +120,7 @@ grep the asset GUID and clear any ambient/ability references.
   real chapter colour, and express identity through the procedural overlay, which reads on whatever colour
   the chapter already uses (the dark seating outline carries it on any palette). A fixed full-brick tint
   recolours the brick in *every* chapter, which fights muted/dark chapter palettes — that's why the old
-  per-variant tints (orange Stubborn, pink Dizzy, …) were removed once those blocks got real overlays. A
+  per-variant tints (orange Locked, pink Vortex, …) were removed once those blocks got real overlays. A
   non-white `colorTint` is reserved for a **deliberate, block-specific** colour you actually want in all
   chapters — never a default differentiator.
 - **Reuse the base:** don't re-roll the per-cell overlay loop or material loading — `BlockVariantSkin`

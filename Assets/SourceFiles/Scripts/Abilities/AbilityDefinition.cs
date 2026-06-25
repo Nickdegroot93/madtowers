@@ -88,7 +88,7 @@ public abstract class AbilityDefinition : ScriptableObject
     [SerializeField] private int maxStacks;
 
     [Header("Availability")]
-    [Tooltip("Offered only when the level's spawn tables (ambient chances or fallback variants) contain ALL of these variants - e.g. a 'no more Dizzy bricks' ability needs Dizzy bricks to exist. Empty = no requirement.")]
+    [Tooltip("Offered only when the level's spawn tables (ambient chances or fallback variants) contain ALL of these variants - e.g. a 'no more Vortex bricks' ability needs Vortex bricks to exist. Empty = no requirement.")]
     [SerializeField] private BlockData[] requiresVariantsInLevel;
 
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
