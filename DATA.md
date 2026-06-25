@@ -64,6 +64,10 @@ last-writer-wins with timestamp).
 
 ## Tomorrow: cloud sync + leaderboards (Supabase)
 
+> **Full design: `BACKEND.md`** (auth, the hybrid table schema, RLS, the local-first sync
+> algorithm, leaderboards, the Vault/collections flow, and account deletion). The sketch below is
+> the summary; BACKEND.md is the binding plan. Deferred to roadmap Phase E.
+
 The plan when online day comes — nothing below requires changing today's code, only
 adding behind `ProgressStore`:
 
