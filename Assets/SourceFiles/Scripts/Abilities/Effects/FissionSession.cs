@@ -94,6 +94,7 @@ public sealed class FissionSession : MonoBehaviour
     private void StartSession(Spawner spawner, BlockDefinition pip, int cellCount)
     {
         IsActive = true;
+        ActivePieceSession.Enter();
         _spawner = spawner;
         _pip = pip;
         ResolveAnchors();
@@ -347,6 +348,7 @@ public sealed class FissionSession : MonoBehaviour
 
         if (_spawner != null) _spawner.SetAutoSpawnSuspended(false);
         IsActive = false;
+        ActivePieceSession.Exit();
         Destroy(gameObject);
     }
 

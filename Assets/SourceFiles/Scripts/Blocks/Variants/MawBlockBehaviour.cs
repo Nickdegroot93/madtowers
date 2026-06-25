@@ -80,8 +80,8 @@ public class MawBlockBehaviour : MonoBehaviour
         if (_eatEffect != null && prey.TryGetWorldBounds(out Bounds pb))
             Vfx.Spawn(_eatEffect, pb.center, _eatScale, 2f); // subtle one-shot disintegrate (assigned on the asset)
 
-        AbilityEffects.ImpactPunch(0.03f, 0.10f, 0.12f);          // the bite has weight
-        AbilityEffects.DestroyBlockWithShatter(prey, ShardTint);  // shatter + remove from the live count
+        ImpactFx.ImpactPunch(0.03f, 0.10f, 0.12f);          // the bite has weight
+        ImpactFx.DestroyBlockWithShatter(prey, ShardTint);  // shatter + remove from the live count
         if (GameManager.Instance != null) GameManager.Instance.LoseLifeToHazard(); // every devour costs a life
     }
 }

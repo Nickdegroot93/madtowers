@@ -16,7 +16,8 @@ public class OverdrawAbility : ConsumableAbility
 
     public override bool CanActivate(AbilityContext context)
     {
-        if (OverdrawSession.IsActive || FissionSession.IsActive) return false;
+        // No running-session check needed: AbilityRuntime's ConsumablesUsable blanket gate already
+        // blocks activation while any active-piece session owns the field (see ConsumableAbility).
         if (context == null || context.Spawner == null || context.Config == null) return false;
         if (context.Config.BlockBag == null || context.Config.BlockBag.Count == 0) return false;
 
@@ -34,8 +35,8 @@ public class OverdrawAbility : ConsumableAbility
         BlockController active = BlockController.ActiveControlled;
         if (active == null || context == null || context.Spawner == null) return;
 
-        AbilityEffects.BurstFromEveryCell(active, vanishEffect, vanishScale);
-        AbilityEffects.ImpactPunch(0.045f, 0.08f, 0.12f);
+        ImpactFx.BurstFromEveryCell(active, vanishEffect, vanishScale);
+        ImpactFx.ImpactPunch(0.045f, 0.08f, 0.12f);
         SfxPlayer.Play("swoosh_01", 0.65f, 0.05f);
 
         OverdrawSession.Begin(context.Spawner, choiceCount);

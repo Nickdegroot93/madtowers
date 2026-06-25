@@ -14,7 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SlowMotionPowerUp
   displayName: Slow Time
   icon: {fileID: 21300000, guid: dd776dd35ea2453a90dc2ec2ca70d306, type: 3}
+  shortDescription: 
+  ownedShortDescription: 
   description: Time runs at half speed for 15 seconds.
   rarity: 0
-  category: 0
-  duration: 15
+  unique: 0
+  maxStacks: 0
+  requiresVariantsInLevel: []
+  slowStatus: {fileID: 11400000, guid: 8f34a1b5c9594b68a20ce7f8db1eecf3, type: 2}

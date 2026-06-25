@@ -27,7 +27,7 @@ Sorted by rarity folder: `Common/`, `Rare/`, `Epic/` (add `Legendary/` when the 
 exists). **The folder is organization only — the `rarity` field on the asset is what the
 game reads.** Keep them matching when you move things.
 
-To add a power-up, see the doc comment on `Scripts/PowerUps/PowerUpDefinition.cs`.
+To add a power-up (ability), see the doc comment on `Scripts/Abilities/AbilityDefinition.cs` (and the kind base classes in `Scripts/Abilities/Kinds/`); full architecture in ABILITIES.md.
 A power-up only appears in-game once it's added to a game mode's `powerUpChoicePool`.
 
 `PowerUps/Status/` holds reusable `StatusEffectDefinition` assets. These are timed game

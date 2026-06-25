@@ -244,31 +244,20 @@ public class UIManager : MonoBehaviour
         string cacheKey = $"{ChapterSkins.Folder}:{shape}";
         if (_ghostSprites.TryGetValue(cacheKey, out Sprite cached)) return cached;
 
-        Sprite source = ChapterSkins.LoadPiece(shape);
-        Sprite ghost = source;
-        if (source != null && source.texture.isReadable)
-        {
-            Texture2D src = source.texture;
-            Texture2D tex = new Texture2D(src.width, src.height, TextureFormat.RGBA32, false)
-            {
-                hideFlags = HideFlags.HideAndDontSave
-            };
-            Color[] pixels = src.GetPixels();
-            for (int i = 0; i < pixels.Length; i++)
-            {
-                Color c = pixels[i];
-                float gray = c.r * 0.299f + c.g * 0.587f + c.b * 0.114f;
-                pixels[i] = Color.Lerp(new Color(gray, gray, gray, c.a), c, 0.18f);
-            }
-            tex.SetPixels(pixels);
-            tex.Apply();
-
-            ghost = Sprite.Create(tex, new Rect(0, 0, src.width, src.height), new Vector2(0.5f, 0.5f), 256f);
-            ghost.hideFlags = HideFlags.HideAndDontSave;
-        }
-
+        Sprite ghost = PieceGhost.Generate(shape, Desaturate);
         _ghostSprites[cacheKey] = ghost;
         return ghost;
+    }
+
+    // Desaturate toward the source so the preview reads as "coming up", keeping a hint of colour.
+    private static void Desaturate(Color[] pixels)
+    {
+        for (int i = 0; i < pixels.Length; i++)
+        {
+            Color c = pixels[i];
+            float gray = c.r * 0.299f + c.g * 0.587f + c.b * 0.114f;
+            pixels[i] = Color.Lerp(new Color(gray, gray, gray, c.a), c, 0.18f);
+        }
     }
 
     private void HandleGameOver(int finalScore, float maxHeight)

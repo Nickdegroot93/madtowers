@@ -42,7 +42,7 @@ public class ZapAbility : ConsumableAbility
         BlockController active = BlockController.ActiveControlled;
         if (active != null)
         {
-            AbilityEffects.BurstFromEveryCell(active, detonateEffect, detonateScale * 0.6f); // piece blinks out
+            ImpactFx.BurstFromEveryCell(active, detonateEffect, detonateScale * 0.6f); // piece blinks out
             SfxPlayer.Play("swoosh_01", 0.7f, 0.04f);
         }
 

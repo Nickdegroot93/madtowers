@@ -42,6 +42,7 @@ public sealed class MagmaMeltSession : MonoBehaviour
     private void StartSession(Spawner spawner, MagmaBlockData data, List<Vector3> positions)
     {
         IsActive = true;
+        ActivePieceSession.Enter();
         _spawner = spawner;
         _data = data;
         _positions = positions;
@@ -118,6 +119,7 @@ public sealed class MagmaMeltSession : MonoBehaviour
 
         if (_spawner != null) _spawner.SetAutoSpawnSuspended(false);
         IsActive = false;
+        ActivePieceSession.Exit();
         Destroy(gameObject);
     }
 }

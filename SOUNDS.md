@@ -33,7 +33,7 @@ Played via `SfxPlayer.PlayVariant("impact_heavy", 2, …)` — randomly one of t
 
 ### `impact_soft_01` — Impact (dud / quiet removal) · *placeholder*
 - Zap **wasted shot** — empty column ([ZapSession.cs](Assets/SourceFiles/Scripts/Abilities/Effects/ZapSession.cs)).
-- Generic **destroy a placed block** shatter ([AbilityEffects.cs:52](Assets/SourceFiles/Scripts/Abilities/Effects/AbilityEffects.cs#L52)) — shared by every shatter, incl. Scrap.
+- Generic **destroy a placed block** shatter ([ImpactFx.cs:27](Assets/SourceFiles/Scripts/Core/ImpactFx.cs#L27)) — shared by every shatter, incl. Scrap.
 - **Extract** deletes the chosen block ([ExtractTargetingSession.cs:359](Assets/SourceFiles/Scripts/Abilities/Effects/ExtractTargetingSession.cs#L359)).
 
 **Should be:** a quiet, dull *thud*. Clearly softer & duller than `impact_shatter_01`.

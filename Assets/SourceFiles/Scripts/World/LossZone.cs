@@ -30,6 +30,16 @@ public class LossZone : MonoBehaviour
         return camera.transform.position.y - camera.orthographicSize + LossLineAboveScreenBottom;
     }
 
+    /// <summary>True if a world position sits below the bottom-screen kill line right now - i.e. a
+    /// piece that locked/slid off down there is on its way out and the cull sweep owns it. On-land
+    /// variant effects (e.g. Magma melt) consult this so they don't fire on a doomed piece. A
+    /// non-orthographic / absent camera counts as "not below" (no kill line to be under).</summary>
+    public static bool IsBelowCull(Vector3 worldPosition)
+    {
+        Camera camera = Camera.main;
+        return camera != null && camera.orthographic && worldPosition.y < CullY(camera);
+    }
+
     /// <summary>
     /// The highest line that can currently charge a bottom-screen loss. Early in a run
     /// the fixed trigger is usually the visible "hit" line; once the camera climbs, the

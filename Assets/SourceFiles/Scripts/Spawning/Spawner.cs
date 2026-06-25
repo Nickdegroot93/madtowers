@@ -6,6 +6,7 @@ public class Spawner : MonoBehaviour
 {
     [SerializeField] private GameModeConfig gameModeConfig;
     [SerializeField] private Transform spawnPoint;
+    [Tooltip("Editor fallback only: used when no GameModeConfig is resolved (the active mode's Spawn Delay always wins in normal play).")]
     [SerializeField] private float spawnDelay = 0f;
 
     private struct VariantChance

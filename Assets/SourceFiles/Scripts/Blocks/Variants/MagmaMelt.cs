@@ -19,14 +19,8 @@ public static class MagmaMelt
 
         // A magma caught by the game-over wreckage settle, or one that slid off and locked
         // below the screen, must not melt (mirrors the shared impact guards). Just clean up.
-        if (GameManager.Instance != null && GameManager.Instance.isGameOver)
-        {
-            Object.Destroy(magma.gameObject);
-            return;
-        }
-        Camera camera = Camera.main;
-        if (camera != null && camera.orthographic &&
-            magma.transform.position.y < LossZone.CullY(camera))
+        bool runOver = GameManager.Instance != null && GameManager.Instance.isGameOver;
+        if (runOver || LossZone.IsBelowCull(magma.transform.position))
         {
             Object.Destroy(magma.gameObject);
             return;
@@ -62,7 +56,7 @@ public static class MagmaMelt
         NeutraliseAndHide(magma);
 
         // A small splash as the magma breaks apart, then the session takes over.
-        AbilityEffects.BurstFromEveryCell(magma, data.SolidifyEffect, data.SolidifyEffectScale);
+        ImpactFx.BurstFromEveryCell(magma, data.SolidifyEffect, data.SolidifyEffectScale);
         SfxPlayer.Play("impact_soft_01", 0.55f, 0.08f);
 
         MagmaMeltSession.Begin(spawner, data, cellPositions);

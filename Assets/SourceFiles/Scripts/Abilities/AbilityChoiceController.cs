@@ -185,16 +185,7 @@ public class AbilityChoiceController : MonoBehaviour
     private float GetRunProgress(AbilityContext context)
     {
         if (context.Level == null || context.GameManager == null) return 0f;
-
-        switch (context.Level.TargetType)
-        {
-            case LevelTargetType.PlaceBlocks:
-                return Mathf.Clamp01(context.GameManager.score / context.Level.TargetValue);
-            case LevelTargetType.ReachHeight:
-                return Mathf.Clamp01(context.GameManager.towerHeight / context.Level.TargetValue);
-            default:
-                return 0f;
-        }
+        return context.Level.WinCondition.RunProgress01(context.GameManager);
     }
 
     private void Pick(AbilityDefinition definition)

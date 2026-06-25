@@ -42,12 +42,12 @@ LevelDefinition  (Assets/Resources/Levels/  — one per level)
      │    └─ BlockDefinition → shape prefab + default BlockData variant
      ├─ Ambient variant chances: % rolls that replace spawns with a variant
      ├─ Sky platforms (static support islands): on/off, frequency, shapes, columns
-     ├─ Power-up choices: cadence (every N blocks) + pool of PowerUpDefinitions
+     ├─ Power-up choices: cadence (every N blocks) + pool of AbilityDefinitions
      ├─ Camera: leniency (reaction room), zoom limits
      └─ Physics dials (see PHYSICS.md before changing)
 
 BlockData variants     (Assets/Data/Blocks/    — one asset per brick type)
-PowerUpDefinitions     (Assets/Data/PowerUps/<Rarity>/ — one asset per power-up)
+AbilityDefinitions     (Assets/Data/PowerUps/<Rarity>/ — one asset per ability)
 ```
 
 Key separation: **LevelDefinition = identity + look. GameModeConfig = all rules.** Two levels
@@ -121,6 +121,13 @@ touch engine code.
 | **Scheduled theme pressure** (snowstorms, sandstorms, neon sync, rain...) | `ScheduledStatusModifier` applying one or more `StatusEffectDefinition` assets | any standard goal |
 | *future: rising water, timed rush, wind gauntlet…* | one modifier subclass each, same recipe | standard goals |
 
+> **Win conditions are polymorphic.** A level still authors `targetType` + `targetValue`, but the
+> *behaviour* (arming, hold-steady verification, run progress, menu text) lives on a `WinCondition`
+> built from that enum in `LevelDefinition.WinCondition` — no scattered `switch`es across the runtime,
+> the picker and the menu. The three built-ins are in `Scripts/Levels/WinConditions/`; a brand-new win
+> *type* (e.g. "survive N seconds") is one `WinCondition` subclass + one factory line — the same
+> one-file-per-type ergonomics as `LevelModifier`.
+
 **Building a new type** (the recipe Height-Limit Waves followed):
 1. Subclass `LevelModifier` in `Scripts/Levels/Modifiers/`; the modifier owns ALL the
    rule logic *and* its visuals (use `RuntimeSprites` for code-built shapes).
@@ -176,7 +183,7 @@ Each chapter's `skinFolder` drives all generated art (blocks/ground/laser) via
 |---|---|---|---|
 | Foundations | GameMode_Classic | Place 100 | Plain stacking endurance. |
 
-**Chapter: Dune Realm (sortOrder 20)** — imported Desert Vibe menu art, layered desert
+**Chapter: Barren Lands (sortOrder 20)** — imported Desert Vibe menu art, layered desert
 gameplay backdrop, desert skin, desert A/B music
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
@@ -208,10 +215,10 @@ jungle gameplay backdrop, jungle skin folder, jungle A/B music
 | `Assets/SourceFiles/Scripts/Levels/Modifiers/` | LevelModifier behaviour classes (code). |
 | `Assets/Data/Blocks/` | BlockData variant assets (Normal, Boulder, Anchor, ...). |
 | `Assets/Data/BlockDefinitions/` | BlockDefinition assets — one per tetromino shape (Block_I ... Block_Z); these are what block bags list. |
-| `Assets/Data/PowerUps/Common|Rare|Epic/` | PowerUpDefinition assets, foldered by rarity (the asset's rarity **field** is what the game reads). |
+| `Assets/Data/PowerUps/Common|Rare|Epic/` | AbilityDefinition assets, foldered by rarity (the asset's rarity **field** is what the game reads). |
 | `Assets/Prefabs/Blocks/` | The 7 tetromino shape prefabs (I, O, T, S, Z, L, J). |
 | `Assets/SourceFiles/Scripts/Blocks/Variants/` | BlockData base + behaviour subclasses (code, one per *behaviour*). |
-| `Assets/SourceFiles/Scripts/PowerUps/Definitions/` | Power-up behaviour classes (code). |
+| `Assets/SourceFiles/Scripts/Abilities/` | Ability code: `AbilityDefinition` + kind bases (`Kinds/`), behaviours (`Definitions/`), runtime effects (`Effects/`). |
 
 ---
 
@@ -225,7 +232,7 @@ jungle gameplay backdrop, jungle skin folder, jungle A/B music
 | Spawning | bag: **all 7 tetrominoes ×1 copy** · fallback variants: Normal · ambient variant rolls: **none** |
 | Placement | gridSpacing **1** · placement buffer **3 columns** (effective steer reach is `max(buffer, 4)` — the widest block always fits past the edge; see PHYSICS.md reach guarantee) |
 | Floor | 1 segment: center **0**, **9 columns** (Narrow: ~5) |
-| Power-ups | choice every **10** blocks · pool: Extra Life, Slow Time, Anchor Brick, Freeze, Extract, Hardline, Brace · slowMotionScale **0.5** |
+| Power-ups | choice every **10** blocks · pool: a broad set across rarities (~27 abilities; see GameMode_Classic) · slowMotionScale **0.5** |
 | Islands | **enabled** · row interval 1 · chance 0.25 per side (floor-distance weighted) · first 9 · camera lead 2 · columns ±6, center clear 3 · shapes Single 12 / Two Wide 2 / Two Tall 2 / Corner 1 (details: §3 islands) |
 | Camera | peak **0.5** · spawn **0.9** · zoom **15–24** · smooth **vert 0.28 / zoom 0.35 / horiz-follow 0.21 (code const)** · padding **1.5** (= column margin) · min Y **0** — follow camera: pans+zooms to frame floor/tower/nearby islands/active piece (safe area **0.78** is now unused by framing) |
 | Physics ⚠️ contract — identical in every mode | grounded **0.03** · impact cap **2** · settle **0.08 / 8°s / 0.35s** · sleepOnLock **on** · microAlign **on, 0.08 / 4°** · maxControlTime **12** |
@@ -302,13 +309,13 @@ full-size from frame one) + the `pop_01` sound.
 
 | Setting | What it does |
 |---|---|
-| `staticSupportIslandsEnabled` | Master switch per level. **On in Classic, LaserLimit, Spire, SkyPlatforms.** |
+| `staticSupportIslandsEnabled` | Master switch per level. **On in most modes; off in Hard and Narrow.** |
 | `staticSupportIslandHeightInterval` | Meters between spawn rows (snapped to grid). Canonical **1** = every row. |
 | `staticSupportIslandSpawnChance` | Chance per row PER SIDE, before floor-distance weighting. Canonical **0.25** ≈ a few stones per screen, almost all on the flanks (≈ half the Tricky Towers reference density out there). ⚠️ Playtested: 0.4 cluttered the narrow phone screen, 0.05 felt empty (whole games with 0–1 stones). |
 | `staticSupportIslandFirstHeight` | Meters above the floor where generation starts (**9**) — the first screens of building stay completely clean. |
 | `staticSupportIslandSpawnAheadHeight` | Generation lead above the **tower's peak** (**6**; SkyPlatforms **8**). Islands materialize with the laser-reveal pop (animation + sound) once the build climbs within this height of them — the sky ahead stays clean until you're nearly there. Keep below the spawn-line offset (~12 above the peak) so revealed islands are immediately landable. |
 | `staticSupportIslandMin/MaxColumn`, `CenterClearColumns` | **±6, clear 3** → side bands of 5 columns each (2–6 from center): nothing in the falling lane. Bands are additionally clipped at spawn to the **reachable range** (`TryGetReachableColumnRange`, anchored to the floor centre at max zoom) so a piece can always slip ≥`WidestBlockColumns` (4) clear columns past any island and drop down its outer side. On a normal phone aspect the ±6 band fits inside this and nothing is clipped; very narrow screens trim the outermost column. The follow camera pans/zooms to keep islands and the steered piece framed. |
-| *(code)* floor-width weighting | Within a band, columns are weighted by distance past the **floor's edge** (derived per mode from `floorSegments`): over the floor **×0.12**, first column beyond the edge **×0.5**, clear of it **×1**. Islands exist to grow wider than the floor — above the floor they'd just block the landing lane. A narrow Spire floor therefore keeps full side density automatically. Constants: `StaticSupportIslandManager.OverFloorWeight` / `FloorEdgePlusOneWeight`. |
+| *(code)* floor-width weighting | Within a band, columns are weighted by distance past the **floor's edge** (derived per mode from `floorSegments`): over the floor **×0.12**, first column beyond the edge **×0.5**, clear of it **×1**. Islands exist to grow wider than the floor — above the floor they'd just block the landing lane. A narrow floor therefore keeps full side density automatically. Constants: `StaticSupportIslandManager.OverFloorWeight` / `FloorEdgePlusOneWeight`. |
 | `staticSupportIslandShapes` | Weighted clusters, authorable inline per mode. Canonical: **Single 12, Two Wide 2, Two Tall 2, Corner 1** — mostly lone stones, occasional pairs, rare 3-cell corner. |
 
 Visuals: `Skins/<Chapter>/island_1..3.png` (see ART.md) — plateau-material 1x1 cells;
@@ -318,11 +325,11 @@ each spawn picks a random variant + random 90° rotation = 12 looks per chapter.
 | Setting | What it does |
 |---|---|
 | `powerUpChoiceEveryBlocks` | Every N placed blocks: full pause + pick 1 of 3. 0 disables for the level. |
-| `powerUpChoicePool` | Which AbilityDefinitions can be offered (see **ABILITIES.md** for the full ability architecture: kinds, stacking, conditions, status effects, combo triggers). Per level — hard levels can ban abilities via `LevelDefinition.bannedAbilities`, gift levels can offer only Legendaries. Rarity weighting (Common 100 / Rare 40 / Epic 15 / Legendary 5) lives in `AbilityRarityInfo`. |
+| `powerUpChoicePool` | Which AbilityDefinitions can be offered (see **ABILITIES.md** for the full ability architecture: kinds, stacking, conditions, status effects, combo triggers). Per level — hard levels can ban abilities via `LevelDefinition.bannedAbilities`, gift levels can offer only Legendaries. Rarity weighting lives in `AbilityRarityProfile` (staged weights; `AbilityRarityInfo` owns only the rarity colours). |
 
-Current power-ups: Extra Life (Common), Slow Time (Common), Anchor Brick (Rare — your NEXT
-brick becomes an Anchor, one brick only), Freeze (Epic), Extract (Epic), Hardline (Epic), Brace (Epic). Adding more: see the doc
-comment on `PowerUpDefinition.cs` — many new power-ups are zero-code: a
+Power-ups span Common/Rare/Epic (the full catalog lives in `Assets/Data/PowerUps/`; ABILITIES.md
+documents the kinds and each shipped ability). Adding more: see the doc
+comment on `AbilityDefinition.cs` — many new power-ups are zero-code: a
 `NextBlockVariantPowerUp` asset pointing at any variant (one-shot), or a
 `BlockVariantChancePowerUp` asset for a persistent chance (e.g. "Curse: Boulders" as a
 negative offer; persistent positives like the old 20%-Anchors proved overpowered).
@@ -377,9 +384,10 @@ Variant = `Data/Blocks/Boulder`, ChancePerBlock = 0.03.
 **New power-up, zero code:** duplicate an asset in `Data/PowerUps/<Rarity>/`, change fields
 (e.g. a second BlockVariantChance asset granting 35% Anchor as an Epic), add to a mode's pool.
 
-**New power-up with new behaviour:** subclass `PowerUpDefinition` in
-`Scripts/PowerUps/Definitions/`, implement `Apply(context)` (context has GameManager + Spawner —
-extend `PowerUpContext` if you need more), create the asset, add to pools.
+**New power-up with new behaviour:** subclass the right ability *kind* (Instant / Consumable /
+Passive / Combo) in `Scripts/Abilities/Definitions/`, override the hooks it needs (the context is
+`AbilityContext` — extend it, not the signatures, if you need more of the game), create the asset,
+add to pools. See ABILITIES.md for the full recipe.
 
 **New brick behaviour:** subclass `BlockData` in `Scripts/Blocks/Variants/`, override
 `OnApplied` (at spawn) or `OnLocked` (at landing), create the asset. Reach it via a bag

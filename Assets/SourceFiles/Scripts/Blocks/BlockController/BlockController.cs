@@ -55,8 +55,9 @@ public partial class BlockController : MonoBehaviour
     // behind. Code-owned (not serialized) so it can't go stale in prefab import caches.
     private const int PlacementBeamSortingOrder = -60;
     private const int VectorGuideGhostSortingOrder = -5;
-    private static bool _vectorGuideEnabled;
-    private static bool _edgePortalEnabled;
+    // Run-local ability toggles (Vector Guide, Edge Portal, ...). One bitfield instead of a named
+    // static per ability - see BlockFeature. Reset with the rest of the static state below.
+    private static BlockFeature _features;
 
     // Bumped whenever the placed geometry behind the reach bounds changes - a block lands or leaves
     // tracking, or an island spawns. Active pieces cache their reach bounds against this stamp so
@@ -209,8 +210,7 @@ public partial class BlockController : MonoBehaviour
         _sharedFallbackBaseFriction = 0.95f;
         _standardBlockFrictionMultiplier = 1f;
         _nudgeLockedUntilTime = 0f;
-        _vectorGuideEnabled = false;
-        _edgePortalEnabled = false;
+        _features = BlockFeature.None;
         _reachGeometryVersion = 0;
     }
 
@@ -222,15 +222,15 @@ public partial class BlockController : MonoBehaviour
         RefreshStandardBlockFriction();
     }
 
-    public static void SetVectorGuideEnabled(bool enabled)
+    /// <summary>Turn a run-local block feature on or off (abilities call this in OnAcquired/OnRemoved).</summary>
+    public static void SetFeature(BlockFeature feature, bool enabled)
     {
-        _vectorGuideEnabled = enabled;
+        if (enabled) _features |= feature;
+        else _features &= ~feature;
     }
 
-    public static void SetEdgePortalEnabled(bool enabled)
-    {
-        _edgePortalEnabled = enabled;
-    }
+    /// <summary>True while the given run-local block feature is enabled.</summary>
+    public static bool HasFeature(BlockFeature feature) => (_features & feature) != 0;
 
     // Rotation nudges the target angle by a quarter turn. Active pieces snap to that target while
     // The piece currently under player control (null between lock and next spawn).
@@ -344,10 +344,7 @@ public partial class BlockController : MonoBehaviour
         if (_inputs != null)
         {
             _moveInput = _inputs.Gameplay.Move.ReadValue<Vector2>();
-            if (_appliedData != null && _appliedData.InvertHorizontalControls)
-            {
-                _moveInput.x = -_moveInput.x;
-            }
+            if (InvertSteering) _moveInput.x = -_moveInput.x;
 
             // Handle rotation triggers
             if (_inputs.Gameplay.RotateLeft.triggered) RotateLeft();

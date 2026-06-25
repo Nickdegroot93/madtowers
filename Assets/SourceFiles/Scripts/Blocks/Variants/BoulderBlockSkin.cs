@@ -21,7 +21,7 @@ public sealed class BoulderBlockSkin : BlockVariantSkin
     public void PlayLandImpact()
     {
         _impactAge = 0f;
-        AbilityEffects.ImpactPunch(0.045f, 0.16f, 0.18f); // weight: brief freeze + camera kick
+        ImpactFx.ImpactPunch(0.045f, 0.16f, 0.18f); // weight: brief freeze + camera kick
     }
 
     private void LateUpdate()

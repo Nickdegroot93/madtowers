@@ -47,4 +47,23 @@ public static class BlockQuery
         }
         return best;
     }
+
+    /// <summary>Whether the block is at least partly within the camera viewport. A non-orthographic
+    /// or absent camera counts as visible; a block with no bounds counts as not. Shared by the
+    /// targeting abilities so the viewport test can't drift between them.</summary>
+    public static bool IsOnScreen(BlockController block, Camera camera = null)
+    {
+        return block != null && block.TryGetWorldBounds(out Bounds bounds) && IsOnScreen(bounds, camera);
+    }
+
+    /// <summary>Whether the world bounds are at least partly within the camera viewport.</summary>
+    public static bool IsOnScreen(Bounds bounds, Camera camera = null)
+    {
+        if (camera == null) camera = Camera.main;
+        if (camera == null || !camera.orthographic) return true;
+
+        Vector3 min = camera.WorldToViewportPoint(bounds.min);
+        Vector3 max = camera.WorldToViewportPoint(bounds.max);
+        return max.x >= 0f && min.x <= 1f && max.y >= 0f && min.y <= 1f;
+    }
 }

@@ -43,7 +43,7 @@ public class SacrificeAbility : PassiveAbility
         BlockController payment = FindTopmostTowerBlockExcept(block);
         Detonate(block);
         if (payment != null) Detonate(payment);
-        AbilityEffects.ImpactPunch(0.075f, 0.16f, 0.18f);
+        ImpactFx.ImpactPunch(0.075f, 0.16f, 0.18f);
         return true;
     }
 
@@ -79,7 +79,7 @@ public class SacrificeAbility : PassiveAbility
     {
         if (block == null) return;
 
-        AbilityEffects.BurstFromEveryCell(block, impactEffect, effectScale);
+        ImpactFx.BurstFromEveryCell(block, impactEffect, effectScale);
         if (block.TryGetWorldBounds(out Bounds bounds))
         {
             BlockShatterFx.Spawn(bounds, laserColor);

@@ -9,11 +9,11 @@ public class EdgePortalAbility : PassiveAbility
 {
     public override void OnAcquired(AbilityContext context, int stacks)
     {
-        BlockController.SetEdgePortalEnabled(true);
+        BlockController.SetFeature(BlockFeature.EdgePortal, true);
     }
 
     public override void OnRemoved(AbilityContext context)
     {
-        BlockController.SetEdgePortalEnabled(false);
+        BlockController.SetFeature(BlockFeature.EdgePortal, false);
     }
 }

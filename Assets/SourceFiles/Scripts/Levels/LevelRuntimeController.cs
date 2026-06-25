@@ -16,9 +16,6 @@ public class LevelRuntimeController : MonoBehaviour
     // must actually stay up. ReachHeight is also re-checked against the LIVE standing
     // tower (the recorded max is monotonic and would stay "met" after a collapse).
     private const float WinVerificationSeconds = 5f;
-    // Abort needs a quarter-cell of slack below the target so a wobbling peak block can't
-    // flicker the countdown off; re-arming requires the full target again (hysteresis).
-    private const float VerificationAbortTolerance = 0.25f;
 
     /// <summary>True while the hold-steady countdown runs. The Spawner gates on this.</summary>
     public static bool IsVerifyingWin { get; private set; }
@@ -26,6 +23,8 @@ public class LevelRuntimeController : MonoBehaviour
     private readonly List<LevelModifier> _activeModifiers = new List<LevelModifier>();
     private LevelModifierContext _modifierContext;
     private LevelDefinition _level;
+    private WinCondition _winCondition;        // the level's victory rule (polymorphic); cached for the run
+    private System.Func<float> _liveHeightFunc; // cached delegate so BuildWinContext never allocates
     private GameObject _panelRoot;
     private bool _completed;
     private bool _completionPendingWhilePaused;
@@ -40,6 +39,8 @@ public class LevelRuntimeController : MonoBehaviour
     private void Start()
     {
         _level = LevelSelectionState.SelectedLevel;
+        _winCondition = _level != null ? _level.WinCondition : null;
+        _liveHeightFunc = LiveTowerHeight;
         _modifierContext = new LevelModifierContext
         {
             GameManager = GameManager.Instance,
@@ -177,18 +178,10 @@ public class LevelRuntimeController : MonoBehaviour
 
         if (IsVerifyingWin)
         {
-            // A height win must still be STANDING; a collapse hands the level back.
-            if (_level.TargetType == LevelTargetType.ReachHeight &&
-                LiveTowerHeight() < _level.TargetValue - VerificationAbortTolerance)
-            {
-                AbortVerification();
-                return;
-            }
-
-            // Same for PlaceBlocks: a block destroyed or dropped during the hold drops the
-            // live count below target, so the win is no longer earned - hand it back.
-            if (_level.TargetType == LevelTargetType.PlaceBlocks && GameManager.Instance != null &&
-                GameManager.Instance.placedBlocks < _level.TargetValue)
+            // The goal must still hold through the countdown: a height collapse, or a block
+            // destroyed/dropped below the live count, hands the level back. The condition owns
+            // the rule (and any hysteresis slack); the controller stays goal-agnostic.
+            if (_winCondition != null && !_winCondition.IsStillHeld(BuildWinContext()))
             {
                 AbortVerification();
                 return;
@@ -205,17 +198,17 @@ public class LevelRuntimeController : MonoBehaviour
             return;
         }
 
-        // After a collapse aborted a height verification, the monotonic HeightChanged event
-        // can never re-fire for the same peak - re-arm from the live tower instead. Polled
-        // at 5 Hz, not per frame: LiveTowerHeight walks every landed block's cells, and this
-        // watch can stay on for minutes while the player rebuilds a tall tower.
-        if (_targetReachedOnce && _level.TargetType == LevelTargetType.ReachHeight)
+        // After a collapse aborted verification, a goal that arms from a MONOTONIC signal (the
+        // height record only rises) can never re-fire for the same peak - re-arm from the live
+        // tower instead. Polled at 5 Hz, not per frame: LiveTowerHeight walks every landed block's
+        // cells, and this watch can stay on for minutes while the player rebuilds a tall tower.
+        if (_targetReachedOnce && _winCondition != null && _winCondition.ReArmsByPolling)
         {
             _rearmPollTimer -= Time.deltaTime;
             if (_rearmPollTimer > 0f) return;
             _rearmPollTimer = RearmPollInterval;
 
-            if (LiveTowerHeight() >= _level.TargetValue) TryBeginVerification();
+            if (_winCondition.IsMet(BuildWinContext())) TryBeginVerification();
         }
     }
 
@@ -244,6 +237,10 @@ public class LevelRuntimeController : MonoBehaviour
         // nothing would ever spawn again without an explicit restart.
         _modifierContext?.Spawner?.ResumeSpawning();
     }
+
+    // The live snapshot the win condition reads. LiveTowerHeight is passed as a cached delegate so
+    // a condition that doesn't need height (PlaceBlocks) never triggers the per-block walk.
+    private WinContext BuildWinContext() => new WinContext(GameManager.Instance, _liveHeightFunc);
 
     // The win target compares against the same cell-center height the goal system uses,
     // but over the blocks actually standing right now instead of the monotonic record.
@@ -374,22 +371,14 @@ public class LevelRuntimeController : MonoBehaviour
     // PlaceBlocks wins on the LIVE standing count, not cumulative score - so destroying
     // or dropping placed blocks genuinely sets the goal back. Re-arms for free: this event
     // fires on every increment too, so re-crossing the target re-triggers verification.
-    private void HandleStandingBlocksChanged(int placedBlocks)
-    {
-        if (_level != null && _level.TargetType == LevelTargetType.PlaceBlocks &&
-            placedBlocks >= _level.TargetValue)
-        {
-            TryBeginVerification();
-        }
-    }
+    // Both progress signals (live block count, tower height) funnel through the condition: it
+    // decides whether its goal is met now. A signal the goal doesn't care about is a cheap no-op.
+    private void HandleStandingBlocksChanged(int placedBlocks) => TryArmFromProgress();
+    private void HandleHeightChanged(float height) => TryArmFromProgress();
 
-    private void HandleHeightChanged(float height)
+    private void TryArmFromProgress()
     {
-        if (_level != null && _level.TargetType == LevelTargetType.ReachHeight &&
-            height >= _level.TargetValue)
-        {
-            TryBeginVerification();
-        }
+        if (_winCondition != null && _winCondition.IsMet(BuildWinContext())) TryBeginVerification();
     }
 
     private void CompleteLevel()

@@ -47,7 +47,7 @@ here changes, change it in every generator (and the C# constant it mirrors).
   reassign hues between shapes.
 
 **Composition (sorting orders)**
-- Background −100 · hills/scenery −86…−83 · ground skin −50 · placement beam −10 · blocks 0.
+- Background −100 · hills/scenery −86…−83 · ground skin −50 · placement beam −60 · blocks 0.
 
 **Global post-processing (the cross-theme glue)**
 - One stack over every theme (`PostFxController`): soft vignette (0.22), gentle bloom

@@ -69,7 +69,7 @@ public class BombBlockBehaviour : MonoBehaviour
         Vector3 center = self != null && self.TryGetWorldBounds(out Bounds selfBounds)
             ? selfBounds.center : transform.position;
         Vfx.Spawn(_explosionEffect, center, _explosionScale);
-        AbilityEffects.ImpactPunch();
+        ImpactFx.ImpactPunch();
         SfxPlayer.Play("impact_shatter_01", 0.9f, 0.06f);
 
         // Each destroyed block (and the bomb itself) leaves the board, so drop it from the live
@@ -93,7 +93,7 @@ public class BombBlockBehaviour : MonoBehaviour
 
         if (victim.TryGetWorldBounds(out Bounds bounds))
             BlockShatterFx.Spawn(bounds, VictimTint(victim));
-        AbilityEffects.BurstFromEveryCell(victim, _breakPuffEffect); // smoke puff per cell (no-op if unassigned)
+        ImpactFx.BurstFromEveryCell(victim, _breakPuffEffect); // smoke puff per cell (no-op if unassigned)
 
         if (GameManager.Instance != null) GameManager.Instance.RemovePlacedBlock(victim);
         Destroy(victim.gameObject);

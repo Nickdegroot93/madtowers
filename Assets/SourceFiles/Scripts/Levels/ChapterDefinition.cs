@@ -37,8 +37,7 @@ public class ChapterDefinition : ScriptableObject
     [Header("Gameplay Presentation (shared by all levels in the chapter)")]
     [Tooltip("Layered backdrop (sky/clouds/hills/particles). Empty = the classic dark sky.")]
     [SerializeField] private BackdropPreset backdrop;
-    [SerializeField] private AudioClip music;
-    [Tooltip("Chapter soundtrack, played in order and looped as a whole (A, B, A, B...). Takes priority over the single 'music' clip above.")]
+    [Tooltip("Chapter soundtrack, played in order and looped as a whole (A, B, A, B...).")]
     [SerializeField] private AudioClip[] musicPlaylist;
     [Tooltip("Resources folder with this chapter's generated skin (blocks/ground/laser). Empty = Skins/Classic. See ART.md.")]
     [SerializeField] private string skinFolder = "";
@@ -64,12 +63,9 @@ public class ChapterDefinition : ScriptableObject
     public Color PlayButtonTopColor => playButtonTopColor;
     public Color PlayButtonBottomColor => playButtonBottomColor;
     public BackdropPreset Backdrop => backdrop;
-    public AudioClip Music => music;
-    /// <summary>The playlist if authored, else the single music clip wrapped, else empty.</summary>
+    /// <summary>The chapter's soundtrack clips (looped as a whole), or empty.</summary>
     public IReadOnlyList<AudioClip> MusicPlaylist =>
-        musicPlaylist != null && musicPlaylist.Length > 0
-            ? musicPlaylist
-            : (music != null ? new[] { music } : System.Array.Empty<AudioClip>());
+        musicPlaylist ?? System.Array.Empty<AudioClip>();
     public string SkinFolder => string.IsNullOrWhiteSpace(skinFolder) ? "Skins/Classic" : skinFolder;
     public bool AlwaysUnlocked => alwaysUnlocked;
     public IReadOnlyList<AbilityDefinition> FeaturedUnlocks => featuredUnlocks;

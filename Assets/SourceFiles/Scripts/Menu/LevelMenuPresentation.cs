@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using UnityEngine;
 
 public static class LevelMenuPresentation
 {
@@ -57,12 +56,7 @@ public static class LevelMenuPresentation
         }
 
         if (level == null) return "ENDLESS";
-        return level.TargetType switch
-        {
-            LevelTargetType.PlaceBlocks => "BLOCK COUNT",
-            LevelTargetType.ReachHeight => "HEIGHT CHALLENGE",
-            _ => "ENDLESS"
-        };
+        return level.WinCondition.MenuChallengeLabel;
     }
 
     private static ProgressParts Progress(LevelDefinition level, ProgressStore.LevelBest best, bool completed,
@@ -75,28 +69,8 @@ public static class LevelMenuPresentation
             return ParseProgressLabel(progressProvider.MenuProgressLabel(level, best, completed), completed);
         }
 
-        int bestScore = best != null ? best.bestScore : 0;
-        float bestHeight = best != null ? best.bestHeightMeters : 0f;
-
-        if (level.TargetType == LevelTargetType.ReachHeight)
-        {
-            int target = Mathf.RoundToInt(level.TargetValue);
-            int reached = Mathf.RoundToInt(bestHeight > 0f ? bestHeight : (completed ? level.TargetValue : 0f));
-            return completed
-                ? new ProgressParts($"{reached}m", "Reached")
-                : new ProgressParts($"{reached}m", $"/ {target}m");
-        }
-
-        if (level.TargetType == LevelTargetType.PlaceBlocks)
-        {
-            int target = Mathf.RoundToInt(level.TargetValue);
-            int reached = bestScore > 0 ? bestScore : (completed ? target : 0);
-            return completed
-                ? new ProgressParts(reached.ToString(), "Blocks")
-                : new ProgressParts(reached.ToString(), $"/ {target} Blocks");
-        }
-
-        return completed ? new ProgressParts("Completed", "") : new ProgressParts("Free", "Play");
+        (string primary, string suffix) = level.WinCondition.MenuProgress(best, completed);
+        return new ProgressParts(primary, suffix);
     }
 
     private static ProgressParts ParseProgressLabel(string label, bool completed)

@@ -19,7 +19,7 @@ public class SuspensionAbility : ConsumableAbility
         for (int i = 0; i < blocks.Count; i++)
         {
             BlockController block = blocks[i];
-            if (block != null && block.HasLanded && !block.IsFrozenInPlace && IsVisible(block)) return true;
+            if (block != null && block.HasLanded && !block.IsFrozenInPlace && BlockQuery.IsOnScreen(block)) return true;
         }
         return false;
     }
@@ -27,16 +27,5 @@ public class SuspensionAbility : ConsumableAbility
     public override void Activate(AbilityContext context)
     {
         ExtractTargetingSession.BeginSuspension(anchorVariant);
-    }
-
-    private static bool IsVisible(BlockController block)
-    {
-        Camera camera = Camera.main;
-        if (camera == null || !camera.orthographic) return true;
-        if (!block.TryGetWorldBounds(out Bounds bounds)) return false;
-
-        Vector3 min = camera.WorldToViewportPoint(bounds.min);
-        Vector3 max = camera.WorldToViewportPoint(bounds.max);
-        return max.x >= 0f && min.x <= 1f && max.y >= 0f && min.y <= 1f;
     }
 }

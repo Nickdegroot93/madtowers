@@ -206,10 +206,7 @@ public class AbilityRuntime : MonoBehaviour
             GameManager gm = GameManager.Instance;
             return gm != null && !gm.isGameOver && !gm.IsGamePaused
                    && !LevelRuntimeController.IsVerifyingWin
-                   && !FissionSession.IsActive
-                   && !OverdrawSession.IsActive
-                   && !MagmaMeltSession.IsActive
-                   && !ZapSession.IsActive;
+                   && !ActivePieceSession.AnyActive; // any active-piece session owns the field
         }
     }
 

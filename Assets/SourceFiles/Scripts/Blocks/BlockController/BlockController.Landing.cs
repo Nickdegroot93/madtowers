@@ -93,7 +93,9 @@ public partial class BlockController
 
     private void ResolveIncomingOverlaps()
     {
-        Collider2D[] ownColliders = GetComponentsInChildren<Collider2D>();
+        // The body's solid colliders, cached at spawn (already trigger-free) - no per-landing
+        // GetComponentsInChildren alloc on this hot path (PHYSICS.md: no per-step GC).
+        var ownColliders = _cellGeometry.SolidColliders;
         int iterations = 0;
 
         while (iterations < 3)
@@ -102,10 +104,10 @@ public partial class BlockController
             Physics2D.SyncTransforms();
             Vector2 totalCorrection = Vector2.zero;
 
-            for (int ownIndex = 0; ownIndex < ownColliders.Length; ownIndex++)
+            for (int ownIndex = 0; ownIndex < ownColliders.Count; ownIndex++)
             {
                 Collider2D ownCollider = ownColliders[ownIndex];
-                if (ownCollider == null || ownCollider.isTrigger) continue;
+                if (ownCollider == null) continue;
 
                 ContactFilter2D filter = _contactFilter;
                 int count = ownCollider.Overlap(filter, _overlapResults);

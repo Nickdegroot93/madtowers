@@ -63,7 +63,7 @@ public partial class BlockController
         _placementBeamRenderer.size = new Vector2(width, height);
         _placementBeamRenderer.enabled = true;
 
-        UpdateVectorGuideGhost(_vectorGuideEnabled);
+        UpdateVectorGuideGhost(HasFeature(BlockFeature.VectorGuide));
     }
 
     private void UpdateVectorGuideGhost(bool shouldShow)

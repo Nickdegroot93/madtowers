@@ -23,7 +23,7 @@ public class ScrapAbility : ConsumableAbility
             : null;
         if (target == null) return;
 
-        AbilityEffects.DestroyBlockWithShatter(target, vaporColor);
-        AbilityEffects.ImpactPunch(0.035f, 0.07f, 0.12f);
+        ImpactFx.DestroyBlockWithShatter(target, vaporColor);
+        ImpactFx.ImpactPunch(0.035f, 0.07f, 0.12f);
     }
 }

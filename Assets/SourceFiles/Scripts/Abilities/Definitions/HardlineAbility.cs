@@ -60,9 +60,9 @@ public class HardlineAbility : PassiveAbility
             block.FreezeInPlace();
         }
 
-        AbilityEffects.BurstFromEveryCell(block, catchEffect, catchEffectScale);
+        ImpactFx.BurstFromEveryCell(block, catchEffect, catchEffectScale);
         SfxPlayer.Play("swoosh_01", 0.75f, 0.05f);
-        AbilityEffects.ImpactPunch(0.035f, 0.11f, 0.12f);
+        ImpactFx.ImpactPunch(0.035f, 0.11f, 0.12f);
         return true;
     }
 

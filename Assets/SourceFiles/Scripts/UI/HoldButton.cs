@@ -285,42 +285,32 @@ public class HoldButton : MonoBehaviour
         string key = $"{ChapterSkins.Folder}:{shape}";
         if (_whiteGhosts.TryGetValue(key, out Sprite cached) && cached != null) return cached;
 
-        Sprite source = ChapterSkins.LoadPiece(shape);
-        Sprite ghost = source;
-        if (source != null && source.texture.isReadable)
-        {
-            Texture2D src = source.texture;
-            Texture2D tex = new Texture2D(src.width, src.height, TextureFormat.RGBA32, false)
-            {
-                hideFlags = HideFlags.HideAndDontSave
-            };
-            Color[] pixels = src.GetPixels();
-
-            float maxLum = 0f;
-            for (int i = 0; i < pixels.Length; i++)
-            {
-                if (pixels[i].a < 0.05f) continue;
-                float l = pixels[i].r * 0.299f + pixels[i].g * 0.587f + pixels[i].b * 0.114f;
-                if (l > maxLum) maxLum = l;
-            }
-            if (maxLum < 0.001f) maxLum = 1f;
-
-            for (int i = 0; i < pixels.Length; i++)
-            {
-                Color c = pixels[i];
-                float rel = Mathf.Clamp01((c.r * 0.299f + c.g * 0.587f + c.b * 0.114f) / maxLum);
-                float v = Mathf.Pow(rel, GhostBrightness);
-                pixels[i] = new Color(v, v, v, c.a);
-            }
-            tex.SetPixels(pixels);
-            tex.Apply();
-
-            ghost = Sprite.Create(tex, new Rect(0, 0, src.width, src.height), new Vector2(0.5f, 0.5f), 256f);
-            ghost.hideFlags = HideFlags.HideAndDontSave;
-        }
-
+        Sprite ghost = PieceGhost.Generate(shape, NormalizeToWhite);
         _whiteGhosts[key] = ghost;
         return ghost;
+    }
+
+    // Drop the block's hue entirely: normalise each pixel to the sprite's brightest pixel
+    // (hue-independent across chapters), then gamma-lift so the faces read white while the
+    // embossed seam/outline dips survive as soft lines.
+    private static void NormalizeToWhite(Color[] pixels)
+    {
+        float maxLum = 0f;
+        for (int i = 0; i < pixels.Length; i++)
+        {
+            if (pixels[i].a < 0.05f) continue;
+            float l = pixels[i].r * 0.299f + pixels[i].g * 0.587f + pixels[i].b * 0.114f;
+            if (l > maxLum) maxLum = l;
+        }
+        if (maxLum < 0.001f) maxLum = 1f;
+
+        for (int i = 0; i < pixels.Length; i++)
+        {
+            Color c = pixels[i];
+            float rel = Mathf.Clamp01((c.r * 0.299f + c.g * 0.587f + c.b * 0.114f) / maxLum);
+            float v = Mathf.Pow(rel, GhostBrightness);
+            pixels[i] = new Color(v, v, v, c.a);
+        }
     }
 
     // Raw screen-pixel rect over the bubble so taps never also steer the piece. Recomputed per

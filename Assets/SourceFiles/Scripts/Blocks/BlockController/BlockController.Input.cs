@@ -10,6 +10,11 @@ public partial class BlockController
     // stays silent); the nudge dash reads it to decide between wind and a slam.
     private enum ColumnStepResult { Moved, Gated, OutOfBounds, BlockedByBlocks, BlockedByStatic }
 
+    // Vortex bricks mirror left/right. Every horizontal-intent path resolves through these two
+    // so the inversion rule lives in one place (a new input path can't forget to apply it).
+    private bool InvertSteering => _appliedData != null && _appliedData.InvertHorizontalControls;
+    private int ResolveSteerDirection(int rawDirection) => InvertSteering ? -rawDirection : rawDirection;
+
     // External (touch) horizontal step. Funnels into ShiftTargetColumn, so all grid,
     // placement-buffer and obstacle rules apply exactly as for keyboard movement.
     public void StepColumn(int direction)
@@ -26,7 +31,7 @@ public partial class BlockController
             return ColumnStepResult.Gated;
         }
 
-        if (_appliedData != null && _appliedData.InvertHorizontalControls) direction = -direction;
+        direction = ResolveSteerDirection(direction);
         return ShiftTargetColumn(direction > 0 ? 1 : -1, collectBlockers);
     }
 
@@ -71,9 +76,7 @@ public partial class BlockController
     // slam impulse and impact FX must match the physical hit, not the button pressed.
     private int AttemptedStepDirection(int inputDirection)
     {
-        int direction = inputDirection > 0 ? 1 : -1;
-        if (_appliedData != null && _appliedData.InvertHorizontalControls) direction = -direction;
-        return direction;
+        return ResolveSteerDirection(inputDirection > 0 ? 1 : -1);
     }
 
     private void FailNudge(bool hitBricks, int direction)

@@ -187,7 +187,7 @@ slide scrape, slam-home clack; `synth_gun_cock`, the multi-stage mechanical
 recipe to copy for future weapon-like abilities).
 Hand-made/downloaded WAVs (prefer **CC0**, e.g. Kenney packs)
 drop into the same folder and play through the same system. Background music
-is a separate future system (per-chapter tracks, ducking).
+is the per-chapter playlist system (see §8 and SOUNDS.md).
 
 ## 10. Fonts
 
@@ -249,8 +249,9 @@ tetromino pieces.
 
 ## 13. Special blocks look the same in every chapter (theme-independent)
 
-A **unique/special block** (Magma, Anchor, Boulder, Vine today; Ice/Vortex/Locked/Tremor/Feather
-pending) must be instantly recognizable and look **identical regardless of the chapter theme** —
+A **unique/special block** (Magma, Anchor, Boulder, Vine, Ice, Vortex, Locked, Tremor, Feather, Maw,
+Bomb — every special brick now carries a procedural BlockVariantSkin look) must be instantly
+recognizable and look **identical regardless of the chapter theme** —
 it does NOT adopt the chapter's local block art the way normal bricks do.
 (Exception: when a special block decomposes into normal bricks — Magma melting
 into 1×1 cells — those resulting bricks use the level's ordinary skin; only the

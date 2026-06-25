@@ -157,7 +157,7 @@ public sealed class ExtractTargetingSession : MonoBehaviour
             if (block == null || !block.HasLanded) continue;
             if (!CanTarget(block)) continue;
             if (!block.TryGetWorldBounds(out Bounds bounds)) continue;
-            if (!IsVisible(bounds)) continue;
+            if (!BlockQuery.IsOnScreen(bounds, _camera)) continue;
 
             if (!hasBounds)
             {
@@ -177,7 +177,7 @@ public sealed class ExtractTargetingSession : MonoBehaviour
             if (block == null || !block.HasLanded) continue;
             if (!CanTarget(block)) continue;
             if (!block.TryGetWorldBounds(out Bounds bounds)) continue;
-            if (!IsVisible(bounds)) continue;
+            if (!BlockQuery.IsOnScreen(bounds, _camera)) continue;
 
             Proxy proxy = CreateProxy(block, bounds, towerBounds.center);
             if (proxy != null) _proxies.Add(proxy);
@@ -371,16 +371,6 @@ public sealed class ExtractTargetingSession : MonoBehaviour
     private bool CanTarget(BlockController block)
     {
         return _effect != TargetEffect.Suspension || !block.IsFrozenInPlace;
-    }
-
-    private bool IsVisible(Bounds bounds)
-    {
-        if (_camera == null) _camera = Camera.main;
-        if (_camera == null || !_camera.orthographic) return true;
-
-        Vector3 min = _camera.WorldToViewportPoint(bounds.min);
-        Vector3 max = _camera.WorldToViewportPoint(bounds.max);
-        return max.x >= 0f && min.x <= 1f && max.y >= 0f && min.y <= 1f;
     }
 
     private static void RecalculateProxyBounds(Proxy proxy)

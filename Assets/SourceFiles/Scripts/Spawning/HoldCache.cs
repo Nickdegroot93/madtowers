@@ -62,8 +62,9 @@ public class HoldCache : MonoBehaviour
         get
         {
             if (!_enabled || _usedThisPiece || _spawner == null) return false;
-            if (FissionSession.IsActive) return false; // the live piece is a Fission shard the session owns
-            if (MagmaMeltSession.IsActive) return false; // the live piece is a melting magma cell the session owns
+            // While any active-piece session owns the field (Fission shard, Magma cell, ...) the
+            // "live piece" belongs to that session - holding it would corrupt the sequence.
+            if (ActivePieceSession.AnyActive) return false;
 
             GameManager gm = GameManager.Instance;
             if (gm == null || gm.isGameOver || gm.IsGamePaused || LevelRuntimeController.IsVerifyingWin) return false;

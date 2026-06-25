@@ -71,5 +71,5 @@ maintenance rule above.
 
 The `Chapter_TestingGrounds` sandbox chapter and its levels (Classic, Narrow, SkyPlatforms, Hard,
 LaserLimit, Test10Blocks, TestAbilities) and the `GameMode_AbilityTest` bench were deleted. The mode
-*configs* (Classic/Narrow/Hard/LaserLimit/SkyPlatforms/Spire) are kept and reused as Custom Game
+*configs* (Classic/Narrow/Narrow3/Hard/LaserLimit/SkyPlatforms, plus the Jungle variants) are kept and reused as Custom Game
 **presets**. The real campaign (Training Wheels, Desert) is untouched.

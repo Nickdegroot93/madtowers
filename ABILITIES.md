@@ -106,7 +106,7 @@ conceivably want it, it's a status asset.*
 | Kind | Consulted by | Meaning of `magnitude` |
 |---|---|---|
 | `LifeLossImmunity` | `GameManager.GameOver()` skips the charge | — |
-| `FallSpeedMultiplier` | folded into the spawn-speed multiplier | the multiplier (0.5 = half) |
+| `FallSpeedMultiplier` | folded into the per-block NORMAL-descent factor (fast drops immune; never `Time.timeScale`) | the multiplier (0.5 = half) |
 | `ScorePerBlockBonus` | `GameManager.AddScore` adds it per grant | extra score (+1 = double progression) |
 | `Custom` | nothing built-in; abilities query `IsActive(def)` | yours |
 
@@ -255,7 +255,7 @@ when unusable, same affordance as the nudge pills.
    | `HardlineAbility` | Passive (unique, charges = 1) | laserColor, laserYOffset, settleSeconds | "first lost landed block becomes an airborne platform" |
    | `NextBlockVariantPowerUp` | Instant | variant | "next block becomes variant V" |
    | `ExtraLifePowerUp` | Instant | lives | flat life grant |
-   | `SlowMotionPowerUp` | Instant | duration | timed timescale effect |
+   | `SlowMotionPowerUp` | Instant | slowStatus | timed normal-descent slow (applies a `FallSpeedMultiplier` status; not `Time.timeScale`) |
 
    Otherwise subclass the kind in `Definitions/` — one file.
 2. Create the asset (Create > Stacking > Abilities > …) under `Assets/Data/PowerUps/`.
@@ -286,7 +286,9 @@ consumed first): config wired, piece in the air and not already transformed,
 piece not below `LossZone.CullY`. Never replace the piece outside the Spawner —
 the lock→spawn chain has no retry.
 
-**New shared effect helper** (used by more than one kind): static method in
+**New shared effect helper:** project-wide impact/destruction juice used by abilities AND block
+variants (ImpactPunch / BurstFromEveryCell / DestroyBlockWithShatter) is a static method in
+`Core/ImpactFx.cs`; ability-specific guards (e.g. CanTransmuteActivePiece) stay in
 `Effects/AbilityEffects.cs`. Effects touching the world follow PHYSICS.md: velocity or
 lifecycle only on landed blocks; spawned static geometry matches the world contract
 (friction 0.95, footprint 0.94, corner radius 0.06, never materialize intersecting
@@ -343,19 +345,21 @@ at the source, add a virtual handler on `PassiveAbility`, fan out in `AbilityRun
   order matters: StatusEffects → AbilityRuntime → ComboDetector → AbilityHud →
   AbilityChoiceController).
 
-## 12. The ability test bench (Testing Grounds → "Ability Range" level)
+## 12. Testing abilities (Custom Game)
 
-Picker every 3 blocks, PlaceBlocks 30 target, rarity profile = `RarityProfile_TestEqual`.
-The mode's pool (`GameMode_AbilityTest`) is intentionally tiny and hand-edited to the
-latest abilities currently under test. Today it is **three commons** (Edge Portal +
-Recovery + Slo-Mo), so all three are shown on the first offer. Unique members (Edge Portal,
-Recovery) filter out once picked (restart to re-test); non-unique members reappear until
-they hit `maxStacks`. That drop-out is expected on a bench.
-Building a new ability = temporarily add it here. The 12 inert dummies (`Data/PowerUps/Dummies/`) and the migrated
-proof abilities still exist as assets for chrome/regression testing; never add
-dummies to real level pools.
+The dedicated "Ability Range" bench (the `Chapter_TestingGrounds` sandbox, `GameMode_AbilityTest`,
+and the inert dummy assets) has been **removed**. Test abilities through the **Custom Game** screen
+instead: it auto-discovers every ability asset via `ContentCatalog`, lets you enable any subset, and
+runs them with the equal-odds `RarityProfile_TestEqual` and a fast picker cadence — so a new ability
+needs no list maintenance to appear. Unique abilities filter out once picked (restart to re-test);
+non-unique ones reappear until `maxStacks`. See CUSTOMGAME.md. (Custom Game is editor/dev-only.)
 
 ## 13. Shipped abilities
+
+> Highlights, not an exhaustive registry — it documents the abilities with notable mechanics or
+> reusable patterns. The authoritative list is the asset set under `Assets/Data/PowerUps/` (and the
+> auto-discovered Custom Game screen). Simple data-only variants (extra-life, block-chance boosters,
+> combo/status assets, etc.) may not each have an entry here.
 
 ### Recovery (Common, passive, unique) & Slo-Mo (Common, consumable)
 A shared **slow window** on `AbilityRuntime` (`GrantSlowWindow(blocks, factor)`): the next
@@ -370,8 +374,11 @@ factor: the block is stamped at spawn with the un-factored `BaseFallSpeed` plus 
 when the player isn't fast-dropping — hold / down / flick all use `base × fastDropMultiplier`
 with no slow. A player who chose to go fast is never fought. **This also routes Air Brake's
 multiplier through normal-descent-only** (its ~8% no longer touches fast drops — intended).
-Slo-Mo is deliberately NOT the old timescale `SlowMotionPowerUp`/`FallSpeedMultiplier` status
-(those slow the clock); this is purely per-block descent speed.
+**No slow-time ability touches `Time.timeScale`** — a global slow (the old `SlowMotionPowerUp`
+behaviour) dragged fast drops and the whole simulation into slow motion too, which was wrong.
+Slow Time (`SlowMotionPowerUp`) now applies a 15 s `FallSpeedMultiplier` status instead, which
+`AbilityRuntime` folds into this same per-block normal-descent factor; the block-count window
+(Slo-Mo/Recovery) and the duration status both ride the one fast-drop-immune path.
 
 ### Rebound (Rare, passive, unique)
 `ReboundAbility` is a loss interceptor (the Sacrifice pattern, gentler): when a LANDED block
@@ -594,7 +601,7 @@ between them; the bag fills the remaining ~90%). `unique = true`.
 clears that reference when the block is destroyed or resolved by the loss system. This is
 deliberately not a tower scan: "last placed" means the last piece the player added, even if
 physics has already pulled it away from the tower and it is falling toward the loss line.
-Activation calls `AbilityEffects.DestroyBlockWithShatter`, which removes the block from
+Activation calls `ImpactFx.DestroyBlockWithShatter`, which removes the block from
 the live count and destroys the object before `LossZone` can charge a life. It cannot undo
 a loss that has already been resolved. Like other consumables, Scrap is locked out while
 a consumable-driven piece sequence such as Fission or Overdraw is active. The asset uses
@@ -645,7 +652,7 @@ piece — the target; the floor, support islands and frozen (Static-body) blocks
 shot is wasted — then withholds bag pieces (`Spawner.SetAutoSpawnSuspended`) so the field holds
 still, and summons a vertical `ZapBeam` from the top of the screen down to the target. Over **exactly
 3 seconds** the beam charges from a wide glow to a thin needle; on full charge the target detonates
-through the shared shatter path (`AbilityEffects.DestroyBlockWithShatter` — removes it from the live
+through the shared shatter path (`ImpactFx.DestroyBlockWithShatter` — removes it from the live
 count, [BLOCKS.md](BLOCKS.md), plus a per-cell `detonateEffect` burst + `ImpactPunch`), or a soft dud
 plays for an empty column. Then `Spawner.ResumeSpawning` kicks the next bag piece. The charge runs on
 **scaled time** and is held while paused / during win verification, so a Zap can never fire behind
@@ -655,8 +662,8 @@ The beam is `ZapBeam`: layered soft **vertical** bars (outer glow → blue body 
 white needle, via `RuntimeSprites.SoftVerticalBar`) that glow through the global bloom — no shader, a
 crib of `SacrificeLaserLine`. Colours are HDR-bright (`beamColor`/`accentColor` on the asset) and it
 draws IN FRONT of the tower (a momentary dramatic overlay, unlike Sacrifice's persistent warning
-line). Lockout is one line: `AbilityRuntime.ConsumablesUsable` includes `!ZapSession.IsActive`, so no
-consumable (Zap included) can fire mid-charge. `CanActivate` refuses without a piece in the air, on a
+line). Lockout is one line: `AbilityRuntime.ConsumablesUsable` gates on `!ActivePieceSession.AnyActive`
+(the shared registry every active-piece session joins — Zap included), so no consumable can fire mid-charge. `CanActivate` refuses without a piece in the air, on a
 landed piece, or on a doomed below-screen piece.
 
 **Juice standard (applies to every future ability):** activating must FEEL
@@ -670,7 +677,7 @@ like something happened. Zap, Bomb and Fission set the bar:
   CFXR variants (consistent in 2D, glow through the global bloom). CFXR prefabs
   self-destroy (`CFXR_Effect`), so `Vfx.Spawn` only instantiates.
   - **Break from the whole body, not one point.** A block shatters across all its
-    cells: `AbilityEffects.BurstFromEveryCell` spawns the effect at each cell
+    cells: `ImpactFx.BurstFromEveryCell` spawns the effect at each cell
     collider's centre (a 1×4 I-piece erupts from four origins, a square from one),
     each burst sized to a single cell. A single centre-burst scaled up reads as a
     detached explosion in the middle — spawn per cell instead. The asset's
@@ -684,7 +691,7 @@ like something happened. Zap, Bomb and Fission set the bar:
     reference). Effects wired by editing the `.asset` text must be **base
     prefabs** (e.g. `CFXR4 Sword Hit PLAIN (Cross)`, not the `SLASH` variant).
 - **The bits the pack doesn't do are still ours:** the slot-button elastic
-  punch (`AbilityHud` via `FxKit.Elastic`), and `AbilityEffects.ImpactPunch` —
+  punch (`AbilityHud` via `FxKit.Elastic`), and `ImpactFx.ImpactPunch` —
   the shared "this hit had weight" combo of a pause-safe micro hit-stop
   (`HitStop.Trigger`) + a camera kick (`TowerCameraController.Impact`). Layer
   these + a custom sfx *with* the prefab — that combination is what reads as
@@ -698,10 +705,11 @@ behind the standard, so the next consumable composes instead of copy-pasting:
 | Helper | Use |
 |---|---|
 | `Vfx.Spawn(prefab, position, scale)` | play any authored effect prefab (null-safe; forces z=0) |
-| `AbilityEffects.BurstFromEveryCell(block, prefab, scale)` | shatter an effect across every cell of a block |
-| `AbilityEffects.ImpactPunch(stop?, shakeAmp?, shakeDur?)` | hit-stop + camera kick |
-| `AbilityEffects.DestroyBlockWithShatter(block, tint)` | destroy a block with the standard shatter |
-| `BlockQuery.SupportBlockBelow(block)` | nearest dynamic, landed block beneath (statics/frozen excluded) |
+| `ImpactFx.BurstFromEveryCell(block, prefab, scale)` | shatter an effect across every cell of a block |
+| `ImpactFx.ImpactPunch(stop?, shakeAmp?, shakeDur?)` | hit-stop + camera kick |
+| `ImpactFx.DestroyBlockWithShatter(block, tint)` | destroy a block with the standard shatter |
+| `BlockQuery.SupportBlockBelow(block)` | nearest dynamic, landed block beneath (statics/frozen excluded) — `BlockQuery` lives in `Blocks/` |
+| `BlockQuery.IsOnScreen(block)` | is the block within the camera viewport (shared by the targeting abilities) |
 | `FxKit.Elastic(t, amp, damp, freq)` | the game's one elastic settle curve |
 
 `ZapSession.Fire` and `BombBlockBehaviour` show the composition: find the target →

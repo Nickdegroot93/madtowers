@@ -49,7 +49,7 @@ public class ApplyVariantConsumable : ConsumableAbility
         context.Spawner.ApplyVariantToNextBlock(variant);
 
         Vfx.Spawn(transformEffect, active.transform.position, transformScale); // null-safe
-        AbilityEffects.ImpactPunch(0.03f, 0.08f, 0.12f);
+        ImpactFx.ImpactPunch(0.03f, 0.08f, 0.12f);
         SfxPlayer.Play("transmute", 0.9f);
     }
 }

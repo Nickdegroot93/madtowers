@@ -40,7 +40,10 @@ public class MagmaBlockData : BlockData
     public override void OnApplied(BlockController block)
     {
         if (block == null) return;
-        block.gameObject.AddComponent<MagmaBlockSkin>().Apply();
+        // Get-or-add (the shared variant convention) so a re-apply can't stack a second skin.
+        if (!block.TryGetComponent(out MagmaBlockSkin skin))
+            skin = block.gameObject.AddComponent<MagmaBlockSkin>();
+        skin.Apply();
     }
 
     // Landed -> melt. MagmaMelt owns the decision (guards, cell capture, hand-off).

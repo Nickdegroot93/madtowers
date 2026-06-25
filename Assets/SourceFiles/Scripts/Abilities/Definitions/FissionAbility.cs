@@ -24,10 +24,11 @@ public class FissionAbility : ConsumableAbility
     // The slot is consumed BEFORE Activate, so refuse every way the session could fail here:
     // no live active piece in the air / one mid-lock / past the loss line / Pip unwired / a piece
     // that is already a Pip (CanTransmuteActivePiece covers all of those), plus the Fission-specific
-    // gates: at least two cells to split, and no session already running.
+    // gate: at least two cells to split. (No need to check for a running session - AbilityRuntime's
+    // ConsumablesUsable blanket gate already blocks activation while any active-piece session owns
+    // the field; see ConsumableAbility.)
     public override bool CanActivate(AbilityContext context)
     {
-        if (FissionSession.IsActive) return false;
         if (!AbilityEffects.CanTransmuteActivePiece(context, pipDefinition)) return false;
         return CountCells(BlockController.ActiveControlled) >= 2;
     }
@@ -42,8 +43,8 @@ public class FissionAbility : ConsumableAbility
 
         // Shatter the original from every cell BEFORE it is replaced (reads its colliders), then
         // hand off to the session which spawns shard #1 in its place and floats the rest.
-        AbilityEffects.BurstFromEveryCell(active, splitEffect, splitScale);
-        AbilityEffects.ImpactPunch();
+        ImpactFx.BurstFromEveryCell(active, splitEffect, splitScale);
+        ImpactFx.ImpactPunch();
         SfxPlayer.Play("impact_shatter_01", 0.85f, 0.06f);
 
         FissionSession.Begin(context.Spawner, pipDefinition, cells);

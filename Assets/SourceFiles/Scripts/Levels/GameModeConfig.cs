@@ -29,29 +29,9 @@ public class GameModeConfig : ScriptableObject
     [Min(0)]
     [SerializeField] private int horizontalPlacementBufferColumns = 3;
 
-    [Header("Active Piece Control")]
-    [Tooltip("How close (world units) support must be below a piece before control is handed to physics. Keep small so players can make last-second tuck moves.")]
-    [SerializeField] private float groundedCheckDistance = 0.03f;
-    [Tooltip("Maximum downward velocity kept when control hands off to physics. 0 means use the current controlled fall speed.")]
-    [SerializeField] private float maxLandingImpactSpeed = 2f;
-    [Tooltip("A landed piece is 'settled' once its linear speed (units/sec) drops below this. Keep low so unstable pieces get time to tip before maintenance runs.")]
-    [SerializeField] private float settleLinearThreshold = 0.08f;
-    [Tooltip("...and its spin (degrees/sec) drops below this.")]
-    [SerializeField] private float settleAngularThreshold = 8f;
-    [Tooltip("How long a landed piece must stay settled before maintenance micro-aligns/sleeps it.")]
-    [SerializeField] private float settleTime = 0.35f;
-    [Tooltip("Sleep settled dynamic blocks when control finishes. This prevents tiny drift while still allowing future contacts to wake the block.")]
-    [SerializeField] private bool sleepSettledBlocksOnLock = true;
-    [Tooltip("After a block genuinely settles, correct tiny X/rotation drift back to the placement grid. Large offsets or visibly tilted blocks are left to physics.")]
-    [SerializeField] private bool microAlignSettledBlocks = true;
-    [Tooltip("Maximum X correction allowed for settled micro-alignment, as a fraction of one grid cell.")]
-    [Range(0f, 0.25f)]
-    [SerializeField] private float microAlignMaxColumnFraction = 0.08f;
-    [Tooltip("Maximum rotation correction allowed for settled micro-alignment, in degrees.")]
-    [Range(0f, 15f)]
-    [SerializeField] private float microAlignMaxRotationDegrees = 4f;
-    [Tooltip("Safety cap: lock a piece after this many seconds even if it never finds a normal landing.")]
-    [SerializeField] private float maxControlTime = 12f;
+    // Active-piece control / settle thresholds are a PHYSICS.md CONTRACT: identical in every mode.
+    // They live in code (see PhysicsProfile) so they can't drift per-asset; the getters below forward
+    // to it. (Previously per-mode [SerializeField]s - every shipped mode asset held these same values.)
 
     [Header("Power Up Choices")]
     [Tooltip("Every this many placed blocks the game pauses and offers a pick of power-ups. 0 disables choices for this mode.")]
@@ -126,16 +106,17 @@ public class GameModeConfig : ScriptableObject
     public float SpawnDelay => spawnDelay;
     public float GridSpacing => gridSpacing;
     public int HorizontalPlacementBufferColumns => Mathf.Max(0, horizontalPlacementBufferColumns);
-    public float GroundedCheckDistance => groundedCheckDistance;
-    public float MaxLandingImpactSpeed => maxLandingImpactSpeed;
-    public float SettleLinearThreshold => settleLinearThreshold;
-    public float SettleAngularThreshold => settleAngularThreshold;
-    public float SettleTime => settleTime;
-    public bool SleepSettledBlocksOnLock => sleepSettledBlocksOnLock;
-    public bool MicroAlignSettledBlocks => microAlignSettledBlocks;
-    public float MicroAlignMaxColumnFraction => Mathf.Clamp(microAlignMaxColumnFraction, 0f, 0.25f);
-    public float MicroAlignMaxRotationDegrees => Mathf.Clamp(microAlignMaxRotationDegrees, 0f, 15f);
-    public float MaxControlTime => maxControlTime;
+    // Forward to the code-owned physics contract (PhysicsProfile) - identical across every mode.
+    public float GroundedCheckDistance => PhysicsProfile.GroundedCheckDistance;
+    public float MaxLandingImpactSpeed => PhysicsProfile.MaxLandingImpactSpeed;
+    public float SettleLinearThreshold => PhysicsProfile.SettleLinearThreshold;
+    public float SettleAngularThreshold => PhysicsProfile.SettleAngularThreshold;
+    public float SettleTime => PhysicsProfile.SettleTime;
+    public bool SleepSettledBlocksOnLock => PhysicsProfile.SleepSettledBlocksOnLock;
+    public bool MicroAlignSettledBlocks => PhysicsProfile.MicroAlignSettledBlocks;
+    public float MicroAlignMaxColumnFraction => PhysicsProfile.MicroAlignMaxColumnFraction;
+    public float MicroAlignMaxRotationDegrees => PhysicsProfile.MicroAlignMaxRotationDegrees;
+    public float MaxControlTime => PhysicsProfile.MaxControlTime;
     public int PowerUpChoiceEveryBlocks => Mathf.Max(0, powerUpChoiceEveryBlocks);
     public IReadOnlyList<AbilityDefinition> PowerUpChoicePool => powerUpChoicePool;
     public float SlowMotionScale => slowMotionScale;

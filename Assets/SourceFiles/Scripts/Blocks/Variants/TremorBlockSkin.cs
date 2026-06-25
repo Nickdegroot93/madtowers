@@ -58,7 +58,7 @@ public sealed class TremorBlockSkin : BlockVariantSkin
         _quakeAge = 0f;
         _landed = true;   // begin the calm-down: the restless buzz now tapers to still
         _settleAge = 0f;
-        AbilityEffects.ImpactPunch(0.04f, 0.18f, 0.22f); // the screen-side of the quake (the tower jolt is physical)
+        ImpactFx.ImpactPunch(0.04f, 0.18f, 0.22f); // the screen-side of the quake (the tower jolt is physical)
     }
 
     private void LateUpdate()

@@ -74,6 +74,7 @@ public sealed class OverdrawSession : MonoBehaviour
     private void StartSession(Spawner spawner, int choiceCount)
     {
         IsActive = true;
+        ActivePieceSession.Enter();
         SuppressesNextPreview = true;
         _spawner = spawner;
         _camera = Camera.main;
@@ -515,6 +516,7 @@ public sealed class OverdrawSession : MonoBehaviour
 
         SuppressesNextPreview = false;
         IsActive = false;
+        ActivePieceSession.Exit();
         Destroy(gameObject);
     }
 

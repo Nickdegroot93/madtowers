@@ -45,10 +45,8 @@ public class GameManager : MonoBehaviour
     public GameModeConfig ActiveConfig => ActiveGameModeConfig;
     public BlockController LastPlacedBlock => _lastPlacedBlock != null ? _lastPlacedBlock : null;
 
-    private Coroutine _slowMotionCoroutine;
     private float _speedTimer;
     private float _heightOriginY;
-    private float _gameplayTimeScale = 1f;
     private float _abilityFallSpeedMultiplier = 1f;
     private StatusEffects _statusEffects;
     // The piece currently in play + its flags, reported by the Spawner as it's wired
@@ -93,50 +91,11 @@ public class GameManager : MonoBehaviour
             ApplyConfig();
             PublishState();
 
-            // Ability stack: status effects and the runtime must exist before anything
-            // that resolves them via GetComponent in Awake (detector, HUD, controller).
-            // Never ?? on a UnityEngine.Object: the editor's fake-null wrapper passes a
-            // reference-null check and would silently skip the AddComponent.
-            if (!TryGetComponent(out _statusEffects))
-            {
-                _statusEffects = gameObject.AddComponent<StatusEffects>();
-            }
-            if (GetComponent<AbilityRuntime>() == null)
-            {
-                gameObject.AddComponent<AbilityRuntime>();
-            }
-            if (GetComponent<ComboDetector>() == null)
-            {
-                gameObject.AddComponent<ComboDetector>();
-            }
-            if (GetComponent<StatusFieldController>() == null)
-            {
-                gameObject.AddComponent<StatusFieldController>();
-            }
-            if (GetComponent<HoldCache>() == null)
-            {
-                gameObject.AddComponent<HoldCache>();
-            }
-            if (GetComponent<AbilityHud>() == null)
-            {
-                gameObject.AddComponent<AbilityHud>();
-            }
-            if (GetComponent<HoldButton>() == null)
-            {
-                gameObject.AddComponent<HoldButton>();
-            }
-            if (GetComponent<AbilityChoiceController>() == null)
-            {
-                gameObject.AddComponent<AbilityChoiceController>();
-            }
-            if (GetComponent<PauseMenuController>() == null)
-            {
-                gameObject.AddComponent<PauseMenuController>();
-            }
-            if (GetComponent<LevelRuntimeController>() == null)
-            {
-                gameObject.AddComponent<LevelRuntimeController>();
-            }
+            // Ability/UI system stack: the installer owns the roster and the deterministic add
+            // order (StatusEffects + AbilityRuntime must exist before the systems that resolve
+            // them via GetComponent in their own Awake). Capture the status component after.
+            GameSystemsInstaller.Install(gameObject);
+            _statusEffects = GetComponent<StatusEffects>();
         }
         else
         {
@@ -162,12 +121,13 @@ public class GameManager : MonoBehaviour
         RefreshTimeScale();
     }
 
-    // Single authority over Time.timeScale: pause always wins, slow motion applies underneath.
-    // (Letting pause and slow motion each save/restore the timescale froze the game permanently
-    // when a slow-motion ended that had started during a pause.)
+    // Single authority over Time.timeScale: it is only ever 1 (playing) or 0 (paused). Slow-time
+    // abilities deliberately do NOT touch the clock - they slow only a block's NORMAL descent (via
+    // the FallSpeedMultiplier status -> normal-fall-speed factor), so fast drops, physics, and the
+    // rest of the simulation always run at full speed.
     private void RefreshTimeScale()
     {
-        Time.timeScale = IsGamePaused ? 0f : _gameplayTimeScale;
+        Time.timeScale = IsGamePaused ? 0f : 1f;
     }
 
     private void OnDestroy()
@@ -244,16 +204,6 @@ public class GameManager : MonoBehaviour
 
         isGameOver = true;
 
-        // A run can end mid slow-motion: without this the wreckage plays out at 0.5x and
-        // then visibly snaps to full speed when the effect's timer expires under the panel.
-        if (_slowMotionCoroutine != null)
-        {
-            StopCoroutine(_slowMotionCoroutine);
-            _slowMotionCoroutine = null;
-        }
-        _gameplayTimeScale = 1f;
-        RefreshTimeScale();
-
         GameEvents.RaiseGameOver(_score, towerHeight);
         Debug.Log("Game Over");
     }
@@ -270,36 +220,6 @@ public class GameManager : MonoBehaviour
         _lives++;
         GameEvents.RaiseLivesChanged(_lives);
         Debug.Log($"Life added! Total: {_lives}");
-    }
-
-    public void ApplySlowMotion(float duration)
-    {
-        if (_slowMotionCoroutine != null)
-        {
-            StopCoroutine(_slowMotionCoroutine);
-        }
-        _slowMotionCoroutine = StartCoroutine(SlowMotionRoutine(duration));
-    }
-
-    private System.Collections.IEnumerator SlowMotionRoutine(float duration)
-    {
-        GameModeConfig activeConfig = ActiveGameModeConfig;
-        _gameplayTimeScale = activeConfig != null ? activeConfig.SlowMotionScale : 0.5f;
-        RefreshTimeScale();
-
-        // The duration is seconds of PLAYED time at the slowed rate: a realtime wait burned
-        // the whole effect while the game sat paused (pause menu, power-up picker), consuming
-        // the power-up with zero slowed gameplay. Tick only while actually playing.
-        float elapsed = 0f;
-        while (elapsed < duration)
-        {
-            if (!IsGamePaused) elapsed += Time.unscaledDeltaTime;
-            yield return null;
-        }
-
-        _gameplayTimeScale = 1f;
-        RefreshTimeScale();
-        _slowMotionCoroutine = null;
     }
 
     /// <summary>Composed multiplier from abilities/status effects; pushed by AbilityRuntime

@@ -10,11 +10,11 @@ public class VectorGuideAbility : PassiveAbility
 {
     public override void OnAcquired(AbilityContext context, int stacks)
     {
-        BlockController.SetVectorGuideEnabled(true);
+        BlockController.SetFeature(BlockFeature.VectorGuide, true);
     }
 
     public override void OnRemoved(AbilityContext context)
     {
-        BlockController.SetVectorGuideEnabled(false);
+        BlockController.SetFeature(BlockFeature.VectorGuide, false);
     }
 }

@@ -18,11 +18,12 @@ public partial class BlockController
         if (_autoDrop) return ColumnStepResult.Gated;
 
         float candidate = _targetColumnX + direction * gridSpacing;
-        if (_edgePortalEnabled && TryWrapColumnTarget(candidate, out float wrappedCandidate))
+        bool edgePortal = HasFeature(BlockFeature.EdgePortal);
+        if (edgePortal && TryWrapColumnTarget(candidate, out float wrappedCandidate))
         {
             candidate = wrappedCandidate;
         }
-        else if (!IsColumnTargetWithinBounds(candidate, includeGameplayBounds: !_edgePortalEnabled))
+        else if (!IsColumnTargetWithinBounds(candidate, includeGameplayBounds: !edgePortal))
         {
             return ColumnStepResult.OutOfBounds;
         }

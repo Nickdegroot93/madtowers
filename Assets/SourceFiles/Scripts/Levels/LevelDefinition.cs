@@ -41,6 +41,19 @@ public class LevelDefinition : ScriptableObject
     public LevelTargetType TargetType => targetType;
     public float TargetValue => Mathf.Max(1f, targetValue);
     public string Instruction => instruction;
+
+    /// <summary>The level's victory rule as a polymorphic <see cref="WinCondition"/>. This is the
+    /// SINGLE place the authored <see cref="LevelTargetType"/> enum is translated into behaviour;
+    /// every consumer (verification, rarity progress, menu) reads the condition, never the enum. To
+    /// add a new game type, add a WinCondition subclass and one case here. Built fresh on access
+    /// (cheap, immutable target) so an inspector tweak to the target during play is never stale;
+    /// the runtime controller caches one for the run.</summary>
+    public WinCondition WinCondition => targetType switch
+    {
+        LevelTargetType.PlaceBlocks => new PlaceBlocksWinCondition(TargetValue),
+        LevelTargetType.ReachHeight => new ReachHeightWinCondition(TargetValue),
+        _ => new EndlessWinCondition(),
+    };
     public IReadOnlyList<LevelModifier> Modifiers => modifiers;
     public AbilityRarityProfile AbilityRarityProfile => abilityRarityProfile;
 

@@ -53,7 +53,7 @@ clamp-masked bug).
   `placedBlocks += 1`, and `BlockIdentity.MarkCountedAsPlaced()`.
 - **Destroyed** — *any* code that destroys a placed block MUST call
   `GameManager.RemovePlacedBlock(block)` first (it `−1`s only if the block's placement
-  was counted; idempotent). Current callers: `AbilityEffects
+  was counted; idempotent). Current callers: `ImpactFx
   .DestroyBlockWithShatter` (so every ability that shatters a block is covered — Zap,
   Scrap, Sacrifice…), `BombBlockBehaviour`, `HeightLimitWavesModifier`. **New destruction site → add the
   call**, or the live count silently desyncs above reality.
@@ -65,7 +65,7 @@ clamp-masked bug).
   a counted block, and suppresses the posthumous lock-score of the lost piece. An
   active piece pushed off was never counted, so it never `−1`s — only its life charge
   (if any) applies.
-- **Devoured by a hazard** (the Maw): the prey is removed through `AbilityEffects
+- **Devoured by a hazard** (the Maw): the prey is removed through `ImpactFx
   .DestroyBlockWithShatter` (so it `−1`s like any other destruction), and the maw
   additionally calls `GameManager.LoseLifeToHazard`. That life charge is INDEPENDENT of
   the prey's own `costsLifeWhenLost` — a hazard kill always costs a life (gated only by

@@ -56,6 +56,7 @@ public sealed class ZapSession : MonoBehaviour
     private void StartSession(Spawner spawner, GameObject detonateEffect, float detonateScale, Color color, Color accent)
     {
         IsActive = true;
+        ActivePieceSession.Enter();
         _spawner = spawner;
         _detonateEffect = detonateEffect;
         _detonateScale = detonateScale;
@@ -180,10 +181,10 @@ public sealed class ZapSession : MonoBehaviour
 
         if (_target != null)
         {
-            AbilityEffects.BurstFromEveryCell(_target, _detonateEffect, _detonateScale);
-            AbilityEffects.ImpactPunch(0.05f, 0.12f, 0.16f);
+            ImpactFx.BurstFromEveryCell(_target, _detonateEffect, _detonateScale);
+            ImpactFx.ImpactPunch(0.05f, 0.12f, 0.16f);
             SfxPlayer.Play("impact_shatter_01", 0.9f, 0.05f);
-            AbilityEffects.DestroyBlockWithShatter(_target, new Color(0.5f, 0.8f, 1f, 1f));
+            ImpactFx.DestroyBlockWithShatter(_target, new Color(0.5f, 0.8f, 1f, 1f));
         }
         else
         {
@@ -209,6 +210,7 @@ public sealed class ZapSession : MonoBehaviour
         }
 
         IsActive = false;
+        ActivePieceSession.Exit();
         Destroy(gameObject);
     }
 }
