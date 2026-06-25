@@ -38,6 +38,11 @@ public abstract class BlockVariantSkin : MonoBehaviour
     /// <summary>Name of the per-cell overlay GameObjects; kept distinct so the sort scan skips them.</summary>
     protected virtual string CellName => "VariantCell";
 
+    /// <summary>Overlay quad size as a multiple of the cell, letting a skin draw PAST the brick edge (the
+    /// Maw's tentacles reach up). 1 = exactly the cell (default); the shader then insets the brick body to
+    /// 0.5/CellScale so it still tiles.</summary>
+    protected virtual float CellScale => 1f;
+
     /// <summary>How many sorting orders above the brick art the overlays draw. Default 2. Vine overrides
     /// this higher so it ALWAYS draws on top of any other variant's overlay (e.g. ice frost) - so a vine
     /// growing onto a brick is never tinted/washed out by that brick's own look. Applies to all bricks.</summary>
@@ -107,7 +112,8 @@ public abstract class BlockVariantSkin : MonoBehaviour
             go.transform.SetParent(transform, false);
             go.transform.localPosition = new Vector3(local[i].x, local[i].y, 0f);
             go.transform.localRotation = Quaternion.identity;
-            go.transform.localScale = new Vector3(cellSize, cellSize, 1f);
+            float quad = cellSize * CellScale;
+            go.transform.localScale = new Vector3(quad, quad, 1f);
 
             SpriteRenderer overlay = go.AddComponent<SpriteRenderer>();
             overlay.sprite = RuntimeSprites.Square();

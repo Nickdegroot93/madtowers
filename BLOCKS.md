@@ -65,6 +65,11 @@ clamp-masked bug).
   a counted block, and suppresses the posthumous lock-score of the lost piece. An
   active piece pushed off was never counted, so it never `−1`s — only its life charge
   (if any) applies.
+- **Devoured by a hazard** (the Maw): the prey is removed through `AbilityEffects
+  .DestroyBlockWithShatter` (so it `−1`s like any other destruction), and the maw
+  additionally calls `GameManager.LoseLifeToHazard`. That life charge is INDEPENDENT of
+  the prey's own `costsLifeWhenLost` — a hazard kill always costs a life (gated only by
+  `LifeLossImmunity`), unlike a fall-off, which is gated by the lost block's flag.
 
 ## Quick effect check
 - Normal block placed → `score +1`, `placedBlocks +1`.
@@ -73,6 +78,7 @@ clamp-masked bug).
 - Bullet / other `costsLifeWhenLost:false` block pushed off → no life, no count change.
 - Normal landed block knocked off → `placedBlocks −1` and a life.
 - Bomb detonation → `−1` per destroyed neighbour and the bomb itself.
+- Maw devours a landed block → that block `placedBlocks −1` **and** a life — always, regardless of the eaten block's own flags.
 
 See also: [BLOCKVARIANTS.md](BLOCKVARIANTS.md) (the variant catalog, looks & "add a brick" recipe),
 [ABILITIES.md](ABILITIES.md) (abilities that create/destroy blocks),

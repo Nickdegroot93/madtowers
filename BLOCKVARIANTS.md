@@ -50,6 +50,7 @@ Look status: ✅ procedural skin · 🟡 has a feel moment but only a colour tin
 | **Feather** | 0.25 | very light — shoved around by later landings | **translucent** frosted cloud-glass (see-through centre, frostier rim, soft glowing edge) — light because you see through it; keeps the brick bevel; a couple of faint **down wisps** suspended inside; perpetually **floats + sways**; soft landing **flutter**, no slam | ✅ | `FeatherBlockData`, `FeatherBlockSkin`, `Feather.shader` |
 | **Tremor** | 1 | on land **shakes the whole tower** — a short shake burst (velocity kicks radiating from the brick, per-block shear topples bad placements); lock = shockwave ring + flash + camera kick + ground-dust puff | warm ochre **fault-stone** that never holds still: micro-buzz (calms a few seconds after landing) + amber fault cracks with a travelling pulse; lock discharge = ring + squash | ✅ | `TremorBlockData`, `TremorBlockSkin`, `TremorBlockBehaviour`, `Tremor.shader` |
 | **Bullet** | 1 | projectile — destroys the dynamic block below on lock; `counts:false`, `costsLife:false` | own `Block_Bullet` prefab + impact FX | ✅ (own prefab) | `BulletBlockData`, `BulletImpact` |
+| **Maw** | 1 | falls dormant, then on land **devours any block placed on it, forever** — each devour shatters the prey (removed from the live count, BLOCKS.md) and **costs a life** (`GameManager.LoseLifeToHazard`), so you build *around* it. **Maws never eat each other**, so two in a row stack safely. `counts:true`, `costsLife:true` | dark-purple fleshy brick (same bevel/grain as the rest) that sprouts thick suckered **tentacles from its top edge** on landing. They always reach **world-up** (whatever rotation it landed in) and only the piece's truly **exposed** top cells grow them — a covered cell (incl. one under a stacked maw) stays a smooth block. Each bite **lashes** the tentacles + a subtle one-shot **disintegrate** puff | ✅ | `MawBlockData`, `MawBlockSkin`, `MawBlockBehaviour`, `Maw.shader` |
 
 Every special brick now carries a procedural `BlockVariantSkin` look — the backlog is clear. New variants
 follow the recipe in §4.
@@ -65,7 +66,8 @@ only what's unique:
 |---|---|
 | `MaterialResource` | Resources path of the procedural shader/material, e.g. `"Anchor"` (cached per name) |
 | `HidesChapterArt` | **replace** the chapter art (Anchor/Boulder/Magma → `true`) or **overlay** on top, keeping the chapter colour (Vine → `false`) |
-| `ConfigureCell(index, col, row, overlay, mpb)` | optional per-cell material props — Magma's black/red parity, Vine's seed + root direction |
+| `CellScale` | overlay quad size as a multiple of the cell (default `1`). `>1` lets a skin draw **past** the brick edge (Maw's tentacles overhang the top); the contract is then that the shader insets its body to `0.5/CellScale` so the brick still tiles exactly one cell |
+| `ConfigureCell(index, col, row, overlay, mpb)` | optional per-cell material props — Magma's black/red parity, Vine's seed + root direction, Maw's seed + `_BodyHalf` |
 | a `LateUpdate` | the motion, using `Cells` / `BaseScales` / `BasePositions` (scale + position) and `SetCellsFloat` (animated shader props) |
 
 `BuildCells()` does the rest (find the sort renderer, optionally hide chapter art, scan cell colliders,

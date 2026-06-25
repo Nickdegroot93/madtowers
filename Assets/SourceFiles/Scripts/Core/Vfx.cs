@@ -7,11 +7,12 @@ using UnityEngine;
 /// prefabs as serialized fields and plays them through here, so swapping a look is
 /// a drag-and-drop in the Inspector, never a code change. Null-safe (an unassigned
 /// effect simply plays nothing). CFXR prefabs self-destroy via their CFXR_Effect
-/// component, so we only Instantiate.
+/// component, so we only Instantiate - but pass <paramref name="lifetime"/> as a
+/// safety net for any looping/ambient prefab that would otherwise live forever.
 /// </summary>
 public static class Vfx
 {
-    public static GameObject Spawn(GameObject prefab, Vector3 position, float scale = 1f)
+    public static GameObject Spawn(GameObject prefab, Vector3 position, float scale = 1f, float lifetime = 0f)
     {
         if (prefab == null) return null;
 
@@ -21,6 +22,7 @@ public static class Vfx
         {
             instance.transform.localScale *= scale;
         }
+        if (lifetime > 0f) Object.Destroy(instance, lifetime); // force-clean looping prefabs
         return instance;
     }
 }

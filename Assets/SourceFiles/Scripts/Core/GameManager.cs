@@ -402,6 +402,15 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    /// <summary>Charge one life for a hazard that is NOT a fall-off loss (e.g. the Maw devouring a block).
+    /// Routes through GameOver so it respects LifeLossImmunity and runs the identical end-of-run sequence
+    /// on the last life; a maw bite always costs a life regardless of the eaten block's own life flag.</summary>
+    public void LoseLifeToHazard()
+    {
+        _losingBlockCostsLife = true;
+        GameOver();
+    }
+
     private void IncreaseDifficulty(float fallSpeedAmount)
     {
         if (_difficultyAdjustmentMode == DifficultyAdjustmentMode.Percent)
