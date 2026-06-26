@@ -622,10 +622,22 @@ supporting block underneath later disappears.
 
 Suspension only offers/selects landed blocks that are not already frozen/static, so a held
 charge cannot be wasted on an existing anchor brick, Freeze target, or previous Suspension
-target. It uses the same visible-screen filter as Extract and the normal consumable lockout
-while Fission/Overdraw-style sessions own active-piece state. The asset uses `maxStacks = 1`,
-not `unique`, so the player can hold one Suspension at a time but may be offered another
-after spending it.
+target. **Maws are never offered or selectable** (`ExtractTargetingSession.CanTarget` excludes
+anything with a `MawBlockSkin`): they stay put and stacked while the rest of the tower flies
+out, never proxied, never moved — a maw welds into one rigid cluster and draws through a
+vertex-colour-ignoring shader, so spreading it would both break the weld illusion and leave the
+real maw visible behind its proxy. `CanActivate` mirrors this exclusion, so a screen of only
+maws leaves the charge unusable instead of no-op'ing on activation. It uses the same
+visible-screen filter as Extract and the normal consumable lockout while Fission/Overdraw-style
+sessions own active-piece state. The asset uses `maxStacks = 1`, not `unique`, so the player can
+hold one Suspension at a time but may be offered another after spending it.
+
+The fly-out hides each real brick by **disabling its renderers**, not by zeroing their colour
+alpha — procedural brick shaders (Maw, Magma) ignore the SpriteRenderer vertex colour, so an
+alpha-0 hide left them fully visible behind the moving proxy. Disabling is shader-independent
+and never touches RGB, so a Suspension recolour on the chosen block survives teardown; the
+selected block is the one renderer set left alone on restore (its `ApplyData`→Anchor re-skin
+already owns it).
 
 ### Overdraw (Rare, consumable, unique)
 `OverdrawAbility` replaces the current active falling piece with a three-shape draft.

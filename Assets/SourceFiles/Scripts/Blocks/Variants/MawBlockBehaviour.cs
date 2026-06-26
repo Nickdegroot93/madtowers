@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -11,14 +12,22 @@ using UnityEngine;
 /// Velocity/anim only on the maw itself; the prey is removed through the sanctioned shatter path. The
 /// "resting on top" probe excludes the maw's own cells (and other maws), so it only ever fires on an
 /// EXTERNAL, non-maw block landing on the piece's actual top surface.
+///
+/// On landing it also WELDS to any maw it touches (FixedJoint2D, unbreakable - the Vine weld pattern, but
+/// maw-only and permanent): a stack of maws fuses into one rigid "huge maw" so it can't be toppled by the
+/// loose-leaning that plagued separate bodies. The weld is maw↔maw only; normal blocks are never welded
+/// (they'd just be eaten anyway).
 /// </summary>
 public class MawBlockBehaviour : MonoBehaviour
 {
     private const float BiteInterval = 0.55f;                 // seconds between bites (one block at a time)
     private const float FirstBiteDelay = 0.35f;               // a beat after landing before the first bite
+    private const float WeldTouchRange = 0.15f;               // neighbour-touch clearance (matches Vine)
+    private const int MaxWelds = 8;                           // cap joints per maw (same as Vine)
     private static readonly Color ShardTint = new Color(0.45f, 0.08f, 0.10f, 1f); // gore-red shards
 
     private readonly Collider2D[] _buffer = new Collider2D[16];
+    private readonly Collider2D[] _weldBuffer = new Collider2D[24];
 
     private MawBlockSkin _skin;
     private GameObject _eatEffect;
@@ -37,6 +46,38 @@ public class MawBlockBehaviour : MonoBehaviour
         _cells = GetComponentsInChildren<BoxCollider2D>();
         _filter = new ContactFilter2D { useTriggers = false, useLayerMask = false };
         _timer = FirstBiteDelay;
+
+        // Weld right here on lock: the body has just gone Dynamic at its exact landed pose (the lock path
+        // already SyncTransforms'd), so the joint forms before the first settling solve - a maw landing on
+        // a maw can't tilt before fusing. Same timing rationale as Vine's delay-0 weld.
+        WeldToMaws();
+    }
+
+    // Glue this maw to every maw it's touching with an unbreakable FixedJoint2D, so a stack of maws behaves
+    // as one rigid brick. Maw-only and permanent (Infinity break force); normal blocks are never welded.
+    private void WeldToMaws()
+    {
+        Rigidbody2D ownBody = GetComponent<Rigidbody2D>();
+        if (ownBody == null) return;
+
+        var touching = new HashSet<Collider2D>();
+        BlockTouchScanner.CollectTouchingColliders(gameObject, WeldTouchRange, touching, _weldBuffer);
+
+        var welded = new HashSet<Rigidbody2D>();
+        foreach (Collider2D hit in touching)
+        {
+            Rigidbody2D otherBody = hit.attachedRigidbody;
+            if (otherBody == null || otherBody == ownBody) continue;
+            if (otherBody.GetComponent<MawBlockSkin>() == null) continue; // only ever weld maw to maw
+            if (!welded.Add(otherBody)) continue;
+
+            FixedJoint2D joint = gameObject.AddComponent<FixedJoint2D>();
+            joint.connectedBody = otherBody;
+            joint.breakForce = Mathf.Infinity;  // permanent: the cluster is "one huge maw brick"
+            joint.breakTorque = Mathf.Infinity;
+
+            if (welded.Count >= MaxWelds) return;
+        }
     }
 
     private void FixedUpdate()

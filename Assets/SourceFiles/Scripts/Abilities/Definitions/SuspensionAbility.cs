@@ -19,7 +19,10 @@ public class SuspensionAbility : ConsumableAbility
         for (int i = 0; i < blocks.Count; i++)
         {
             BlockController block = blocks[i];
-            if (block != null && block.HasLanded && !block.IsFrozenInPlace && BlockQuery.IsOnScreen(block)) return true;
+            // Mirror ExtractTargetingSession.CanTarget: maws can't be suspended, so they don't count toward
+            // "is there anything to target". With only maws on screen the charge stays unusable.
+            if (block != null && block.HasLanded && !block.IsFrozenInPlace
+                && block.GetComponent<MawBlockSkin>() == null && BlockQuery.IsOnScreen(block)) return true;
         }
         return false;
     }

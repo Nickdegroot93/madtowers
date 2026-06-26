@@ -25,7 +25,7 @@ public sealed class ExtractTargetingSession : MonoBehaviour
     private struct HiddenRenderer
     {
         public SpriteRenderer Renderer;
-        public Color Color;
+        public BlockController Owner;
     }
 
     private enum State
@@ -222,10 +222,13 @@ public sealed class ExtractTargetingSession : MonoBehaviour
             clone.SetPropertyBlock(propertyBlock);
             copied.Add(clone);
 
-            _hiddenRenderers.Add(new HiddenRenderer { Renderer = source, Color = source.color });
-            Color hidden = source.color;
-            hidden.a = 0f;
-            source.color = hidden;
+            // Hide the real renderer by DISABLING it, not by zeroing its color alpha: procedural brick
+            // shaders (Maw, Magma/Lava) ignore the SpriteRenderer vertex colour, so an alpha of 0 leaves
+            // them fully visible - which used to leave the real brick sitting behind the moving proxy (a
+            // ghostly "second layer"). enable/disable is shader-independent and never touches RGB, so any
+            // recolour Suspension applies to the real block also survives untouched.
+            _hiddenRenderers.Add(new HiddenRenderer { Renderer = source, Owner = block });
+            source.enabled = false;
         }
 
         if (copied.Count == 0)
@@ -370,6 +373,10 @@ public sealed class ExtractTargetingSession : MonoBehaviour
 
     private bool CanTarget(BlockController block)
     {
+        // Maws are never part of the fly-out: they stay put and stacked, and can't be selected. (They also
+        // weld into one rigid cluster and render through a vertex-colour-ignoring shader, so spreading them
+        // would both break the weld illusion and leave the real maw visible behind the proxy.)
+        if (block.GetComponent<MawBlockSkin>() != null) return false;
         return _effect != TargetEffect.Suspension || !block.IsFrozenInPlace;
     }
 
@@ -400,12 +407,12 @@ public sealed class ExtractTargetingSession : MonoBehaviour
         {
             HiddenRenderer hidden = _hiddenRenderers[i];
             if (hidden.Renderer == null) continue;
-            // Restore only the alpha we zeroed to hide the real block. Its RGB may have changed
-            // during the session (Suspension recolours its target into the Anchor variant), and
-            // that change must survive the proxy teardown - we never touch real RGB ourselves.
-            Color color = hidden.Renderer.color;
-            color.a = hidden.Color.a;
-            hidden.Renderer.color = color;
+            // Re-enable the renderers we disabled to hide the real block - EXCEPT the selected one.
+            // Suspension converts the selected block into an Anchor (ApplyData re-skins it and deliberately
+            // disables the chapter art), so re-enabling here would resurrect the old art under the anchor.
+            // Extract destroys its selection, so those renderers are already null and skipped above.
+            if (_selected != null && hidden.Owner == _selected.Block) continue;
+            hidden.Renderer.enabled = true;
         }
     }
 
