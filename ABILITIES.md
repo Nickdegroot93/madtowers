@@ -13,7 +13,7 @@ Code: `Assets/SourceFiles/Scripts/Abilities/` · Assets: `Assets/Data/PowerUps/`
 
 | Kind | Class | Lifecycle | Example |
 |---|---|---|---|
-| **Instant** | `InstantAbility` | `Apply()` once at pick, then gone | Extra Life, Slow Motion, Next-Block Variant |
+| **Instant** | `InstantAbility` | `Apply()` once at pick, then gone | Extra Life, Slow Motion |
 | **Consumable** | `ConsumableAbility` | Held in one of 2 HUD slots; player taps to `Activate()` | Freeze, Extract, Shrink |
 | **Passive** | `PassiveAbility` | Always on from pick; `charges` makes it one-shot | Recovery (permanent), Sacrifice (charges = 1) |
 | **Combo** | `ComboAbility` | Fires `OnComboFired()` when its trigger pattern lands | Overdrive (two upright I-pieces) |
@@ -195,6 +195,11 @@ roll. The default enforces, in order:
 4. `requiresVariantsInLevel`: every listed `BlockData` must exist in the mode's spawn
    tables (ambient chances or fallback variants) → **automatic** content conditions
    ("no Vortex bricks in this level → don't offer the anti-Vortex ability").
+5. `minChapterNumber`: offered only from that chapter onward (vs
+   `GameManager.CurrentChapterNumber`) → gate an ability to the chapter that introduces
+   its brick, so players are never offered an ability for a brick they've never seen
+   (e.g. Magma Drops from the volcano chapter). `0` = ungated; a level with no resolved
+   chapter (custom/endless, chapter `0`) is **never** gated, so the sandbox sees everything.
 
 Exotic conditions: override `IsAvailable`, call `base` for the standard rules. An
 offer whose candidates all filter out is quietly skipped (by design).
@@ -253,7 +258,7 @@ when unusable, same affordance as the nudge pills.
    | `EdgePortalAbility` | Passive (unique) | — | "active pieces wrap across screen edges" |
    | `PocketCacheAbility` | Passive (unique) | — | "unlocks a Tetris-style hold/swap cache" |
    | `HardlineAbility` | Passive (unique, charges = 1) | laserColor, laserYOffset, settleSeconds | "first lost landed block becomes an airborne platform" |
-   | `NextBlockVariantPowerUp` | Instant | variant | "next block becomes variant V" |
+   | `ApplyVariantConsumable` | Consumable | variant, count (+ transformEffect/Scale) | "tap: the falling brick (and the next count-1) become variant V" — Anchor Brick (1), Vine Bricks (2) |
    | `ExtraLifePowerUp` | Instant | lives | flat life grant |
    | `SlowMotionPowerUp` | Instant | slowStatus | timed normal-descent slow (applies a `FallSpeedMultiplier` status; not `Time.timeScale`) |
 

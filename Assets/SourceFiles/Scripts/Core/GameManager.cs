@@ -44,8 +44,12 @@ public class GameManager : MonoBehaviour
     public float AbilityFallSpeedFactor => _abilityFallSpeedMultiplier;
     public GameModeConfig ActiveConfig => ActiveGameModeConfig;
     public BlockController LastPlacedBlock => _lastPlacedBlock != null ? _lastPlacedBlock : null;
+    /// <summary>The number of the chapter that owns the active level, or 0 if none is resolved
+    /// (custom/endless). Used to chapter-gate ability offers (AbilityDefinition.minChapterNumber).</summary>
+    public int CurrentChapterNumber => _currentChapterNumber;
 
     private float _speedTimer;
+    private int _currentChapterNumber;
     private float _heightOriginY;
     private float _abilityFallSpeedMultiplier = 1f;
     private StatusEffects _statusEffects;
@@ -74,6 +78,7 @@ public class GameManager : MonoBehaviour
             // Resolve the active chapter once; skin must apply before any skinned visual
             // loads (the floor's ground skin is applied just below; block skins at spawn).
             ChapterDefinition activeChapter = Campaign.FindChapterOf(LevelSelectionState.SelectedLevel);
+            _currentChapterNumber = activeChapter != null ? activeChapter.ChapterNumber : 0;
             ChapterSkins.Apply(activeChapter);
             MusicPlayer.PlayForChapter(activeChapter);
             PlayAreaController playAreaController = Object.FindAnyObjectByType<PlayAreaController>();

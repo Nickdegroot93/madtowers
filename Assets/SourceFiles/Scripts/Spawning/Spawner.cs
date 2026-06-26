@@ -29,7 +29,9 @@ public class Spawner : MonoBehaviour
     // as spawnable so the roll - and any later chance-boost ability - can target them.
     private readonly HashSet<BlockDefinition> _injectedDefinitions = new HashSet<BlockDefinition>();
     private readonly List<VariantChance> _variantChances = new List<VariantChance>();
-    private BlockData _queuedVariantOverride;
+    // One-shot variant overrides for upcoming spawns, consumed front-first (a "next N bricks become
+    // variant V" consumable queues the extras here; the in-air piece transforms directly).
+    private readonly Queue<BlockData> _queuedVariantOverrides = new Queue<BlockData>();
 
     // Set by the Fission session: while true the lock->spawn chain stops auto-spawning bag
     // pieces so the session can feed its own 1x1 shards. Run-local; resets with a fresh Spawner.
@@ -554,7 +556,18 @@ public class Spawner : MonoBehaviour
             return;
         }
 
-        _queuedVariantOverride = variant;
+        _queuedVariantOverrides.Enqueue(variant);
+    }
+
+    /// <summary>
+    /// Queues <paramref name="count"/> upcoming spawns to become the given variant (consumed
+    /// front-first, before the random variant roll). Used for "next N bricks become variant V"
+    /// after the in-air piece has already been transformed directly (see ApplyVariantToNextBlock).
+    /// </summary>
+    public void QueueVariantOverride(BlockData variant, int count)
+    {
+        if (variant == null) return;
+        for (int i = 0; i < count; i++) _queuedVariantOverrides.Enqueue(variant);
     }
 
     /// <summary>
@@ -687,11 +700,9 @@ public class Spawner : MonoBehaviour
 
     private BlockData RollVariantChances(BlockData baseData)
     {
-        if (_queuedVariantOverride != null)
+        if (_queuedVariantOverrides.Count > 0)
         {
-            BlockData queued = _queuedVariantOverride;
-            _queuedVariantOverride = null;
-            return queued;
+            return _queuedVariantOverrides.Dequeue();
         }
 
         for (int i = 0; i < _variantChances.Count; i++)

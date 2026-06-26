@@ -90,6 +90,9 @@ public abstract class AbilityDefinition : ScriptableObject
     [Header("Availability")]
     [Tooltip("Offered only when the level's spawn tables (ambient chances or fallback variants) contain ALL of these variants - e.g. a 'no more Vortex bricks' ability needs Vortex bricks to exist. Empty = no requirement.")]
     [SerializeField] private BlockData[] requiresVariantsInLevel;
+    [Tooltip("Offered only from this chapter number onward - the chapter where the relevant brick is introduced, so players are never offered an ability for a brick they've never seen (e.g. Magma from the volcano chapter). 0 = always available. Levels with no chapter (custom/endless) are never gated.")]
+    [Min(0)]
+    [SerializeField] private int minChapterNumber;
 
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public Sprite Icon => icon;
@@ -146,6 +149,14 @@ public abstract class AbilityDefinition : ScriptableObject
                 if (requiresVariantsInLevel[i] == null) continue;
                 if (!context.LevelHasVariant(requiresVariantsInLevel[i])) return false;
             }
+        }
+
+        // Chapter gate: hide the ability until the chapter that introduces its brick. A chapter
+        // of 0 means "no chapter resolved" (custom/endless) - those are never gated.
+        if (minChapterNumber > 0 && context.GameManager != null)
+        {
+            int chapter = context.GameManager.CurrentChapterNumber;
+            if (chapter > 0 && chapter < minChapterNumber) return false;
         }
 
         return true;
