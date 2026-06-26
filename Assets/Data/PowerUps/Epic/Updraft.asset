@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7b3f445386e4151b81f481b117d4222, type: 3}
+  m_Name: Updraft
+  m_EditorClassIdentifier: Assembly-CSharp::FallSpeedReductionPowerUp
+  displayName: Updraft
+  icon: {fileID: 0}
+  shortDescription: Drastically slows block falling speed for the rest of the run.
+  ownedShortDescription:
+  description: 'A constant updraft drags on every falling block - they descend far
+    more slowly and the top speed stays well below normal for the whole run. One
+    pick, run-defining.'
+  rarity: 2
+  unique: 1
+  maxStacks: 0
+  requiresVariantsInLevel: []
+  minChapterNumber: 0
+  charges: 0
+  reductionPerStack: 0.32

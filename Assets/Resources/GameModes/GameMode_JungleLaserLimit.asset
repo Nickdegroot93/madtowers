@@ -47,6 +47,8 @@ MonoBehaviour:
   powerUpChoiceEveryBlocks: 12
   powerUpChoicePool:
   - {fileID: 11400000, guid: 0dca35f837a34a25996ebab97183f7aa, type: 2}
+  - {fileID: 11400000, guid: 01e9050d6e724452ba7fd57c2dec99ab, type: 2}
+  - {fileID: 11400000, guid: 75218f2ff7654f7c9ee02f40c0ee3ef1, type: 2}
   - {fileID: 11400000, guid: b3f17664730f4d1da698648589ef9fa0, type: 2}
   - {fileID: 11400000, guid: 6470a3ad296e48478c6cb9447a928492, type: 2}
   - {fileID: 11400000, guid: 7b487e5f478044db94d833da9f8ab16d, type: 2}

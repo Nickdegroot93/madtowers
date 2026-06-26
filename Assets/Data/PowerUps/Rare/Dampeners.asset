@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7b3f445386e4151b81f481b117d4222, type: 3}
+  m_Name: Dampeners
+  m_EditorClassIdentifier: Assembly-CSharp::FallSpeedReductionPowerUp
+  displayName: Dampeners
+  icon: {fileID: 0}
+  shortDescription: Reduces overall block falling speed.
+  ownedShortDescription: Slows the fall speed even further.
+  description: 'Leans hard on the brake: future pieces fall noticeably slower and the
+    relentless speed-up takes much longer to bite, so the late game stays in reach.
+    Stronger than Air Brake, and stacks.'
+  rarity: 1
+  unique: 0
+  maxStacks: 2
+  requiresVariantsInLevel: []
+  minChapterNumber: 0
+  charges: 0
+  reductionPerStack: 0.15
