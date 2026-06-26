@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b7b3f445386e4151b81f481b117d4222, type: 3}
-  m_Name: Dampeners
+  m_Name: DragChute
   m_EditorClassIdentifier: Assembly-CSharp::FallSpeedReductionPowerUp
-  displayName: Dampeners
+  displayName: Drag Chute
   icon: {fileID: 0}
   shortDescription: Reduces overall block falling speed.
   ownedShortDescription: Slows the fall speed even further.

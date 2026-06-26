@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7f9bc412c4d54df8902eaac401f193b3, type: 3}
+  m_Name: Bedrock
+  m_EditorClassIdentifier: Assembly-CSharp::BlockVariantChancePowerUp
+  displayName: Bedrock
+  icon: {fileID: 0}
+  shortDescription: Heavy boulder bricks start dropping.
+  ownedShortDescription: Drops boulder bricks more often.
+  description: 'Mixes heavy boulder bricks into the falling pieces - dense blocks that drop hard and weigh a stack down into place. Stack this to see them more often.'
+  rarity: 1
+  unique: 0
+  maxStacks: 2
+  requiresVariantsInLevel: []
+  minChapterNumber: 0
+  charges: 0
+  variant: {fileID: 11400000, guid: e0a392c17aea4f80abe9498f0bf69678, type: 2}
+  chancePerBlock: 0.05

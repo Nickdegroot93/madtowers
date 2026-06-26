@@ -204,6 +204,14 @@ roll. The default enforces, in order:
 Exotic conditions: override `IsAvailable`, call `base` for the standard rules. An
 offer whose candidates all filter out is quietly skipped (by design).
 
+> **TODO — gate every brick-variant ability by chapter (pending level design).**
+> Any ability that *introduces or boosts a block variant* must eventually carry a
+> `minChapterNumber` matching the chapter where that brick is first taught, so players
+> are never offered an ability for a brick they have never seen. Brick-intro chapters
+> aren't pinned yet, so most ship **ungated** for now. The live per-ability checklist
+> (and the icon backlog) lives in **`ABILITIES_TODO.md`** — keep it updated as levels
+> get designed.
+
 **Offers are SINGLE-RARITY**: the roll first picks the offer's rarity, then samples
 all three cards uniformly (without replacement) from that rarity's available
 candidates — a mixed common/legendary offer would be a non-choice. Rarity odds come

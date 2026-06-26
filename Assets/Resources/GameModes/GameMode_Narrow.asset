@@ -47,6 +47,14 @@ MonoBehaviour:
   powerUpChoiceEveryBlocks: 10
   powerUpChoicePool:
   - {fileID: 11400000, guid: 0dca35f837a34a25996ebab97183f7aa, type: 2}
+  - {fileID: 11400000, guid: e64588ce61b640f5a2219c013eadcd30, type: 2}
+  - {fileID: 11400000, guid: 54df9c4af3ce4935bc0075bb0a9713e6, type: 2}
+  - {fileID: 11400000, guid: 028665bb491c4425901db1bd17f4270a, type: 2}
+  - {fileID: 11400000, guid: d161c956e6f04472ac554374ba42400f, type: 2}
+  - {fileID: 11400000, guid: 91dc4a11f302439fb10267f398f660e2, type: 2}
+  - {fileID: 11400000, guid: ccadb3272ead46cab8eea209ea75b299, type: 2}
+  - {fileID: 11400000, guid: 0b55e5f881f44875abd9bd22a8cca2ad, type: 2}
+  - {fileID: 11400000, guid: b530947086094c47947d1723a30c9e94, type: 2}
   - {fileID: 11400000, guid: 01e9050d6e724452ba7fd57c2dec99ab, type: 2}
   - {fileID: 11400000, guid: 75218f2ff7654f7c9ee02f40c0ee3ef1, type: 2}
   - {fileID: 11400000, guid: b3f17664730f4d1da698648589ef9fa0, type: 2}

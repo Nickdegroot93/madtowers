@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed9132e5df0241c597d309ce49ec1800, type: 3}
+  m_Name: Liquefy
+  m_EditorClassIdentifier: Assembly-CSharp::ApplyVariantConsumable
+  displayName: Liquefy
+  icon: {fileID: 0}
+  shortDescription: Tap to turn the falling brick molten - it pours into the gaps below and hardens to stone.
+  ownedShortDescription:
+  description: 'Tap to make the brick you are dropping molten. When it lands it pours like lava into the empty gaps beneath it, then cools into solid stone - one piece fills holes and flattens your tower.'
+  rarity: 1
+  unique: 0
+  maxStacks: 0
+  requiresVariantsInLevel: []
+  minChapterNumber: 7
+  variant: {fileID: 11400000, guid: 3aece4d0ef2e4260b4dfea7fdd74084a, type: 2}
+  transformEffect: {fileID: 0}
+  transformScale: 0.6
+  count: 1

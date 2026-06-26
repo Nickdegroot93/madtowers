@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94b8265f38d4c918fd4956db0c36910, type: 3}
+  m_Name: IronWill
+  m_EditorClassIdentifier: Assembly-CSharp::ExtraLifePowerUp
+  displayName: Iron Will
+  icon: {fileID: 0}
+  shortDescription: Gain 3 extra lives at once.
+  description: A surge of resolve - immediately grants three extra lives.
+  rarity: 2
+  lives: 3
