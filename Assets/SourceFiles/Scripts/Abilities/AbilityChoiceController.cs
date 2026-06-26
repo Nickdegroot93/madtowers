@@ -240,12 +240,15 @@ public class AbilityChoiceController : MonoBehaviour
         _panelRoot = RuntimeUiKit.CreateModal("Ability Choice", 6000);
 
         GameObject panel = RuntimeUiKit.CreateCenteredPanel(
-            _panelRoot.transform, new Vector2(1000f, 880f), drawBackground: false);
+            _panelRoot.transform, new Vector2(PanelWidth, 880f), drawBackground: false);
         // The shared panel builder leaves child heights uncontrolled; this layout is
         // height-budgeted (header + cards), so LayoutElement heights must be honored.
         var panelLayout = panel.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
         panelLayout.childControlHeight = true;
         panelLayout.spacing = 10f; // tighten the gap between the header and the cards
+        // Framed cards are fixed-height, so the panel has slack; without this the row stretches
+        // and the cards float far below the header. Keep preferred heights, center the block.
+        if (FrameSprite != null) panelLayout.childForceExpandHeight = false;
 
         Color offerAccent = _rollBuffer.Count > 0
             ? AbilityRarityInfo.GetColor(_rollBuffer[0].Rarity)
@@ -254,18 +257,31 @@ public class AbilityChoiceController : MonoBehaviour
 
         GameObject cardRow = new GameObject("Cards");
         cardRow.transform.SetParent(panel.transform, false);
-        // No fixed height: the row reports the height of its TALLEST card, and
-        // childForceExpandHeight (below) stretches all three to match - so a long short-
-        // description lengthens every card equally. minHeight is just a floor for short text.
-        cardRow.AddComponent<LayoutElement>().minHeight = 460f;
+
+        bool framed = FrameSprite != null;
+        LayoutElement rowElement = cardRow.AddComponent<LayoutElement>();
+        if (framed)
+        {
+            // Framed cards are fixed-aspect (no growing to fit text). Reserve the height the
+            // frame art needs at the row's REAL per-card width (FramedCardWidth already accounts
+            // for the panel's side padding) so the reserved row height matches the laid-out cards.
+            rowElement.minHeight = rowElement.preferredHeight = FramedCardWidth / FrameAspectWidthOverHeight;
+        }
+        else
+        {
+            // No fixed height: the row reports the height of its TALLEST card, and
+            // childForceExpandHeight (below) stretches all three to match - so a long short-
+            // description lengthens every card equally. minHeight is just a floor for short text.
+            rowElement.minHeight = 460f;
+        }
 
         HorizontalLayoutGroup rowLayout = cardRow.AddComponent<HorizontalLayoutGroup>();
-        rowLayout.spacing = 24f;
+        rowLayout.spacing = CardRowSpacing;
         rowLayout.childAlignment = TextAnchor.MiddleCenter;
         rowLayout.childControlWidth = true;
-        rowLayout.childControlHeight = true;
+        rowLayout.childControlHeight = !framed;   // framed cards own their height (AspectRatioFitter)
         rowLayout.childForceExpandWidth = true;
-        rowLayout.childForceExpandHeight = true;
+        rowLayout.childForceExpandHeight = !framed;
 
         for (int i = 0; i < _rollBuffer.Count; i++)
         {
@@ -281,6 +297,12 @@ public class AbilityChoiceController : MonoBehaviour
         header.transform.SetParent(parent, false);
         LayoutElement headerElement = header.AddComponent<LayoutElement>();
         headerElement.preferredHeight = 72f;
+        // The header's HorizontalLayoutGroup defaults to childForceExpandHeight=true, which makes
+        // the header report flexible height and swallow the panel's leftover space (231px instead
+        // of 72) - that empty space then sat between the title and the cards. Pin it to 0 flex so
+        // the header keeps its preferred height and the content block stays tight + centered.
+        // Only in the framed (fixed-height) layout; the procedural fallback relies on the slack.
+        if (FrameSprite != null) headerElement.flexibleHeight = 0f;
 
         HorizontalLayoutGroup row = header.AddComponent<HorizontalLayoutGroup>();
         row.childAlignment = TextAnchor.MiddleCenter;
@@ -328,8 +350,316 @@ public class AbilityChoiceController : MonoBehaviour
 
     private static readonly Color CardPlateColor = new Color(0.055f, 0.045f, 0.105f, 0.96f);
 
+    // ---- PNG-framed cards -------------------------------------------------------------------
+    // A single authored frame sprite (Resources/AbilityCardFrame.png) drawn behind anchored
+    // content "slots". The art is grayscale and tinted per rarity (multiply). The card keeps the
+    // frame's aspect so it never stretches and long text auto-fits its slot instead of growing
+    // the card. If the sprite is ever missing, CreateCard falls back to the procedural look.
+    // Layout constants kept named so the per-card width (used to reserve the row height AND to
+    // size the gem glow) stays in sync with the real panel geometry instead of being re-typed.
+    private const float PanelWidth = 1000f;
+    private const float PanelSidePadding = 36f;   // matches CreateCenteredPanel's RectOffset
+    private const float CardRowSpacing = 24f;      // matches rowLayout.spacing
+    private const int CardCount = 3;               // a roll always offers three cards
+    // Real per-card width AFTER the panel's side padding and inter-card spacing.
+    private const float FramedCardWidth =
+        (PanelWidth - 2f * PanelSidePadding - CardRowSpacing * (CardCount - 1)) / CardCount;
+
+    // Frame art is FrameTexW x FrameTexH; the card holds that aspect and every slot below is a
+    // fraction measured against it - a re-export at a different size must re-measure the slots.
+    private const float FrameTexW = 752f, FrameTexH = 1344f;
+    private const float FrameAspectWidthOverHeight = FrameTexW / FrameTexH;
+
+    // Lazily load + cache a card sprite (statics reset on domain reload, so this reloads once per
+    // session). One helper keeps all the loaders identical.
+    private static Sprite LoadCardSprite(string resourceName, ref Sprite cache, ref bool loaded)
+    {
+        if (!loaded) { cache = Resources.Load<Sprite>(resourceName); loaded = true; }
+        return cache;
+    }
+
+    // The authored frame, drawn behind anchored content "slots" and tinted per rarity. If it's
+    // ever missing, CreateCard falls back to the procedural look. Validated once: a mismatched
+    // re-export would silently misalign every slot, so warn loudly instead.
+    private static Sprite _frameSprite; private static bool _frameSpriteLoaded;
+    private static Sprite FrameSprite
+    {
+        get
+        {
+            bool first = !_frameSpriteLoaded;
+            Sprite s = LoadCardSprite("AbilityCardFrame", ref _frameSprite, ref _frameSpriteLoaded);
+#if UNITY_EDITOR
+            if (first && s != null &&
+                (Mathf.RoundToInt(s.rect.width) != (int)FrameTexW || Mathf.RoundToInt(s.rect.height) != (int)FrameTexH))
+                Debug.LogWarning($"[AbilityCard] frame art is {s.rect.width}x{s.rect.height}, expected " +
+                    $"{(int)FrameTexW}x{(int)FrameTexH}; slot rects + aspect were measured against the original " +
+                    "and will misalign. Re-measure the slots after re-export.");
+#endif
+            return s;
+        }
+    }
+
+    // White recess fill cut from the SAME frame canvas (alpha = exact recess shape), overlaid 1:1
+    // so the icon backing aligns pixel-perfectly with the bevel. Untinted (stays white).
+    private static Sprite _iconBacking; private static bool _iconBackingLoaded;
+    private static Sprite IconBackingSprite =>
+        LoadCardSprite("AbilityCardIconBacking", ref _iconBacking, ref _iconBackingLoaded);
+
+    // Faceted gem (grayscale + alpha), re-tinted lighter than the body for a lit-jewel look.
+    private static Sprite _gem; private static bool _gemLoaded;
+    private static Sprite GemSprite => LoadCardSprite("AbilityCardGem", ref _gem, ref _gemLoaded);
+
+    // Standalone soft radial gem glow - its own sprite so it isn't clipped by the frame canvas.
+    private static Sprite _glowDot; private static bool _glowDotLoaded;
+    private static Sprite GlowDotSprite => LoadCardSprite("AbilityCardGlowDot", ref _glowDot, ref _glowDotLoaded);
+
+    // Outer rim glow on a padded canvas; the overlay anchors extend RimGlowMarginFrac past the
+    // card to match the sprite's padding so the bloom isn't clipped. Interior is transparent.
+    private static Sprite _rim; private static bool _rimLoaded;
+    private static Sprite RimGlowSprite => LoadCardSprite("AbilityCardRimGlow", ref _rim, ref _rimLoaded);
+
+    // Gem center in card fractions (x from left, y from TOP); glow diameter as a fraction of width.
+    private static readonly Vector2 GemCenter = new Vector2(0.517f, 0.071f);
+    private const float GemGlowDiameterFrac = 0.30f;
+    private const float RimGlowMarginFrac = 0.06f;   // matches the rim sprite's padding fraction
+
+    // Content slots as fractions of the card from its TOP-LEFT - Rect stores them as
+    // (xMin=left, yMin=top, xMax=right, yMax=bottom), measured from the frame art's panels. The
+    // art's centerline sits ~1.5% right of geometric center, so the text slots are nudged right.
+    private static readonly Rect TitleSlot = Rect.MinMaxRect(0.269f, 0.130f, 0.759f, 0.205f);
+    private static readonly Rect BadgeSlot = Rect.MinMaxRect(0.314f, 0.232f, 0.714f, 0.283f);
+    private static readonly Rect IconSlot = Rect.MinMaxRect(0.261f, 0.318f, 0.769f, 0.608f); // recess flat bbox
+    private static readonly Rect DescSlot = Rect.MinMaxRect(0.205f, 0.645f, 0.795f, 0.860f);
+    private static readonly Rect ButtonSlot = Rect.MinMaxRect(0.27f, 0.898f, 0.73f, 0.966f);
+
+    // Child RectTransform occupying `slot` (fractions from the card's TOP-LEFT). The y axis
+    // flips because Unity UI anchors are bottom-left origin.
+    private static RectTransform FrameSlotRect(Transform card, string name, Rect slot)
+    {
+        GameObject go = new GameObject(name, typeof(RectTransform));
+        RectTransform rt = (RectTransform)go.transform;
+        rt.SetParent(card, false);
+        rt.anchorMin = new Vector2(slot.xMin, 1f - slot.yMax);
+        rt.anchorMax = new Vector2(slot.xMax, 1f - slot.yMin);
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+        return rt;
+    }
+
+    // Rotate a color's hue (degrees) and scale its saturation/value. Used to give the accent
+    // layers hues that are RELATED to the rarity but not identical, so a single-rarity offer
+    // isn't one flat wash of color.
+    private static Color ShiftHue(Color c, float degrees, float satMul, float valMul)
+    {
+        Color.RGBToHSV(c, out float h, out float s, out float v);
+        h = Mathf.Repeat(h + degrees / 360f, 1f);
+        return Color.HSVToRGB(h, Mathf.Clamp01(s * satMul), Mathf.Clamp01(v * valMul));
+    }
+
+    // A non-interactive Image stretched to the whole card, for sprites cut from the frame canvas
+    // (icon backing, gem, glow) that must overlay the frame at its exact pixel coordinates.
+    private static Image FullRectOverlay(Transform card, string name, Sprite sprite, Color color)
+    {
+        Image img = RuntimeUiKit.CreateImage(card, name, sprite, color);
+        img.type = Image.Type.Simple;
+        RuntimeUiKit.Stretch(img.rectTransform);
+        return img;
+    }
+
+    private void CreateFramedCard(Transform parent, AbilityDefinition definition)
+    {
+        Color rarityColor = AbilityRarityInfo.GetColor(definition.Rarity);
+        int stacks = _runtime != null ? _runtime.GetOwnedStacks(definition) : 0;
+
+        // Card root = the frame Image, and also the pick Button (the whole card is tappable).
+        GameObject cardObject = new GameObject(definition.DisplayName,
+            typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        cardObject.transform.SetParent(parent, false);
+
+        Image frame = cardObject.GetComponent<Image>();
+        frame.sprite = FrameSprite;
+        frame.type = Image.Type.Simple;
+        frame.color = rarityColor; // grayscale art -> rarity tint via multiply
+        frame.raycastTarget = true;
+
+        // Layout splits the row's width evenly; the fitter derives the height from the frame
+        // aspect so the art never distorts and the slots stay aligned at any card width.
+        LayoutElement cardElement = cardObject.AddComponent<LayoutElement>();
+        cardElement.preferredWidth = 10f;
+        cardElement.flexibleWidth = 1f;
+        AspectRatioFitter fitter = cardObject.AddComponent<AspectRatioFitter>();
+        fitter.aspectMode = AspectRatioFitter.AspectMode.WidthControlsHeight;
+        fitter.aspectRatio = FrameAspectWidthOverHeight;
+
+        Button button = cardObject.AddComponent<Button>();
+        ColorBlock colors = button.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(1.15f, 1.15f, 1.15f, 1f);
+        colors.pressedColor = new Color(0.82f, 0.82f, 0.82f, 1f);
+        colors.selectedColor = colors.highlightedColor;
+        colors.colorMultiplier = 1f;
+        button.colors = colors;
+        button.targetGraphic = frame;
+        AbilityDefinition picked = definition;
+        button.onClick.AddListener(() => Pick(picked));
+
+        // Subtle outer rim glow: a halo around the card silhouette, hue-shifted COOLER than the
+        // frame so the glow reads as its own light rather than more of the same color. Anchors
+        // reach past the card so the bloom isn't clipped; its interior is transparent.
+        if (RimGlowSprite != null)
+        {
+            Color rg = ShiftHue(rarityColor, -22f, 1.0f, 1.12f);
+            Image rim = RuntimeUiKit.CreateImage(cardObject.transform, "RimGlow", RimGlowSprite,
+                new Color(rg.r, rg.g, rg.b, 0.16f));
+            rim.type = Image.Type.Simple;
+            RectTransform rr = rim.rectTransform;
+            float m = RimGlowMarginFrac;
+            rr.anchorMin = new Vector2(-m, -m); rr.anchorMax = new Vector2(1f + m, 1f + m);
+            rr.offsetMin = Vector2.zero; rr.offsetMax = Vector2.zero;
+        }
+
+        // Gem accent: a small soft glow (its own rect, free to bleed past the card top), then the
+        // faceted gem re-tinted lighter than the body so it reads as a lit jewel. Glow is kept
+        // subtle - just a kiss of light around the gem, not a full bloom.
+        if (GlowDotSprite != null)
+        {
+            // warmer than the frame (and opposite the cooler rim) so the accents span a range
+            Color g = Color.Lerp(ShiftHue(rarityColor, 16f, 1f, 1.15f), Color.white, 0.4f);
+            Image glow = RuntimeUiKit.CreateImage(cardObject.transform, "GemGlow", GlowDotSprite,
+                new Color(g.r, g.g, g.b, 0.32f));
+            glow.type = Image.Type.Simple;
+            RectTransform gl = glow.rectTransform;
+            gl.anchorMin = gl.anchorMax = new Vector2(GemCenter.x, 1f - GemCenter.y);
+            gl.pivot = new Vector2(0.5f, 0.5f);
+            // Fixed-size in canvas units: the per-card width is constant per row, so derive the
+            // diameter from FramedCardWidth (same value used to reserve the row height).
+            float d = FramedCardWidth * GemGlowDiameterFrac;
+            gl.sizeDelta = new Vector2(d, d);
+            gl.anchoredPosition = Vector2.zero;
+        }
+        if (GemSprite != null)
+        {
+            FullRectOverlay(cardObject.transform, "Gem", GemSprite, Color.Lerp(rarityColor, Color.white, 0.5f));
+        }
+
+        // Title - auto-fits the top banner (short names big, long names shrink/wrap to fit).
+        RectTransform titleRect = FrameSlotRect(cardObject.transform, "Title", TitleSlot);
+        Text title = titleRect.gameObject.AddComponent<Text>();
+        title.font = RuntimeUiKit.TitleFont;
+        title.text = definition.DisplayName.ToUpperInvariant();
+        title.fontStyle = FontStyle.Bold;
+        title.alignment = TextAnchor.MiddleCenter;
+        title.color = RuntimeUiKit.TitleColor;
+        title.verticalOverflow = VerticalWrapMode.Truncate;
+        title.resizeTextForBestFit = true;
+        title.resizeTextMinSize = 10;
+        title.resizeTextMaxSize = 23;
+        title.raycastTarget = false;
+
+        // Type badge (PASSIVE / INSTANT / CONSUMABLE) inside the frame's pill.
+        RectTransform badgeRect = FrameSlotRect(cardObject.transform, "Badge", BadgeSlot);
+        Text badge = badgeRect.gameObject.AddComponent<Text>();
+        badge.font = RuntimeUiKit.TitleFont;
+        badge.text = AbilityTypeInfo.GetLabel(definition.Type);
+        badge.fontStyle = FontStyle.Bold;
+        badge.alignment = TextAnchor.MiddleCenter;
+        badge.color = Color.Lerp(rarityColor, Color.white, 0.65f);
+        badge.resizeTextForBestFit = true;
+        badge.resizeTextMinSize = 8;
+        badge.resizeTextMaxSize = 18;
+        badge.raycastTarget = false;
+
+        // White recess backing overlaid 1:1 over the frame (its alpha IS the recess shape, so it
+        // aligns to the bevel exactly). Drawn here, before the glyph, so the glyph sits on top.
+        if (IconBackingSprite != null)
+        {
+            FullRectOverlay(cardObject.transform, "IconBacking", IconBackingSprite, Color.white);
+        }
+
+        // Icon glyph, centered within the recess (inset so it never touches the white edge).
+        RectTransform iconRect = FrameSlotRect(cardObject.transform, "Icon", IconSlot);
+        Image glyph = RuntimeUiKit.CreateImage(iconRect, "Glyph",
+            definition.Icon != null ? definition.Icon : RuntimeSprites.AbilityGlyph(),
+            definition.Icon != null ? Color.white : Color.Lerp(rarityColor, Color.white, 0.3f));
+        glyph.preserveAspect = true;
+        RectTransform gr = glyph.rectTransform;
+        gr.anchorMin = Vector2.zero; gr.anchorMax = Vector2.one;
+        gr.offsetMin = new Vector2(26f, 26f); gr.offsetMax = new Vector2(-26f, -26f);
+
+        if (stacks > 0)
+        {
+            Text owned = RuntimeUiKit.CreateLabel(iconRect, $"Owned ×{stacks}", 18, 22f,
+                FontStyle.Bold, new Color(0.6f, 0.9f, 0.65f, 1f), TextAnchor.UpperCenter);
+            owned.GetComponent<LayoutElement>().ignoreLayout = true;
+            RectTransform or = owned.rectTransform;
+            or.anchorMin = new Vector2(0f, 1f); or.anchorMax = new Vector2(1f, 1f);
+            or.pivot = new Vector2(0.5f, 1f);
+            or.offsetMin = new Vector2(0f, -24f); or.offsetMax = new Vector2(0f, 2f);
+        }
+
+        // Short description - auto-fits the open area below the icon.
+        RectTransform descRect = FrameSlotRect(cardObject.transform, "Description", DescSlot);
+        Text desc = descRect.gameObject.AddComponent<Text>();
+        desc.font = RuntimeUiKit.DefaultFont;
+        desc.text = definition.ShortDescriptionFor(stacks);
+        desc.fontStyle = FontStyle.Bold;
+        desc.alignment = TextAnchor.MiddleCenter;
+        desc.color = new Color(0.92f, 0.95f, 1f, 1f);
+        desc.verticalOverflow = VerticalWrapMode.Truncate;
+        desc.resizeTextForBestFit = true;
+        desc.resizeTextMinSize = 10;
+        desc.resizeTextMaxSize = 26;
+        desc.raycastTarget = false;
+
+        // DETAILS: an invisible button over the frame's bottom plate. Its raycast target absorbs
+        // the tap so opening details never also picks the card (nested-button rule).
+        RectTransform detailsRect = FrameSlotRect(cardObject.transform, "Details", ButtonSlot);
+        Image detailsHit = detailsRect.gameObject.AddComponent<Image>();
+        detailsHit.color = new Color(1f, 1f, 1f, 0f);
+        detailsHit.raycastTarget = true;
+        Button details = detailsRect.gameObject.AddComponent<Button>();
+        details.targetGraphic = detailsHit;
+        ColorBlock dc = details.colors;
+        dc.normalColor = Color.white;
+        dc.highlightedColor = new Color(1f, 1f, 1f, 0.22f);
+        dc.pressedColor = new Color(1f, 1f, 1f, 0.4f);
+        dc.selectedColor = dc.highlightedColor;
+        dc.colorMultiplier = 1f;
+        details.colors = dc;
+        AbilityDefinition detailDef = definition;
+        details.onClick.AddListener(() => ShowDetailPanel(detailDef));
+
+        Text detailsLabel = RuntimeUiKit.CreateLabel(detailsRect, "DETAILS", 22, 0f,
+            FontStyle.Bold, Color.Lerp(rarityColor, Color.white, 0.75f), TextAnchor.MiddleCenter);
+        detailsLabel.font = RuntimeUiKit.TitleFont;
+        detailsLabel.raycastTarget = false;
+        detailsLabel.resizeTextForBestFit = true;
+        detailsLabel.resizeTextMinSize = 8;
+        detailsLabel.resizeTextMaxSize = 19;
+        RuntimeUiKit.Stretch(detailsLabel.rectTransform);
+
+        if (definition.Rarity == AbilityRarity.Legendary)
+        {
+            // The shine band sweeps wider than the card and needs a RectMask2D to clip at the
+            // edges - but masking the whole card would ALSO clip the rim/gem glows that
+            // intentionally bleed past it. So mask an inner child sized exactly to the card; the
+            // glows are siblings of it and stay unclipped.
+            GameObject shineClip = new GameObject("ShineClip", typeof(RectTransform));
+            shineClip.transform.SetParent(cardObject.transform, false);
+            RuntimeUiKit.Stretch((RectTransform)shineClip.transform);
+            shineClip.AddComponent<RectMask2D>();
+            shineClip.AddComponent<AbilityCardShine>();
+        }
+    }
+
     private void CreateCard(Transform parent, AbilityDefinition definition)
     {
+        if (FrameSprite != null)
+        {
+            CreateFramedCard(parent, definition);
+            return;
+        }
+
         Color rarityColor = AbilityRarityInfo.GetColor(definition.Rarity);
 
         // Two-layer chrome: a fixed dark cut-corner plate, plus a rarity-tinted glowing
