@@ -55,7 +55,7 @@ public partial class BlockController
 
         _appliedData = data;
         if (_rb == null) _rb = GetComponent<Rigidbody2D>();
-        _rb.mass = data.Mass;
+        _rb.mass = data.Mass * _standardBlockMassMultiplier; // Titan scales future pieces heavier
         _rb.sharedMaterial = ResolveBlockMaterial(data.PhysicsMaterial);
         _gravityScaleMultiplier = data.GravityScaleMultiplier;
 

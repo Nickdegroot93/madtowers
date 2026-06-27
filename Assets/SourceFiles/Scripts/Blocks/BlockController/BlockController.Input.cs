@@ -196,7 +196,9 @@ public partial class BlockController
         // descent gets the ability factor.
         if (_autoDrop) return fallSpeed * fastDropMultiplier * AutoDropBoost;
         if (_isFastDrop || _moveInput.y < -0.5f) return fallSpeed * fastDropMultiplier;
-        return fallSpeed * _normalFallSpeedFactor;
+        // Slowburn's per-piece initial-slow folds in here (normal descent only); it lapses to 1 after
+        // its window, so the piece resumes full ramped speed. A flick/fast-drop above bypasses it.
+        return fallSpeed * _normalFallSpeedFactor * CurrentInitialSlowFactor();
     }
 
 }

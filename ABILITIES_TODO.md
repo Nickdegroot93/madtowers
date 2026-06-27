@@ -16,6 +16,9 @@ title text on the card, which works but looks unfinished. Generate via
 - [ ] IronWill
 - [ ] MagmaSpawn
 - [ ] Overgrowth
+- [ ] Purifier
+- [ ] Slowburn
+- [ ] Titan
 - [ ] Updraft
 
 **Rare**

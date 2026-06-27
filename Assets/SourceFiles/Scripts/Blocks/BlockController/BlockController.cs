@@ -18,6 +18,20 @@ public partial class BlockController : MonoBehaviour
     // flick use the un-factored base speed (the player chose to go fast; abilities don't fight that).
     private float _normalFallSpeedFactor = 1f;
     public void SetNormalFallSpeedFactor(float factor) => _normalFallSpeedFactor = Mathf.Clamp(factor, 0.05f, 3f);
+
+    // Per-piece "initial slow" window (Slowburn): this piece falls at _initialSlowFactor of its
+    // normal speed until _initialSlowEndTime, then resumes full ramped speed. Time.time is scaled,
+    // so a pause freezes the window. Default factor 1 / end 0 = no effect for an unslowed piece.
+    private float _initialSlowFactor = 1f;
+    private float _initialSlowEndTime;
+    /// <summary>Slow this piece's NORMAL descent to <paramref name="factor"/> for the next
+    /// <paramref name="seconds"/> (a per-piece thinking beat). Fast drops are unaffected.</summary>
+    public void BeginInitialSlow(float seconds, float factor)
+    {
+        _initialSlowFactor = Mathf.Clamp(factor, 0.05f, 1f);
+        _initialSlowEndTime = Time.time + Mathf.Max(0f, seconds);
+    }
+    private float CurrentInitialSlowFactor() => Time.time < _initialSlowEndTime ? _initialSlowFactor : 1f;
     [SerializeField] private LayerMask collisionLayers = 1;
 
     [Header("Grid Movement Settings")]
@@ -115,6 +129,9 @@ public partial class BlockController : MonoBehaviour
     private static PhysicsMaterial2D _sharedFallbackMaterial;
     private static float _sharedFallbackBaseFriction = 0.95f;
     private static float _standardBlockFrictionMultiplier = 1f;
+    // Ability-driven block-mass multiplier (Titan). Applied to each piece's mass at ApplyData, so
+    // it affects FUTURE pieces only - like the friction knob. Run-local (reset below).
+    private static float _standardBlockMassMultiplier = 1f;
 
     private const float RotationStep = 90f;
     private const float GridMatchTolerance = 0.05f;
@@ -209,6 +226,7 @@ public partial class BlockController : MonoBehaviour
         _sharedFallbackMaterial = null;
         _sharedFallbackBaseFriction = 0.95f;
         _standardBlockFrictionMultiplier = 1f;
+        _standardBlockMassMultiplier = 1f;
         _nudgeLockedUntilTime = 0f;
         _features = BlockFeature.None;
         _reachGeometryVersion = 0;
@@ -220,6 +238,14 @@ public partial class BlockController : MonoBehaviour
 
         _standardBlockFrictionMultiplier += multiplierDelta;
         RefreshStandardBlockFriction();
+    }
+
+    // Titan: heavier blocks (applied to future pieces at ApplyData). Additive delta over the 1.0
+    // baseline, mirroring the friction knob - shared static, run-local.
+    public static void AddStandardBlockMassMultiplier(float multiplierDelta)
+    {
+        if (multiplierDelta <= 0f) return;
+        _standardBlockMassMultiplier += multiplierDelta;
     }
 
     /// <summary>Turn a run-local block feature on or off (abilities call this in OnAcquired/OnRemoved).</summary>

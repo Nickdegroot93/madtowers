@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4f2552b5abb4bc8b45e1d41b2adb362, type: 3}
+  m_Name: Titan
+  m_EditorClassIdentifier: Assembly-CSharp::TitanPowerUp
+  displayName: Titan
+  icon: {fileID: 0}
+  shortDescription: Future blocks are heavy and grip hard - a planted, topple-resistant tower.
+  ownedShortDescription:
+  description: 'From now on your blocks are heavy and grip hard: they plant firmly, resist
+    sliding and shoves, and shrug off Tremor. The trade - they land with more force, so a
+    careless drop disturbs the stack more. Built for a rock-solid base.'
+  rarity: 2
+  unique: 1
+  maxStacks: 0
+  requiresVariantsInLevel: []
+  minChapterNumber: 0
+  charges: 0
+  frictionIncrease: 0.6
+  massMultiplier: 1.6
