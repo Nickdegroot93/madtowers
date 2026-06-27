@@ -47,6 +47,8 @@ MonoBehaviour:
   powerUpChoiceEveryBlocks: 10
   powerUpChoicePool:
   - {fileID: 11400000, guid: 0dca35f837a34a25996ebab97183f7aa, type: 2}
+  - {fileID: 11400000, guid: bd59c853857545c890c6f9ad16d2fd6e, type: 2}
+  - {fileID: 11400000, guid: fd901d2fb2ce4d908c3a8fcbe5d9fef1, type: 2}
   - {fileID: 11400000, guid: e64588ce61b640f5a2219c013eadcd30, type: 2}
   - {fileID: 11400000, guid: 54df9c4af3ce4935bc0075bb0a9713e6, type: 2}
   - {fileID: 11400000, guid: 028665bb491c4425901db1bd17f4270a, type: 2}
@@ -77,7 +79,6 @@ MonoBehaviour:
   - {fileID: 11400000, guid: c949457e7d694f51a071858f782367b8, type: 2}
   - {fileID: 11400000, guid: cfdb7beb7e9043199bac80f5d8b7e1a9, type: 2}
   - {fileID: 11400000, guid: e28f154f7fe04e8c804cb5e2e8f4b35b, type: 2}
-  - {fileID: 11400000, guid: ae0ce8266bce4680b028c7bbd8bbf799, type: 2}
   - {fileID: 11400000, guid: 9516b5e76ac94b63abfb8bb19a3b50c3, type: 2}
   - {fileID: 11400000, guid: 6fcbcbb0ac3a48ef88c48a93b05920fd, type: 2}
   - {fileID: 11400000, guid: c3c22db8ce624969a88a897e9028af48, type: 2}

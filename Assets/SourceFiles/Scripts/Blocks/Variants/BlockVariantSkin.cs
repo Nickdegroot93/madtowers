@@ -27,6 +27,9 @@ public abstract class BlockVariantSkin : MonoBehaviour
     protected readonly List<Vector3> BasePositions = new List<Vector3>();
 
     private MaterialPropertyBlock _mpb;
+    // Chapter-art renderers this skin disabled (HidesChapterArt). Recorded so Remove() can re-show
+    // exactly them - used by Sanitize to strip a variant's look in place and reveal the plain brick.
+    private readonly List<SpriteRenderer> _hiddenChapterArt = new List<SpriteRenderer>();
 
     /// <summary>Resources path of the procedural material (or shader) this skin draws with, e.g. "Anchor".</summary>
     protected abstract string MaterialResource { get; }
@@ -75,8 +78,11 @@ public abstract class BlockVariantSkin : MonoBehaviour
             string n = sr.gameObject.name;
             if (n.Contains("PlacementBeam") || n.Contains("VectorGuide") || n == CellName) continue;
             if (skinSort == null) skinSort = sr;
-            if (HidesChapterArt) sr.enabled = false;
-            else break;
+            if (!HidesChapterArt) break;
+            // Disable + record ONLY renderers that are actually on (the chapter PieceSkin) - the bare
+            // prefab cells are already off (ApplyBlockSkin hid them), so recording them would make
+            // Remove() wrongly re-show white cells over the chapter art instead of the plain brick.
+            if (sr.enabled) { sr.enabled = false; _hiddenChapterArt.Add(sr); }
         }
 
         int sortingLayer = skinSort != null ? skinSort.sortingLayerID : 0;
@@ -151,6 +157,27 @@ public abstract class BlockVariantSkin : MonoBehaviour
     {
         for (int i = 0; i < Cells.Count; i++)
             if (Cells[i] != null) Cells[i].transform.localScale = BaseScales[i];
+    }
+
+    /// <summary>Tear this skin down IN PLACE: re-show the chapter art it hid, drop its overlay
+    /// cells, and remove itself - leaving the brick looking plain while keeping the same
+    /// GameObject (transform, body, fall progress untouched). Used by Sanitize to strip a
+    /// hazard's look without respawning the piece. Idempotent-safe.</summary>
+    public void Remove()
+    {
+        for (int i = 0; i < _hiddenChapterArt.Count; i++)
+            if (_hiddenChapterArt[i] != null) _hiddenChapterArt[i].enabled = true;
+        _hiddenChapterArt.Clear();
+
+        for (int i = 0; i < Cells.Count; i++)
+        {
+            if (Cells[i] == null) continue;
+            Cells[i].enabled = false;          // hide this frame (Destroy is deferred to frame end)
+            Destroy(Cells[i].gameObject);
+        }
+        Cells.Clear();
+
+        Destroy(this);
     }
 
     // Cell native size is one grid unit; fall back to grid spacing when a cell has no own renderer

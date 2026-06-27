@@ -240,7 +240,7 @@ public class AbilityChoiceController : MonoBehaviour
         _panelRoot = RuntimeUiKit.CreateModal("Ability Choice", 6000);
 
         GameObject panel = RuntimeUiKit.CreateCenteredPanel(
-            _panelRoot.transform, new Vector2(PanelWidth, 880f), drawBackground: false);
+            _panelRoot.transform, new Vector2(PanelWidth, 960f), drawBackground: false);
         // The shared panel builder leaves child heights uncontrolled; this layout is
         // height-budgeted (header + cards), so LayoutElement heights must be honored.
         var panelLayout = panel.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
@@ -287,6 +287,55 @@ public class AbilityChoiceController : MonoBehaviour
         {
             CreateCard(cardRow.transform, _rollBuffer[i]);
         }
+
+        // Reroll: if the player banked rerolls (RerollPowerUp), show a button under the cards
+        // that redraws this offer in place and spends one. A centered, accent-outlined pill (the
+        // card Details-button look) - NOT a full-width bar. Hidden once the pool is exhausted.
+        if (_runtime != null && _runtime.RerollCharges > 0)
+        {
+            GameObject rerollRow = new GameObject("RerollRow");
+            rerollRow.transform.SetParent(panel.transform, false);
+            rerollRow.AddComponent<LayoutElement>().preferredHeight = 58f;
+            HorizontalLayoutGroup rerollRowLayout = rerollRow.AddComponent<HorizontalLayoutGroup>();
+            rerollRowLayout.childAlignment = TextAnchor.MiddleCenter;
+            rerollRowLayout.childControlWidth = true;
+            rerollRowLayout.childControlHeight = true;
+            rerollRowLayout.childForceExpandWidth = false;   // let the button keep its own width
+            rerollRowLayout.childForceExpandHeight = false;
+
+            Button rerollButton = RuntimeUiKit.CreateButton(
+                rerollRow.transform, $"Reroll  ({_runtime.RerollCharges})", 54f, RerollCurrentOffer);
+            LayoutElement rerollLayout = rerollButton.GetComponent<LayoutElement>();
+            rerollLayout.preferredWidth = 260f;
+            rerollLayout.flexibleWidth = 0f;
+            StyleDetailsButton(rerollButton, offerAccent);
+        }
+    }
+
+    // Redraw the current offer in place, spending one banked reroll. Keeps the game paused and
+    // touches none of the milestone/pending state - the same close->roll->build cycle the detail
+    // view's Back button uses. If the re-roll comes up empty (every candidate now filtered out)
+    // it spends nothing and keeps the current cards.
+    private void RerollCurrentOffer()
+    {
+        if (_runtime == null || _runtime.RerollCharges <= 0) return;
+
+        GameModeConfig config = GameManager.Instance != null ? GameManager.Instance.ActiveConfig : null;
+        IReadOnlyList<AbilityDefinition> pool = config != null ? config.PowerUpChoicePool : null;
+        if (pool == null || pool.Count == 0) return;
+
+        var previous = new List<AbilityDefinition>(_rollBuffer);
+        RollChoices(pool);
+        if (_rollBuffer.Count == 0)
+        {
+            _rollBuffer.Clear();
+            _rollBuffer.AddRange(previous); // nothing fresh to show - keep the cards, spend nothing
+            return;
+        }
+
+        _runtime.TryConsumeReroll();
+        CloseChoicePanel();
+        BuildChoicePanel();
     }
 
     // "CHOOSE AN ABILITY" with the mockups' flourish: soft side bars + small diamonds,

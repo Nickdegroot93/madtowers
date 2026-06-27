@@ -55,6 +55,19 @@ public class AbilityRuntime : MonoBehaviour
         RecomputeFallSpeedMultiplier();
     }
 
+    // Banked power-up rerolls (granted by RerollPowerUp). While > 0 the choice panel shows a
+    // Reroll button; each click redraws the three cards and spends one. Banked across offers,
+    // run-local (fresh AbilityRuntime per scene), like the slow window above.
+    private int _rerollCharges;
+    public int RerollCharges => _rerollCharges;
+    public void GrantRerollCharges(int count) { if (count > 0) _rerollCharges += count; }
+    public bool TryConsumeReroll()
+    {
+        if (_rerollCharges <= 0) return false;
+        _rerollCharges--;
+        return true;
+    }
+
     /// <summary>Raised whenever owned abilities or slots change (HUD + picker cards listen).</summary>
     public event System.Action InventoryChanged;
 

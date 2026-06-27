@@ -16,7 +16,7 @@ Code: `Assets/SourceFiles/Scripts/Abilities/` · Assets: `Assets/Data/PowerUps/`
 | **Instant** | `InstantAbility` | `Apply()` once at pick, then gone | Extra Life, Slow Motion |
 | **Consumable** | `ConsumableAbility` | Held in one of 2 HUD slots; player taps to `Activate()` | Freeze, Extract, Shrink |
 | **Passive** | `PassiveAbility` | Always on from pick; `charges` makes it one-shot | Recovery (permanent), Sacrifice (charges = 1) |
-| **Combo** | `ComboAbility` | Fires `OnComboFired()` when its trigger pattern lands | Overdrive (two upright I-pieces) |
+| **Combo** | `ComboAbility` | Fires `OnComboFired()` when its trigger pattern lands | (logic retained; no combo ability currently shipped — see §6) |
 
 A **one-shot passive is not a separate kind**: set `charges = 1` on a `PassiveAbility`
 asset. A handler that returns true ("I triggered") consumes a charge; at zero the
@@ -151,6 +151,10 @@ not accidentally accelerate "every N blocks" hazards.
 
 ## 6. Combo triggers — patterns separate from effects
 
+> **No combo ability ships today** (Overdrive was retired — players found the
+> stack-a-pattern triggers hard to read). The combo SYSTEM below is intact and zero-cost
+> while no `ComboAbility` is owned, so combos can return as assets without code.
+
 `ComboTriggerDefinition` (asset): required `BlockDefinition` (reference match via the
 `BlockIdentity` component the Spawner attaches — never name strings), orientation
 (judged from collider-bounds aspect, robust to 180° symmetry), relation
@@ -265,8 +269,10 @@ when unusable, same affordance as the nudge pills.
    | `QueueVisibilityPowerUp` | Passive (unique) | visibleDepth | "see N upcoming shapes instead of 1" |
    | `EdgePortalAbility` | Passive (unique) | — | "active pieces wrap across screen edges" |
    | `PocketCacheAbility` | Passive (unique) | — | "unlocks a Tetris-style hold/swap cache" |
+   | `RerollPowerUp` | Passive (unique) | rerollCharges | "banks N rerolls; a Reroll button on the choice panel redraws all three cards" |
    | `HardlineAbility` | Passive (unique, charges = 1) | laserColor, laserYOffset, settleSeconds | "first lost landed block becomes an airborne platform" |
    | `ApplyVariantConsumable` | Consumable | variant, count (+ transformEffect/Scale) | "tap: the falling brick (and the next count-1) become variant V" — Anchor Brick (1), Vine Bricks (2) |
+   | `SanitizeConsumable` | Consumable | (transformEffect/Scale) | "tap: strip the falling hazard's look IN PLACE (same piece, no shift) and reset it to its shape's plain DefaultData" |
    | `ExtraLifePowerUp` | Instant | lives | flat life grant |
    | `SlowMotionPowerUp` | Instant | slowStatus | timed normal-descent slow (applies a `FallSpeedMultiplier` status; not `Time.timeScale`) |
 

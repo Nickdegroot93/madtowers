@@ -30,6 +30,8 @@ title text on the card, which works but looks unfinished. Generate via
 - [ ] Locksmith
 - [ ] Muzzle
 - [ ] Reinforce
+- [ ] Reroll
+- [ ] Sanitize
 - [ ] SteadyHands
 - [ ] SureGrip
 - [ ] VineBrick

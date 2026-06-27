@@ -71,6 +71,15 @@ public partial class BlockController
         data.OnApplied(this);
     }
 
+    /// <summary>Remove any special-variant LOOK (overlay skins) from this piece IN PLACE, revealing
+    /// the plain chapter brick. The same GameObject is kept - transform, body, rotation and fall
+    /// progress are untouched - so Sanitize can defuse a falling hazard without it shifting.</summary>
+    public void StripVariantSkins()
+    {
+        foreach (BlockVariantSkin skin in GetComponents<BlockVariantSkin>())
+            if (skin != null) skin.Remove();
+    }
+
     // Physics shapes are slightly narrower on the WORLD-X axis than the visual cells
     // (Tricky-Towers style). With an exactly cell-wide footprint a piece can never enter a gap
     // that is exactly its own width:
