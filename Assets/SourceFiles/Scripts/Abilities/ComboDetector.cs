@@ -87,9 +87,11 @@ public class ComboDetector : MonoBehaviour
         if (IsConsumed(trigger, newBlock) || IsConsumed(trigger, baseBlock)) yield break;
         if (!Matches(trigger, newBlock, baseBlock)) yield break; // toppled during the wait
 
-        // Everything the match needs is computed BEFORE consumption: a failed bounds
-        // read must not burn the blocks for this trigger with no ability having fired.
-        if (!newBlock.TryGetWorldBounds(out Bounds bounds)) yield break;
+        // Build the ComboMatch payload (bounds + top Y) for position-aware combo abilities. A
+        // bounds read must NOT gate the fire - a valid, settled combo should always reward; a
+        // future position-using ability can tolerate a fallback far better than a silently
+        // dropped combo - so fall back to the block's position if the read fails.
+        if (!newBlock.TryGetWorldBounds(out Bounds bounds)) bounds = new Bounds(newBlock.transform.position, Vector3.zero);
         if (baseBlock.TryGetWorldBounds(out Bounds baseBounds)) bounds.Encapsulate(baseBounds);
         float topY = Mathf.Max(newBlock.GetHighestCellY(), baseBlock.GetHighestCellY());
 

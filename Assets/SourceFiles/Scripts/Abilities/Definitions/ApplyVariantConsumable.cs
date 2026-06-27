@@ -28,19 +28,15 @@ public class ApplyVariantConsumable : ConsumableAbility
     [Tooltip("Scale for the transform effect - CFXR effects are character-sized, a block usually wants < 1.")]
     [SerializeField] private float transformScale = 0.6f;
 
-    // The slot is consumed BEFORE Activate, so refuse every way the apply could fail: no live
-    // piece in the air / one mid-lock / already this variant / fallen past the loss line / no
-    // variant wired (mirrors AbilityEffects.CanTransmuteActivePiece, for variants not shapes).
+    // The slot is consumed BEFORE Activate, so refuse every way the apply could fail. The
+    // active-piece/loss-line invariant is shared with the shape-swaps (AbilityEffects); here we
+    // add the variant-specific guards: a variant must be wired and the piece not already it.
     public override bool CanActivate(AbilityContext context)
     {
-        if (context == null || context.Spawner == null || variant == null) return false;
+        if (variant == null || !AbilityEffects.ActivePieceCanTransform(context)) return false;
 
         BlockController active = BlockController.ActiveControlled;
-        if (active == null || active.HasLanded) return false;
         if (active.TryGetComponent(out BlockIdentity identity) && identity.Variant == variant) return false;
-
-        Camera camera = Camera.main;
-        if (camera != null && camera.orthographic && active.transform.position.y < LossZone.CullY(camera)) return false;
 
         return true;
     }

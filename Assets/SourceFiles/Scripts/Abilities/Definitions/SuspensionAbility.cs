@@ -14,17 +14,8 @@ public class SuspensionAbility : ConsumableAbility
     public override bool CanActivate(AbilityContext context)
     {
         if (ExtractTargetingSession.IsActive) return false;
-
-        var blocks = BlockController.AllBlocks;
-        for (int i = 0; i < blocks.Count; i++)
-        {
-            BlockController block = blocks[i];
-            // Mirror ExtractTargetingSession.CanTarget: maws can't be suspended, so they don't count toward
-            // "is there anything to target". With only maws on screen the charge stays unusable.
-            if (block != null && block.HasLanded && !block.IsFrozenInPlace
-                && block.GetComponent<MawBlockSkin>() == null && BlockQuery.IsOnScreen(block)) return true;
-        }
-        return false;
+        // excludeFrozen: a held charge can't be wasted on an existing anchor/Freeze/previous target.
+        return ExtractTargetingSession.HasAnyTargetable(excludeFrozen: true);
     }
 
     public override void Activate(AbilityContext context)

@@ -11,25 +11,39 @@ using UnityEngine;
 public static class AbilityEffects
 {
     /// <summary>
-    /// Shared CanActivate guard for transform consumables (Shrink, future
-    /// shape-swaps): the active piece may be replaced by <paramref name="target"/> only if
-    /// everything Spawner.ReplaceActivePiece needs is present BEFORE the slot is consumed -
-    /// target + prefab + BlockController wired; a piece in the air and not mid-lock; not
-    /// already that shape; and not fallen past the loss line (the cull sweep owns it then).
-    /// Kept in one place so the subtle loss-line/already-this-shape invariants can't drift
-    /// between the abilities that share them.
+    /// Core "can we transform the active piece THIS turn" guard, shared by every transform
+    /// consumable (shape-swaps via <see cref="CanTransmuteActivePiece"/> AND variant re-skins via
+    /// ApplyVariantConsumable): there must be a spawner, a piece in the air and not mid-lock, and it
+    /// must not have fallen past the loss line (the cull sweep owns it then). Kept in one place so
+    /// the subtle loss-line invariant can't drift between the abilities that share it. Callers add
+    /// their own "already this shape/variant" and prefab checks.
     /// </summary>
-    public static bool CanTransmuteActivePiece(AbilityContext context, BlockDefinition target)
+    public static bool ActivePieceCanTransform(AbilityContext context)
     {
-        if (context == null || context.Spawner == null || target == null || target.Prefab == null) return false;
-        if (target.Prefab.GetComponent<BlockController>() == null) return false;
+        if (context == null || context.Spawner == null) return false;
 
         BlockController active = BlockController.ActiveControlled;
         if (active == null || active.HasLanded) return false;
-        if (active.TryGetComponent(out BlockIdentity identity) && identity.Definition == target) return false;
 
         Camera camera = Camera.main;
         if (camera != null && camera.orthographic && active.transform.position.y < LossZone.CullY(camera)) return false;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Shared CanActivate guard for SHAPE-swap consumables (Shrink, Transmute): the active piece may
+    /// be replaced by <paramref name="target"/> only if it can transform this turn (<see
+    /// cref="ActivePieceCanTransform"/>), the target shape is wired, and the piece isn't already it.
+    /// </summary>
+    public static bool CanTransmuteActivePiece(AbilityContext context, BlockDefinition target)
+    {
+        if (target == null || target.Prefab == null) return false;
+        if (target.Prefab.GetComponent<BlockController>() == null) return false;
+        if (!ActivePieceCanTransform(context)) return false;
+
+        BlockController active = BlockController.ActiveControlled;
+        if (active.TryGetComponent(out BlockIdentity identity) && identity.Definition == target) return false;
 
         return true;
     }

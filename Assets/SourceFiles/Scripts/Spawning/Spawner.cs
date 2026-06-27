@@ -432,7 +432,9 @@ public class Spawner : MonoBehaviour
         _currentBlock = blockObj.GetComponent<BlockController>();
         if (_currentBlock != null)
         {
-            BlockData data = RollVariantChances(GetBlockData(definition));
+            // The bag spawn is the one place a queued variant override is consumed (the player's
+            // next brick); everything else rolls only the ambient/chance table.
+            BlockData data = ConsumeQueuedVariantOverride() ?? RollVariantChances(GetBlockData(definition));
             WireBlock(_currentBlock, definition, data);
             GameEvents.RaiseBlockSpawned(_currentBlock, data);
         }
@@ -700,11 +702,6 @@ public class Spawner : MonoBehaviour
 
     private BlockData RollVariantChances(BlockData baseData)
     {
-        if (_queuedVariantOverrides.Count > 0)
-        {
-            return _queuedVariantOverrides.Dequeue();
-        }
-
         for (int i = 0; i < _variantChances.Count; i++)
         {
             if (Random.value < _variantChances[i].Chance)
@@ -715,6 +712,14 @@ public class Spawner : MonoBehaviour
 
         return baseData;
     }
+
+    // A queued one-shot override ("next N bricks become variant V") applies ONLY to a genuine
+    // bag spawn - the player's literal next brick. Session/bank/swap pieces (Overdraw draft, Hold
+    // bank, Flip) must NOT consume it, or they'd steal the variant from the piece it was aimed at
+    // and the count would desync. Returns the override variant, or null to fall through to the
+    // normal chance roll.
+    private BlockData ConsumeQueuedVariantOverride()
+        => _queuedVariantOverrides.Count > 0 ? _queuedVariantOverrides.Dequeue() : null;
 
     private void HandleBlockLocked()
     {

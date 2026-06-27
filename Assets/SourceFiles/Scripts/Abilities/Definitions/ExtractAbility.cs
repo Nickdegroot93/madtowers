@@ -10,17 +10,7 @@ public class ExtractAbility : ConsumableAbility
     public override bool CanActivate(AbilityContext context)
     {
         if (ExtractTargetingSession.IsActive) return false;
-
-        var blocks = BlockController.AllBlocks;
-        for (int i = 0; i < blocks.Count; i++)
-        {
-            BlockController block = blocks[i];
-            // Mirror ExtractTargetingSession.CanTarget: maws can't be extracted, so a screen of only maws
-            // leaves the charge unusable rather than no-op'ing on activation.
-            if (block != null && block.HasLanded
-                && block.GetComponent<MawBlockSkin>() == null && BlockQuery.IsOnScreen(block)) return true;
-        }
-        return false;
+        return ExtractTargetingSession.HasAnyTargetable(excludeFrozen: false);
     }
 
     public override void Activate(AbilityContext context)

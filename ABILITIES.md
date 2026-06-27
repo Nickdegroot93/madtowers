@@ -250,7 +250,7 @@ when unusable, same affordance as the nudge pills.
    | `FlipAbility` | Consumable | - | "activate: swap active shape with next queued shape" |
    | `SlowWindowConsumable` | Consumable | slowFactor, blocks | "activate: next N blocks fall slower" |
    | `OverdrawAbility` | Consumable (unique) | choiceCount | "activate: hold three shapes and choose drop order" |
-   | `ScrapAbility` | Consumable | vaporColor | "activate: destroy the last placed block" |
+   | `ScrapAbility` | Consumable | shatterColor | "activate: destroy the last placed block" |
    | `SuspensionAbility` | Consumable | - | "activate: select one placed block and freeze it in place" |
    | `RecoveryWindowAbility` | Passive (unique) | slowFactor, blocksPerTrigger | "on life lost: next N blocks fall slower" |
    | `StatusPassiveAbility` | Passive | triggerEvent, status (+ charges) | "on life lost / on spawn: enter state X" |
@@ -320,6 +320,8 @@ one case in `ComboDetector.Matches`.
 
 **New trigger-able game event**: add to `GameEvents` (with its `Reset()` entry), raise
 at the source, add a virtual handler on `PassiveAbility`, fan out in `AbilityRuntime`.
+Fan-outs iterate a per-call snapshot of the inventory, so a handler MAY safely re-raise a
+dispatched event (e.g. spawn a piece) without corrupting the in-flight loop.
 
 ## 10. Rules for ability EFFECTS (hard constraints)
 

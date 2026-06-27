@@ -371,13 +371,33 @@ public sealed class ExtractTargetingSession : MonoBehaviour
         SfxPlayer.Play("pop_01", 0.7f, 0.04f);
     }
 
-    private bool CanTarget(BlockController block)
+    private bool CanTarget(BlockController block) => IsTargetable(block, _effect == TargetEffect.Suspension);
+
+    /// <summary>
+    /// The single targetability rule for the Extract/Suspension fly-out, shared by this session's
+    /// CanTarget AND the two abilities' CanActivate so the rules can't drift across the three.
+    /// Maws never participate (they stay stacked, can't be selected, and render through a
+    /// vertex-colour-ignoring shader that would leave the real maw visible behind a proxy);
+    /// Suspension (<paramref name="excludeFrozen"/>) also skips an already-frozen/static block.
+    /// </summary>
+    public static bool IsTargetable(BlockController block, bool excludeFrozen)
     {
-        // Maws are never part of the fly-out: they stay put and stacked, and can't be selected. (They also
-        // weld into one rigid cluster and render through a vertex-colour-ignoring shader, so spreading them
-        // would both break the weld illusion and leave the real maw visible behind the proxy.)
+        if (block == null || !block.HasLanded) return false;
         if (block.GetComponent<MawBlockSkin>() != null) return false;
-        return _effect != TargetEffect.Suspension || !block.IsFrozenInPlace;
+        if (excludeFrozen && block.IsFrozenInPlace) return false;
+        return true;
+    }
+
+    /// <summary>True if at least one ON-SCREEN block can be targeted - the abilities' CanActivate gate.</summary>
+    public static bool HasAnyTargetable(bool excludeFrozen)
+    {
+        IReadOnlyList<BlockController> blocks = BlockController.AllBlocks;
+        for (int i = 0; i < blocks.Count; i++)
+        {
+            BlockController block = blocks[i];
+            if (IsTargetable(block, excludeFrozen) && BlockQuery.IsOnScreen(block)) return true;
+        }
+        return false;
     }
 
     private static void RecalculateProxyBounds(Proxy proxy)

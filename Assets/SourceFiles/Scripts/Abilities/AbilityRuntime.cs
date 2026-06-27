@@ -69,6 +69,7 @@ public class AbilityRuntime : MonoBehaviour
     private void OnEnable()
     {
         GameEvents.LifeLost += HandleLifeLost;
+        GameEvents.LivesChanged += HandleLivesChanged;
         GameEvents.BlockSpawned += HandleBlockSpawned;
         if (_status != null) _status.Changed += RecomputeFallSpeedMultiplier;
     }
@@ -76,6 +77,7 @@ public class AbilityRuntime : MonoBehaviour
     private void OnDisable()
     {
         GameEvents.LifeLost -= HandleLifeLost;
+        GameEvents.LivesChanged -= HandleLivesChanged;
         GameEvents.BlockSpawned -= HandleBlockSpawned;
         if (_status != null) _status.Changed -= RecomputeFallSpeedMultiplier;
     }
@@ -290,6 +292,14 @@ public class AbilityRuntime : MonoBehaviour
         RecomputeFallSpeedMultiplier(); // last-life style factors depend on lives
     }
 
+    // Any lives change (gaining a life via Extra Life/Recovery, not just losing one) must
+    // refresh last-life factors like LastStand - otherwise its slow lingers on the in-flight
+    // piece until the next spawn recomputes. (Loss also recomputes via HandleLifeLost above.)
+    private void HandleLivesChanged(int lives)
+    {
+        RecomputeFallSpeedMultiplier();
+    }
+
     private void HandleBlockSpawned(BlockController block, BlockData data)
     {
         FanOutToPassives(passive => passive.OnBlockSpawned(Context, block, data));
@@ -305,19 +315,20 @@ public class AbilityRuntime : MonoBehaviour
         RecomputeFallSpeedMultiplier(); // per-block windows count down on spawn
     }
 
-    // Fan-outs iterate a snapshot in ACQUISITION ORDER (the documented rule); the only
-    // mid-event mutation is an ability consuming itself, which happens after its own
-    // handler ran, so snapshot entries are never stale for anyone else.
-    private readonly List<OwnedAbility> _fanOutScratch = new List<OwnedAbility>();
+    // Fan-outs iterate a SNAPSHOT in ACQUISITION ORDER (the documented rule). The snapshot is a
+    // per-call local (not a shared field) so the dispatch is re-entrant-safe: a handler that
+    // synchronously re-raises a dispatched event (e.g. a future combo/passive that spawns a piece
+    // -> BlockSpawned -> another fan-out) gets its own snapshot instead of clearing the list the
+    // outer loop is still walking. The only mid-event mutation is an ability consuming itself,
+    // which happens after its own handler ran, so snapshot entries are never stale for anyone else.
 
     /// <summary>Called by the ComboDetector after a trigger match survives revalidation.</summary>
     public void HandleComboFired(ComboTriggerDefinition trigger, ComboMatch match)
     {
-        _fanOutScratch.Clear();
-        _fanOutScratch.AddRange(_owned);
-        for (int i = 0; i < _fanOutScratch.Count; i++)
+        var snapshot = new List<OwnedAbility>(_owned);
+        for (int i = 0; i < snapshot.Count; i++)
         {
-            OwnedAbility owned = _fanOutScratch[i];
+            OwnedAbility owned = snapshot[i];
             if (owned.Instance is not ComboAbility combo || combo.Trigger != trigger) continue;
 
             combo.OnComboFired(Context, match);
@@ -328,12 +339,11 @@ public class AbilityRuntime : MonoBehaviour
 
     private void FanOutToPassives(System.Func<PassiveAbility, bool> handler)
     {
-        _fanOutScratch.Clear();
-        _fanOutScratch.AddRange(_owned);
-        for (int i = 0; i < _fanOutScratch.Count; i++)
+        var snapshot = new List<OwnedAbility>(_owned);
+        for (int i = 0; i < snapshot.Count; i++)
         {
-            if (_fanOutScratch[i].Instance is not PassiveAbility passive) continue;
-            if (handler(passive)) ConsumeCharge(_fanOutScratch[i]);
+            if (snapshot[i].Instance is not PassiveAbility passive) continue;
+            if (handler(passive)) ConsumeCharge(snapshot[i]);
         }
     }
 

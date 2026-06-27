@@ -22,4 +22,4 @@ MonoBehaviour:
   unique: 0
   maxStacks: 1
   requiresVariantsInLevel: []
-  vaporColor: {r: 0.35, g: 0.62, b: 1, a: 1}
+  shatterColor: {r: 0.35, g: 0.62, b: 1, a: 1}
