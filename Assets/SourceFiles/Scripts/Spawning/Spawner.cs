@@ -291,7 +291,6 @@ public class Spawner : MonoBehaviour
         active.OnBlockLocked -= HandleBlockLocked;
         Destroy(active.gameObject);
         _currentBlock = null;
-        if (GameManager.Instance != null) GameManager.Instance.SetActivePiece(null, null);
         return true;
     }
 
@@ -458,9 +457,6 @@ public class Spawner : MonoBehaviour
         // triggers match against this, never against GameObject names.
         block.gameObject.AddComponent<BlockIdentity>().Assign(definition, data);
 
-        // Tell scoring which piece is now in play (covers mid-fall replacements like the
-        // transmutes, which never re-raise BlockSpawned) so its lock counts - or doesn't.
-        if (GameManager.Instance != null) GameManager.Instance.SetActivePiece(block, data);
     }
 
     private bool HasConfiguredBlocks()
@@ -538,16 +534,14 @@ public class Spawner : MonoBehaviour
         {
             _currentBlock.ApplyData(variant);
 
-            // Keep the block's identity AND the accounting context in sync with the
+            // Keep the block's identity in sync with the
             // swapped-in variant - exactly what WireBlock does for spawned/replaced
             // pieces. Without this, a variant with non-default count/life flags applied
-            // to the in-air piece would be scored/lost against the ORIGINAL flags (the
-            // identity component and GameManager's active-piece cache stay stale).
+            // to the in-air piece would be scored/lost against the ORIGINAL flags.
             if (_currentBlock.TryGetComponent(out BlockIdentity identity))
             {
                 identity.Assign(identity.Definition, variant);
             }
-            if (GameManager.Instance != null) GameManager.Instance.SetActivePiece(_currentBlock, variant);
             return;
         }
 

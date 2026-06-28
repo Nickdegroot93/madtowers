@@ -39,7 +39,7 @@ public class ReboundAbility : PassiveAbility
         // it and finally destroys it). Contract: a handled block must end non-lost - the
         // rescue freezes + detaches it immediately and the loss guard is already consumed
         // upstream, so the cull sweep never re-fires on it.
-        if (context.GameManager != null) context.GameManager.RemovePlacedBlock(block);
+        GameEvents.RaiseBlockDestroyed(block);
         RescueLift.Begin(block, cellBurstEffect, effectScale);
         return true;
     }

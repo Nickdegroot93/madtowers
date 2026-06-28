@@ -149,7 +149,7 @@ public partial class BlockController
 
         if (_inputs != null) _inputs.Gameplay.Disable();
 
-        ReportLockedToGameManager();
+        ReportLandedToLedger();
 
         OnBlockLocked?.Invoke();
     }
@@ -179,12 +179,9 @@ public partial class BlockController
         return Mathf.Max(0.01f, LandedGravityScale * _gravityScaleMultiplier);
     }
 
-    private void ReportLockedToGameManager()
+    private void ReportLandedToLedger()
     {
-        if (GameManager.Instance == null) return;
-
-        GameManager.Instance.AddScore();
-        GameManager.Instance.UpdateMaxHeight(GetHighestCellY());
+        GameEvents.RaiseBlockLanded(this, GetHighestCellY());
     }
 
     // Public: the win-verification live-height check reads this for every standing block.

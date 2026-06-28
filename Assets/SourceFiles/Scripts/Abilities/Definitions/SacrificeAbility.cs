@@ -85,7 +85,7 @@ public class SacrificeAbility : PassiveAbility
             BlockShatterFx.Spawn(bounds, laserColor);
         }
         SfxPlayer.Play("impact_shatter_01", 0.85f, 0.06f);
-        if (GameManager.Instance != null) GameManager.Instance.RemovePlacedBlock(block);
+        GameEvents.RaiseBlockDestroyed(block);
         Object.Destroy(block.gameObject);
     }
 }

@@ -22,6 +22,10 @@ public static class GameEvents
     public static event Action<IReadOnlyList<string>> NextBlockChanged;
     /// <summary>A new piece entered play, with the controller and the variant it rolled (null = normal).</summary>
     public static event Action<BlockController, BlockData> BlockSpawned;
+    /// <summary>A controlled piece joined the tower. The ledger owns scoring, standing count, and height.</summary>
+    public static event Action<BlockController, float> BlockLanded;
+    /// <summary>A placed block left the board outside the loss-zone flow. The ledger decrements it exactly once.</summary>
+    public static event Action<BlockController> BlockDestroyed;
     /// <summary>The active piece just locked into the tower (one per piece-turn). Distinct from
     /// BlockSpawned because mid-turn transmutes/banks raise a spawn without a preceding lock.</summary>
     public static event Action BlockLocked;
@@ -40,6 +44,8 @@ public static class GameEvents
         HeightChanged = null;
         NextBlockChanged = null;
         BlockSpawned = null;
+        BlockLanded = null;
+        BlockDestroyed = null;
         BlockLocked = null;
         PhaseChanged = null;
         SpawnAvailabilityChanged = null;
@@ -54,6 +60,8 @@ public static class GameEvents
     public static void RaiseHeightChanged(float height) => HeightChanged?.Invoke(height);
     public static void RaiseNextBlockChanged(IReadOnlyList<string> blockNames) => NextBlockChanged?.Invoke(blockNames);
     public static void RaiseBlockSpawned(BlockController block, BlockData variant) => BlockSpawned?.Invoke(block, variant);
+    public static void RaiseBlockLanded(BlockController block, float highestCellY) => BlockLanded?.Invoke(block, highestCellY);
+    public static void RaiseBlockDestroyed(BlockController block) => BlockDestroyed?.Invoke(block);
     public static void RaiseBlockLocked() => BlockLocked?.Invoke();
     public static void RaisePhaseChanged(GamePhase previous, GamePhase current) => PhaseChanged?.Invoke(previous, current);
     public static void RaiseSpawnAvailabilityChanged(bool canSpawn) => SpawnAvailabilityChanged?.Invoke(canSpawn);

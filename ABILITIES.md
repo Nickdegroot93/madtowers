@@ -107,7 +107,7 @@ conceivably want it, it's a status asset.*
 |---|---|---|
 | `LifeLossImmunity` | `GameManager.GameOver()` skips the charge | — |
 | `FallSpeedMultiplier` | folded into the per-block NORMAL-descent factor (fast drops immune; never `Time.timeScale`) | the multiplier (0.5 = half) |
-| `ScorePerBlockBonus` | `GameManager.AddScore` adds it per grant | extra score (+1 = double progression) |
+| `ScorePerBlockBonus` | `BlockLedger` adds it per counted `BlockLanded` grant | extra score (+1 = double progression) |
 | `Custom` | nothing built-in; abilities query `IsActive(def)` | yours |
 
 Stack policies: `RefreshDuration` (timer restarts), `ExtendDuration` (durations add),
@@ -343,7 +343,8 @@ dispatched event (e.g. spawn a piece) without corrupting the in-flight loop.
   interceptor that returns true must leave the block non-lost (frozen or destroyed),
   or the 10 Hz cull sweep re-fires and drains every armed charge.
 - Abilities may grant score (it's the progression currency), but the per-block
-  difficulty ramp must stay tied to real placements — `AddScore` already handles this.
+  difficulty ramp must stay tied to real placements — `BlockLedger` sends the
+  unamplified physical placement count to `DifficultyController`.
 - Timed windows are status assets (§5), not private coroutines.
 - State pushed into OTHER systems (e.g. the Spawner's variant-chance registry) must be
   applied as **deltas** (the registry accumulates) and is **irreversible** — there is no
@@ -415,7 +416,7 @@ On the 80% miss it returns false and the normal loss proceeds. Landed-only by co
 the active piece driven into the abyss is never offered to interception (it would strand the
 spawner), so it still costs a life. Permanent (charges 0) - always armed, 20% each time.
 
-The save plays `RescueLift`: the block is removed from accounting (`RemovePlacedBlock`),
+The save plays `RescueLift`: the block is removed from accounting (`BlockDestroyed`),
 neutralised (physics off so it can't fall or shove the tower), then beamed up on a soft cyan
 light and dissolved into a per-cell CFXR magic burst (`cellBurstEffect`, swappable) before
 it's destroyed. Moving the block's transform here is allowed - it is no longer a live
@@ -622,7 +623,7 @@ injected bricks just sum their chances in the roll (Pip + Domino owned = ~10% fo
 between them; the bag fills the remaining ~90%). `unique = true`.
 
 ### Scrap (Rare, consumable, max stack 1)
-`ScrapAbility` deletes the latest counted placed block. `GameManager` records
+`ScrapAbility` deletes the latest counted placed block. `BlockLedger` records
 `LastPlacedBlock` when a block successfully scores/enters the live placed-block count, and
 clears that reference when the block is destroyed or resolved by the loss system. This is
 deliberately not a tower scan: "last placed" means the last piece the player added, even if

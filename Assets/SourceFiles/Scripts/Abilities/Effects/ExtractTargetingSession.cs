@@ -357,7 +357,7 @@ public sealed class ExtractTargetingSession : MonoBehaviour
 
         if (_effect == TargetEffect.Extract)
         {
-            if (GameManager.Instance != null) GameManager.Instance.RemovePlacedBlock(_selected.Block);
+            GameEvents.RaiseBlockDestroyed(_selected.Block);
             SfxPlayer.Play("impact_soft_01", 0.7f, 0.06f);
             Destroy(_selected.Block.gameObject);
             return;

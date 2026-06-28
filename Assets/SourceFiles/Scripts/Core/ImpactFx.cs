@@ -26,7 +26,7 @@ public static class ImpactFx
         }
         SfxPlayer.Play("impact_soft_01", 0.7f, 0.06f);
         // A destroyed placed block is one fewer block on the board.
-        if (GameManager.Instance != null) GameManager.Instance.RemovePlacedBlock(block);
+        GameEvents.RaiseBlockDestroyed(block);
         Object.Destroy(block.gameObject);
     }
 

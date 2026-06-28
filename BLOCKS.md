@@ -42,33 +42,33 @@ and save, or hand-author `countsAsPlacedBlock: 0` / `costsLifeWhenLost: 0`).
 Why two: losing blocks must lower your visible total and your PlaceBlocks goal, but
 must NOT rewind difficulty or revoke an earned picker (decided with Nick).
 
-## The rules (where the bookkeeping lives — all outside the frozen BlockController)
+## The rules (where the bookkeeping lives)
 
 The `+1` and the matching `−1` are tied to the **block itself**, not re-derived at each
 site: when a placement counts, the block's `BlockIdentity` is marked counted; removal
 decrements **exactly once** via `TryConsumeCounted()` (a double-remove is a no-op, not a
 clamp-masked bug).
 
-- **Placed** (`GameManager.AddScore`, called from the frozen lock): suppressed for a
-  non-counting block via `_activeBlockData` (set by `Spawner.WireBlock` →
-  `SetActivePiece`, which also covers mid-fall swaps — `ReplaceActivePiece` and the
-  in-air `ApplyVariantToNextBlock` path both re-report the piece, so a swapped-in
-  variant's flags are never read stale). A counting placement does `score += amount`,
-  `placedBlocks += 1`, and `BlockIdentity.MarkCountedAsPlaced()`.
-- **Destroyed** — *any* code that destroys a placed block MUST call
-  `GameManager.RemovePlacedBlock(block)` first (it `−1`s only if the block's placement
-  was counted; idempotent). Current callers: `ImpactFx
-  .DestroyBlockWithShatter` (so every ability that shatters a block is covered — Zap,
-  Scrap, Sacrifice…), `BombBlockBehaviour`, `HeightLimitWavesModifier`. **New destruction site → add the
-  call**, or the live count silently desyncs above reality.
+- **Placed** (`GameEvents.BlockLanded`, raised from the frozen lock): `BlockLedger`
+  reads the block's `BlockIdentity.Variant`, so mid-fall swaps are naturally current.
+  A counting placement does `score += amount`, `placedBlocks += 1`, records
+  `LastPlacedBlock`, marks `BlockIdentity.MarkCountedAsPlaced()`, and advances the
+  `DifficultyController` by the unamplified physical placement amount.
+- **Destroyed** — *any* code that destroys a placed block MUST raise
+  `GameEvents.BlockDestroyed(block)` first. `BlockLedger` is the single subscriber; it
+  `−1`s only if the block's placement was counted (idempotent). Current funnels:
+  `ImpactFx.DestroyBlockWithShatter` (so every ability that shatters a block is
+  covered — Zap, Scrap, Sacrifice…), `BombBlockBehaviour`, `HeightLimitWavesModifier`,
+  Extract, Rebound, and Sacrifice. **New destruction site → raise the event**, or the
+  live count silently desyncs above reality.
 - **Fell off** (`LossZone`, the single loss gateway, both the cull sweep and the
   trigger): runs the frozen `HandleLostBelowScreen` *inside*
   `GameManager.DuringBlockLoss(block, action)` — the one entry point that scopes the
   loss policy (try/finally, so a throw can't strand it). It decides the life charge
-  (`costsLifeWhenLost`, read by `GameManager.GameOver`), `−1`s the live total once for
-  a counted block, and suppresses the posthumous lock-score of the lost piece. An
-  active piece pushed off was never counted, so it never `−1`s — only its life charge
-  (if any) applies.
+  (`costsLifeWhenLost`, read by `GameManager.GameOver`), asks `BlockLedger` to `−1`
+  the live total once for a counted block, and suppresses the posthumous lock-score of
+  the lost piece. An active piece pushed off was never counted, so it never `−1`s —
+  only its life charge (if any) applies.
 - **Devoured by a hazard** (the Maw): the prey is removed through `ImpactFx
   .DestroyBlockWithShatter` (so it `−1`s like any other destruction), and the maw
   additionally calls `GameManager.LoseLifeToHazard`. That life charge is INDEPENDENT of

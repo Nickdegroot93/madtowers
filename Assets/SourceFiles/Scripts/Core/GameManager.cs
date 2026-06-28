@@ -7,72 +7,54 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance { get; private set; }
 
     [SerializeField] private GameModeConfig gameModeConfig;
-    [SerializeField] private float _currentFallSpeed = 2.0f;
-    [SerializeField] private float _maxFallSpeed = 5.0f;
-    [SerializeField] private DifficultyScalingMode _difficultyScalingMode = DifficultyScalingMode.PerBlock;
-    [SerializeField] private DifficultyAdjustmentMode _difficultyAdjustmentMode = DifficultyAdjustmentMode.Additive;
-    [SerializeField] private float _speedIncreasePerBlock = 0.1f;
-    [SerializeField] private float _speedIncreaseIntervalSeconds = 60f;
-    [SerializeField] private float _speedIncreasePerInterval = 0.1f;
-    [SerializeField] private float _maxHeight = 0f;
-    [SerializeField] private int _score = 0;
-    [SerializeField] private int _standingBlocks = 0;
-    [SerializeField] private int _totalPlacedBlocks = 0;
-    [SerializeField] private int _lives = 1;
+    [SerializeField] private RunState _runState = new RunState();
+    [SerializeField] private DifficultyController _difficulty = new DifficultyController();
 
     public bool isGameOver { get; private set; }
     public bool IsGamePaused { get; private set; }
     public GamePhase CurrentPhase { get; private set; } = GamePhase.Playing;
     public bool CanSpawnBlocks => CurrentPhase == GamePhase.Playing && !IsGamePaused && _spawnHoldOwners.Count == 0;
-    public float maxHeight => _maxHeight;
+    public float maxHeight => _runState.MaxHeightWorld;
     /// <summary>Tower height in meters above the floor (what the HUD shows). maxHeight stays world-space for the camera/spawners.</summary>
-    public float towerHeight => Mathf.Max(0f, _maxHeight - _heightOriginY);
+    public float towerHeight => _runState.TowerHeight;
     /// <summary>World Y of the floor surface.</summary>
-    public float floorOriginY => _heightOriginY;
-    public int score => _score;
+    public float floorOriginY => _runState.FloorOriginY;
+    public int score => _runState.Score;
     /// <summary>Live count of real placed blocks still standing - the HUD total and the
     /// PlaceBlocks win metric. Goes down when a counting block is destroyed or falls off.</summary>
-    public int placedBlocks => _standingBlocks;
-    public int lives => _lives;
-    // The difficulty ramp owns _currentFallSpeed (and the cap applies to it); ability
+    public int placedBlocks => _runState.StandingBlocks;
+    public int lives => _runState.Lives;
+    // The difficulty ramp owns its base fall speed (and the cap applies to it); ability
     // effects compose as a multiplier IN THE GETTER, never by mutating the ramp value -
     // a mutate-then-restore multiplier is unrecoverable once the ramp writes again.
     // The Spawner stamps this onto each piece at spawn, so changes apply next piece.
-    public float currentFallSpeed => _currentFallSpeed * _abilityFallSpeedMultiplier;
+    public float currentFallSpeed => _difficulty.BaseFallSpeed * _abilityFallSpeedMultiplier;
     /// <summary>The difficulty-ramped descent speed WITHOUT ability factors - what fast
     /// drops / flicks use, so an ability slow never fights a player who chose to go fast.</summary>
-    public float BaseFallSpeed => _currentFallSpeed;
+    public float BaseFallSpeed => _difficulty.BaseFallSpeed;
     /// <summary>The owned abilities' combined fall-speed multiplier (Air Brake, recovery /
     /// slo-mo windows). Applied to NORMAL descent only - fast drops ignore it.</summary>
     public float AbilityFallSpeedFactor => _abilityFallSpeedMultiplier;
     public GameModeConfig ActiveConfig => ActiveGameModeConfig;
-    public BlockController LastPlacedBlock => _lastPlacedBlock != null ? _lastPlacedBlock : null;
+    public BlockController LastPlacedBlock => _ledger != null ? _ledger.LastPlacedBlock : null;
+    public RunResult CurrentRunResult => _runState.ToResult();
     /// <summary>The number of the chapter that owns the active level, or 0 if none is resolved
     /// (custom/endless). Used to chapter-gate ability offers (AbilityDefinition.minChapterNumber).</summary>
     public int CurrentChapterNumber => _currentChapterNumber;
 
-    private float _speedTimer;
     private int _currentChapterNumber;
-    private float _heightOriginY;
     private float _abilityFallSpeedMultiplier = 1f;
     private StatusEffects _statusEffects;
+    private BlockLedger _ledger;
     private readonly HashSet<object> _pauseOwners = new HashSet<object>();
     private readonly HashSet<object> _spawnHoldOwners = new HashSet<object>();
     private static readonly object LegacyPauseOwner = new object();
     private bool _spawnAvailabilityInitialized;
     private bool _lastSpawnAvailability;
-    // The piece currently in play + its flags, reported by the Spawner as it's wired
-    // (both fresh spawns and mid-fall variant swaps). The lock-time AddScore call from
-    // BlockController is param-less and fires after ActiveControlled has already cleared,
-    // so this is how scoring learns which piece is locking and whether it counts.
-    private BlockController _activeBlock;
-    private BlockData _activeBlockData;
-    private BlockController _lastPlacedBlock;
     // Loss context, scoped by DuringBlockLoss around the frozen HandleLostBelowScreen call:
-    // GameOver() reads whether the lost piece costs a life, and AddScore() suppresses the
-    // posthumous lock-score of a piece that fell off (it was lost, not placed).
+    // GameOver() reads whether the lost piece costs a life; BlockLedger suppresses the
+    // posthumous placement score of a piece that fell off (it was lost, not placed).
     private bool _losingBlockCostsLife = true;
-    private bool _inBlockLoss;
     private GameModeConfig ActiveGameModeConfig => LevelSelectionState.ResolveGameMode(gameModeConfig);
 
     private void Awake()
@@ -97,8 +79,7 @@ public class GameManager : MonoBehaviour
                 // floor below y=0 makes the HUD read 0.0m until the tower crosses world zero.
                 if (playAreaController.TryGetFloorTopWorldY(out float floorTopY))
                 {
-                    _heightOriginY = floorTopY;
-                    _maxHeight = floorTopY;
+                    _runState.SetFloorOrigin(floorTopY);
                 }
             }
             ApplyConfig();
@@ -111,20 +92,13 @@ public class GameManager : MonoBehaviour
             // them via GetComponent in their own Awake). Capture the status component after.
             GameSystemsInstaller.Install(gameObject);
             _statusEffects = GetComponent<StatusEffects>();
+            _ledger = new BlockLedger(_runState, _difficulty, () => _statusEffects, () => isGameOver);
+            _ledger.Subscribe();
         }
         else
         {
             Destroy(gameObject);
         }
-    }
-
-    /// <summary>The Spawner reports each piece as it's wired up (both normal spawns and
-    /// mid-fall replacements/variant swaps), so the param-less lock-score call from
-    /// BlockController can tell which piece is locking and whether it counts.</summary>
-    public void SetActivePiece(BlockController block, BlockData data)
-    {
-        _activeBlock = block;
-        _activeBlockData = data;
     }
 
     public void SetPhase(GamePhase phase)
@@ -204,6 +178,8 @@ public class GameManager : MonoBehaviour
     {
         if (Instance == this)
         {
+            _ledger?.Dispose();
+            _ledger = null;
             Instance = null;
         }
     }
@@ -213,33 +189,22 @@ public class GameManager : MonoBehaviour
         GameModeConfig activeConfig = ActiveGameModeConfig;
         if (activeConfig == null) return;
 
-        _currentFallSpeed = activeConfig.InitialFallSpeed;
-        _maxFallSpeed = activeConfig.MaxFallSpeed;
-        _difficultyScalingMode = activeConfig.DifficultyScalingMode;
-        _difficultyAdjustmentMode = activeConfig.DifficultyAdjustmentMode;
-        _speedIncreasePerBlock = activeConfig.SpeedIncreasePerBlock;
-        _speedIncreaseIntervalSeconds = activeConfig.SpeedIncreaseIntervalSeconds;
-        _speedIncreasePerInterval = activeConfig.SpeedIncreasePerInterval;
-        _lives = activeConfig.StartingLives;
+        _difficulty.ApplyConfig(activeConfig);
+        _runState.SetLives(activeConfig.StartingLives);
     }
 
     private void Update()
     {
-        if (isGameOver || _difficultyScalingMode != DifficultyScalingMode.OverTime) return;
+        if (isGameOver) return;
 
-        _speedTimer += Time.deltaTime;
-        while (_speedTimer >= _speedIncreaseIntervalSeconds)
-        {
-            _speedTimer -= _speedIncreaseIntervalSeconds;
-            IncreaseDifficulty(_speedIncreasePerInterval);
-        }
+        _difficulty.Tick(Time.deltaTime);
     }
 
     private void PublishState()
     {
-        GameEvents.RaiseScoreChanged(_score);
-        GameEvents.RaiseStandingBlocksChanged(_standingBlocks);
-        GameEvents.RaiseLivesChanged(_lives);
+        GameEvents.RaiseScoreChanged(_runState.Score);
+        GameEvents.RaiseStandingBlocksChanged(_runState.StandingBlocks);
+        GameEvents.RaiseLivesChanged(_runState.Lives);
         GameEvents.RaiseHeightChanged(towerHeight);
     }
 
@@ -263,19 +228,18 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        if (_lives > 0)
+        if (_runState.TrySpendLife())
         {
-            _lives--;
-            GameEvents.RaiseLivesChanged(_lives);
+            GameEvents.RaiseLivesChanged(_runState.Lives);
             GameEvents.RaiseLifeLost();
-            Debug.Log($"Life lost! Remaining: {_lives}");
+            Debug.Log($"Life lost! Remaining: {_runState.Lives}");
             return;
         }
 
         isGameOver = true;
         SetPhase(GamePhase.GameOver);
 
-        GameEvents.RaiseGameOver(_score, towerHeight);
+        GameEvents.RaiseGameOver(_runState.Score, towerHeight);
         Debug.Log("Game Over");
     }
 
@@ -290,9 +254,9 @@ public class GameManager : MonoBehaviour
 
     public void AddLife()
     {
-        _lives++;
-        GameEvents.RaiseLivesChanged(_lives);
-        Debug.Log($"Life added! Total: {_lives}");
+        _runState.AddLife();
+        GameEvents.RaiseLivesChanged(_runState.Lives);
+        Debug.Log($"Life added! Total: {_runState.Lives}");
     }
 
     /// <summary>Composed multiplier from abilities/status effects; pushed by AbilityRuntime
@@ -300,71 +264,6 @@ public class GameManager : MonoBehaviour
     public void SetAbilityFallSpeedMultiplier(float multiplier)
     {
         _abilityFallSpeedMultiplier = Mathf.Clamp(multiplier, 0.1f, 3f);
-    }
-
-    public void AddScore(int amount = 1)
-    {
-        if (isGameOver) return;
-
-        // A piece lost off the bottom locks "posthumously" (frozen BlockController calls
-        // this on the way out) - that is a loss, not a placement, so it never scores.
-        if (_inBlockLoss) return;
-
-        // Pieces that aren't real blocks (a projectile-style piece) don't score or count.
-        if (_activeBlockData != null && !_activeBlockData.CountsAsPlacedBlock) return;
-
-        // Overdrive-style states amplify EVERY score grant while active. Score is the
-        // progression currency (win targets, picker milestones, wave counts) - that
-        // amplification accelerating them all is the designed effect.
-        int baseAmount = amount;
-        if (_statusEffects != null)
-        {
-            amount += _statusEffects.ExtraScorePerBlock;
-        }
-
-        _score += amount;
-        if (_difficultyScalingMode == DifficultyScalingMode.PerBlock)
-        {
-            // Difficulty ramps on the UNAMPLIFIED amount: Overdrive accelerates the
-            // player's progression, never the game's speed against them.
-            IncreaseDifficulty(_speedIncreasePerBlock * baseAmount);
-        }
-        GameEvents.RaiseScoreChanged(_score);
-
-        // The live standing count tracks PHYSICAL blocks (one per placed piece), so it is
-        // never amplified - Overdrive is a progression bonus, not extra real blocks. Record
-        // the count on the block itself so its eventual -1 fires exactly once when it leaves.
-        AdjustStandingBlocks(1);
-        if (_activeBlock != null && _activeBlock.TryGetComponent(out BlockIdentity identity))
-        {
-            identity.MarkCountedAsPlaced();
-            _lastPlacedBlock = _activeBlock;
-        }
-        _totalPlacedBlocks++;
-        GameEvents.RaiseBlockPlaced(_totalPlacedBlocks);
-    }
-
-    // The live count of real placed blocks present (HUD total + PlaceBlocks win). Clamped
-    // at zero so a stray double-remove can never drive the displayed total negative.
-    private void AdjustStandingBlocks(int delta)
-    {
-        int next = Mathf.Max(0, _standingBlocks + delta);
-        if (next == _standingBlocks) return;
-        _standingBlocks = next;
-        GameEvents.RaiseStandingBlocksChanged(_standingBlocks);
-    }
-
-    /// <summary>A placed block has left the board by destruction (a Zap or Bomb hit now; the
-    /// puzzle laser later). Drops it from the live total exactly once if its placement was
-    /// counted (idempotent - a double-call is a no-op). The caller still destroys it.</summary>
-    public void RemovePlacedBlock(BlockController block)
-    {
-        if (_lastPlacedBlock == block) _lastPlacedBlock = null;
-
-        if (block != null && block.TryGetComponent(out BlockIdentity identity) && identity.TryConsumeCounted())
-        {
-            AdjustStandingBlocks(-1);
-        }
     }
 
     /// <summary>Runs the (frozen) per-block loss inside the loss policy: GameOver() learns
@@ -375,22 +274,13 @@ public class GameManager : MonoBehaviour
     /// the loss flags directly, so the global side-channel can't be mis-scoped.</summary>
     public void DuringBlockLoss(BlockController block, System.Action lossAction)
     {
-        _inBlockLoss = true;
+        _ledger?.BeginBlockLoss(block);
         _losingBlockCostsLife = BlockData.CostsLife(block);
-
-        // A landed, counted block leaving costs the board one block; an active piece pushed
-        // off was never counted (TryConsumeCounted returns false), so nothing is subtracted.
-        // (LossZone.ResolveLostBlock guarantees this runs at most once per block.)
-        if (block != null && block.TryGetComponent(out BlockIdentity identity) && identity.TryConsumeCounted())
-        {
-            if (_lastPlacedBlock == block) _lastPlacedBlock = null;
-            AdjustStandingBlocks(-1);
-        }
 
         try { lossAction?.Invoke(); }
         finally
         {
-            _inBlockLoss = false;
+            _ledger?.EndBlockLoss();
             _losingBlockCostsLife = true;
         }
     }
@@ -404,26 +294,4 @@ public class GameManager : MonoBehaviour
         GameOver();
     }
 
-    private void IncreaseDifficulty(float fallSpeedAmount)
-    {
-        if (_difficultyAdjustmentMode == DifficultyAdjustmentMode.Percent)
-        {
-            _currentFallSpeed *= 1f + fallSpeedAmount;
-        }
-        else
-        {
-            _currentFallSpeed += fallSpeedAmount;
-        }
-
-        _currentFallSpeed = Mathf.Min(_currentFallSpeed, _maxFallSpeed);
-    }
-
-    public void UpdateMaxHeight(float height)
-    {
-        if (height > _maxHeight)
-        {
-            _maxHeight = height;
-            GameEvents.RaiseHeightChanged(towerHeight);
-        }
-    }
 }

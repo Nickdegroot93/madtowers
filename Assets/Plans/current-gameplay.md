@@ -195,7 +195,7 @@ Current behavior:
 - Randomly removes entries from the bag so each bag cycle is fairer than pure random.
 - Applies the block definition's default variant.
 - Falls back to configured fallback variants if a definition has no default.
-- Applies current fall speed and gravity from `GameManager`.
+- Applies current base fall speed from `GameManager` (delegated to `DifficultyController`) plus ability fall-speed factors.
 - Emits the next-block label through `GameEvents`.
 
 Current spawn delay:
@@ -204,15 +204,13 @@ Current spawn delay:
 
 ## Speed And Difficulty
 
-`GameManager` owns current fall speed and current gravity scale.
+`DifficultyController` owns the current base fall speed and ramp rules; `GameManager` exposes the current value to spawns. Landed gravity stays normalized by the block physics contract.
 
 Current default config:
 - `initialFallSpeed = 2`
-- `initialGravityScale = 0.85`
 - `difficultyScalingMode = PerBlock`
 - `difficultyAdjustmentMode = Additive`
 - `speedIncreasePerBlock = 0.1`
-- `gravityIncreasePerBlock = 0.05`
 
 Supported scaling modes:
 - `None`: no automatic speed scaling.
