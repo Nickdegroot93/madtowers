@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7aaccc5174a045dea05eb5aff9042655, type: 3}
+  m_Name: Ward
+  m_EditorClassIdentifier: Assembly-CSharp::WardPowerUp
+  displayName: Ward
+  icon: {fileID: 0}
+  shortDescription: Neutralizes the next hazard brick into a plain brick - once.
+  ownedShortDescription:
+  description: 'Holds a charge that defuses the next hazard brick the moment it appears -
+    a Maw, Vortex, Bomb and the like becomes a plain brick of the same shape, just once.
+    It waits until a hazard actually shows up, so the charge is never wasted.'
+  rarity: 0
+  unique: 0
+  maxStacks: 0
+  requiresVariantsInLevel: []
+  minChapterNumber: 0
+  charges: 1

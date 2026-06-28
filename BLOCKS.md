@@ -12,6 +12,10 @@ must respect. Lives on `BlockData` so it travels with the variant.
 | `countsAsPlacedBlock` | Placing it `+1` to the live total; it leaving (destroyed **or** fallen) `−1`. | true | **false** | true |
 | `costsLifeWhenLost` | Falling off the bottom costs a life. | true | **false** | **false** |
 
+These two govern *accounting only*. `BlockData` also carries an orthogonal classification flag
+`isHazard` (hostile bricks — Maw, Vortex, Bomb, …) that drives the "all hazards" abilities (Ward,
+Purifier); it has nothing to do with counting/life. See BLOCKVARIANTS.md.
+
 A non-counting piece is `false / false` — not a real block: it never counts and never
 costs a life when pushed off. A "free" block (`true / false`) is a real block that
 counts when placed but is safe to drop. The two are orthogonal — combine freely.

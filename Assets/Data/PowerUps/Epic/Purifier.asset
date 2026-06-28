@@ -25,12 +25,5 @@ MonoBehaviour:
   requiresVariantsInLevel: []
   minChapterNumber: 0
   charges: 0
-  hazardVariants:
-  - {fileID: 11400000, guid: cac2110dfa93415d93ba149682b1e4ce, type: 2}
-  - {fileID: 11400000, guid: f407db141c344b22a57fef07160d72bd, type: 2}
-  - {fileID: 11400000, guid: aeb10794f4c742ee897eb08640f4c82b, type: 2}
-  - {fileID: 11400000, guid: 81a65b6c5a984a16bd7f62744c4ea49e, type: 2}
-  - {fileID: 11400000, guid: 07271310580a44288615f8cb89bef7c6, type: 2}
-  - {fileID: 11400000, guid: 20f52ff3e5474cc9886fb134535a9417, type: 2}
   reductionPerStack: 0.6
   minHazardTypesInLevel: 3

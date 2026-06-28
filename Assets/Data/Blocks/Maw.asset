@@ -23,5 +23,6 @@ MonoBehaviour:
   materialOverride: {fileID: 0}
   countsAsPlacedBlock: 1
   costsLifeWhenLost: 1
+  isHazard: 1
   eatEffect: {fileID: 8208446473332612282, guid: a1f8fe32cde8d114a93e6501d0ad1d20, type: 3}
   eatEffectScale: 0.7

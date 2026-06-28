@@ -265,7 +265,8 @@ when unusable, same affordance as the nudge pills.
    | `FallSpeedReductionPowerUp` | Passive (stackable) | reductionPerStack | "future pieces fall a little slower" |
    | `SlowburnPowerUp` | Passive (unique) | slowSeconds, slowFactor | "each new piece falls slow for its first ~1s, then full speed (per-piece thinking beat; fast-drop bypasses)" |
    | `TitanPowerUp` | Passive (unique) | frictionIncrease, massMultiplier | "future blocks heavy + grippy: planted, topple/Tremor-resistant, but land harder" |
-   | `PurifierPowerUp` | Passive (unique) | hazardVariants[], reductionPerStack, minHazardTypesInLevel | "drastically cuts ALL listed hazard spawns; offered only when the level features >= N of them (custom IsAvailable)" |
+   | `PurifierPowerUp` | Passive (unique) | reductionPerStack, minHazardTypesInLevel | "drastically cuts ALL hazard spawns (data-driven off `BlockData.IsHazard`); offered only when the level features >= N hazards (custom IsAvailable)" |
+   | `WardPowerUp` | Passive (charges = 1) | — | "neutralises the NEXT hazard brick to spawn into a plain brick of its shape, once (hazards via `BlockData.IsHazard`)" |
    | `LastStandAbility` | Passive (unique) | reductionFraction | "on the last life: flat speed cut" |
    | `ReboundAbility` | Passive (unique) | saveChance (+ cellBurstEffect) | "% chance a lost landed block is saved back to the queue" |
    | `BlockDropChancePowerUp` | Passive (unique) | definition, dropChance | "introduce an out-of-bag brick at a rare drop rate" |

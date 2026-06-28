@@ -23,6 +23,7 @@ MonoBehaviour:
   materialOverride: {fileID: 0}
   countsAsPlacedBlock: 1
   costsLifeWhenLost: 1
+  isHazard: 1
   shakeStrength: 2
   shakeDuration: 0.5
   shakeRadius: 8

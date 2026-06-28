@@ -17,6 +17,7 @@ MonoBehaviour:
   physicsMaterial: {fileID: 0}
   gravityScaleMultiplier: 1
   canRotate: 0
+  isHazard: 1
   invertHorizontalControls: 0
   colorTint: {r: 1, g: 1, b: 1, a: 1}
   spriteOverride: {fileID: 0}

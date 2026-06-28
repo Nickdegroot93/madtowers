@@ -37,9 +37,18 @@ public class BlockData : ScriptableObject
     [Tooltip("Does this piece cost a life when it falls off the bottom? Untick for pieces that should never punish a drop, e.g. a future 'free' block that still counts when placed but is safe to lose.")]
     [SerializeField] private bool costsLifeWhenLost = true;
 
+    [Header("Classification")]
+    [Tooltip("Is this a HOSTILE/hazard variant (Maw, Vortex, Bomb, Tremor, Ice, Locked)? Drives the " +
+             "'all hazards' abilities - Ward neutralises the next hazard, Purifier suppresses every hazard - " +
+             "so they pick up a new hostile brick automatically. Leave false for normal/helpful variants.")]
+    [SerializeField] private bool isHazard;
+
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public bool CountsAsPlacedBlock => countsAsPlacedBlock;
     public bool CostsLifeWhenLost => costsLifeWhenLost;
+    /// <summary>True for hostile/hazard variants - the single source of truth for the "all hazards"
+    /// abilities (Ward, Purifier), so a new hazard variant participates the moment it sets this.</summary>
+    public bool IsHazard => isHazard;
     public float Mass => Mathf.Max(0.01f, mass);
     public PhysicsMaterial2D PhysicsMaterial => physicsMaterial;
     public float GravityScaleMultiplier => Mathf.Max(0f, gravityScaleMultiplier);

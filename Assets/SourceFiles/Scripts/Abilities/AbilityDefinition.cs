@@ -41,6 +41,31 @@ public sealed class AbilityContext
 
         return false;
     }
+
+    /// <summary>How many DISTINCT hazard variants (BlockData.IsHazard) the level's spawn tables can
+    /// produce - the gate for the "all hazards" abilities (Purifier needs several, Ward needs one).</summary>
+    public int LevelHazardVariantCount()
+    {
+        if (Config == null) return 0;
+
+        var seen = new System.Collections.Generic.HashSet<BlockData>();
+        var ambient = Config.AmbientBlockVariantChances;
+        if (ambient != null)
+        {
+            for (int i = 0; i < ambient.Count; i++)
+                if (ambient[i] != null && ambient[i].Variant != null && ambient[i].Variant.IsHazard)
+                    seen.Add(ambient[i].Variant);
+        }
+
+        var fallback = Config.FallbackBlockDataVariants;
+        if (fallback != null)
+        {
+            for (int i = 0; i < fallback.Count; i++)
+                if (fallback[i] != null && fallback[i].IsHazard) seen.Add(fallback[i]);
+        }
+
+        return seen.Count;
+    }
 }
 
 /// <summary>

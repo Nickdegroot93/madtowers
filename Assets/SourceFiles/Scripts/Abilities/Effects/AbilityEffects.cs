@@ -32,6 +32,26 @@ public static class AbilityEffects
     }
 
     /// <summary>
+    /// DEFUSE a piece in place: strip any special-variant LOOK (overlay skins) and reset it to its
+    /// shape's plain DefaultData - same GameObject, so rotation/position/fall progress are kept.
+    /// Shared by Sanitize (tap) and Ward (auto, on a hazard spawn). Returns false WITHOUT touching the
+    /// piece if it can't be reset (no spawner / no identity / no DefaultData), so callers only spend a
+    /// charge or play FX on a real neutralise. ApplyVariantToNextBlock re-syncs identity + the
+    /// active-piece accounting cache (BLOCKS.md); behaviour is added on lock and trait flags read live
+    /// from the applied data, so the reset piece is fully harmless.
+    /// </summary>
+    public static bool NeutralizeToPlain(AbilityContext context, BlockController block)
+    {
+        if (context == null || context.Spawner == null || block == null) return false;
+        if (!block.TryGetComponent(out BlockIdentity identity)) return false;
+        if (identity.Definition == null || identity.Definition.DefaultData == null) return false;
+
+        block.StripVariantSkins();
+        context.Spawner.ApplyVariantToNextBlock(identity.Definition.DefaultData);
+        return true;
+    }
+
+    /// <summary>
     /// Shared CanActivate guard for SHAPE-swap consumables (Shrink, Transmute): the active piece may
     /// be replaced by <paramref name="target"/> only if it can transform this turn (<see
     /// cref="ActivePieceCanTransform"/>), the target shape is wired, and the piece isn't already it.

@@ -622,6 +622,26 @@ public class Spawner : MonoBehaviour
     }
 
     /// <summary>
+    /// Multiplicatively reduces the spawn chance of EVERY registered variant flagged
+    /// <see cref="BlockData.IsHazard"/> (Purifier). Data-driven off the hazard flag, so a new hostile
+    /// brick is suppressed automatically - no hand-maintained list. No-op on variants the level can't spawn.
+    /// </summary>
+    public void ReduceHazardChances(float fraction)
+    {
+        fraction = Mathf.Clamp01(fraction);
+        for (int i = 0; i < _variantChances.Count; i++)
+        {
+            VariantChance vc = _variantChances[i];
+            if (vc.Variant == null || !vc.Variant.IsHazard) continue;
+            _variantChances[i] = new VariantChance
+            {
+                Variant = vc.Variant,
+                Chance = Mathf.Clamp01(vc.Chance * (1f - fraction))
+            };
+        }
+    }
+
+    /// <summary>
     /// Registers a run-local chance to inject an extra shape before drawing from the
     /// normal bag. This never mutates BlockDefinition.bagCopies (asset data) and never
     /// removes cards from the authored bag; it simply makes the chosen shape appear a

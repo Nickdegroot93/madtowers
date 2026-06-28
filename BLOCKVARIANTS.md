@@ -86,8 +86,9 @@ Replace-mode skins draw the whole brick; overlay-mode (Vine) draws sparse and al
      flags, tint). **Done** — skip to step 3.
    - *Behaviour and/or a look* → write `<Name>BlockData : BlockData` in `Blocks/Variants/` and point the
      asset's `m_Script` at it. Override `OnApplied` to get-or-add `<Name>BlockSkin` (the look) and/or
-     `OnLocked` to add behaviour. Respect [BLOCKS.md](BLOCKS.md): set the two flags; any code destroying a
-     placed block calls `GameManager.RemovePlacedBlock`.
+     `OnLocked` to add behaviour. Respect [BLOCKS.md](BLOCKS.md): set the two scoring flags; for a
+     **hostile** brick set `isHazard: true` so the all-hazards abilities (Ward, Purifier) cover it
+     automatically — no list to edit. Any code destroying a placed block calls `GameManager.RemovePlacedBlock`.
 2. **Look** (optional). Write `<Name>BlockSkin : BlockVariantSkin` (override `MaterialResource`,
    `HidesChapterArt`, optional `ConfigureCell`, a `LateUpdate` for motion) + a procedural
    `Assets/Resources/<Name>.shader`. Keep colours fixed (theme-independent).
@@ -96,8 +97,8 @@ Replace-mode skins draw the whole brick; overlay-mode (Vine) draws sparse and al
 4. **Introduce in play** — pick one:
    - **Ambient** (a level/chapter): add an `AmbientBlockVariantChance { variant, chancePerBlock }` to a
      `GameModeConfig` — a per-piece roll.
-   - **Ability**: `ApplyVariantConsumable` (tap → active piece becomes the variant), `NextBlockVariantPowerUp`
-     (instant), or `BlockVariantChancePowerUp` (stacking % passive). New ability **assets**, no code (ABILITIES.md).
+   - **Ability**: `ApplyVariantConsumable` (tap → active piece becomes the variant) or
+     `BlockVariantChancePowerUp` (stacking % passive). New ability **assets**, no code (ABILITIES.md).
    - **Targeted**: `Spawner.ApplyVariantToNextBlock` / `BlockController.ApplyData` (how Suspension turns a
      chosen landed block into an Anchor).
 

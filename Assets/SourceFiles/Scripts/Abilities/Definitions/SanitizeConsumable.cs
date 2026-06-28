@@ -33,15 +33,9 @@ public class SanitizeConsumable : ConsumableAbility
     public override void Activate(AbilityContext context)
     {
         BlockController active = BlockController.ActiveControlled;
-        if (active == null || context.Spawner == null) return;
-        if (!active.TryGetComponent(out BlockIdentity id) || id.Definition == null) return;
-
-        // Strip the hazard LOOK in place (same GameObject - rotation/position/fall progress kept),
-        // then reset the piece to its shape's plain DefaultData so it counts and locks as a normal
-        // brick. ApplyVariantToNextBlock transforms the in-air piece and re-syncs its identity +
-        // the active-piece accounting cache (BLOCKS.md), exactly like the other transmutes.
-        active.StripVariantSkins();
-        context.Spawner.ApplyVariantToNextBlock(id.Definition.DefaultData);
+        // Defuse in place via the shared helper (strip look + reset to plain DefaultData). FX only
+        // on a real neutralise.
+        if (!AbilityEffects.NeutralizeToPlain(context, active)) return;
 
         Vfx.Spawn(transformEffect, active.transform.position, transformScale); // null-safe
         SfxPlayer.Play("transmute", 0.9f);

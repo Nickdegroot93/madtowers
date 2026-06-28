@@ -41,6 +41,7 @@ title text on the card, which works but looks unfinished. Generate via
 
 **Common**
 - [ ] Lighten
+- [ ] Ward
 - [ ] Zap
 
 ---

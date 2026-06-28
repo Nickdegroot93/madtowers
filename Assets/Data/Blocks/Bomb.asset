@@ -23,6 +23,7 @@ MonoBehaviour:
   materialOverride: {fileID: 0}
   countsAsPlacedBlock: 1
   costsLifeWhenLost: 1
+  isHazard: 1
   fuseSeconds: 1
   touchRange: 0.15
   explosionEffect: {fileID: 3003832800008046713, guid: af157fd49e0bd8140925b56bc936c4b0, type: 3}

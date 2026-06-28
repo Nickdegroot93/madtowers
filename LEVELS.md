@@ -329,8 +329,8 @@ each spawn picks a random variant + random 90° rotation = 12 looks per chapter.
 
 Power-ups span Common/Rare/Epic (the full catalog lives in `Assets/Data/PowerUps/`; ABILITIES.md
 documents the kinds and each shipped ability). Adding more: see the doc
-comment on `AbilityDefinition.cs` — many new power-ups are zero-code: a
-`NextBlockVariantPowerUp` asset pointing at any variant (one-shot), or a
+comment on `AbilityDefinition.cs` — many new power-ups are zero-code: an
+`ApplyVariantConsumable` asset pointing at any variant (tap → the falling brick becomes it), or a
 `BlockVariantChancePowerUp` asset for a persistent chance (e.g. "Curse: Boulders" as a
 negative offer; persistent positives like the old 20%-Anchors proved overpowered).
 
