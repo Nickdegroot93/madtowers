@@ -68,7 +68,7 @@ public sealed class MagmaBlobVisual : MonoBehaviour
         if (_block != null) _block.OnBlockLocked -= HandleLocked;
     }
 
-    private void HandleLocked()
+    private void HandleLocked(BlockController block)
     {
         if (_solidifying) return;
         _solidifying = true;

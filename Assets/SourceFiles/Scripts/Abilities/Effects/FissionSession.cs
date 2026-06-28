@@ -14,7 +14,7 @@ using UnityEngine;
 /// shards hovering instead of falling. Shards are real Block_Pip bricks, so each counts and risks
 /// a life exactly like a placed block (BLOCKS.md) - a tetromino becomes four counting placements.
 /// </summary>
-public sealed class FissionSession : MonoBehaviour
+public sealed class FissionSession : AbilitySessionBase
 {
     private sealed class Ghost
     {
@@ -42,7 +42,6 @@ public sealed class FissionSession : MonoBehaviour
     private Spawner _spawner;
     private BlockDefinition _pip;
     private int _shardsRemaining;   // shards still to be SPAWNED as the active piece (= live ghosts)
-    private bool _finishing;
 
     // Resolved each frame from the live HUD bottom so the presentation sits clear of the top menu
     // (BLOCKS / NEXT / HEIGHT cards) on any aspect, and tracks the camera if it shifts.
@@ -75,10 +74,10 @@ public sealed class FissionSession : MonoBehaviour
         _dropWorldY = _queueWorldY - QueueToDropCells;
     }
 
-    public static bool IsActive { get; private set; }
+    public static bool IsActive => IsSessionActive<FissionSession>();
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void ResetRuntimeState() => IsActive = false;
+    private static void ResetRuntimeState() => ResetSessionState<FissionSession>();
 
     /// <summary>Begin a Fission session: <paramref name="cellCount"/> shards (one per cell of the
     /// piece that was just shattered). The caller has already verified there is a live active piece
@@ -93,8 +92,11 @@ public sealed class FissionSession : MonoBehaviour
 
     private void StartSession(Spawner spawner, BlockDefinition pip, int cellCount)
     {
-        IsActive = true;
-        ActivePieceSession.Enter();
+        if (!BeginSessionLifecycle<FissionSession>(usesActivePieceSession: true))
+        {
+            Destroy(gameObject);
+            return;
+        }
         _spawner = spawner;
         _pip = pip;
         ResolveAnchors();
@@ -132,19 +134,15 @@ public sealed class FissionSession : MonoBehaviour
     private void OnDisable() => GameEvents.BlockLocked -= HandleBlockLocked;
 
     // Safety net: if the session GameObject is torn down WITHOUT a normal Finish (a scene reload /
-    // level restart mid-session), the static IsActive would otherwise stay true and permanently
-    // gate consumables + Pocket Cache in the next run. Mirrors ExtractTargetingSession's guard.
-    private void OnDestroy()
-    {
-        if (!_finishing) Finish();
-    }
+    // level restart mid-session), the base lifecycle clears IsActive and ActivePieceSession.
+    public override void CancelSession() => Finish(destroySelf: !IsDestroying);
 
     // The active shard just landed. Feed the next one (the front ghost glides into the slot), or,
     // if this was the last, drop the spawn lock so the Spawner's own lock->spawn chain (which calls
     // SpawnNextBlock right after this event) resumes normal play.
     private void HandleBlockLocked(BlockController block)
     {
-        if (_finishing) return;
+        if (IsFinishing) return;
 
         if (_shardsRemaining > 0)
         {
@@ -169,7 +167,7 @@ public sealed class FissionSession : MonoBehaviour
 
     private void Update()
     {
-        if (_finishing) return;
+        if (IsFinishing) return;
 
         // Game over can destroy the active shard without a lock event - tear down so we never
         // strand the spawn lock or leak ghosts (Finish clears the spawn lock, null-safe).
@@ -335,10 +333,9 @@ public sealed class FissionSession : MonoBehaviour
         }
     }
 
-    private void Finish()
+    private void Finish(bool destroySelf = true)
     {
-        if (_finishing) return;
-        _finishing = true;
+        if (!BeginFinish()) return;
 
         for (int i = 0; i < _ghosts.Count; i++)
         {
@@ -347,9 +344,7 @@ public sealed class FissionSession : MonoBehaviour
         _ghosts.Clear();
 
         if (_spawner != null) _spawner.SetAutoSpawnSuspended(false);
-        IsActive = false;
-        ActivePieceSession.Exit();
-        Destroy(gameObject);
+        CompleteSessionLifecycle<FissionSession>(destroySelf);
     }
 
     private static float Smooth01(float t)

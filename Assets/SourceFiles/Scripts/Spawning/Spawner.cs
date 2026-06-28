@@ -740,11 +740,11 @@ public class Spawner : MonoBehaviour
     private BlockData ConsumeQueuedVariantOverride()
         => _queuedVariantOverrides.Count > 0 ? _queuedVariantOverrides.Dequeue() : null;
 
-    private void HandleBlockLocked()
+    private void HandleBlockLocked(BlockController lockedBlock)
     {
-        if (_currentBlock != null)
+        if (lockedBlock != null)
         {
-            _currentBlock.OnBlockLocked -= HandleBlockLocked;
+            lockedBlock.OnBlockLocked -= HandleBlockLocked;
         }
 
         GameModeConfig activeConfig = ActiveGameModeConfig;

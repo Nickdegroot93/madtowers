@@ -152,7 +152,7 @@ public partial class BlockController
         ReportLandedToLedger();
         GameEvents.RaiseBlockLocked(this);
 
-        OnBlockLocked?.Invoke();
+        OnBlockLocked?.Invoke(this);
     }
 
     // Handoff ends player control but does not declare the block settled. The landed maintenance

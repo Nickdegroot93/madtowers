@@ -212,7 +212,7 @@ public partial class BlockController : MonoBehaviour
         if (HasLanded) InvalidateReachGeometry(); // a landed block leaving the tower changes the reach bounds
     }
 
-    public event System.Action OnBlockLocked;
+    public event System.Action<BlockController> OnBlockLocked;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetGridState()

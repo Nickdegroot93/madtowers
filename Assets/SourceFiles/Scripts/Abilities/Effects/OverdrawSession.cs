@@ -11,7 +11,7 @@ using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 /// normal controlled-piece loop one at a time. The session never pauses time: the spawner
 /// simply withholds automatic bag pieces while the draft is in progress.
 /// </summary>
-public sealed class OverdrawSession : MonoBehaviour
+public sealed class OverdrawSession : AbilitySessionBase
 {
     private sealed class Choice
     {
@@ -47,19 +47,18 @@ public sealed class OverdrawSession : MonoBehaviour
     private Spawner _spawner;
     private Camera _camera;
     private Choice _flyingChoice;
-    private bool _finishing;
     private bool _spawnedChoiceThisFrame;
     private float _queueWorldY;
     private float _dropWorldY;
     private static Material _circleMaterial;
 
-    public static bool IsActive { get; private set; }
+    public static bool IsActive => IsSessionActive<OverdrawSession>();
     public static bool SuppressesNextPreview { get; private set; }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetRuntimeState()
     {
-        IsActive = false;
+        ResetSessionState<OverdrawSession>();
         SuppressesNextPreview = false;
     }
 
@@ -73,8 +72,11 @@ public sealed class OverdrawSession : MonoBehaviour
 
     private void StartSession(Spawner spawner, int choiceCount)
     {
-        IsActive = true;
-        ActivePieceSession.Enter();
+        if (!BeginSessionLifecycle<OverdrawSession>(usesActivePieceSession: true))
+        {
+            Destroy(gameObject);
+            return;
+        }
         SuppressesNextPreview = true;
         _spawner = spawner;
         _camera = Camera.main;
@@ -111,14 +113,11 @@ public sealed class OverdrawSession : MonoBehaviour
 
     private void OnDisable() => GameEvents.BlockLocked -= HandleBlockLocked;
 
-    private void OnDestroy()
-    {
-        if (!_finishing) Finish(resumeIfIdle: true);
-    }
+    public override void CancelSession() => Finish(resumeIfIdle: true, destroySelf: !IsDestroying);
 
     private void HandleBlockLocked(BlockController block)
     {
-        if (_finishing) return;
+        if (IsFinishing) return;
         _spawnedChoiceThisFrame = false;
 
         if (_choices.Count == 0 && _flyingChoice == null)
@@ -129,7 +128,7 @@ public sealed class OverdrawSession : MonoBehaviour
 
     private void Update()
     {
-        if (_finishing) return;
+        if (IsFinishing) return;
 
         if (GameManager.Instance != null && GameManager.Instance.isGameOver)
         {
@@ -493,10 +492,9 @@ public sealed class OverdrawSession : MonoBehaviour
         choice.Bounds = bounds;
     }
 
-    private void Finish(bool resumeIfIdle)
+    private void Finish(bool resumeIfIdle, bool destroySelf = true)
     {
-        if (_finishing) return;
-        _finishing = true;
+        if (!BeginFinish()) return;
 
         for (int i = 0; i < _choices.Count; i++)
         {
@@ -515,9 +513,7 @@ public sealed class OverdrawSession : MonoBehaviour
         }
 
         SuppressesNextPreview = false;
-        IsActive = false;
-        ActivePieceSession.Exit();
-        Destroy(gameObject);
+        CompleteSessionLifecycle<OverdrawSession>(destroySelf);
     }
 
     private static bool IsPointerOverUi(int pointerId = -1)

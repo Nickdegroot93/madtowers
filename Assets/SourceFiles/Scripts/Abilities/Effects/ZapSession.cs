@@ -2,9 +2,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// Runtime-only driver for the Zap consumable (the Fission/Overdraw session pattern: a free
-/// GameObject, static <see cref="IsActive"/>, created via <see cref="Begin"/>). The active piece has
-/// already vanished; this owns the shot:
+/// Runtime-only driver for the Zap consumable. The active piece has already vanished; this owns
+/// the shot:
 ///  1. Withholds bag pieces (<see cref="Spawner.SetAutoSpawnSuspended"/>) so the field holds still.
 ///  2. Summons a vertical <see cref="ZapBeam"/> the player AIMS left/right (drag the pointer, or arrow
 ///     keys) while it charges from wide-and-loose to a thin needle over <see cref="ChargeDuration"/>s.
@@ -16,7 +15,7 @@ using UnityEngine.InputSystem;
 /// Charge runs on SCALED time and is held while paused / during win verification, so a Zap can never
 /// fire behind those screens (PHYSICS.md).
 /// </summary>
-public sealed class ZapSession : MonoBehaviour
+public sealed class ZapSession : AbilitySessionBase
 {
     private const float ChargeDuration = 3f;
     private const float FireFlashTime = 0.3f;
@@ -24,10 +23,10 @@ public sealed class ZapSession : MonoBehaviour
     private const float InputGrace = 0.15f;   // ignore the pointer briefly so the activation tap can't yank aim
     private const float KeyAimSpeed = 7f;     // columns/sec for arrow-key aiming
 
-    public static bool IsActive { get; private set; }
+    public static bool IsActive => IsSessionActive<ZapSession>();
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void ResetRuntimeState() => IsActive = false;
+    private static void ResetRuntimeState() => ResetSessionState<ZapSession>();
 
     private Spawner _spawner;
     private ZapBeam _beam;
@@ -40,7 +39,6 @@ public sealed class ZapSession : MonoBehaviour
     private float _age;
     private bool _fired;
     private float _fireAge;
-    private bool _finishing;
 
     private ContactFilter2D _filter;
     private readonly RaycastHit2D[] _hits = new RaycastHit2D[24];
@@ -55,8 +53,11 @@ public sealed class ZapSession : MonoBehaviour
 
     private void StartSession(Spawner spawner, GameObject detonateEffect, float detonateScale, Color color, Color accent)
     {
-        IsActive = true;
-        ActivePieceSession.Enter();
+        if (!BeginSessionLifecycle<ZapSession>(usesActivePieceSession: true))
+        {
+            Destroy(gameObject);
+            return;
+        }
         _spawner = spawner;
         _detonateEffect = detonateEffect;
         _detonateScale = detonateScale;
@@ -82,7 +83,7 @@ public sealed class ZapSession : MonoBehaviour
 
     private void Update()
     {
-        if (_finishing) return;
+        if (IsFinishing) return;
 
         GameManager gm = GameManager.Instance;
         if (gm != null && gm.isGameOver) { Finish(); return; }
@@ -192,15 +193,11 @@ public sealed class ZapSession : MonoBehaviour
         }
     }
 
-    private void OnDestroy()
-    {
-        if (!_finishing) Finish();
-    }
+    public override void CancelSession() => Finish(destroySelf: !IsDestroying);
 
-    private void Finish()
+    private void Finish(bool destroySelf = true)
     {
-        if (_finishing) return;
-        _finishing = true;
+        if (!BeginFinish()) return;
 
         if (_beam != null) Destroy(_beam.gameObject);
         if (_spawner != null)
@@ -209,8 +206,6 @@ public sealed class ZapSession : MonoBehaviour
             _spawner.ResumeSpawning(); // no piece locked during the shot, so kick the next one ourselves
         }
 
-        IsActive = false;
-        ActivePieceSession.Exit();
-        Destroy(gameObject);
+        CompleteSessionLifecycle<ZapSession>(destroySelf);
     }
 }

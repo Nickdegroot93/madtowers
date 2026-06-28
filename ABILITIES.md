@@ -63,6 +63,22 @@ reroll). HUD slots show the icon (title text if none); the swap dialog shows tit
 short. The detail view is the future home of per-ability explainer videos - the icon
 and long text it needs are already authored.
 
+### Delivery layer split
+
+`AbilityChoiceController` owns offer timing, pause/phase handoff, pick routing, reroll, details,
+and consumable-slot swap flow. It deliberately delegates the other two heavy jobs:
+
+- `AbilityOfferRoller` is the headless balance policy: availability filtering, rarity-profile
+  weighting, run-progress escalation, and sampling without replacement.
+- `AbilityCardView` owns the UGUI card rendering strategies: authored PNG frame when present,
+  procedural fallback when not, card header, details button styling, and all pixel-measured frame
+  slots.
+
+Runtime targeting/sequence effects derive from `AbilitySessionBase` when they own a temporary
+mode. The base enforces one active session per type, owns `ActivePieceSession.Enter/Exit` for
+active-piece sessions, and runs destroy-time cleanup through `CancelSession()`. New sessions should
+use the base instead of hand-rolling `IsActive`, `OnDestroy`, and Enter/Exit safety.
+
 ## 3. The state rule (never violate)
 
 Definitions are **immutable assets**. On acquisition, `AbilityRuntime` stores
@@ -685,8 +701,8 @@ so the third-piece handoff does not double-hit the ear.
 
 ### Zap (Common, consumable)
 `ZapAbility` — the active falling piece **vanishes** (no lock, no score) and `ZapSession` (the
-Fission/Overdraw session pattern: a free GameObject, static `IsActive`, created via `Begin`) takes
-over. It captures the column X and the first **dynamic, landed `BlockController`** straight below the
+`AbilitySessionBase` active-piece sequence created via `Begin`) takes over. It captures the column X
+and the first **dynamic, landed `BlockController`** straight below the
 piece — the target; the floor, support islands and frozen (Static-body) blocks are zap-proof, the
 shot is wasted — then withholds bag pieces (`Spawner.SetAutoSpawnSuspended`) so the field holds
 still, and summons a vertical `ZapBeam` from the top of the screen down to the target. Over **exactly
@@ -760,7 +776,7 @@ one of the calls above; the ability owns only its own decisions (guards, which s
 `FissionAbility` shatters the active falling piece into one independent **1×1 Pip shard per
 cell** (a tetromino → 4, a domino → 2). `Activate` plays the per-cell shatter (`BurstFromEveryCell`
 + `ImpactPunch` + `impact_shatter_01`) then hands off to `FissionSession`, a runtime-only driver
-(the `ExtractTargetingSession`/`HoldCache` pattern: static `IsActive`, created via `Begin`):
+(an `AbilitySessionBase` sequence, created via `Begin`):
 - Shard #1 reuses `Spawner.ReplaceActivePiece(pip, SpawnPosition)` (cleanly disposes the original,
   no lock/score) lifted to the **top spawn line**, then `BlockController.SetDescentSuspended(true)`
   so it **hovers** — steerable L/R but not falling. A downward **flick** (the normal commit

@@ -9,7 +9,7 @@ using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 /// Runtime-only presentation mode for Extract. It never moves real physics bodies: landed pieces
 /// are hidden behind visual proxies that expand, float, accept a tap, then collapse away.
 /// </summary>
-public sealed class ExtractTargetingSession : MonoBehaviour
+public sealed class ExtractTargetingSession : AbilitySessionBase
 {
     private sealed class Proxy
     {
@@ -58,16 +58,15 @@ public sealed class ExtractTargetingSession : MonoBehaviour
     private float _age;
     private Proxy _selected;
     private Camera _camera;
-    private bool _finishing;
     private TargetEffect _effect;
     private BlockData _anchorVariant;
 
-    public static bool IsActive { get; private set; }
+    public static bool IsActive => IsSessionActive<ExtractTargetingSession>();
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetRuntimeState()
     {
-        IsActive = false;
+        ResetSessionState<ExtractTargetingSession>();
     }
 
     public static void Begin()
@@ -88,7 +87,11 @@ public sealed class ExtractTargetingSession : MonoBehaviour
 
     private void StartSession(TargetEffect effect, BlockData anchorVariant)
     {
-        IsActive = true;
+        if (!BeginSessionLifecycle<ExtractTargetingSession>(usesActivePieceSession: false))
+        {
+            Destroy(gameObject);
+            return;
+        }
         _effect = effect;
         _anchorVariant = anchorVariant;
         _camera = Camera.main;
@@ -437,8 +440,7 @@ public sealed class ExtractTargetingSession : MonoBehaviour
 
     private void Finish(bool destroySelf = true)
     {
-        if (_finishing) return;
-        _finishing = true;
+        if (!BeginFinish()) return;
 
         RestoreHiddenRenderers();
         for (int i = 0; i < _proxies.Count; i++)
@@ -455,14 +457,10 @@ public sealed class ExtractTargetingSession : MonoBehaviour
                 GameManager.Instance.SetPhase(GamePhase.Playing);
             }
         }
-        IsActive = false;
-        if (destroySelf) Destroy(gameObject);
+        CompleteSessionLifecycle<ExtractTargetingSession>(destroySelf);
     }
 
-    private void OnDestroy()
-    {
-        if (!_finishing && IsActive) Finish(false);
-    }
+    public override void CancelSession() => Finish(destroySelf: !IsDestroying);
 
     private static float Smooth01(float t)
     {
