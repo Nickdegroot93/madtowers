@@ -35,6 +35,7 @@ public class ComboDetector : MonoBehaviour
     private AbilityRuntime _runtime;
     private readonly Dictionary<ComboTriggerDefinition, HashSet<EntityId>> _consumedBlocks =
         new Dictionary<ComboTriggerDefinition, HashSet<EntityId>>();
+    private readonly HashSet<BlockController> _spawnedBlocks = new HashSet<BlockController>();
 
     private void Awake()
     {
@@ -44,24 +45,26 @@ public class ComboDetector : MonoBehaviour
     private void OnEnable()
     {
         GameEvents.BlockSpawned += HandleBlockSpawned;
+        GameEvents.BlockLocked += HandleBlockLocked;
     }
 
     private void OnDisable()
     {
         GameEvents.BlockSpawned -= HandleBlockSpawned;
+        GameEvents.BlockLocked -= HandleBlockLocked;
+        _spawnedBlocks.Clear();
     }
 
-    // Each spawned piece reports its own lock; the handler captures the controller so
-    // the detector knows WHICH block locked (the global score event does not carry it).
     private void HandleBlockSpawned(BlockController block, BlockData variant)
     {
         if (block == null) return;
-        block.OnBlockLocked += () => HandleBlockLocked(block);
+        _spawnedBlocks.Add(block);
     }
 
     private void HandleBlockLocked(BlockController block)
     {
         if (_runtime == null || block == null) return;
+        if (!_spawnedBlocks.Remove(block)) return;
 
         IReadOnlyList<ComboTriggerDefinition> triggers = _runtime.SubscribedTriggers;
         for (int i = 0; i < triggers.Count; i++)

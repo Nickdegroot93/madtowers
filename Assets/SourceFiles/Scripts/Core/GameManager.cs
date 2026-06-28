@@ -49,6 +49,7 @@ public class GameManager : MonoBehaviour
     private readonly HashSet<object> _pauseOwners = new HashSet<object>();
     private readonly HashSet<object> _spawnHoldOwners = new HashSet<object>();
     private static readonly object LegacyPauseOwner = new object();
+    private bool _spawnAvailabilityPublishingEnabled;
     private bool _spawnAvailabilityInitialized;
     private bool _lastSpawnAvailability;
     // Loss context, scoped by DuringBlockLoss around the frozen HandleLostBelowScreen call:
@@ -101,6 +102,12 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    private void Start()
+    {
+        _spawnAvailabilityPublishingEnabled = true;
+        RepublishSpawnAvailability();
+    }
+
     public void SetPhase(GamePhase phase)
     {
         if (CurrentPhase == GamePhase.GameOver && phase != GamePhase.GameOver) return;
@@ -138,6 +145,11 @@ public class GameManager : MonoBehaviour
         if (changed) RefreshSpawnAvailability();
     }
 
+    public void RepublishSpawnAvailability()
+    {
+        RefreshSpawnAvailability(force: true);
+    }
+
     /// <summary>Compatibility wrapper for older callers. New modal owners should use PushPause/PopPause.</summary>
     public void SetGamePaused(bool paused)
     {
@@ -164,10 +176,17 @@ public class GameManager : MonoBehaviour
         Time.timeScale = IsGamePaused ? 0f : 1f;
     }
 
-    private void RefreshSpawnAvailability()
+    private void RefreshSpawnAvailability(bool force = false)
     {
         bool canSpawn = CanSpawnBlocks;
-        if (_spawnAvailabilityInitialized && _lastSpawnAvailability == canSpawn) return;
+        if (!_spawnAvailabilityPublishingEnabled)
+        {
+            _spawnAvailabilityInitialized = true;
+            _lastSpawnAvailability = canSpawn;
+            return;
+        }
+
+        if (!force && _spawnAvailabilityInitialized && _lastSpawnAvailability == canSpawn) return;
 
         _spawnAvailabilityInitialized = true;
         _lastSpawnAvailability = canSpawn;

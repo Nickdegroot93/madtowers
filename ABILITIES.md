@@ -440,8 +440,8 @@ appears on the left, just above mid-height:
 
 Both build on the Spawner's transmute primitive (`ReplaceActivePiece`, now with an `asNewSpawn` mode),
 so there's little new lifecycle code — `HoldCache` owns only the cached shape, the bank-vs-swap
-decision, and a **one-hold-per-piece lockout**. The lockout resets on the new `GameEvents.BlockLocked`
-(raised when a piece LANDS) rather than `BlockSpawned` — that's deliberate, because the bank raises a
+decision, and a **one-hold-per-piece lockout**. The lockout resets on `GameEvents.BlockLocked(block)`
+(raised at the block when a piece LANDS) rather than `BlockSpawned` — that's deliberate, because the bank raises a
 fresh `BlockSpawned` and keying the lockout off spawns would let it reset itself and re-hold for free.
 So you must LAND a piece before holding again, and a just-swapped-in piece can't be swapped straight
 back out. `CanHold` also gates on a live controllable piece (`CurrentPhase == Playing`, not paused; other phases have
@@ -769,7 +769,7 @@ cell** (a tetromino → 4, a domino → 2). `Activate` plays the per-cell shatte
   merely deferred).
 - The remaining shards float above as a small **queue** of ghost sprites (cloned from the live
   shard's renderers, so they match the theme skin), with an idle hover bob. Each time the active
-  shard locks (`GameEvents.BlockLocked`, like `HoldCache`), the next shard is fed via the new
+  shard locks (`GameEvents.BlockLocked(block)`, like `HoldCache`), the next shard is fed via the new
   `Spawner.SpawnControlledPieceAt(pip, SpawnPosition, suspended:true)` and the front ghost glides
   into the drop slot (smooth lerp, no teleport snaps); the row recentres.
 - The session **withholds bag pieces** for its duration via `Spawner.SetAutoSpawnSuspended(true)`

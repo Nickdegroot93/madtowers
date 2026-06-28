@@ -36,6 +36,7 @@ public class Spawner : MonoBehaviour
     // Set by the Fission session: while true the lock->spawn chain stops auto-spawning bag
     // pieces so the session can feed its own 1x1 shards. Run-local; resets with a fresh Spawner.
     private bool _suppressAutoSpawn;
+    private bool _started;
 
     // Stable look-ahead queue: holds exactly _visibleQueueDepth rolled shapes, front =
     // next to spawn. A queued shape is NEVER re-rolled, so what the HUD previews is exactly
@@ -69,6 +70,7 @@ public class Spawner : MonoBehaviour
 
         RegisterAmbientVariantChances();
         RefillQueue();
+        _started = true;
         SpawnNextBlock();
     }
 
@@ -84,6 +86,8 @@ public class Spawner : MonoBehaviour
 
     private void HandleSpawnAvailabilityChanged(bool canSpawn)
     {
+        if (LevelSelectionState.IsSelectionPending) return;
+        if (!_started) return;
         if (canSpawn) SpawnNextBlock();
     }
 
@@ -401,6 +405,14 @@ public class Spawner : MonoBehaviour
         }
 
         if (GameManager.Instance != null && !GameManager.Instance.CanSpawnBlocks)
+        {
+            return;
+        }
+
+        // GameManager owns spawn availability, but these static gates are set by scene systems
+        // during load/camera timing. Keep a local belt-and-braces guard so the first piece never
+        // slips through during an intro pan or wave reveal if phase sync lands a frame late.
+        if (CameraIntroGate.IsPlaying || WaveRevealGate.IsHoldingSpawn)
         {
             return;
         }
@@ -734,8 +746,6 @@ public class Spawner : MonoBehaviour
         {
             _currentBlock.OnBlockLocked -= HandleBlockLocked;
         }
-
-        GameEvents.RaiseBlockLocked(); // one per piece-turn; resets the Hold cache's per-piece lockout
 
         GameModeConfig activeConfig = ActiveGameModeConfig;
         float delay = activeConfig != null ? activeConfig.SpawnDelay : spawnDelay;

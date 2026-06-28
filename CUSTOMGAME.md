@@ -27,6 +27,10 @@ from a **preset** (any `GameModeConfig` in `Resources/GameModes`, e.g. Classic).
 
 The runtime config/level are throwaway `ScriptableObject` instances held alive by the static
 `LevelSelectionState`; they are never written to disk. Settings persist for the editor session.
+After the reload, Custom Game uses the same `GameManager`/`LevelRuntimeController`/`Spawner`
+pipeline as chapter levels. That means intro pans, wave-reveal holds, ability offers, win
+verification, and level-complete events should behave identically; don't add a separate custom-run
+gameplay path unless the whole shared level pipeline is deliberately being changed.
 
 **Testing defaults** (override the preset on purpose, since this is a dev tool): **all abilities
 OFF** (enable one at a time to test it in isolation), **3 starting lives**, **power-up choice

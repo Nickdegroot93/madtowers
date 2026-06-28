@@ -116,7 +116,7 @@ public sealed class OverdrawSession : MonoBehaviour
         if (!_finishing) Finish(resumeIfIdle: true);
     }
 
-    private void HandleBlockLocked()
+    private void HandleBlockLocked(BlockController block)
     {
         if (_finishing) return;
         _spawnedChoiceThisFrame = false;

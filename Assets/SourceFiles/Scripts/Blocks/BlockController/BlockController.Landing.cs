@@ -150,6 +150,7 @@ public partial class BlockController
         if (_inputs != null) _inputs.Gameplay.Disable();
 
         ReportLandedToLedger();
+        GameEvents.RaiseBlockLocked(this);
 
         OnBlockLocked?.Invoke();
     }

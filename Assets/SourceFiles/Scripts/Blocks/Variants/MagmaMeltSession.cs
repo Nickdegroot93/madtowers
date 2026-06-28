@@ -79,7 +79,7 @@ public sealed class MagmaMeltSession : MonoBehaviour
     // A piece just landed (the magma first, then each stone cell). Drop the next cell, or, when
     // they are all placed, drop the auto-spawn lock so the Spawner's own lock->spawn chain
     // (SpawnNextBlock, called right after this event) resumes normal play.
-    private void HandleBlockLocked()
+    private void HandleBlockLocked(BlockController block)
     {
         if (_finishing) return;
         if (GameManager.Instance != null && GameManager.Instance.isGameOver) { Finish(); return; }

@@ -19,8 +19,13 @@ public static class CameraIntroGate
 
     public static void End()
     {
+        bool wasPlaying = IsPlaying;
         IsPlaying = false;
         SyncToGameManager(GameManager.Instance);
+        if (wasPlaying && GameManager.Instance != null)
+        {
+            GameManager.Instance.RepublishSpawnAvailability();
+        }
     }
 
     public static void Reset()

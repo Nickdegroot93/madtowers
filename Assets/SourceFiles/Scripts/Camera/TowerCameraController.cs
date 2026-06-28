@@ -74,7 +74,7 @@ public class TowerCameraController : MonoBehaviour
         // doesn't pan never leaves a stale hold from a previous level.
         _introActive = playIntroPan;
         if (_introActive) CameraIntroGate.Begin();
-        else CameraIntroGate.End();
+        else CameraIntroGate.Reset();
         SetCameraY(_highestCameraY);
         UpdateSpawnPoint();
         UpdateVerticalFollowers();

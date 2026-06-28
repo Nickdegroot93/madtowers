@@ -45,7 +45,7 @@ public class HoldCache : MonoBehaviour
     // The lockout is one hold per piece, so it clears when a piece LANDS - not when one spawns.
     // (Keying off BlockSpawned would let the bank, which raises a fresh spawn, reset its own
     // lockout and re-hold for free; a lock only happens when the player actually places a piece.)
-    private void HandleBlockLocked() => _usedThisPiece = false;
+    private void HandleBlockLocked(BlockController block) => _usedThisPiece = false;
 
     public void Enable()
     {

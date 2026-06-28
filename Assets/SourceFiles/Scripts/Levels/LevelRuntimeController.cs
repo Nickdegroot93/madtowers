@@ -397,6 +397,7 @@ public class LevelRuntimeController : MonoBehaviour
         {
             RunResult result = GameManager.Instance.CurrentRunResult;
             ProgressStore.ReportResult(_level, result.Score, result.MaxHeight);
+            GameEvents.RaiseLevelCompleted(_level, result);
         }
 
         if (GameManager.Instance.IsGamePaused)

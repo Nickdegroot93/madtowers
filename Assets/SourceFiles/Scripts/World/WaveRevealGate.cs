@@ -21,8 +21,13 @@ public static class WaveRevealGate
 
     public static void Release()
     {
+        bool wasHolding = IsHoldingSpawn;
         IsHoldingSpawn = false;
         SyncToGameManager(GameManager.Instance);
+        if (wasHolding && GameManager.Instance != null)
+        {
+            GameManager.Instance.RepublishSpawnAvailability();
+        }
     }
 
     public static void Reset()

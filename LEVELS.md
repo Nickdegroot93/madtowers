@@ -29,9 +29,10 @@ LevelDefinition  (Assets/Resources/Levels/  — one per level)
  │   window wins — rapid-dropping the last blocks buys nothing. ReachHeight is also
  │   re-checked against the LIVE standing tower during the countdown (the recorded max
  │   is monotonic); a collapse below the target aborts the countdown and play resumes.
- │   Surviving to zero pauses and shows Level Complete with "Next: <level>" (next in
- │   chapter), Keep Building, and Replay. Losing the last life mid-countdown is a normal
- │   game over; losing a non-final life is survivable ("lucky") by design.
+ │   Surviving to zero raises `GameEvents.LevelCompleted(level, result)`, pauses, and
+ │   shows Level Complete with "Next: <level>" (next in chapter), Keep Building, and
+ │   Replay. Losing the last life mid-countdown is a normal game over; losing a
+ │   non-final life is survivable ("lucky") by design.
  ├─ modifiers: LevelModifier assets — custom behaviour beyond settings (see below)
  ├─ abilities: bannedAbilities (per-level lockouts) + abilityRarityProfile (override
  │   the progress-scaled rarity odds of offers; see ABILITIES.md §7)
@@ -54,6 +55,9 @@ Key separation: **LevelDefinition = identity + look. GameModeConfig = all rules.
 can share one mode; a level 1→100 campaign is 100 LevelDefinitions pointing at progressively
 meaner GameModeConfigs (or fewer shared ones).
 
+Custom Game builds a runtime `LevelDefinition` and selects it through `LevelSelectionState`, so
+it is part of this same pipeline rather than a separate scene mode.
+
 ### Folder map
 
 ### Custom levels beyond settings: LevelModifier
@@ -72,6 +76,11 @@ joined the tower. It is not score, and score/status bonuses do not inflate it.
 
 Rule of thumb: if two levels could ever want it with different numbers, it's a modifier with
 serialized fields, not a one-off hack.
+
+Spawn timing is phase/gate driven: `GameManager` publishes `GameEvents.SpawnAvailabilityChanged`
+after scene `Awake` has completed, while `CameraIntroGate` and `WaveRevealGate` can suspend and
+republish availability when their holds release. `Spawner` owns the actual next-piece creation and
+ignores availability pings until its startup has registered the active mode's spawn tables.
 
 #### Scheduled chapter/theme effects
 

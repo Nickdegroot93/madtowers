@@ -142,7 +142,7 @@ public sealed class FissionSession : MonoBehaviour
     // The active shard just landed. Feed the next one (the front ghost glides into the slot), or,
     // if this was the last, drop the spawn lock so the Spawner's own lock->spawn chain (which calls
     // SpawnNextBlock right after this event) resumes normal play.
-    private void HandleBlockLocked()
+    private void HandleBlockLocked(BlockController block)
     {
         if (_finishing) return;
 
