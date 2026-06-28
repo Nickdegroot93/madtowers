@@ -44,10 +44,7 @@ public class AbilityChoiceController : MonoBehaviour
         if (GameManager.Instance != null)
         {
             GameManager.Instance.PopPause(this);
-            if (GameManager.Instance.CurrentPhase == GamePhase.AbilityChoice)
-            {
-                GameManager.Instance.SetPhase(GamePhase.Playing);
-            }
+            GameManager.Instance.ReleasePhase(this);
         }
     }
 
@@ -100,7 +97,7 @@ public class AbilityChoiceController : MonoBehaviour
         if (_rollBuffer.Count == 0) return; // every candidate filtered out: offer quietly skipped
 
         GameManager.Instance.PushPause(this);
-        GameManager.Instance.SetPhase(GamePhase.AbilityChoice);
+        GameManager.Instance.RequestPhase(this, GamePhase.AbilityChoice);
         RuntimeUiKit.EnsureEventSystem();
         BuildChoicePanel();
     }
@@ -149,10 +146,7 @@ public class AbilityChoiceController : MonoBehaviour
         if (GameManager.Instance != null)
         {
             GameManager.Instance.PopPause(this);
-            if (GameManager.Instance.CurrentPhase == GamePhase.AbilityChoice)
-            {
-                GameManager.Instance.SetPhase(GamePhase.Playing);
-            }
+            GameManager.Instance.ReleasePhase(this);
         }
     }
 

@@ -48,6 +48,11 @@ public class GameManager : MonoBehaviour
     private BlockLedger _ledger;
     private readonly HashSet<object> _pauseOwners = new HashSet<object>();
     private readonly HashSet<object> _spawnHoldOwners = new HashSet<object>();
+    // Phase is owner-keyed, mirroring pause: a modal/transient owner REQUESTS an overlay phase and
+    // RELEASES it when it closes. The effective phase is the highest-priority outstanding request
+    // (or Playing when none is held). See RequestPhase.
+    private readonly Dictionary<object, GamePhase> _phaseRequests = new Dictionary<object, GamePhase>();
+    private bool _gameOverLatched;
     private static readonly object LegacyPauseOwner = new object();
     private bool _spawnAvailabilityPublishingEnabled;
     private bool _spawnAvailabilityInitialized;
@@ -108,15 +113,67 @@ public class GameManager : MonoBehaviour
         RepublishSpawnAvailability();
     }
 
-    public void SetPhase(GamePhase phase)
+    // Owner-keyed phase, symmetric with PushPause/PopPause: an owner REQUESTS an overlay phase
+    // (Intro, WinVerifying, AbilityChoice, Paused, Completed) while its screen/sequence is live and
+    // RELEASES it when done. The effective CurrentPhase is the highest-priority outstanding request,
+    // or Playing when none is held - so overlapping owners can never strand each other (the failure
+    // a single "SetPhase slot" had: a pause opened over an ability choice used to lose the choice's
+    // phase on resume), and an illegal transition is structurally impossible - you can only add or
+    // drop your OWN request. GameOver is a one-way latch (see GameOver) that outranks every request.
+    public void RequestPhase(object owner, GamePhase phase)
     {
-        if (CurrentPhase == GamePhase.GameOver && phase != GamePhase.GameOver) return;
-        if (CurrentPhase == phase) return;
+        if (owner == null) return;
+        if (_phaseRequests.TryGetValue(owner, out GamePhase existing) && existing == phase) return;
+
+        _phaseRequests[owner] = phase;
+        RecomputePhase();
+    }
+
+    public void ReleasePhase(object owner)
+    {
+        if (owner == null) return;
+        if (!_phaseRequests.Remove(owner)) return;
+
+        RecomputePhase();
+    }
+
+    private void RecomputePhase()
+    {
+        GamePhase effective = GamePhase.Playing;
+        if (_gameOverLatched)
+        {
+            effective = GamePhase.GameOver;
+        }
+        else
+        {
+            foreach (GamePhase requested in _phaseRequests.Values)
+            {
+                if (PhasePriority(requested) > PhasePriority(effective)) effective = requested;
+            }
+        }
+
+        if (effective == CurrentPhase) return;
 
         GamePhase previous = CurrentPhase;
-        CurrentPhase = phase;
+        CurrentPhase = effective;
         GameEvents.RaisePhaseChanged(previous, CurrentPhase);
         RefreshSpawnAvailability();
+    }
+
+    // Higher wins when more than one owner holds a phase: a level completing or a pause opened
+    // during an ability choice / win countdown must show the heavier screen, not the lighter one.
+    private static int PhasePriority(GamePhase phase)
+    {
+        switch (phase)
+        {
+            case GamePhase.GameOver: return 6;
+            case GamePhase.Completed: return 5;
+            case GamePhase.Paused: return 4;
+            case GamePhase.AbilityChoice: return 3;
+            case GamePhase.WinVerifying: return 2;
+            case GamePhase.Intro: return 1;
+            default: return 0; // Playing
+        }
     }
 
     public void PushPause(object owner)
@@ -256,7 +313,8 @@ public class GameManager : MonoBehaviour
         }
 
         isGameOver = true;
-        SetPhase(GamePhase.GameOver);
+        _gameOverLatched = true; // terminal: outranks every phase request until a scene reload
+        RecomputePhase();
 
         GameEvents.RaiseGameOver(_runState.Score, towerHeight);
         Debug.Log("Game Over");
@@ -266,6 +324,8 @@ public class GameManager : MonoBehaviour
     {
         Time.timeScale = 1f;
         _pauseOwners.Clear();
+        _phaseRequests.Clear();
+        _gameOverLatched = false;
         IsGamePaused = false;
         BlockController.ResetRuntimeState();
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);

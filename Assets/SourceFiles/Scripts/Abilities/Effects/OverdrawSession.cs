@@ -1,9 +1,5 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem.EnhancedTouch;
-using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 /// <summary>
 /// Runtime-only driver for the Overdraw consumable. It removes the active falling block,
@@ -54,6 +50,7 @@ public sealed class OverdrawSession : AbilitySessionBase
 
     public static bool IsActive => IsSessionActive<OverdrawSession>();
     public static bool SuppressesNextPreview { get; private set; }
+    protected override bool SeizesActivePiece => true;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetRuntimeState()
@@ -72,7 +69,7 @@ public sealed class OverdrawSession : AbilitySessionBase
 
     private void StartSession(Spawner spawner, int choiceCount)
     {
-        if (!BeginSessionLifecycle<OverdrawSession>(usesActivePieceSession: true))
+        if (!BeginSessionLifecycle())
         {
             Destroy(gameObject);
             return;
@@ -85,14 +82,14 @@ public sealed class OverdrawSession : AbilitySessionBase
         _spawner.SetAutoSpawnSuspended(true);
         if (!_spawner.DestroyActivePieceWithoutLock())
         {
-            Finish(resumeIfIdle: true);
+            Finish();
             return;
         }
 
         List<BlockDefinition> definitions = _spawner.TakeDistinctQueued(choiceCount);
         if (definitions.Count == 0)
         {
-            Finish(resumeIfIdle: true);
+            Finish();
             return;
         }
 
@@ -104,7 +101,7 @@ public sealed class OverdrawSession : AbilitySessionBase
 
         if (_choices.Count == 0)
         {
-            Finish(resumeIfIdle: true);
+            Finish();
             return;
         }
 
@@ -113,7 +110,7 @@ public sealed class OverdrawSession : AbilitySessionBase
 
     private void OnDisable() => GameEvents.BlockLocked -= HandleBlockLocked;
 
-    public override void CancelSession() => Finish(resumeIfIdle: true, destroySelf: !IsDestroying);
+    public override void CancelSession() => Finish(destroySelf: !IsDestroying);
 
     private void HandleBlockLocked(BlockController block)
     {
@@ -122,7 +119,7 @@ public sealed class OverdrawSession : AbilitySessionBase
 
         if (_choices.Count == 0 && _flyingChoice == null)
         {
-            Finish(resumeIfIdle: false);
+            Finish();
         }
     }
 
@@ -132,7 +129,7 @@ public sealed class OverdrawSession : AbilitySessionBase
 
         if (GameManager.Instance != null && GameManager.Instance.isGameOver)
         {
-            Finish(resumeIfIdle: false);
+            Finish();
             return;
         }
 
@@ -248,7 +245,7 @@ public sealed class OverdrawSession : AbilitySessionBase
 
         if (spawned == null)
         {
-            Finish(resumeIfIdle: true);
+            Finish();
         }
     }
 
@@ -267,27 +264,6 @@ public sealed class OverdrawSession : AbilitySessionBase
         choice.FlyFrom = choice.Root.position;
         _flyingChoice = choice;
         if (playSound) SfxPlayer.Play("swoosh_01", 0.45f, 0.08f);
-    }
-
-    private bool TryGetSelectionPoint(out Vector2 screenPoint)
-    {
-#if UNITY_EDITOR || UNITY_STANDALONE
-        if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
-        {
-            screenPoint = Mouse.current.position.ReadValue();
-            if (!IsPointerOverUi()) return true;
-        }
-#endif
-
-        foreach (Touch touch in Touch.activeTouches)
-        {
-            if (touch.phase != UnityEngine.InputSystem.TouchPhase.Began) continue;
-            screenPoint = touch.screenPosition;
-            if (!IsPointerOverUi(touch.touchId)) return true;
-        }
-
-        screenPoint = default;
-        return false;
     }
 
     private bool TryPickChoice(Vector2 screenPoint, out Choice picked)
@@ -492,7 +468,7 @@ public sealed class OverdrawSession : AbilitySessionBase
         choice.Bounds = bounds;
     }
 
-    private void Finish(bool resumeIfIdle, bool destroySelf = true)
+    private void Finish(bool destroySelf = true)
     {
         if (!BeginFinish()) return;
 
@@ -502,31 +478,13 @@ public sealed class OverdrawSession : AbilitySessionBase
         }
         _choices.Clear();
 
-        if (_spawner != null)
-        {
-            _spawner.SetAutoSpawnSuspended(false);
-            if (resumeIfIdle && BlockController.ActiveControlled == null &&
-                (GameManager.Instance == null || !GameManager.Instance.isGameOver))
-            {
-                _spawner.ResumeSpawning();
-            }
-        }
+        // Clearing the hold republishes spawn availability: if the draft consumed the turn without a
+        // choice piece in play, the next bag piece spawns on its own; if a choice piece is active, or
+        // the run is over, the ActiveControlled / phase guards in SpawnNextBlock make it a no-op.
+        if (_spawner != null) _spawner.SetAutoSpawnSuspended(false);
 
         SuppressesNextPreview = false;
-        CompleteSessionLifecycle<OverdrawSession>(destroySelf);
+        CompleteSessionLifecycle(destroySelf);
     }
 
-    private static bool IsPointerOverUi(int pointerId = -1)
-    {
-        if (EventSystem.current == null) return false;
-        return pointerId >= 0
-            ? EventSystem.current.IsPointerOverGameObject(pointerId)
-            : EventSystem.current.IsPointerOverGameObject();
-    }
-
-    private static float Smooth01(float t)
-    {
-        t = Mathf.Clamp01(t);
-        return t * t * (3f - 2f * t);
-    }
 }

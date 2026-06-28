@@ -39,13 +39,7 @@ public static class CameraIntroGate
         if (gameManager == null) return;
 
         gameManager.SetSpawnSuspended(SpawnHoldOwner, IsPlaying);
-        if (IsPlaying)
-        {
-            gameManager.SetPhase(GamePhase.Intro);
-        }
-        else if (gameManager.CurrentPhase == GamePhase.Intro)
-        {
-            gameManager.SetPhase(GamePhase.Playing);
-        }
+        if (IsPlaying) gameManager.RequestPhase(SpawnHoldOwner, GamePhase.Intro);
+        else gameManager.ReleasePhase(SpawnHoldOwner);
     }
 }

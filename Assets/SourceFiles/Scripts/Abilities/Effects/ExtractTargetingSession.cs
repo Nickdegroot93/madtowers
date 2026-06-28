@@ -1,9 +1,5 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem.EnhancedTouch;
-using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 /// <summary>
 /// Runtime-only presentation mode for Extract. It never moves real physics bodies: landed pieces
@@ -62,6 +58,7 @@ public sealed class ExtractTargetingSession : AbilitySessionBase
     private BlockData _anchorVariant;
 
     public static bool IsActive => IsSessionActive<ExtractTargetingSession>();
+    protected override bool SeizesActivePiece => false; // presentation only - never seizes the falling piece
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetRuntimeState()
@@ -87,7 +84,7 @@ public sealed class ExtractTargetingSession : AbilitySessionBase
 
     private void StartSession(TargetEffect effect, BlockData anchorVariant)
     {
-        if (!BeginSessionLifecycle<ExtractTargetingSession>(usesActivePieceSession: false))
+        if (!BeginSessionLifecycle())
         {
             Destroy(gameObject);
             return;
@@ -106,7 +103,7 @@ public sealed class ExtractTargetingSession : AbilitySessionBase
         if (GameManager.Instance != null)
         {
             GameManager.Instance.PushPause(this);
-            GameManager.Instance.SetPhase(GamePhase.Paused);
+            GameManager.Instance.RequestPhase(this, GamePhase.Paused);
         }
 
         _state = State.Opening;
@@ -310,27 +307,6 @@ public sealed class ExtractTargetingSession : AbilitySessionBase
         }
     }
 
-    private bool TryGetSelectionPoint(out Vector2 screenPoint)
-    {
-#if UNITY_EDITOR || UNITY_STANDALONE
-        if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
-        {
-            screenPoint = Mouse.current.position.ReadValue();
-            if (!IsPointerOverUi()) return true;
-        }
-#endif
-
-        foreach (Touch touch in Touch.activeTouches)
-        {
-            if (touch.phase != UnityEngine.InputSystem.TouchPhase.Began) continue;
-            screenPoint = touch.screenPosition;
-            if (!IsPointerOverUi(touch.touchId)) return true;
-        }
-
-        screenPoint = default;
-        return false;
-    }
-
     private bool TryPickProxy(Vector2 screenPoint, out Proxy picked)
     {
         picked = null;
@@ -452,27 +428,10 @@ public sealed class ExtractTargetingSession : AbilitySessionBase
         if (GameManager.Instance != null)
         {
             GameManager.Instance.PopPause(this);
-            if (GameManager.Instance.CurrentPhase == GamePhase.Paused)
-            {
-                GameManager.Instance.SetPhase(GamePhase.Playing);
-            }
+            GameManager.Instance.ReleasePhase(this);
         }
-        CompleteSessionLifecycle<ExtractTargetingSession>(destroySelf);
+        CompleteSessionLifecycle(destroySelf);
     }
 
     public override void CancelSession() => Finish(destroySelf: !IsDestroying);
-
-    private static float Smooth01(float t)
-    {
-        t = Mathf.Clamp01(t);
-        return t * t * (3f - 2f * t);
-    }
-
-    private static bool IsPointerOverUi(int pointerId = -1)
-    {
-        if (EventSystem.current == null) return false;
-        return pointerId >= 0
-            ? EventSystem.current.IsPointerOverGameObject(pointerId)
-            : EventSystem.current.IsPointerOverGameObject();
-    }
 }

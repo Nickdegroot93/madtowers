@@ -33,9 +33,12 @@ public class Spawner : MonoBehaviour
     // variant V" consumable queues the extras here; the in-air piece transforms directly).
     private readonly Queue<BlockData> _queuedVariantOverrides = new Queue<BlockData>();
 
-    // Set by the Fission session: while true the lock->spawn chain stops auto-spawning bag
-    // pieces so the session can feed its own 1x1 shards. Run-local; resets with a fresh Spawner.
-    private bool _suppressAutoSpawn;
+    // An active-piece session (Fission, Overdraw, Zap, Magma melt) withholds bag pieces while it
+    // feeds its own sequence by holding this token in GameManager's spawn-availability set. Routing
+    // it through the same bus as the camera/wave gates means clearing it republishes availability
+    // and the next piece spawns automatically - a session author can't strand the run by forgetting
+    // an explicit resume. See SetAutoSpawnSuspended.
+    private readonly object _autoSpawnHoldOwner = new object();
     private bool _started;
 
     // Stable look-ahead queue: holds exactly _visibleQueueDepth rolled shapes, front =
@@ -298,13 +301,6 @@ public class Spawner : MonoBehaviour
         return true;
     }
 
-    // Compatibility shim for active-piece sessions that destroy the live piece without a lock.
-    // Phase/gate releases resume through GameEvents.SpawnAvailabilityChanged.
-    public void ResumeSpawning()
-    {
-        SpawnNextBlock();
-    }
-
     /// <summary>
     /// Replaces the ACTIVE falling piece with another definition's piece at the same
     /// position, mid-fall (Shrink / transform consumables). The old piece is destroyed without
@@ -350,11 +346,21 @@ public class Spawner : MonoBehaviour
     }
 
     /// <summary>
-    /// While true, the lock->spawn chain does NOT auto-spawn the next bag piece. The Fission
-    /// session owns spawning for its duration (it feeds 1x1 shards itself); it clears this on
-    /// the final shard's lock so the very next SpawnNextBlock resumes normal play.
+    /// While suspended, bag pieces don't auto-spawn: an active-piece session (Fission, Overdraw, Zap,
+    /// Magma melt) owns spawning for its duration and feeds its own pieces. Clearing it republishes
+    /// spawn availability through GameManager, which spawns the next bag piece on its own - the
+    /// session never has to kick a spawn itself, so it can't strand the run by forgetting to.
     /// </summary>
-    public void SetAutoSpawnSuspended(bool suspended) => _suppressAutoSpawn = suspended;
+    public void SetAutoSpawnSuspended(bool suspended)
+    {
+        // Routes into the same spawn-availability bus the camera/wave gates use. Clearing it
+        // republishes availability, so the next bag piece spawns on its own (the ActiveControlled
+        // guard in SpawnNextBlock serializes it against the lock->spawn chain - never two pieces).
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.SetSpawnSuspended(_autoSpawnHoldOwner, suspended);
+        }
+    }
 
     /// <summary>
     /// Spawn a fresh controlled piece of the given definition at a position, wired exactly like
@@ -391,28 +397,18 @@ public class Spawner : MonoBehaviour
 
     private void SpawnNextBlock()
     {
-        // The Fission session feeds its own shards; never inject a bag piece mid-session.
-        if (_suppressAutoSpawn)
-        {
-            return;
-        }
-
-        // Never two controlled pieces: a pending SpawnWithDelay coroutine and an external
-        // ResumeSpawning can otherwise race (latent today - every config uses SpawnDelay 0).
+        // Never two controlled pieces: a session-fed piece, a pending SpawnWithDelay coroutine, and a
+        // republish-driven respawn can otherwise race. This guard serializes them - whoever spawns
+        // first sets ActiveControlled and the rest no-op.
         if (BlockController.ActiveControlled != null)
         {
             return;
         }
 
+        // The single spawn gate: GameManager owns availability (phase Playing, not paused, no spawn
+        // holds). The camera-intro / wave-reveal gates and the active-piece auto-spawn suspend all
+        // funnel into that one set via SetSpawnSuspended, so there is nothing else to check here.
         if (GameManager.Instance != null && !GameManager.Instance.CanSpawnBlocks)
-        {
-            return;
-        }
-
-        // GameManager owns spawn availability, but these static gates are set by scene systems
-        // during load/camera timing. Keep a local belt-and-braces guard so the first piece never
-        // slips through during an intro pan or wave reveal if phase sync lands a frame late.
-        if (CameraIntroGate.IsPlaying || WaveRevealGate.IsHoldingSpawn)
         {
             return;
         }

@@ -14,19 +14,23 @@ using UnityEngine;
 /// session hears, and it uses that as the trigger to drop cell #1 - so every drop, including
 /// the first, is driven by the same "a piece just landed" event. No Time.timeScale pause:
 /// the "kinda paused" feel comes purely from withholding bag pieces (SetAutoSpawnSuspended).
+///
+/// Shares AbilitySessionBase with the other active-piece sessions so the "one instance",
+/// ActivePieceSession enter/exit, and teardown rules are inherited, not hand-rolled.
 /// </summary>
-public sealed class MagmaMeltSession : MonoBehaviour
+public sealed class MagmaMeltSession : AbilitySessionBase
 {
     private Spawner _spawner;
     private MagmaBlockData _data;
     private List<Vector3> _positions;
     private int _index;        // next cell to drop
-    private bool _finishing;
 
-    public static bool IsActive { get; private set; }
+    protected override bool SeizesActivePiece => true;
+
+    public static bool IsActive => IsSessionActive<MagmaMeltSession>();
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void ResetRuntimeState() => IsActive = false;
+    private static void ResetRuntimeState() => ResetSessionState<MagmaMeltSession>();
 
     /// <summary>Begin a melt: one stone cell per entry in <paramref name="positions"/>
     /// (already sorted bottom-up by the caller). The magma has been removed already.</summary>
@@ -41,8 +45,11 @@ public sealed class MagmaMeltSession : MonoBehaviour
 
     private void StartSession(Spawner spawner, MagmaBlockData data, List<Vector3> positions)
     {
-        IsActive = true;
-        ActivePieceSession.Enter();
+        if (!BeginSessionLifecycle())
+        {
+            Destroy(gameObject);
+            return;
+        }
         _spawner = spawner;
         _data = data;
         _positions = positions;
@@ -59,18 +66,15 @@ public sealed class MagmaMeltSession : MonoBehaviour
 
     private void OnDisable() => GameEvents.BlockLocked -= HandleBlockLocked;
 
-    // Safety net: a scene reload / level restart mid-melt would otherwise leave IsActive true
-    // (gating consumables forever) and the spawn lock stuck. Mirrors FissionSession's guard.
-    private void OnDestroy()
-    {
-        if (!_finishing) Finish();
-    }
+    // Safety net: a scene reload / level restart mid-melt would otherwise leave the session
+    // active (gating consumables) and the spawn lock stuck. The base OnDestroy routes here.
+    public override void CancelSession() => Finish(destroySelf: !IsDestroying);
 
     private void Update()
     {
         // Game over can destroy the in-flight cell without a lock event - tear down so the
-        // spawn lock and IsActive never strand (Finish is null-safe and idempotent).
-        if (!_finishing && GameManager.Instance != null && GameManager.Instance.isGameOver)
+        // spawn lock and active-piece gate never strand (Finish is null-safe and idempotent).
+        if (!IsFinishing && GameManager.Instance != null && GameManager.Instance.isGameOver)
         {
             Finish();
         }
@@ -81,7 +85,7 @@ public sealed class MagmaMeltSession : MonoBehaviour
     // (SpawnNextBlock, called right after this event) resumes normal play.
     private void HandleBlockLocked(BlockController block)
     {
-        if (_finishing) return;
+        if (IsFinishing) return;
         if (GameManager.Instance != null && GameManager.Instance.isGameOver) { Finish(); return; }
 
         if (_index >= _positions.Count)
@@ -112,14 +116,11 @@ public sealed class MagmaMeltSession : MonoBehaviour
         _index++;
     }
 
-    private void Finish()
+    private void Finish(bool destroySelf = true)
     {
-        if (_finishing) return;
-        _finishing = true;
+        if (!BeginFinish()) return;
 
         if (_spawner != null) _spawner.SetAutoSpawnSuspended(false);
-        IsActive = false;
-        ActivePieceSession.Exit();
-        Destroy(gameObject);
+        CompleteSessionLifecycle(destroySelf);
     }
 }

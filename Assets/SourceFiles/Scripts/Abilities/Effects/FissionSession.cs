@@ -75,6 +75,7 @@ public sealed class FissionSession : AbilitySessionBase
     }
 
     public static bool IsActive => IsSessionActive<FissionSession>();
+    protected override bool SeizesActivePiece => true;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetRuntimeState() => ResetSessionState<FissionSession>();
@@ -92,7 +93,7 @@ public sealed class FissionSession : AbilitySessionBase
 
     private void StartSession(Spawner spawner, BlockDefinition pip, int cellCount)
     {
-        if (!BeginSessionLifecycle<FissionSession>(usesActivePieceSession: true))
+        if (!BeginSessionLifecycle())
         {
             Destroy(gameObject);
             return;
@@ -344,12 +345,6 @@ public sealed class FissionSession : AbilitySessionBase
         _ghosts.Clear();
 
         if (_spawner != null) _spawner.SetAutoSpawnSuspended(false);
-        CompleteSessionLifecycle<FissionSession>(destroySelf);
-    }
-
-    private static float Smooth01(float t)
-    {
-        t = Mathf.Clamp01(t);
-        return t * t * (3f - 2f * t);
+        CompleteSessionLifecycle(destroySelf);
     }
 }

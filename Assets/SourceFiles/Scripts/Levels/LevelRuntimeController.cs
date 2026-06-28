@@ -133,12 +133,7 @@ public class LevelRuntimeController : MonoBehaviour
         if (GameManager.Instance != null)
         {
             GameManager.Instance.PopPause(this);
-            if (!GameManager.Instance.isGameOver &&
-                (GameManager.Instance.CurrentPhase == GamePhase.Completed ||
-                 GameManager.Instance.CurrentPhase == GamePhase.WinVerifying))
-            {
-                GameManager.Instance.SetPhase(GamePhase.Playing);
-            }
+            GameManager.Instance.ReleasePhase(this);
         }
     }
 
@@ -197,9 +192,8 @@ public class LevelRuntimeController : MonoBehaviour
             UpdateCountdownLabel();
             if (_verificationRemaining <= 0f)
             {
-                GameManager.Instance.SetPhase(GamePhase.Completed);
                 DestroyCountdownUi();
-                CompleteLevel();
+                CompleteLevel(); // requests the Completed phase
             }
             return;
         }
@@ -227,7 +221,7 @@ public class LevelRuntimeController : MonoBehaviour
         if (GameManager.Instance == null || GameManager.Instance.isGameOver) return;
 
         _targetReachedOnce = true;
-        GameManager.Instance.SetPhase(GamePhase.WinVerifying);
+        GameManager.Instance.RequestPhase(this, GamePhase.WinVerifying);
         _verificationRemaining = WinVerificationSeconds;
         BuildCountdownUi();
         UpdateCountdownLabel();
@@ -235,7 +229,7 @@ public class LevelRuntimeController : MonoBehaviour
 
     private void AbortVerification()
     {
-        if (GameManager.Instance != null) GameManager.Instance.SetPhase(GamePhase.Playing);
+        if (GameManager.Instance != null) GameManager.Instance.ReleasePhase(this); // drops WinVerifying -> back to Playing
         DestroyCountdownUi();
         ShowBanner("The tower fell - keep building!");
     }
@@ -388,10 +382,7 @@ public class LevelRuntimeController : MonoBehaviour
         if (_completed || GameManager.Instance == null || GameManager.Instance.isGameOver) return;
 
         _completed = true;
-        if (GameManager.Instance != null && GameManager.Instance.CurrentPhase != GamePhase.Completed)
-        {
-            GameManager.Instance.SetPhase(GamePhase.Completed);
-        }
+        GameManager.Instance.RequestPhase(this, GamePhase.Completed);
         ProgressStore.MarkLevelCompleted(_level);
         if (GameManager.Instance != null)
         {
@@ -438,10 +429,7 @@ public class LevelRuntimeController : MonoBehaviour
         if (GameManager.Instance != null)
         {
             GameManager.Instance.PopPause(this);
-            if (GameManager.Instance.CurrentPhase == GamePhase.Completed)
-            {
-                GameManager.Instance.SetPhase(GamePhase.Playing);
-            }
+            GameManager.Instance.ReleasePhase(this);
         }
     }
 

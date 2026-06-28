@@ -24,6 +24,7 @@ public sealed class ZapSession : AbilitySessionBase
     private const float KeyAimSpeed = 7f;     // columns/sec for arrow-key aiming
 
     public static bool IsActive => IsSessionActive<ZapSession>();
+    protected override bool SeizesActivePiece => true;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetRuntimeState() => ResetSessionState<ZapSession>();
@@ -53,7 +54,7 @@ public sealed class ZapSession : AbilitySessionBase
 
     private void StartSession(Spawner spawner, GameObject detonateEffect, float detonateScale, Color color, Color accent)
     {
-        if (!BeginSessionLifecycle<ZapSession>(usesActivePieceSession: true))
+        if (!BeginSessionLifecycle())
         {
             Destroy(gameObject);
             return;
@@ -200,12 +201,11 @@ public sealed class ZapSession : AbilitySessionBase
         if (!BeginFinish()) return;
 
         if (_beam != null) Destroy(_beam.gameObject);
-        if (_spawner != null)
-        {
-            _spawner.SetAutoSpawnSuspended(false);
-            _spawner.ResumeSpawning(); // no piece locked during the shot, so kick the next one ourselves
-        }
+        // No piece locked during the shot; clearing the hold republishes spawn availability, so the
+        // next bag piece spawns on its own (ActiveControlled is null after the active piece was
+        // destroyed, so SpawnNextBlock proceeds).
+        if (_spawner != null) _spawner.SetAutoSpawnSuspended(false);
 
-        CompleteSessionLifecycle<ZapSession>(destroySelf);
+        CompleteSessionLifecycle(destroySelf);
     }
 }

@@ -75,9 +75,15 @@ and consumable-slot swap flow. It deliberately delegates the other two heavy job
   slots.
 
 Runtime targeting/sequence effects derive from `AbilitySessionBase` when they own a temporary
-mode. The base enforces one active session per type, owns `ActivePieceSession.Enter/Exit` for
-active-piece sessions, and runs destroy-time cleanup through `CancelSession()`. New sessions should
-use the base instead of hand-rolling `IsActive`, `OnDestroy`, and Enter/Exit safety.
+mode (Fission, Overdraw, Zap, Magma melt, Extract — all five sessions use it; none hand-roll the
+lifecycle). The base enforces one active session per type, runs destroy-time cleanup through
+`CancelSession()`, and shares the common pointer-picking / easing helpers (`TryGetSelectionPoint`,
+`IsPointerOverUi`, `Smooth01`). Whether a session seizes the active falling piece is declared once
+as the abstract `SeizesActivePiece` property — the base reads it to pair `ActivePieceSession.Enter`
+with `Exit`, so the pairing is **safe by construction**: a new session can't forget it or pass the
+wrong value. New sessions only implement `SeizesActivePiece` + `CancelSession()` and call
+`BeginSessionLifecycle()` / `CompleteSessionLifecycle()`; never hand-roll `IsActive`, `OnDestroy`,
+or Enter/Exit.
 
 ## 3. The state rule (never violate)
 
@@ -709,8 +715,9 @@ still, and summons a vertical `ZapBeam` from the top of the screen down to the t
 3 seconds** the beam charges from a wide glow to a thin needle; on full charge the target detonates
 through the shared shatter path (`ImpactFx.DestroyBlockWithShatter` — removes it from the live
 count, [BLOCKS.md](BLOCKS.md), plus a per-cell `detonateEffect` burst + `ImpactPunch`), or a soft dud
-plays for an empty column. Then `Spawner.ResumeSpawning` kicks the next bag piece because no lock
-event happened. The charge runs on
+plays for an empty column. On finish it just **clears the auto-spawn hold** (`SetAutoSpawnSuspended(false)`):
+that republishes spawn availability and the next bag piece spawns on its own — no explicit kick, no
+`ResumeSpawning`. The charge runs on
 **scaled time** and is held unless `GameManager.CurrentPhase == Playing` and unpaused, so a Zap can never fire behind
 those screens (PHYSICS.md). It is **not a block variant** — nothing falls; the laser does the work.
 
@@ -789,10 +796,11 @@ cell** (a tetromino → 4, a domino → 2). `Activate` plays the per-cell shatte
   `Spawner.SpawnControlledPieceAt(pip, SpawnPosition, suspended:true)` and the front ghost glides
   into the drop slot (smooth lerp, no teleport snaps); the row recentres.
 - The session **withholds bag pieces** for its duration via `Spawner.SetAutoSpawnSuspended(true)`
-  (guards `SpawnNextBlock`); it does **not** pause `Time.timeScale` (that would freeze the
-  controllable shard — the "kinda paused" feel comes from no bag pieces + hovering shards). On the
-  last shard's lock it clears the suspension so the Spawner's own lock→spawn chain resumes normal
-  play; game-over mid-session tears down cleanly.
+  (a spawn hold in `GameManager`, so `CanSpawnBlocks` is false while held); it does **not** pause
+  `Time.timeScale` (that would freeze the controllable shard — the "kinda paused" feel comes from no
+  bag pieces + hovering shards). On the last shard's lock it clears the suspension, which republishes
+  spawn availability and the next bag piece spawns on its own (serialized against the lock→spawn chain
+  by the `ActiveControlled` guard — never two pieces); game-over mid-session tears down cleanly.
 
 Each shard is a real `Block_Pip` (Normal data — counts +1, costs a life), so a tetromino that
 normally scores +1 places **four counting blocks** (BLOCKS.md): the power, and the cost. The
