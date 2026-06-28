@@ -237,8 +237,9 @@ Two HUD slots (bottom-center buttons; they register gesture-exclusion rects with
 `TouchGestureInput` so taps never steer/rotate). Picking a consumable with both slots
 full opens the swap dialog (replace either slot, or discard the new one) — the game
 stays paused until resolved. Blanket activation gates, checked before the ability's
-own `CanActivate`: not paused, not game over, **not during win verification** (a
-freeze during the hold-steady countdown would cheat the sturdiness test). Slots dim
+own `CanActivate`: `GameManager.CurrentPhase == Playing`, not paused, and no
+active-piece session owns the field (a freeze during the hold-steady countdown would
+cheat the sturdiness test). Slots dim
 when unusable, same affordance as the nudge pills.
 
 ## 9. How to add things (recipes)
@@ -364,8 +365,8 @@ dispatched event (e.g. spawn a piece) without corrupting the in-flight loop.
   weights, then 3 uniform picks without replacement within it. An offer earned during
   a pause/win-verification is deferred, not dropped; the milestone check is
   crossing-based so bonus score can't skip one.
-- **Consumable gates** (blanket, before per-ability `CanActivate`): not paused, not game
-  over, not during win verification.
+- **Consumable gates** (blanket, before per-ability `CanActivate`): `GameManager.CurrentPhase == Playing`,
+  not paused, and no active-piece session owns the field.
 - All ability components live on the GameManager's object (added in `GameManager.Awake`,
   order matters: StatusEffects → AbilityRuntime → ComboDetector → AbilityHud →
   AbilityChoiceController).
@@ -442,7 +443,7 @@ decision, and a **one-hold-per-piece lockout**. The lockout resets on the new `G
 (raised when a piece LANDS) rather than `BlockSpawned` — that's deliberate, because the bank raises a
 fresh `BlockSpawned` and keying the lockout off spawns would let it reset itself and re-hold for free.
 So you must LAND a piece before holding again, and a just-swapped-in piece can't be swapped straight
-back out. `CanHold` also gates on a live controllable piece (paused / win-verify / game-over have
+back out. `CanHold` also gates on a live controllable piece (`CurrentPhase == Playing`, not paused; other phases have
 nothing to swap), and both paths check `ReplaceActivePiece`'s return before committing cache state.
 The held shape shows as a **white** silhouette — luminance normalised by the piece's brightest pixel
 then gamma-lifted, so cell seams survive while it reads white — with a very slight idle wave.
@@ -691,8 +692,9 @@ still, and summons a vertical `ZapBeam` from the top of the screen down to the t
 3 seconds** the beam charges from a wide glow to a thin needle; on full charge the target detonates
 through the shared shatter path (`ImpactFx.DestroyBlockWithShatter` — removes it from the live
 count, [BLOCKS.md](BLOCKS.md), plus a per-cell `detonateEffect` burst + `ImpactPunch`), or a soft dud
-plays for an empty column. Then `Spawner.ResumeSpawning` kicks the next bag piece. The charge runs on
-**scaled time** and is held while paused / during win verification, so a Zap can never fire behind
+plays for an empty column. Then `Spawner.ResumeSpawning` kicks the next bag piece because no lock
+event happened. The charge runs on
+**scaled time** and is held unless `GameManager.CurrentPhase == Playing` and unpaused, so a Zap can never fire behind
 those screens (PHYSICS.md). It is **not a block variant** — nothing falls; the laser does the work.
 
 The beam is `ZapBeam`: layered soft **vertical** bars (outer glow → blue body → cyan filament →

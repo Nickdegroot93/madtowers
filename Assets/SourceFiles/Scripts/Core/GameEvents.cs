@@ -25,6 +25,8 @@ public static class GameEvents
     /// <summary>The active piece just locked into the tower (one per piece-turn). Distinct from
     /// BlockSpawned because mid-turn transmutes/banks raise a spawn without a preceding lock.</summary>
     public static event Action BlockLocked;
+    public static event Action<GamePhase, GamePhase> PhaseChanged;
+    public static event Action<bool> SpawnAvailabilityChanged;
     public static event Action<int, float> GameOver;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -39,6 +41,8 @@ public static class GameEvents
         NextBlockChanged = null;
         BlockSpawned = null;
         BlockLocked = null;
+        PhaseChanged = null;
+        SpawnAvailabilityChanged = null;
         GameOver = null;
     }
 
@@ -51,5 +55,7 @@ public static class GameEvents
     public static void RaiseNextBlockChanged(IReadOnlyList<string> blockNames) => NextBlockChanged?.Invoke(blockNames);
     public static void RaiseBlockSpawned(BlockController block, BlockData variant) => BlockSpawned?.Invoke(block, variant);
     public static void RaiseBlockLocked() => BlockLocked?.Invoke();
+    public static void RaisePhaseChanged(GamePhase previous, GamePhase current) => PhaseChanged?.Invoke(previous, current);
+    public static void RaiseSpawnAvailabilityChanged(bool canSpawn) => SpawnAvailabilityChanged?.Invoke(canSpawn);
     public static void RaiseGameOver(int score, float maxHeight) => GameOver?.Invoke(score, maxHeight);
 }

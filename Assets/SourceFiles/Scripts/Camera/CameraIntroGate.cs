@@ -2,17 +2,45 @@
 /// Holds the lock->spawn chain during a level's opening camera pan: the camera starts offset to
 /// the side and glides to the framing center to reveal the scenery, and the first piece must NOT
 /// drop until that pan finishes. TowerCameraController is the sole authority - it sets this at
-/// Awake (true if it will pan, false otherwise) and releases it when the pan completes, then kicks
-/// the spawn (the chain is event-driven and never retries a gated spawn on its own).
-/// Spawner.SpawnNextBlock honours it exactly like the win-verification and wave-reveal holds.
+/// Awake (true if it will pan, false otherwise) and releases it when the pan completes.
+/// GameManager turns this into a spawn hold and raises spawn availability when it clears.
 /// </summary>
 public static class CameraIntroGate
 {
+    private static readonly object SpawnHoldOwner = new object();
+
     public static bool IsPlaying { get; private set; }
 
-    public static void Begin() => IsPlaying = true;
+    public static void Begin()
+    {
+        IsPlaying = true;
+        SyncToGameManager(GameManager.Instance);
+    }
 
-    public static void End() => IsPlaying = false;
+    public static void End()
+    {
+        IsPlaying = false;
+        SyncToGameManager(GameManager.Instance);
+    }
 
-    public static void Reset() => IsPlaying = false;
+    public static void Reset()
+    {
+        IsPlaying = false;
+        SyncToGameManager(GameManager.Instance);
+    }
+
+    public static void SyncToGameManager(GameManager gameManager)
+    {
+        if (gameManager == null) return;
+
+        gameManager.SetSpawnSuspended(SpawnHoldOwner, IsPlaying);
+        if (IsPlaying)
+        {
+            gameManager.SetPhase(GamePhase.Intro);
+        }
+        else if (gameManager.CurrentPhase == GamePhase.Intro)
+        {
+            gameManager.SetPhase(GamePhase.Playing);
+        }
+    }
 }

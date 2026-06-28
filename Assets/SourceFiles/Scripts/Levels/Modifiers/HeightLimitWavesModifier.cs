@@ -65,7 +65,7 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     private float _flash;
     private bool _finished;
 
-    // Wave-transition spawn hold (WaveRevealGate). While true the next piece is held until the
+    // Wave-transition spawn hold (WaveRevealGate -> GameManager spawn hold). While true the next piece is held until the
     // line has settled at its new height and the freshly revealed island band has finished
     // popping in. _settledGenTick is the island manager's pass counter captured the moment the
     // line settles, so we can tell generation has run against the raised ceiling before trusting
@@ -183,7 +183,8 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     // A wave just cleared: hold the next piece until the line settles at the new height and the
     // band it reveals has popped in. SpawnNextBlock was about to run for this very lock (the lock
     // raised BlockPlaced -> here -> the gate, all before BlockController fires OnBlockLocked ->
-    // Spawner), so setting the gate now suppresses that imminent spawn; OnUpdate resumes it.
+    // Spawner), so setting the gate now suppresses that imminent spawn; releasing the hold
+    // raises spawn availability and the Spawner retries itself.
     private void BeginRevealHold()
     {
         _waitingForReveal = true;
@@ -202,8 +203,6 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
         }
         _waitingForReveal = false;
         WaveRevealGate.Release();
-        // The lock->spawn chain is event-driven and was suppressed at lock time; restart it.
-        _context?.Spawner?.ResumeSpawning();
     }
 
     // Release the next piece once the transition has fully settled: the line has reached its new

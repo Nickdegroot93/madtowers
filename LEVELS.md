@@ -24,8 +24,8 @@ LevelDefinition  (Assets/Resources/Levels/  — one per level)
  ├─ identity: display name + menu thumbnail (presentation lives on the chapter)
  ├─ instruction: one-sentence goal banner shown (fade in/out) at level start
  ├─ GOAL: targetType (Endless | PlaceBlocks | ReachHeight) + targetValue.
- │   Reaching it arms a 5 s "Hold steady!" countdown (LevelRuntimeController): nothing
- │   spawns, physics and the loss rules stay live, and only a tower that survives the
+ │   Reaching it enters the `WinVerifying` phase for a 5 s "Hold steady!" countdown:
+ │   normal bag spawning is suspended, physics and the loss rules stay live, and only a tower that survives the
  │   window wins — rapid-dropping the last blocks buys nothing. ReachHeight is also
  │   re-checked against the LIVE standing tower during the countdown (the recorded max
  │   is monotonic); a collapse below the target aborts the countdown and play resumes.
@@ -324,7 +324,7 @@ each spawn picks a random variant + random 90° rotation = 12 looks per chapter.
 ### Power-up choices
 | Setting | What it does |
 |---|---|
-| `powerUpChoiceEveryBlocks` | Every N placed blocks: full pause + pick 1 of 3. 0 disables for the level. |
+| `powerUpChoiceEveryBlocks` | Every N placed blocks: enters the `AbilityChoice` phase, pushes a pause owner, and offers 1 of 3. 0 disables for the level. |
 | `powerUpChoicePool` | Which AbilityDefinitions can be offered (see **ABILITIES.md** for the full ability architecture: kinds, stacking, conditions, status effects, combo triggers). Per level — hard levels can ban abilities via `LevelDefinition.bannedAbilities`, gift levels can offer only Legendaries. Rarity weighting lives in `AbilityRarityProfile` (staged weights; `AbilityRarityInfo` owns only the rarity colours). |
 
 Power-ups span Common/Rare/Epic (the full catalog lives in `Assets/Data/PowerUps/`; ABILITIES.md

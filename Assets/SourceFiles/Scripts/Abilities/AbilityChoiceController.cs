@@ -40,6 +40,14 @@ public class AbilityChoiceController : MonoBehaviour
     {
         GameEvents.ScoreChanged -= HandleScoreChanged;
         CloseChoicePanel();
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.PopPause(this);
+            if (GameManager.Instance.CurrentPhase == GamePhase.AbilityChoice)
+            {
+                GameManager.Instance.SetPhase(GamePhase.Playing);
+            }
+        }
     }
 
     private void HandleScoreChanged(int score)
@@ -76,7 +84,7 @@ public class AbilityChoiceController : MonoBehaviour
 
         // Wait out the win-verification countdown and any other full-screen pause
         // (level-complete panel, pause menu) - the offer keeps, it doesn't vanish.
-        if (LevelRuntimeController.IsVerifyingWin || GameManager.Instance.IsGamePaused) return;
+        if (GameManager.Instance.CurrentPhase != GamePhase.Playing || GameManager.Instance.IsGamePaused) return;
 
         GameModeConfig config = GameManager.Instance.ActiveConfig;
         IReadOnlyList<AbilityDefinition> pool = config != null ? config.PowerUpChoicePool : null;
@@ -90,7 +98,8 @@ public class AbilityChoiceController : MonoBehaviour
         RollChoices(pool);
         if (_rollBuffer.Count == 0) return; // every candidate filtered out: offer quietly skipped
 
-        GameManager.Instance.SetGamePaused(true);
+        GameManager.Instance.PushPause(this);
+        GameManager.Instance.SetPhase(GamePhase.AbilityChoice);
         RuntimeUiKit.EnsureEventSystem();
         BuildChoicePanel();
     }
@@ -221,7 +230,11 @@ public class AbilityChoiceController : MonoBehaviour
         CloseChoicePanel();
         if (GameManager.Instance != null)
         {
-            GameManager.Instance.SetGamePaused(false);
+            GameManager.Instance.PopPause(this);
+            if (GameManager.Instance.CurrentPhase == GamePhase.AbilityChoice)
+            {
+                GameManager.Instance.SetPhase(GamePhase.Playing);
+            }
         }
     }
 

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -21,6 +22,8 @@ public class GameManager : MonoBehaviour
 
     public bool isGameOver { get; private set; }
     public bool IsGamePaused { get; private set; }
+    public GamePhase CurrentPhase { get; private set; } = GamePhase.Playing;
+    public bool CanSpawnBlocks => CurrentPhase == GamePhase.Playing && !IsGamePaused && _spawnHoldOwners.Count == 0;
     public float maxHeight => _maxHeight;
     /// <summary>Tower height in meters above the floor (what the HUD shows). maxHeight stays world-space for the camera/spawners.</summary>
     public float towerHeight => Mathf.Max(0f, _maxHeight - _heightOriginY);
@@ -53,6 +56,11 @@ public class GameManager : MonoBehaviour
     private float _heightOriginY;
     private float _abilityFallSpeedMultiplier = 1f;
     private StatusEffects _statusEffects;
+    private readonly HashSet<object> _pauseOwners = new HashSet<object>();
+    private readonly HashSet<object> _spawnHoldOwners = new HashSet<object>();
+    private static readonly object LegacyPauseOwner = new object();
+    private bool _spawnAvailabilityInitialized;
+    private bool _lastSpawnAvailability;
     // The piece currently in play + its flags, reported by the Spawner as it's wired
     // (both fresh spawns and mid-fall variant swaps). The lock-time AddScore call from
     // BlockController is param-less and fires after ActiveControlled has already cleared,
@@ -94,6 +102,8 @@ public class GameManager : MonoBehaviour
                 }
             }
             ApplyConfig();
+            CameraIntroGate.SyncToGameManager(this);
+            WaveRevealGate.SyncToGameManager(this);
             PublishState();
 
             // Ability/UI system stack: the installer owns the roster and the deterministic add
@@ -117,13 +127,58 @@ public class GameManager : MonoBehaviour
         _activeBlockData = data;
     }
 
-    /// <summary>Full pause used by the choice/completion screens.</summary>
+    public void SetPhase(GamePhase phase)
+    {
+        if (CurrentPhase == GamePhase.GameOver && phase != GamePhase.GameOver) return;
+        if (CurrentPhase == phase) return;
+
+        GamePhase previous = CurrentPhase;
+        CurrentPhase = phase;
+        GameEvents.RaisePhaseChanged(previous, CurrentPhase);
+        RefreshSpawnAvailability();
+    }
+
+    public void PushPause(object owner)
+    {
+        if (owner == null) owner = LegacyPauseOwner;
+        if (!_pauseOwners.Add(owner)) return;
+
+        RefreshPauseState();
+    }
+
+    public void PopPause(object owner)
+    {
+        if (owner == null) owner = LegacyPauseOwner;
+        if (!_pauseOwners.Remove(owner)) return;
+
+        RefreshPauseState();
+    }
+
+    public void SetSpawnSuspended(object owner, bool suspended)
+    {
+        if (owner == null) owner = this;
+
+        bool changed = suspended
+            ? _spawnHoldOwners.Add(owner)
+            : _spawnHoldOwners.Remove(owner);
+        if (changed) RefreshSpawnAvailability();
+    }
+
+    /// <summary>Compatibility wrapper for older callers. New modal owners should use PushPause/PopPause.</summary>
     public void SetGamePaused(bool paused)
     {
+        if (paused) PushPause(LegacyPauseOwner);
+        else PopPause(LegacyPauseOwner);
+    }
+
+    private void RefreshPauseState()
+    {
+        bool paused = _pauseOwners.Count > 0;
         if (IsGamePaused == paused) return;
 
         IsGamePaused = paused;
         RefreshTimeScale();
+        RefreshSpawnAvailability();
     }
 
     // Single authority over Time.timeScale: it is only ever 1 (playing) or 0 (paused). Slow-time
@@ -133,6 +188,16 @@ public class GameManager : MonoBehaviour
     private void RefreshTimeScale()
     {
         Time.timeScale = IsGamePaused ? 0f : 1f;
+    }
+
+    private void RefreshSpawnAvailability()
+    {
+        bool canSpawn = CanSpawnBlocks;
+        if (_spawnAvailabilityInitialized && _lastSpawnAvailability == canSpawn) return;
+
+        _spawnAvailabilityInitialized = true;
+        _lastSpawnAvailability = canSpawn;
+        GameEvents.RaiseSpawnAvailabilityChanged(canSpawn);
     }
 
     private void OnDestroy()
@@ -208,6 +273,7 @@ public class GameManager : MonoBehaviour
         }
 
         isGameOver = true;
+        SetPhase(GamePhase.GameOver);
 
         GameEvents.RaiseGameOver(_score, towerHeight);
         Debug.Log("Game Over");
@@ -216,6 +282,8 @@ public class GameManager : MonoBehaviour
     public void RestartGame()
     {
         Time.timeScale = 1f;
+        _pauseOwners.Clear();
+        IsGamePaused = false;
         BlockController.ResetRuntimeState();
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }

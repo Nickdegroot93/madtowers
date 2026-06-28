@@ -58,7 +58,6 @@ public sealed class ExtractTargetingSession : MonoBehaviour
     private float _age;
     private Proxy _selected;
     private Camera _camera;
-    private bool _pausedGame;
     private bool _finishing;
     private TargetEffect _effect;
     private BlockData _anchorVariant;
@@ -101,10 +100,10 @@ public sealed class ExtractTargetingSession : MonoBehaviour
             return;
         }
 
-        if (GameManager.Instance != null && !GameManager.Instance.IsGamePaused)
+        if (GameManager.Instance != null)
         {
-            GameManager.Instance.SetGamePaused(true);
-            _pausedGame = true;
+            GameManager.Instance.PushPause(this);
+            GameManager.Instance.SetPhase(GamePhase.Paused);
         }
 
         _state = State.Opening;
@@ -448,9 +447,13 @@ public sealed class ExtractTargetingSession : MonoBehaviour
         }
         _proxies.Clear();
 
-        if (_pausedGame && GameManager.Instance != null)
+        if (GameManager.Instance != null)
         {
-            GameManager.Instance.SetGamePaused(false);
+            GameManager.Instance.PopPause(this);
+            if (GameManager.Instance.CurrentPhase == GamePhase.Paused)
+            {
+                GameManager.Instance.SetPhase(GamePhase.Playing);
+            }
         }
         IsActive = false;
         if (destroySelf) Destroy(gameObject);

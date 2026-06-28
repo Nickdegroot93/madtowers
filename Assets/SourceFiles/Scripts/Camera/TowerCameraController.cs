@@ -187,8 +187,6 @@ public class TowerCameraController : MonoBehaviour
         _introActive = false;
         _horizontalVelocity = 0f; // hand off to the follow with no residual velocity
         CameraIntroGate.End();
-        // The lock->spawn chain was gated through the pan and never retries on its own - kick it.
-        Object.FindAnyObjectByType<Spawner>()?.ResumeSpawning();
     }
 
     private void UpdateZoom(float targetSize)

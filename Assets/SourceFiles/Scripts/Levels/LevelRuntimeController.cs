@@ -17,8 +17,9 @@ public class LevelRuntimeController : MonoBehaviour
     // tower (the recorded max is monotonic and would stay "met" after a collapse).
     private const float WinVerificationSeconds = 5f;
 
-    /// <summary>True while the hold-steady countdown runs. The Spawner gates on this.</summary>
-    public static bool IsVerifyingWin { get; private set; }
+    /// <summary>True while the hold-steady countdown runs. Kept for older read sites.</summary>
+    public static bool IsVerifyingWin =>
+        GameManager.Instance != null && GameManager.Instance.CurrentPhase == GamePhase.WinVerifying;
 
     private readonly List<LevelModifier> _activeModifiers = new List<LevelModifier>();
     private LevelModifierContext _modifierContext;
@@ -128,8 +129,17 @@ public class LevelRuntimeController : MonoBehaviour
         GameEvents.StandingBlocksChanged -= HandleStandingBlocksChanged;
         GameEvents.HeightChanged -= HandleHeightChanged;
         GameEvents.GameOver -= HandleGameOver;
-        IsVerifyingWin = false; // static: must not leak a stale gate into the next scene
         DestroyCountdownUi();   // also stops the countdown loop - SfxPlayer persists across scenes
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.PopPause(this);
+            if (!GameManager.Instance.isGameOver &&
+                (GameManager.Instance.CurrentPhase == GamePhase.Completed ||
+                 GameManager.Instance.CurrentPhase == GamePhase.WinVerifying))
+            {
+                GameManager.Instance.SetPhase(GamePhase.Playing);
+            }
+        }
     }
 
     // Personal bests are recorded at every end-of-run (monotonic - only improvements stick).
@@ -138,11 +148,7 @@ public class LevelRuntimeController : MonoBehaviour
         if (_level != null) ProgressStore.ReportResult(_level, finalScore, maxHeightMeters);
 
         // A run can die mid-verification (the dropped blocks took the last life).
-        if (IsVerifyingWin)
-        {
-            IsVerifyingWin = false;
-            DestroyCountdownUi();
-        }
+        if (_countdownRoot != null) DestroyCountdownUi();
     }
 
     private void Update()
@@ -191,7 +197,7 @@ public class LevelRuntimeController : MonoBehaviour
             UpdateCountdownLabel();
             if (_verificationRemaining <= 0f)
             {
-                IsVerifyingWin = false;
+                GameManager.Instance.SetPhase(GamePhase.Completed);
                 DestroyCountdownUi();
                 CompleteLevel();
             }
@@ -221,7 +227,7 @@ public class LevelRuntimeController : MonoBehaviour
         if (GameManager.Instance == null || GameManager.Instance.isGameOver) return;
 
         _targetReachedOnce = true;
-        IsVerifyingWin = true;
+        GameManager.Instance.SetPhase(GamePhase.WinVerifying);
         _verificationRemaining = WinVerificationSeconds;
         BuildCountdownUi();
         UpdateCountdownLabel();
@@ -229,13 +235,9 @@ public class LevelRuntimeController : MonoBehaviour
 
     private void AbortVerification()
     {
-        IsVerifyingWin = false;
+        if (GameManager.Instance != null) GameManager.Instance.SetPhase(GamePhase.Playing);
         DestroyCountdownUi();
         ShowBanner("The tower fell - keep building!");
-
-        // The lock->spawn chain is event-driven and was suppressed while verifying;
-        // nothing would ever spawn again without an explicit restart.
-        _modifierContext?.Spawner?.ResumeSpawning();
     }
 
     // The live snapshot the win condition reads. LiveTowerHeight is passed as a cached delegate so
@@ -386,6 +388,10 @@ public class LevelRuntimeController : MonoBehaviour
         if (_completed || GameManager.Instance == null || GameManager.Instance.isGameOver) return;
 
         _completed = true;
+        if (GameManager.Instance != null && GameManager.Instance.CurrentPhase != GamePhase.Completed)
+        {
+            GameManager.Instance.SetPhase(GamePhase.Completed);
+        }
         ProgressStore.MarkLevelCompleted(_level);
         if (GameManager.Instance != null)
         {
@@ -405,7 +411,7 @@ public class LevelRuntimeController : MonoBehaviour
     {
         if (_panelRoot != null || GameManager.Instance == null) return;
 
-        GameManager.Instance.SetGamePaused(true);
+        GameManager.Instance.PushPause(this);
         RuntimeUiKit.EnsureEventSystem();
         BuildCompletionPanel();
     }
@@ -429,12 +435,12 @@ public class LevelRuntimeController : MonoBehaviour
         _panelRoot = null;
         if (GameManager.Instance != null)
         {
-            GameManager.Instance.SetGamePaused(false);
+            GameManager.Instance.PopPause(this);
+            if (GameManager.Instance.CurrentPhase == GamePhase.Completed)
+            {
+                GameManager.Instance.SetPhase(GamePhase.Playing);
+            }
         }
-
-        // The verification window suppressed the lock->spawn chain, so unlike the old
-        // instant-complete flow there is no piece waiting - restart spawning explicitly.
-        _modifierContext?.Spawner?.ResumeSpawning();
     }
 
     // ---- Runtime UI ---------------------------------------------------------------------------

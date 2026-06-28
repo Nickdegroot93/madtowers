@@ -67,7 +67,7 @@ public class HoldCache : MonoBehaviour
             if (ActivePieceSession.AnyActive) return false;
 
             GameManager gm = GameManager.Instance;
-            if (gm == null || gm.isGameOver || gm.IsGamePaused || LevelRuntimeController.IsVerifyingWin) return false;
+            if (gm == null || gm.CurrentPhase != GamePhase.Playing || gm.IsGamePaused) return false;
 
             BlockController active = BlockController.ActiveControlled;
             return active != null && !active.HasLanded && _spawner.ActiveDefinition != null;

@@ -28,7 +28,8 @@ public class PauseMenuController : MonoBehaviour
         if (GameManager.Instance == null || GameManager.Instance.isGameOver ||
             GameManager.Instance.IsGamePaused) return;
 
-        GameManager.Instance.SetGamePaused(true);
+        GameManager.Instance.PushPause(this);
+        GameManager.Instance.SetPhase(GamePhase.Paused);
         StartCoroutine(CaptureBlurThenShowMenu());
     }
 
@@ -121,11 +122,26 @@ public class PauseMenuController : MonoBehaviour
     {
         DestroyMenu();
         ReleaseBlur();
-        if (GameManager.Instance != null) GameManager.Instance.SetGamePaused(false);
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.PopPause(this);
+            if (GameManager.Instance.CurrentPhase == GamePhase.Paused)
+            {
+                GameManager.Instance.SetPhase(GamePhase.Playing);
+            }
+        }
     }
 
     private void OnDestroy()
     {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.PopPause(this);
+            if (GameManager.Instance.CurrentPhase == GamePhase.Paused)
+            {
+                GameManager.Instance.SetPhase(GamePhase.Playing);
+            }
+        }
         ReleaseBlur(); // restart / back-to-menu paths end in a scene unload
     }
 

@@ -219,8 +219,7 @@ public class AbilityRuntime : MonoBehaviour
         get
         {
             GameManager gm = GameManager.Instance;
-            return gm != null && !gm.isGameOver && !gm.IsGamePaused
-                   && !LevelRuntimeController.IsVerifyingWin
+            return gm != null && gm.CurrentPhase == GamePhase.Playing && !gm.IsGamePaused
                    && !ActivePieceSession.AnyActive; // any active-piece session owns the field
         }
     }

@@ -6,7 +6,7 @@
 - `Scripts/Levels`: Level/game-mode data, floor segment definitions, play-area sizing, and difficulty scaling.
 - `Scripts/Spawning`: Block selection and spawning.
 - `Scripts/Camera`: Tower-following camera logic.
-- `Scripts/Core`: Global game state, events, and small reusable runtime helpers.
+- `Scripts/Core`: Global game state (`GamePhase`, pause owners, spawn availability), events, and small reusable runtime helpers.
 - `Scripts/World`: Loss zone, power-ups, and static support islands.
 - `Scripts/UI`: UI display and game-over presentation.
 - `Scripts/_Legacy`: Starter/tutorial scripts that are not part of the stacking game loop.

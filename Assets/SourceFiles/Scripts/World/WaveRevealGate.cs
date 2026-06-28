@@ -4,16 +4,37 @@
 /// piece must NOT drop until that reveal has finished (otherwise a fast-dropped piece can hit
 /// an island that materializes mid-fall). HeightLimitWavesModifier raises the hold the moment a
 /// wave clears and releases it once the line has settled and every revealed island has popped;
-/// Spawner.SpawnNextBlock honours it exactly like the win-verification hold.
+/// GameManager turns this into a spawn hold and raises spawn availability when it clears.
 /// GameManager.Awake resets it every level load so a hold can never leak between levels.
 /// </summary>
 public static class WaveRevealGate
 {
+    private static readonly object SpawnHoldOwner = new object();
+
     public static bool IsHoldingSpawn { get; private set; }
 
-    public static void Hold() => IsHoldingSpawn = true;
+    public static void Hold()
+    {
+        IsHoldingSpawn = true;
+        SyncToGameManager(GameManager.Instance);
+    }
 
-    public static void Release() => IsHoldingSpawn = false;
+    public static void Release()
+    {
+        IsHoldingSpawn = false;
+        SyncToGameManager(GameManager.Instance);
+    }
 
-    public static void Reset() => IsHoldingSpawn = false;
+    public static void Reset()
+    {
+        IsHoldingSpawn = false;
+        SyncToGameManager(GameManager.Instance);
+    }
+
+    public static void SyncToGameManager(GameManager gameManager)
+    {
+        if (gameManager == null) return;
+
+        gameManager.SetSpawnSuspended(SpawnHoldOwner, IsHoldingSpawn);
+    }
 }

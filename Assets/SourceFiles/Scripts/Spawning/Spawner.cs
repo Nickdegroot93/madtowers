@@ -72,6 +72,21 @@ public class Spawner : MonoBehaviour
         SpawnNextBlock();
     }
 
+    private void OnEnable()
+    {
+        GameEvents.SpawnAvailabilityChanged += HandleSpawnAvailabilityChanged;
+    }
+
+    private void OnDisable()
+    {
+        GameEvents.SpawnAvailabilityChanged -= HandleSpawnAvailabilityChanged;
+    }
+
+    private void HandleSpawnAvailabilityChanged(bool canSpawn)
+    {
+        if (canSpawn) SpawnNextBlock();
+    }
+
     // Level-authored variant rolls (e.g. "3% of bricks are giant on this level") use the same
     // registry as runtime power-ups, so both stack naturally.
     private void RegisterAmbientVariantChances()
@@ -280,8 +295,8 @@ public class Spawner : MonoBehaviour
         return true;
     }
 
-    // Restarts the lock->spawn chain after an external gate (win verification) suppressed
-    // it - the chain is event-driven, so a suppressed spawn never retries on its own.
+    // Compatibility shim for active-piece sessions that destroy the live piece without a lock.
+    // Phase/gate releases resume through GameEvents.SpawnAvailabilityChanged.
     public void ResumeSpawning()
     {
         SpawnNextBlock();
@@ -386,29 +401,7 @@ public class Spawner : MonoBehaviour
             return;
         }
 
-        if (GameManager.Instance != null && GameManager.Instance.isGameOver)
-        {
-            return;
-        }
-
-        // Hold-steady countdown after the win target is met: nothing spawns until the
-        // tower has proven itself (LevelRuntimeController restarts spawning if it fails).
-        if (LevelRuntimeController.IsVerifyingWin)
-        {
-            return;
-        }
-
-        // Puzzle-mode wave transition: the cleared wave's line is rising and the next island
-        // band is popping in. Don't drop the next piece into a board that is still changing -
-        // HeightLimitWavesModifier resumes spawning once the reveal has fully settled.
-        if (WaveRevealGate.IsHoldingSpawn)
-        {
-            return;
-        }
-
-        // Opening camera pan: the level reveals its scenery before play begins. Hold the first
-        // piece until the pan finishes (TowerCameraController releases this and kicks the spawn).
-        if (CameraIntroGate.IsPlaying)
+        if (GameManager.Instance != null && !GameManager.Instance.CanSpawnBlocks)
         {
             return;
         }

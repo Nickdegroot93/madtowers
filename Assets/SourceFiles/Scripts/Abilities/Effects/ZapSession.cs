@@ -91,7 +91,7 @@ public sealed class ZapSession : MonoBehaviour
 
         if (!_fired)
         {
-            bool frozen = gm != null && (gm.IsGamePaused || LevelRuntimeController.IsVerifyingWin);
+            bool frozen = gm != null && (gm.IsGamePaused || gm.CurrentPhase != GamePhase.Playing);
             if (!frozen)
             {
                 _charge = Mathf.Min(ChargeDuration, _charge + Time.deltaTime);
