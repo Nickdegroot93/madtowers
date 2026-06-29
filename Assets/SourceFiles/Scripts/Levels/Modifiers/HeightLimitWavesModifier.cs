@@ -126,12 +126,13 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
 
         // The win comes from the level's PlaceBlocks goal; catch a mismatched wiring early.
         if (context.Level != null &&
-            (context.Level.TargetType != LevelTargetType.PlaceBlocks ||
+            ((context.Level.TargetType != LevelTargetType.PlaceBlocks &&
+              context.Level.TargetType != LevelTargetType.TimedPlaceBlocks) ||
              (int)context.Level.TargetValue != TotalBlockCount))
         {
             Debug.LogWarning(
                 $"[HeightLimitWaves] '{context.Level.DisplayName}' should use targetType " +
-                $"PlaceBlocks with targetValue {TotalBlockCount} (sum of wave block counts) " +
+                $"PlaceBlocks/TimedPlaceBlocks with targetValue {TotalBlockCount} (sum of wave block counts) " +
                 $"so the level completes when the last wave clears.", this);
         }
 

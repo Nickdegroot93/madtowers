@@ -312,12 +312,23 @@ public class GameManager : MonoBehaviour
             return;
         }
 
+        FinishRun("Game Over");
+    }
+
+    /// <summary>Terminal failure that bypasses per-block life/immunity rules: used by level goals
+    /// such as timeouts where the challenge itself was failed, not a block-loss charge.</summary>
+    public void EndRunNow(string reason) => FinishRun(reason);
+
+    private void FinishRun(string reason)
+    {
+        if (isGameOver) return;
+
         isGameOver = true;
         _gameOverLatched = true; // terminal: outranks every phase request until a scene reload
         RecomputePhase();
 
         GameEvents.RaiseGameOver(_runState.Score, towerHeight);
-        Debug.Log("Game Over");
+        Debug.Log(string.IsNullOrWhiteSpace(reason) ? "Game Over" : reason);
     }
 
     public void RestartGame()

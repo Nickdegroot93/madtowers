@@ -36,6 +36,12 @@ public class LevelRuntimeController : MonoBehaviour
     private Text _countdownDigit;
     private int _countdownShownSecond = -1;
     private float _countdownDigitPunchAge;
+    private bool _hasTimeLimit;
+    private float _timeRemaining;
+    private GameObject _timerRoot;
+    private RectTransform _timerRect;
+    private Text _timerLabel;
+    private int _timerShownSecond = -1;
 
     private void Start()
     {
@@ -51,6 +57,7 @@ public class LevelRuntimeController : MonoBehaviour
         };
 
         StartModifiers();
+        InitializeTimedGoal();
 
         if (_level != null && !string.IsNullOrWhiteSpace(_level.Instruction))
         {
@@ -130,6 +137,7 @@ public class LevelRuntimeController : MonoBehaviour
         GameEvents.HeightChanged -= HandleHeightChanged;
         GameEvents.GameOver -= HandleGameOver;
         DestroyCountdownUi();   // also stops the countdown loop - SfxPlayer persists across scenes
+        DestroyTimerUi();
         if (GameManager.Instance != null)
         {
             GameManager.Instance.PopPause(this);
@@ -144,6 +152,7 @@ public class LevelRuntimeController : MonoBehaviour
 
         // A run can die mid-verification (the dropped blocks took the last life).
         if (_countdownRoot != null) DestroyCountdownUi();
+        DestroyTimerUi();
     }
 
     private void Update()
@@ -164,6 +173,7 @@ public class LevelRuntimeController : MonoBehaviour
         }
 
         TickWinVerification();
+        TickTimedGoal();
 
         for (int i = 0; i < _activeModifiers.Count; i++)
         {
@@ -337,6 +347,117 @@ public class LevelRuntimeController : MonoBehaviour
         _countdownDigit = null;
     }
 
+    // ---- Timed goals ---------------------------------------------------------------------------
+
+    private void InitializeTimedGoal()
+    {
+        _hasTimeLimit = _winCondition != null && _winCondition.HasTimeLimit;
+        _timeRemaining = _hasTimeLimit ? _winCondition.TimeLimitSeconds : 0f;
+        if (!_hasTimeLimit) return;
+
+        BuildTimerUi();
+        UpdateTimerLabel(force: true);
+    }
+
+    private void TickTimedGoal()
+    {
+        if (!_hasTimeLimit || _completed || _level == null || GameManager.Instance == null) return;
+
+        // The main clock only burns during active play. The 5-second win verification explicitly
+        // freezes it; if verification aborts, the same remaining time resumes.
+        if (GameManager.Instance.CurrentPhase != GamePhase.Playing || IsVerifyingWin)
+        {
+            UpdateTimerLabel();
+            return;
+        }
+
+        if (_winCondition != null && _winCondition.IsMet(BuildWinContext()))
+        {
+            TryBeginVerification();
+            UpdateTimerLabel();
+            return;
+        }
+
+        _timeRemaining = Mathf.Max(0f, _timeRemaining - Time.deltaTime);
+        UpdateTimerLabel();
+        if (_timeRemaining > 0f) return;
+
+        if (_winCondition != null && _winCondition.IsMet(BuildWinContext()))
+        {
+            TryBeginVerification();
+            return;
+        }
+
+        _hasTimeLimit = false;
+        GameManager.Instance.EndRunNow("Time ran out");
+    }
+
+    private void BuildTimerUi()
+    {
+        if (_timerRoot != null) return;
+
+        _timerRoot = RuntimeUiKit.CreateOverlayCanvas("Timed Goal", 3100);
+
+        GameObject panel = new GameObject("Timer", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        _timerRect = (RectTransform)panel.transform;
+        _timerRect.SetParent(_timerRoot.transform, false);
+        _timerRect.anchorMin = _timerRect.anchorMax = new Vector2(1f, 1f);
+        _timerRect.pivot = new Vector2(1f, 1f);
+        _timerRect.sizeDelta = new Vector2(210f, 66f);
+
+        Image background = panel.GetComponent<Image>();
+        background.sprite = RuntimeSprites.RoundedPanel();
+        background.type = Image.Type.Sliced;
+        background.color = new Color(0f, 0f, 0f, 0.68f);
+        background.raycastTarget = false;
+        RuntimeUiKit.AddOutline(_timerRect, new Color(1f, 1f, 1f, 0.22f));
+
+        _timerLabel = RuntimeUiKit.CreateLabel(panel.transform, "", 38, 66f, FontStyle.Bold,
+            RuntimeUiKit.TitleColor);
+        _timerLabel.raycastTarget = false;
+        _timerLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
+        RectTransform labelRect = _timerLabel.rectTransform;
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = Vector2.zero;
+        labelRect.offsetMax = Vector2.zero;
+
+        PositionTimerUi();
+    }
+
+    private void PositionTimerUi()
+    {
+        if (_timerRect == null) return;
+
+        Canvas canvas = _timerRoot != null ? _timerRoot.GetComponent<Canvas>() : null;
+        float topInset = RuntimeUiKit.SafeAreaTopInset(canvas);
+        float rightInset = RuntimeUiKit.SafeAreaRightInset(canvas);
+        _timerRect.anchoredPosition = new Vector2(-rightInset - 120f, -topInset - 180f);
+    }
+
+    private void UpdateTimerLabel(bool force = false)
+    {
+        if (_timerLabel == null) return;
+
+        PositionTimerUi();
+        int seconds = Mathf.CeilToInt(Mathf.Max(0f, _timeRemaining));
+        if (!force && seconds == _timerShownSecond) return;
+
+        _timerShownSecond = seconds;
+        _timerLabel.text = TimedWinCondition.FormatDuration(seconds);
+        _timerLabel.color = seconds <= 10 ? new Color(1f, 0.48f, 0.42f, 1f) : RuntimeUiKit.TitleColor;
+    }
+
+    private void DestroyTimerUi()
+    {
+        if (_timerRoot == null) return;
+
+        Destroy(_timerRoot);
+        _timerRoot = null;
+        _timerRect = null;
+        _timerLabel = null;
+    }
+
     // Modifier assets are cloned per run so their instance fields are per-play state and never
     // leak between sessions (ScriptableObject instances outlive scene reloads in the editor).
     private void StartModifiers()
@@ -382,6 +503,7 @@ public class LevelRuntimeController : MonoBehaviour
         if (_completed || GameManager.Instance == null || GameManager.Instance.isGameOver) return;
 
         _completed = true;
+        DestroyTimerUi();
         GameManager.Instance.RequestPhase(this, GamePhase.Completed);
         ProgressStore.MarkLevelCompleted(_level);
         if (GameManager.Instance != null)

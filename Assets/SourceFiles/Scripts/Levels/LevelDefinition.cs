@@ -21,6 +21,9 @@ public class LevelDefinition : ScriptableObject
     [Tooltip("Blocks to place or height in meters, depending on the target type.")]
     [Min(1)]
     [SerializeField] private float targetValue = 10f;
+    [Tooltip("Seconds available for timed block-count / height goals. Ignored by untimed goals.")]
+    [Min(1)]
+    [SerializeField] private float timeLimitSeconds = 120f;
     [Tooltip("One-sentence player instruction shown as a banner when the level starts. Empty = no banner.")]
     [SerializeField] private string instruction = "";
 
@@ -40,6 +43,7 @@ public class LevelDefinition : ScriptableObject
     public GameModeConfig GameModeConfig => gameModeConfig;
     public LevelTargetType TargetType => targetType;
     public float TargetValue => Mathf.Max(1f, targetValue);
+    public float TimeLimitSeconds => Mathf.Max(1f, timeLimitSeconds);
     public string Instruction => instruction;
 
     /// <summary>The level's victory rule as a polymorphic <see cref="WinCondition"/>. This is the
@@ -52,6 +56,10 @@ public class LevelDefinition : ScriptableObject
     {
         LevelTargetType.PlaceBlocks => new PlaceBlocksWinCondition(TargetValue),
         LevelTargetType.ReachHeight => new ReachHeightWinCondition(TargetValue),
+        LevelTargetType.TimedPlaceBlocks => new TimedWinCondition(
+            new PlaceBlocksWinCondition(TargetValue), TimeLimitSeconds),
+        LevelTargetType.TimedReachHeight => new TimedWinCondition(
+            new ReachHeightWinCondition(TargetValue), TimeLimitSeconds),
         _ => new EndlessWinCondition(),
     };
     public IReadOnlyList<LevelModifier> Modifiers => modifiers;
@@ -60,13 +68,15 @@ public class LevelDefinition : ScriptableObject
     /// <summary>Runtime only (Custom Game screen): build a throwaway level around a runtime
     /// GameModeConfig. Held alive by LevelSelectionState across the scene load; never an asset.</summary>
     public static LevelDefinition CreateRuntime(string name, GameModeConfig config,
-        LevelTargetType targetType, float targetValue, AbilityRarityProfile rarityProfile)
+        LevelTargetType targetType, float targetValue, AbilityRarityProfile rarityProfile,
+        float timeLimitSeconds = 120f)
     {
         LevelDefinition level = CreateInstance<LevelDefinition>();
         level.displayName = name;
         level.gameModeConfig = config;
         level.targetType = targetType;
         level.targetValue = Mathf.Max(1f, targetValue);
+        level.timeLimitSeconds = Mathf.Max(1f, timeLimitSeconds);
         level.abilityRarityProfile = rarityProfile;
         return level;
     }

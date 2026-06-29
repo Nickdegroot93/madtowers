@@ -34,6 +34,7 @@ public sealed class CustomGameSettings
     // Goal
     public LevelTargetType TargetType;
     public float TargetValue;
+    public float TimeLimitSeconds;
 
     // Content (toggled on/off in the screen; auto-discovered, so new assets just appear)
     public readonly HashSet<BlockDefinition> EnabledBlocks = new HashSet<BlockDefinition>();
@@ -69,7 +70,8 @@ public sealed class CustomGameSettings
             StaticIslandsEnabled = c != null && c.StaticSupportIslandsEnabled,
             StaticIslandSpawnChance = c != null ? c.StaticSupportIslandSpawnChance : 0.25f,
             TargetType = LevelTargetType.Endless,
-            TargetValue = 25f
+            TargetValue = 25f,
+            TimeLimitSeconds = 120f
         };
 
         if (c != null && c.AmbientBlockVariantChances != null)

@@ -5,5 +5,9 @@ public enum LevelTargetType
     /// <summary>Win by placing this many blocks.</summary>
     PlaceBlocks,
     /// <summary>Win by reaching this tower height in meters above the floor.</summary>
-    ReachHeight
+    ReachHeight,
+    /// <summary>Win by placing this many blocks before the authored time limit expires.</summary>
+    TimedPlaceBlocks,
+    /// <summary>Win by reaching this tower height before the authored time limit expires.</summary>
+    TimedReachHeight
 }

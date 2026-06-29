@@ -132,12 +132,25 @@ public static class CustomGameMenu
     private static void BuildGoalSection(Transform panel)
     {
         Header(panel, "Goal");
-        string[] goals = { "Endless", "Place Blocks", "Reach Height" };
+        string[] goals = { "Endless", "Place Blocks", "Reach Height", "Timed Blocks", "Timed Height" };
         RuntimeUiKit.CreateCycleRow(panel, "Win by", goals, (int)_settings.TargetType,
-            i => _settings.TargetType = (LevelTargetType)i);
+            i =>
+            {
+                _settings.TargetType = (LevelTargetType)i;
+                Build();
+            });
         RuntimeUiKit.CreateStepperRow(panel, "Target (blocks / meters)", _settings.TargetValue, 1f, 999f, 5f, "0",
             v => _settings.TargetValue = v);
+        if (IsTimedGoal(_settings.TargetType))
+        {
+            RuntimeUiKit.CreateStepperRow(panel, "Time limit (sec)", _settings.TimeLimitSeconds, 10f, 900f, 5f, "0",
+                v => _settings.TimeLimitSeconds = v);
+        }
     }
+
+    private static bool IsTimedGoal(LevelTargetType targetType) =>
+        targetType == LevelTargetType.TimedPlaceBlocks ||
+        targetType == LevelTargetType.TimedReachHeight;
 
     private static void BuildRoundSection(Transform panel)
     {
@@ -282,7 +295,8 @@ public static class CustomGameMenu
         runtime.ApplyCustomGameOverrides(_settings);
 
         LevelDefinition level = LevelDefinition.CreateRuntime("Custom Game", runtime,
-            _settings.TargetType, _settings.TargetValue, ContentCatalog.EqualRarityProfile());
+            _settings.TargetType, _settings.TargetValue, ContentCatalog.EqualRarityProfile(),
+            _settings.TimeLimitSeconds);
 
         LevelSelectionState.SelectLevel(level);
         Time.timeScale = 1f;

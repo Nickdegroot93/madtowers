@@ -47,6 +47,12 @@ public abstract class WinCondition
     /// whose live count re-crosses the target) don't need it. Default off.</summary>
     public virtual bool ReArmsByPolling => false;
 
+    /// <summary>True when the run has a main clock that fails the level on expiry.</summary>
+    public virtual bool HasTimeLimit => false;
+
+    /// <summary>Main-clock duration in seconds. Ignored when <see cref="HasTimeLimit"/> is false.</summary>
+    public virtual float TimeLimitSeconds => 0f;
+
     /// <summary>0..1 progress toward the goal, read live for ability rarity escalation (offers near the
     /// goal are spicier than offers at the start).</summary>
     public abstract float RunProgress01(GameManager gameManager);
