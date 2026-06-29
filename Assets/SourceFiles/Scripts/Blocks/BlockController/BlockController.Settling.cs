@@ -72,8 +72,11 @@ public partial class BlockController
 
     private void HandleLandedMaintenance()
     {
-        if ((!microAlignSettledBlocks && !sleepSettledBlocksOnLock) || _rb == null) return;
+        if (_rb == null) return;
         if (_rb.bodyType != RigidbodyType2D.Dynamic || _rb.IsSleeping()) return;
+
+        InvalidatePlacementOccupancyIfMoved();
+        if (!microAlignSettledBlocks && !sleepSettledBlocksOnLock) return;
 
         bool deferSleep = ShouldDeferSleepForKnifeEdge();
 
@@ -101,6 +104,21 @@ public partial class BlockController
         {
             _landedMaintenanceSettleTimer = 0f;
         }
+    }
+
+    private void InvalidatePlacementOccupancyIfMoved()
+    {
+        float positionTolerance = Mathf.Max(0.005f, gridSpacing * 0.05f);
+        float rotationTolerance = 2f;
+        if (Vector2.Distance(_rb.position, _lastPlacementOccupancyPosition) <= positionTolerance &&
+            Mathf.Abs(Mathf.DeltaAngle(_rb.rotation, _lastPlacementOccupancyRotation)) <= rotationTolerance)
+        {
+            return;
+        }
+
+        _lastPlacementOccupancyPosition = _rb.position;
+        _lastPlacementOccupancyRotation = _rb.rotation;
+        _placementOccupancyVersion++;
     }
 
     // The velocity-based settle check above can be defeated by a marginal contact configuration:

@@ -63,7 +63,11 @@ public static class GameEvents
     public static void RaiseNextBlockChanged(IReadOnlyList<string> blockNames) => NextBlockChanged?.Invoke(blockNames);
     public static void RaiseBlockSpawned(BlockController block, BlockData variant) => BlockSpawned?.Invoke(block, variant);
     public static void RaiseBlockLanded(BlockController block, float highestCellY) => BlockLanded?.Invoke(block, highestCellY);
-    public static void RaiseBlockDestroyed(BlockController block) => BlockDestroyed?.Invoke(block);
+    public static void RaiseBlockDestroyed(BlockController block)
+    {
+        BlockDestroyed?.Invoke(block);
+        BlockController.WakeDynamicLandedBlocks(block);
+    }
     public static void RaiseBlockLocked(BlockController block)
     {
         Action<BlockController> handlers = BlockLocked;

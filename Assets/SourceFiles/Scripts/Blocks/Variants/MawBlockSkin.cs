@@ -27,8 +27,7 @@ public sealed class MawBlockSkin : BlockVariantSkin
     private const float CellScaleValue = 1.8f; // oversized quad: headroom above the body for the tentacles
     private const float OpenDuration = 0.45f;  // how long the tentacles take to grow on landing
     private const float ChompDecay = 5f;       // how fast a bite's lash relaxes
-    private const float CoverInterval = 0.1f;  // how often we re-test which cells are physically covered
-
+    private const float CoverFallbackInterval = 0.5f; // catches physics movement without lock/destroy events
     protected override string MaterialResource => "Maw";
     protected override string CellName => "MawCell";
     protected override float CellScale => CellScaleValue;
@@ -40,9 +39,14 @@ public sealed class MawBlockSkin : BlockVariantSkin
     private float _chomp;
     private MaterialPropertyBlock _cellMpb;
     private bool[] _exposed;      // per cell: nothing resting on top -> sprout tentacles
+    private bool[] _lastAppliedExposed;
+    private bool _coverageDirty = true;
     private float _coverTimer;
     private ContactFilter2D _coverFilter;
     private readonly Collider2D[] _coverHits = new Collider2D[8];
+    private float _lastAppliedActive = -1f;
+    private float _lastAppliedChomp = -1f;
+    private Vector2 _lastAppliedUp = new Vector2(float.NaN, float.NaN);
 
     /// <summary>Build the dormant maw. Called from MawBlockData.OnApplied.</summary>
     public void Apply()
@@ -53,11 +57,18 @@ public sealed class MawBlockSkin : BlockVariantSkin
         _coverFilter = new ContactFilter2D { useTriggers = false, useLayerMask = false };
         BuildCells();
         _exposed = new bool[Cells.Count];
+        _lastAppliedExposed = new bool[Cells.Count];
         for (int i = 0; i < _exposed.Length; i++) _exposed[i] = true;
+        for (int i = 0; i < _lastAppliedExposed.Length; i++) _lastAppliedExposed[i] = false;
+        _coverageDirty = true;
     }
 
     /// <summary>Wake the maw - the tentacles grow out. Called from MawBlockData.OnLocked (on landing).</summary>
-    public void Activate() => _activating = true;
+    public void Activate()
+    {
+        _activating = true;
+        _coverageDirty = true;
+    }
 
     /// <summary>Lash the tentacles for one bite. Called by MawBlockBehaviour each time it devours a block.</summary>
     public void PlayChomp() => _chomp = 1f;
@@ -71,6 +82,20 @@ public sealed class MawBlockSkin : BlockVariantSkin
         mpb.SetFloat(BodyHalfId, 0.5f / CellScaleValue); // body still spans exactly one cell within the big quad
     }
 
+    private void OnEnable()
+    {
+        GameEvents.BlockLocked += HandleTowerGeometryChanged;
+        GameEvents.BlockDestroyed += HandleTowerGeometryChanged;
+    }
+
+    private void OnDisable()
+    {
+        GameEvents.BlockLocked -= HandleTowerGeometryChanged;
+        GameEvents.BlockDestroyed -= HandleTowerGeometryChanged;
+    }
+
+    private void HandleTowerGeometryChanged(BlockController block) => _coverageDirty = true;
+
     private void LateUpdate()
     {
         if (!IsBuilt) return;
@@ -79,13 +104,28 @@ public sealed class MawBlockSkin : BlockVariantSkin
         if (_activating && _active < 1f) _active = Mathf.Min(1f, _active + dt / OpenDuration);
         if (_chomp > 0f) _chomp = Mathf.Max(0f, _chomp - dt * ChompDecay);
 
-        _coverTimer -= dt;
-        if (_coverTimer <= 0f) { _coverTimer = CoverInterval; ScanCoverage(); }
+        if (_activating)
+        {
+            _coverTimer -= dt;
+            if (_coverTimer <= 0f)
+            {
+                _coverTimer = CoverFallbackInterval;
+                _coverageDirty = true;
+            }
+        }
+
+        if (_coverageDirty) ScanCoverage();
 
         // World-up expressed in the cell UV frame, so tentacles always reach up however the piece landed.
         Vector3 upL = transform.InverseTransformDirection(Vector3.up);
         Vector2 up = new Vector2(upL.x, upL.y);
         up = up.sqrMagnitude < 1e-5f ? Vector2.up : up.normalized;
+
+        bool activeChanged = !Mathf.Approximately(_active, _lastAppliedActive);
+        bool chompChanged = !Mathf.Approximately(_chomp, _lastAppliedChomp);
+        bool upChanged = (_lastAppliedUp - up).sqrMagnitude > 0.000001f;
+        bool exposureChanged = HasExposureChanged();
+        if (!activeChanged && !chompChanged && !upChanged && !exposureChanged) return;
 
         _cellMpb ??= new MaterialPropertyBlock();
         for (int i = 0; i < Cells.Count; i++)
@@ -99,12 +139,32 @@ public sealed class MawBlockSkin : BlockVariantSkin
             _cellMpb.SetFloat(ExposeId, _exposed[i] ? 1f : 0f);
             sr.SetPropertyBlock(_cellMpb);
         }
+
+        _lastAppliedActive = _active;
+        _lastAppliedChomp = _chomp;
+        _lastAppliedUp = up;
+        if (_lastAppliedExposed != null && _exposed != null)
+        {
+            int count = Mathf.Min(_lastAppliedExposed.Length, _exposed.Length);
+            for (int i = 0; i < count; i++) _lastAppliedExposed[i] = _exposed[i];
+        }
+    }
+
+    private bool HasExposureChanged()
+    {
+        if (_exposed == null || _lastAppliedExposed == null || _exposed.Length != _lastAppliedExposed.Length) return true;
+        for (int i = 0; i < _exposed.Length; i++)
+        {
+            if (_exposed[i] != _lastAppliedExposed[i]) return true;
+        }
+        return false;
     }
 
     /// <summary>Per cell: is the space directly above it (world-up) clear of any block? Read-only physics, so
     /// it covers both our own stacked cells and another maw resting on top (PHYSICS.md - never writes).</summary>
     private void ScanCoverage()
     {
+        _coverageDirty = false;
         Vector2 size = new Vector2(_spacing * 0.72f, _spacing * 0.18f);
         for (int i = 0; i < Cells.Count; i++)
         {

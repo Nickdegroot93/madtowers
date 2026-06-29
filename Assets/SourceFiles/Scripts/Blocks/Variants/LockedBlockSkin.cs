@@ -37,6 +37,8 @@ public sealed class LockedBlockSkin : BlockVariantSkin
     private float _flash;
     private float _nextTwitch;
     private bool _locked;
+    private float _lastAppliedStrain = float.NaN;
+    private float _lastAppliedFlash = float.NaN;
 
     // The brick art (chapter sprite, or the per-cell sprites if the chapter art failed to load) we flinch.
     private readonly List<Transform> _brickVisuals = new List<Transform>();
@@ -54,6 +56,7 @@ public sealed class LockedBlockSkin : BlockVariantSkin
     public void PlayRefuse(int direction)
     {
         if (_locked) return;
+        enabled = true;
         _strainVel = Mathf.Sign(direction == 0 ? 1 : direction) * RefuseKick;
         _flash = 1f;
     }
@@ -63,6 +66,7 @@ public sealed class LockedBlockSkin : BlockVariantSkin
     {
         _locked = true;
         ApplyFlinch(0f); // the gear may still idle-twitch, but the brick itself rests
+        enabled = true;
     }
 
     protected override string MaterialResource => "Locked";
@@ -123,7 +127,12 @@ public sealed class LockedBlockSkin : BlockVariantSkin
         // Damped spring back to rest: a denied rotate (or twitch) kicks the velocity, this resolves it.
         _strainVel += (-Stiffness * _strain - Damping * _strainVel) * dt;
         _strain = Mathf.Clamp(_strain + _strainVel * dt, -1f, 1f);
-        SetCellsFloat(StrainId, _strain);
+        if (_locked && Mathf.Abs(_strain) < 0.0005f && Mathf.Abs(_strainVel) < 0.0005f)
+        {
+            _strain = 0f;
+            _strainVel = 0f;
+        }
+        SetCellsFloatIfChanged(StrainId, _strain, ref _lastAppliedStrain);
 
         // The whole-brick flinch tracks the strain - but only while falling (never on a landed body, I1).
         ApplyFlinch(_locked ? 0f : _strain * BrickFlinchDegrees);
@@ -131,8 +140,24 @@ public sealed class LockedBlockSkin : BlockVariantSkin
         if (_flash > 0f)
         {
             _flash = Mathf.Max(0f, _flash - dt * 3.2f);
-            SetCellsFloat(FlashId, _flash);
+            SetCellsFloatIfChanged(FlashId, _flash, ref _lastAppliedFlash);
         }
+        else
+        {
+            SetCellsFloatIfChanged(FlashId, 0f, ref _lastAppliedFlash);
+        }
+
+        if (_locked && _strain == 0f && _strainVel == 0f && _flash <= 0f)
+        {
+            enabled = false;
+        }
+    }
+
+    private void SetCellsFloatIfChanged(int propertyId, float value, ref float lastValue)
+    {
+        if (!float.IsNaN(lastValue) && Mathf.Abs(value - lastValue) < 0.0005f) return;
+        SetCellsFloat(propertyId, value);
+        lastValue = value;
     }
 
     // Rotate the brick art and the overlay cells about the piece centre by 'deg' (visual only).

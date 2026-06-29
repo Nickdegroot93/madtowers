@@ -47,7 +47,6 @@ public partial class BlockController
         _cellGeometry.Refresh();
         float currentPrimaryX = _cellGeometry.GetPrimaryWorldX(transform.position.x);
         float deltaX = candidatePrimaryX - currentPrimaryX;
-        float rowTolerance = gridSpacing * 0.8f;
 
         for (int i = 0; i < _cellGeometry.CellCenters.Count; i++)
         {
@@ -72,30 +71,65 @@ public partial class BlockController
             float activeColumn = SnapValue(activeCell.x + deltaX, gridSpacing);
             float activeRow = SnapValue(activeCell.y, gridSpacing);
 
-            for (int blockIndex = 0; blockIndex < TrackedBlocks.Count; blockIndex++)
+            EnsureLandedCellOccupancy();
+            if (TryGetLandedCellOccupants(activeColumn, activeRow, out List<BlockController> occupants))
             {
-                BlockController block = TrackedBlocks[blockIndex];
-                if (block == null || block == this || !block.HasLanded) continue;
-
-                block._cellGeometry.Refresh();
-                for (int cellIndex = 0; cellIndex < block._cellGeometry.CellCenters.Count; cellIndex++)
+                for (int blockerIndex = 0; blockerIndex < occupants.Count; blockerIndex++)
                 {
-                    Vector2 placedCell = block._cellGeometry.CellCenters[cellIndex];
-                    float placedColumn = SnapValue(placedCell.x, gridSpacing);
-                    float placedRow = SnapValue(placedCell.y, gridSpacing);
-                    if (Mathf.Abs(placedColumn - activeColumn) <= GridMatchTolerance &&
-                        Mathf.Abs(placedRow - activeRow) < rowTolerance)
-                    {
-                        if (!collectBlockers) return ColumnStepResult.BlockedByBlocks;
-                        if (!_stepBlockers.Contains(block)) _stepBlockers.Add(block);
-                        break;
-                    }
+                    BlockController block = occupants[blockerIndex];
+                    if (block == null || block == this || !block.HasLanded) continue;
+                    if (!collectBlockers) return ColumnStepResult.BlockedByBlocks;
+                    if (!_stepBlockers.Contains(block)) _stepBlockers.Add(block);
                 }
             }
         }
 
         if (_stepBlockers.Count > 0) return ColumnStepResult.BlockedByBlocks;
         return staticBlocked ? ColumnStepResult.BlockedByStatic : ColumnStepResult.Moved;
+    }
+
+    private void EnsureLandedCellOccupancy()
+    {
+        if (_placementOccupancyStamp == _placementOccupancyVersion) return;
+
+        _placementOccupancyStamp = _placementOccupancyVersion;
+        LandedCellOccupancy.Clear();
+
+        for (int blockIndex = 0; blockIndex < TrackedBlocks.Count; blockIndex++)
+        {
+            BlockController block = TrackedBlocks[blockIndex];
+            if (block == null || !block.HasLanded) continue;
+
+            block._cellGeometry.Refresh();
+            for (int cellIndex = 0; cellIndex < block._cellGeometry.CellCenters.Count; cellIndex++)
+            {
+                Vector2 placedCell = block._cellGeometry.CellCenters[cellIndex];
+                Vector2Int key = ToPlacementGridKey(
+                    SnapValue(placedCell.x, gridSpacing),
+                    SnapValue(placedCell.y, gridSpacing));
+                if (!LandedCellOccupancy.TryGetValue(key, out List<BlockController> occupants))
+                {
+                    occupants = new List<BlockController>(1);
+                    LandedCellOccupancy.Add(key, occupants);
+                }
+                if (!occupants.Contains(block)) occupants.Add(block);
+            }
+        }
+    }
+
+    private bool TryGetLandedCellOccupants(float snappedColumn, float snappedRow, out List<BlockController> occupants)
+    {
+        occupants = null;
+        if (gridSpacing <= 0f) return false;
+        return LandedCellOccupancy.TryGetValue(ToPlacementGridKey(snappedColumn, snappedRow), out occupants);
+    }
+
+    private Vector2Int ToPlacementGridKey(float snappedColumn, float snappedRow)
+    {
+        if (gridSpacing <= 0f) return Vector2Int.zero;
+        return new Vector2Int(
+            Mathf.RoundToInt(snappedColumn / gridSpacing),
+            Mathf.RoundToInt(snappedRow / gridSpacing));
     }
 
     // Placed tetrominoes are handled by the grid-snapped check above (the grid stays the sole X

@@ -5,7 +5,8 @@ using UnityEngine;
 /// Magma, ...) its variant LOOK is stripped IN PLACE (same GameObject - so rotation, position and
 /// fall progress are preserved, no shift) and the piece is reset to its shape's plain DefaultData
 /// so it counts and locks as a normal brick. Usable only while the falling piece carries a
-/// non-default variant.
+/// non-default variant, and only OFFERED on levels that can actually spawn a hazard brick
+/// (so it never appears as dead weight on a no-hazard level).
 /// </summary>
 [CreateAssetMenu(fileName = "Sanitize", menuName = "Stacking/Abilities/Sanitize")]
 public class SanitizeConsumable : ConsumableAbility
@@ -15,6 +16,13 @@ public class SanitizeConsumable : ConsumableAbility
     [SerializeField] private GameObject transformEffect;
     [Tooltip("Scale for the effect - CFXR effects are character-sized, a block usually wants < 1.")]
     [SerializeField] private float transformScale = 0.6f;
+
+    // Offer gate: only ever OFFERED on levels whose spawn tables can produce a hazard brick
+    // (Bomb, Vortex, Maw, Ice, Locked, Tremor - the BlockData.IsHazard set). Without something
+    // worth defusing the pick is dead weight, so it self-excludes exactly like Ward/Purifier.
+    // (CanActivate below is the separate "can I use it on THIS piece right now" check.)
+    public override bool IsAvailable(AbilityContext context, int ownedStacks)
+        => base.IsAvailable(context, ownedStacks) && context.LevelHazardVariantCount() >= 1;
 
     // Shares the active-piece/loss-line guard; adds the Sanitize-specific condition that the
     // piece is actually a non-default variant (nothing to defuse on a plain brick).

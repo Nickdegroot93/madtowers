@@ -31,6 +31,8 @@ public class AbilityRuntime : MonoBehaviour
     private readonly ConsumableAbility[] _slots = new ConsumableAbility[ConsumableSlotCount]; // clones
     private readonly ConsumableAbility[] _slotSources = new ConsumableAbility[ConsumableSlotCount];
     private readonly List<ComboTriggerDefinition> _subscribedTriggers = new List<ComboTriggerDefinition>();
+    private readonly List<OwnedAbility> _dispatchSnapshot = new List<OwnedAbility>();
+    private int _dispatchDepth;
 
     private AbilityContext _context;
     private StatusEffects _status;
@@ -337,26 +339,56 @@ public class AbilityRuntime : MonoBehaviour
     /// <summary>Called by the ComboDetector after a trigger match survives revalidation.</summary>
     public void HandleComboFired(ComboTriggerDefinition trigger, ComboMatch match)
     {
-        var snapshot = new List<OwnedAbility>(_owned);
-        for (int i = 0; i < snapshot.Count; i++)
+        List<OwnedAbility> snapshot = BeginDispatchSnapshot();
+        try
         {
-            OwnedAbility owned = snapshot[i];
-            if (owned.Instance is not ComboAbility combo || combo.Trigger != trigger) continue;
+            for (int i = 0; i < snapshot.Count; i++)
+            {
+                OwnedAbility owned = snapshot[i];
+                if (owned.Instance is not ComboAbility combo || combo.Trigger != trigger) continue;
 
-            combo.OnComboFired(Context, match);
-            ConsumeCharge(owned);
+                combo.OnComboFired(Context, match);
+                ConsumeCharge(owned);
+            }
+        }
+        finally
+        {
+            EndDispatchSnapshot(snapshot);
         }
         InventoryChanged?.Invoke();
     }
 
     private void FanOutToPassives(System.Func<PassiveAbility, bool> handler)
     {
-        var snapshot = new List<OwnedAbility>(_owned);
-        for (int i = 0; i < snapshot.Count; i++)
+        List<OwnedAbility> snapshot = BeginDispatchSnapshot();
+        try
         {
-            if (snapshot[i].Instance is not PassiveAbility passive) continue;
-            if (handler(passive)) ConsumeCharge(snapshot[i]);
+            for (int i = 0; i < snapshot.Count; i++)
+            {
+                if (snapshot[i].Instance is not PassiveAbility passive) continue;
+                if (handler(passive)) ConsumeCharge(snapshot[i]);
+            }
         }
+        finally
+        {
+            EndDispatchSnapshot(snapshot);
+        }
+    }
+
+    private List<OwnedAbility> BeginDispatchSnapshot()
+    {
+        _dispatchDepth++;
+        if (_dispatchDepth > 1) return new List<OwnedAbility>(_owned);
+
+        _dispatchSnapshot.Clear();
+        _dispatchSnapshot.AddRange(_owned);
+        return _dispatchSnapshot;
+    }
+
+    private void EndDispatchSnapshot(List<OwnedAbility> snapshot)
+    {
+        if (ReferenceEquals(snapshot, _dispatchSnapshot)) _dispatchSnapshot.Clear();
+        _dispatchDepth = Mathf.Max(0, _dispatchDepth - 1);
     }
 
     private void ConsumeCharge(OwnedAbility owned)

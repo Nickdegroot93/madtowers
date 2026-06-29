@@ -76,10 +76,19 @@ public partial class BlockController : MonoBehaviour
     // Bumped whenever the placed geometry behind the reach bounds changes - a block lands or leaves
     // tracking, or an island spawns. Active pieces cache their reach bounds against this stamp so
     // the per-FixedUpdate steering clamp and per-input legality check don't rescan every tracked
-    // block + island on a tall tower. (Post-landing settle drift is intentionally not tracked: it
-    // is sub-cell and the 4-column reach margin dwarfs it; the next landing refreshes the cache.)
+    // block + island on a tall tower. The placement-occupancy cache below is invalidated separately
+    // when an awake landed block moves far enough to affect snapped cell legality.
     private static int _reachGeometryVersion;
-    public static void InvalidateReachGeometry() => _reachGeometryVersion++;
+    private static int _placementOccupancyVersion;
+    private static int _placementOccupancyStamp = -1;
+    private static readonly Dictionary<Vector2Int, List<BlockController>> LandedCellOccupancy =
+        new Dictionary<Vector2Int, List<BlockController>>();
+
+    public static void InvalidateReachGeometry()
+    {
+        _reachGeometryVersion++;
+        _placementOccupancyVersion++;
+    }
 
     [Header("Active Piece Control (fallback; GameModeConfig overrides these per level)")]
     [Tooltip("How close (world units) support must be below the piece before steering control is handed to physics. Keep small so players can make last-second tuck moves.")]
@@ -134,7 +143,6 @@ public partial class BlockController : MonoBehaviour
     private static float _standardBlockMassMultiplier = 1f;
 
     private const float RotationStep = 90f;
-    private const float GridMatchTolerance = 0.05f;
     // The widest piece is the horizontal 1x4 (I-piece). The reachable area beside any obstacle
     // (tower block OR sky island) must always leave at least this many clear columns on the
     // outer side, so even a horizontal 1x4 can slip down past it and fall off. This is a
@@ -191,6 +199,8 @@ public partial class BlockController : MonoBehaviour
     private Vector2 _stillnessAnchorPosition;
     private float _stillnessAnchorRotation;
     private float _stillnessTimer;
+    private Vector2 _lastPlacementOccupancyPosition;
+    private float _lastPlacementOccupancyRotation;
 
     // Per-piece cache of the gameplay reach bounds, refreshed only when _reachGeometryVersion moves.
     private int _reachBoundsStamp = -1;
@@ -201,6 +211,19 @@ public partial class BlockController : MonoBehaviour
     public bool HasLanded { get; private set; }
     public bool IsFrozenInPlace => _rb != null && _rb.bodyType == RigidbodyType2D.Static;
     public static IReadOnlyList<BlockController> AllBlocks => TrackedBlocks;
+
+    /// <summary>A removed support changes contact topology even for sleeping bodies. Wake dynamic landed
+    /// blocks so the next physics step can let unsupported tower sections fall instead of hovering.</summary>
+    public static void WakeDynamicLandedBlocks(BlockController except = null)
+    {
+        for (int i = 0; i < TrackedBlocks.Count; i++)
+        {
+            BlockController block = TrackedBlocks[i];
+            if (block == null || block == except || !block.HasLanded || block._rb == null) continue;
+            if (block._rb.bodyType != RigidbodyType2D.Dynamic) continue;
+            block._rb.WakeUp();
+        }
+    }
 
     /// <summary>Stop counting this block as a live tower member right now, before it is
     /// destroyed - used while a rescue animation (Rebound) plays it out. Removes it from
@@ -230,6 +253,9 @@ public partial class BlockController : MonoBehaviour
         _nudgeLockedUntilTime = 0f;
         _features = BlockFeature.None;
         _reachGeometryVersion = 0;
+        _placementOccupancyVersion = 0;
+        _placementOccupancyStamp = -1;
+        LandedCellOccupancy.Clear();
     }
 
     public static void AddStandardBlockFrictionMultiplier(float multiplierDelta)

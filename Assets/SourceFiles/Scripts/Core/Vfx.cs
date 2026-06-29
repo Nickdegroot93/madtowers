@@ -18,10 +18,7 @@ public static class Vfx
 
         position.z = 0f; // keep effects on the gameplay plane (2D ortho)
         GameObject instance = Object.Instantiate(prefab, position, Quaternion.identity);
-        if (!Mathf.Approximately(scale, 1f))
-        {
-            instance.transform.localScale *= scale;
-        }
+        if (!Mathf.Approximately(scale, 1f)) instance.transform.localScale *= scale;
         if (lifetime > 0f) Object.Destroy(instance, lifetime); // force-clean looping prefabs
         return instance;
     }
