@@ -518,6 +518,321 @@ public static class MenuSprites
         return Cache[key] = Finish(tex, S);
     }
 
+    // ---- Settings-rail glyphs ---------------------------------------------------------------
+    // Line/solid icons for the settings tab rail, same procedural look as the bottom-nav glyphs.
+    // Placeholder set - final per-tab art is a design pass; see SETTINGS.md. `color` tints the
+    // whole glyph (alpha respected).
+
+    // Three horizontal track lines, each with a draggable knob - the UI / Controls glyph.
+    public static Sprite Sliders(Color color)
+    {
+        string key = $"sliders:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        float half = 0.045f * S;
+        float lx = 0.20f * S, rx = 0.80f * S, knobR = 0.085f * S;
+        float[] rowsY = { 0.70f, 0.50f, 0.30f };
+        float[] knobX = { 0.64f, 0.36f, 0.58f };
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float a = 0f;
+                for (int i = 0; i < rowsY.Length; i++)
+                {
+                    float ly = rowsY[i] * S;
+                    a = Mathf.Max(a, StrokeAlpha(DistToSegment(p, new Vector2(lx, ly), new Vector2(rx, ly)), half));
+                    float kd = Vector2.Distance(p, new Vector2(knobX[i] * S, ly)) - knobR;
+                    a = Mathf.Max(a, Mathf.Clamp01(0.5f - kd));
+                }
+                Color c = color;
+                c.a = color.a * a;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // A monitor: rounded-rect screen outline on a short stand - the Graphics glyph.
+    public static Sprite Monitor(Color color)
+    {
+        string key = $"monitor:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        float half = 0.045f * S;
+        Vector2 screenC = new Vector2(0.5f * S, 0.57f * S);
+        Vector2 screenH = new Vector2(0.30f * S, 0.20f * S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float a = StrokeAlpha(RoundedBoxDist(p, screenC, screenH, 0.05f * S), half);
+                a = Mathf.Max(a, StrokeAlpha(DistToSegment(p, new Vector2(0.5f * S, 0.37f * S), new Vector2(0.5f * S, 0.27f * S)), half));
+                a = Mathf.Max(a, StrokeAlpha(DistToSegment(p, new Vector2(0.36f * S, 0.25f * S), new Vector2(0.64f * S, 0.25f * S)), half));
+                Color c = color;
+                c.a = color.a * a;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // Four solid bars of varying height - the Sound & Haptics glyph (equalizer).
+    public static Sprite Equalizer(Color color)
+    {
+        string key = $"equalizer:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        float[] xs = { 0.26f, 0.42f, 0.58f, 0.74f };
+        float[] hs = { 0.34f, 0.56f, 0.42f, 0.24f };
+        float barHalf = 0.05f * S, bottom = 0.26f * S;
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float a = 0f;
+                for (int i = 0; i < xs.Length; i++)
+                {
+                    float h = hs[i] * S;
+                    Vector2 center = new Vector2(xs[i] * S, bottom + h * 0.5f);
+                    a = Mathf.Max(a, Mathf.Clamp01(0.5f - RoundedBoxDist(p, center, new Vector2(barHalf, h * 0.5f), 0.02f * S)));
+                }
+                Color c = color;
+                c.a = color.a * a;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // A bell: domed body, flared rim and clapper - the Notifications glyph.
+    public static Sprite Bell(Color color)
+    {
+        string key = $"bell:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        Vector2 domeC = new Vector2(0.5f * S, 0.52f * S);
+        float domeR = 0.19f * S;
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float a = p.y >= domeC.y ? Mathf.Clamp01(0.5f - (Vector2.Distance(p, domeC) - domeR)) : 0f;
+                a = Mathf.Max(a, Mathf.Clamp01(0.5f - RoundedBoxDist(p, new Vector2(0.5f * S, 0.44f * S), new Vector2(0.19f * S, 0.14f * S), 0.04f * S)));
+                a = Mathf.Max(a, Mathf.Clamp01(0.5f - RoundedBoxDist(p, new Vector2(0.5f * S, 0.30f * S), new Vector2(0.24f * S, 0.028f * S), 0.02f * S)));
+                a = Mathf.Max(a, Mathf.Clamp01(0.5f - (Vector2.Distance(p, new Vector2(0.5f * S, 0.72f * S)) - 0.04f * S)));
+                a = Mathf.Max(a, Mathf.Clamp01(0.5f - (Vector2.Distance(p, new Vector2(0.5f * S, 0.235f * S)) - 0.045f * S)));
+                Color c = color;
+                c.a = color.a * a;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // A head over rounded shoulders - the Account glyph.
+    public static Sprite Person(Color color)
+    {
+        string key = $"person:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        Vector2 headC = new Vector2(0.5f * S, 0.66f * S);
+        float headR = 0.135f * S;
+        Vector2 shoulderC = new Vector2(0.5f * S, 0.28f * S);
+        float shoulderR = 0.26f * S;
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float a = Mathf.Clamp01(0.5f - (Vector2.Distance(p, headC) - headR));
+                if (p.y >= shoulderC.y) a = Mathf.Max(a, Mathf.Clamp01(0.5f - (Vector2.Distance(p, shoulderC) - shoulderR)));
+                Color c = color;
+                c.a = color.a * a;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // A ringed "i" - the About / Legal glyph.
+    public static Sprite Info(Color color)
+    {
+        string key = $"info:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        float half = 0.045f * S;
+        Vector2 center = new Vector2(0.5f * S, 0.5f * S);
+        float ringR = 0.34f * S;
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float a = StrokeAlpha(Vector2.Distance(p, center) - ringR, half);
+                a = Mathf.Max(a, StrokeAlpha(DistToSegment(p, new Vector2(0.5f * S, 0.57f * S), new Vector2(0.5f * S, 0.36f * S)), half));
+                a = Mathf.Max(a, Mathf.Clamp01(0.5f - (Vector2.Distance(p, new Vector2(0.5f * S, 0.66f * S)) - 0.045f * S)));
+                Color c = color;
+                c.a = color.a * a;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // A single eighth note (head + stem + flag) - the Music Volume row glyph.
+    public static Sprite Note(Color color)
+    {
+        string key = $"note:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        float half = 0.05f * S;
+        Vector2 head = new Vector2(0.37f * S, 0.30f * S);
+        float headR = 0.135f * S;
+        Vector2 stemBot = new Vector2(0.50f * S, 0.30f * S);
+        Vector2 stemTop = new Vector2(0.50f * S, 0.74f * S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float a = Mathf.Clamp01(0.5f - (Vector2.Distance(p, head) - headR));
+                a = Mathf.Max(a, StrokeAlpha(DistToSegment(p, stemBot, stemTop), half));
+                a = Mathf.Max(a, StrokeAlpha(DistToSegment(p, stemTop, new Vector2(0.68f * S, 0.66f * S)), half));
+                Color c = color;
+                c.a = color.a * a;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // A speaker with two sound waves - the Sound Effects row glyph.
+    public static Sprite Speaker(Color color)
+    {
+        string key = $"speaker:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        float half = 0.045f * S;
+        Vector2 center = new Vector2(0.50f * S, 0.50f * S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float a = Mathf.Clamp01(0.5f - RoundedBoxDist(p, new Vector2(0.32f * S, 0.50f * S), new Vector2(0.07f * S, 0.085f * S), 0.02f * S));
+                if (PointInTriangle(p, new Vector2(0.24f * S, 0.50f * S), new Vector2(0.50f * S, 0.72f * S), new Vector2(0.50f * S, 0.28f * S))) a = 1f;
+                if (p.x >= 0.54f * S)
+                {
+                    a = Mathf.Max(a, StrokeAlpha(Vector2.Distance(p, center) - 0.15f * S, half));
+                    a = Mathf.Max(a, StrokeAlpha(Vector2.Distance(p, center) - 0.24f * S, half));
+                }
+                Color c = color;
+                c.a = color.a * a;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // A speaker with an "x" instead of waves - the Mute All row glyph.
+    public static Sprite SpeakerOff(Color color)
+    {
+        string key = $"speakeroff:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        float half = 0.045f * S;
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float a = Mathf.Clamp01(0.5f - RoundedBoxDist(p, new Vector2(0.32f * S, 0.50f * S), new Vector2(0.07f * S, 0.085f * S), 0.02f * S));
+                if (PointInTriangle(p, new Vector2(0.24f * S, 0.50f * S), new Vector2(0.50f * S, 0.72f * S), new Vector2(0.50f * S, 0.28f * S))) a = 1f;
+                a = Mathf.Max(a, StrokeAlpha(DistToSegment(p, new Vector2(0.60f * S, 0.40f * S), new Vector2(0.80f * S, 0.60f * S)), half));
+                a = Mathf.Max(a, StrokeAlpha(DistToSegment(p, new Vector2(0.60f * S, 0.60f * S), new Vector2(0.80f * S, 0.40f * S)), half));
+                Color c = color;
+                c.a = color.a * a;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // A four-point sparkle (two crossed thin diamonds) - the Visual Effects row glyph.
+    public static Sprite Sparkle(Color color)
+    {
+        string key = $"sparkle:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                float u = ((x + 0.5f) / S) * 2f - 1f;
+                float v = ((y + 0.5f) / S) * 2f - 1f;
+                float tall = Mathf.Abs(u) / 0.22f + Mathf.Abs(v) / 0.62f;
+                float wide = Mathf.Abs(u) / 0.62f + Mathf.Abs(v) / 0.22f;
+                float a = Mathf.Max(Mathf.Clamp01((1f - tall) * 6f), Mathf.Clamp01((1f - wide) * 6f));
+                Color c = color;
+                c.a = color.a * a;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    // A box with motion lines either side - the Screen Shake row glyph.
+    public static Sprite Shake(Color color)
+    {
+        string key = $"shake:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        float half = 0.045f * S;
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float a = StrokeAlpha(RoundedBoxDist(p, new Vector2(0.5f * S, 0.5f * S), new Vector2(0.15f * S, 0.15f * S), 0.04f * S), half);
+                a = Mathf.Max(a, StrokeAlpha(DistToSegment(p, new Vector2(0.24f * S, 0.41f * S), new Vector2(0.24f * S, 0.59f * S)), half));
+                a = Mathf.Max(a, StrokeAlpha(DistToSegment(p, new Vector2(0.14f * S, 0.45f * S), new Vector2(0.14f * S, 0.55f * S)), half));
+                a = Mathf.Max(a, StrokeAlpha(DistToSegment(p, new Vector2(0.76f * S, 0.41f * S), new Vector2(0.76f * S, 0.59f * S)), half));
+                a = Mathf.Max(a, StrokeAlpha(DistToSegment(p, new Vector2(0.86f * S, 0.45f * S), new Vector2(0.86f * S, 0.55f * S)), half));
+                Color c = color;
+                c.a = color.a * a;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
     private static float DistToSegment(Vector2 p, Vector2 a, Vector2 b)
     {
         Vector2 ab = b - a;

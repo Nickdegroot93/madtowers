@@ -14,6 +14,7 @@ public static class SfxPlayer
     private static GameObject _host;
     private static AudioSource[] _pool;
     private static AudioSource _loop; // dedicated, stoppable source for sustained sounds (e.g. countdown)
+    private static float _loopBaseVolume = 1f; // the loop's per-call level, before the SFX setting
     private static int _next;
     private static readonly Dictionary<string, AudioClip> _clips = new Dictionary<string, AudioClip>();
 
@@ -28,7 +29,8 @@ public static class SfxPlayer
         _next = (_next + 1) % _pool.Length;
 
         source.pitch = 1f + (pitchJitter > 0f ? Random.Range(-pitchJitter, pitchJitter) : 0f);
-        source.PlayOneShot(clip, Mathf.Clamp01(volume));
+        // Per-call volume scaled by the user's master SFX level (0 while muted).
+        source.PlayOneShot(clip, Mathf.Clamp01(volume) * SettingsService.EffectiveSfx);
     }
 
     /// <summary>Play a random numbered variant: name_01 .. name_NN.</summary>
@@ -47,12 +49,21 @@ public static class SfxPlayer
         if (clip == null) return;
 
         EnsureLoop();
+        _loopBaseVolume = Mathf.Clamp01(volume);
+        ApplyLoopVolume(); // refresh volume even when this clip is already looping
         if (_loop.isPlaying && _loop.clip == clip) return;
         _loop.clip = clip;
-        _loop.volume = Mathf.Clamp01(volume);
         _loop.pitch = 1f;
         _loop.loop = true;
         _loop.Play();
+    }
+
+    // Re-applies the sustained loop's volume from its base level and the current SFX setting.
+    // Subscribed to SettingsService.Changed so the loop honours live mute / slider changes the
+    // same way MusicPlayer does (otherwise a held loop would ignore the settings screen).
+    private static void ApplyLoopVolume()
+    {
+        if (_loop != null) _loop.volume = _loopBaseVolume * SettingsService.EffectiveSfx;
     }
 
     /// <summary>Stop the sustained loop started by <see cref="PlayLoop"/> (safe if nothing is playing).</summary>
@@ -105,5 +116,9 @@ public static class SfxPlayer
         _loop = EnsureHost().AddComponent<AudioSource>();
         _loop.playOnAwake = false;
         _loop.spatialBlend = 0f;
+        // Static class has no teardown hook and fast-enter-playmode keeps statics, so subscribe
+        // idempotently (-= then +=) like MusicPlayer does for its GameEvents handler.
+        SettingsService.Changed -= ApplyLoopVolume;
+        SettingsService.Changed += ApplyLoopVolume;
     }
 }

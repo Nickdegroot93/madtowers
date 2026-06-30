@@ -2,30 +2,29 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// The two consumable slots: bottom-center buttons between the nudge corners, built in
-/// code like the rest of the runtime UI. Each registers a gesture exclusion rect with
-/// TouchGestureInput so activating a consumable never steers or rotates the piece.
+/// The two consumable slots: circular right-side buttons, built in code like the rest of
+/// the runtime UI. A gesture exclusion rect is registered over the visible buttons so
+/// activating a consumable never steers or rotates the piece.
 /// Buttons dim whenever the blanket gates refuse activation (paused, game over, win
 /// verification) or a slot's own CanActivate says no - same affordance language as the
 /// nudge pills' lockout dim.
 /// </summary>
 public class AbilityHud : MonoBehaviour
 {
-    private const float SlotSize = 110f;
+    private const float SlotSize = 124f;
     private const float SlotGap = 18f;
-    private const float BottomInset = 14f;
+    private const float RightMargin = 92f;
+    private const float HeightAnchor = 0.58f;
+    private const float IconInset = 24f;
     private const float DimAlpha = 0.35f;
-    private static readonly Color SlotEmptyColor = new Color(1f, 1f, 1f, 0.06f);
-    private static readonly Color SlotFilledColor = new Color(0.13f, 0.19f, 0.22f, 0.92f);
+    private static readonly Color BubbleColor = new Color(0.92f, 0.97f, 1f, 0.9f);
 
     private AbilityRuntime _runtime;
     private GameObject _root;
     private Canvas _canvas;
+    private readonly GameObject[] _slots = new GameObject[AbilityRuntime.ConsumableSlotCount];
     private readonly Image[] _slotFrames = new Image[AbilityRuntime.ConsumableSlotCount];
     private readonly Image[] _slotIcons = new Image[AbilityRuntime.ConsumableSlotCount];
-    // White tile behind each slot icon (authored glyphs are transparent); shown only when
-    // the slot holds an ability that has an icon. Toggling it also toggles its child glyph.
-    private readonly Image[] _slotTiles = new Image[AbilityRuntime.ConsumableSlotCount];
     private readonly Text[] _slotLabels = new Text[AbilityRuntime.ConsumableSlotCount];
     private readonly CanvasGroup[] _slotGroups = new CanvasGroup[AbilityRuntime.ConsumableSlotCount];
     private readonly bool[] _slotShownUsable = new bool[AbilityRuntime.ConsumableSlotCount];
@@ -52,24 +51,28 @@ public class AbilityHud : MonoBehaviour
         if (_exclusionRect != null) TouchGestureInput.UnregisterUiExclusionRect(_exclusionRect);
     }
 
-    // One rect covering both slots (they are adjacent); recomputed per query so it
-    // survives resolution changes. Slot dimensions are authored in the canvas's
-    // 1080x1920 reference space - TouchGestureInput compares RAW screen pixels, so the
-    // rect must scale by the canvas factor or it under-covers on high-DPI phones (taps
-    // on a slot's edge would both click the button AND rotate the piece).
+    // One rect covering the visible right-side slots; recomputed per query so it survives
+    // resolution changes. RectTransform.position is already raw screen pixels on this overlay
+    // canvas, while SlotSize still needs the canvas scale to become raw screen size.
     private Rect GetSlotsScreenRect()
     {
+        Rect rect = Rect.zero;
+        bool hasRect = false;
         float scale = _canvas != null ? _canvas.scaleFactor : 1f;
-        float width = (SlotSize * AbilityRuntime.ConsumableSlotCount + SlotGap) * scale;
-        float left = (Screen.width - width) * 0.5f;
-        // From the screen bottom up past the (safe-area-lifted) slot tops, so a tap on a slot
-        // never also steers the piece. SafeAreaInsetsPixels().w is the bottom inset in raw px.
-        float top = RuntimeUiKit.SafeAreaInsetsPixels().w + (BottomInset + SlotSize) * scale;
-        return new Rect(left, 0f, width, top);
-    }
+        float side = SlotSize * scale;
 
-    // Lift the slots above their base margin so they clear the home indicator (bottom safe inset).
-    private float SlotBottomOffset() => BottomInset + RuntimeUiKit.SafeAreaBottomInset(_canvas);
+        for (int i = 0; i < AbilityRuntime.ConsumableSlotCount; i++)
+        {
+            if (_slots[i] == null || !_slots[i].activeSelf) continue;
+
+            Vector3 center = _slotFrames[i].rectTransform.position;
+            Rect slotRect = new Rect(center.x - side * 0.5f, center.y - side * 0.5f, side, side);
+            rect = hasRect ? Union(rect, slotRect) : slotRect;
+            hasRect = true;
+        }
+
+        return hasRect ? rect : Rect.zero;
+    }
 
     private void BuildHud()
     {
@@ -85,23 +88,22 @@ public class AbilityHud : MonoBehaviour
     private void CreateSlot(int index)
     {
         GameObject slot = new GameObject($"Slot{index}", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        _slots[index] = slot;
         RectTransform rect = (RectTransform)slot.transform;
         rect.SetParent(_root.transform, false);
-        rect.anchorMin = new Vector2(0.5f, 0f);
-        rect.anchorMax = new Vector2(0.5f, 0f);
-        rect.pivot = new Vector2(0.5f, 0f);
-        float offset = (index - (AbilityRuntime.ConsumableSlotCount - 1) * 0.5f) * (SlotSize + SlotGap);
-        rect.anchoredPosition = new Vector2(offset, SlotBottomOffset());
+        rect.anchorMin = new Vector2(1f, HeightAnchor);
+        rect.anchorMax = new Vector2(1f, HeightAnchor);
+        rect.pivot = new Vector2(0.5f, 0.5f);
         rect.sizeDelta = new Vector2(SlotSize, SlotSize);
 
         Image frame = slot.GetComponent<Image>();
-        frame.sprite = RuntimeSprites.RoundedPanel();
-        frame.type = Image.Type.Sliced;
-        frame.color = SlotEmptyColor;
+        frame.sprite = RuntimeSprites.Bubble();
+        frame.color = BubbleColor;
         _slotFrames[index] = frame;
 
         Button button = slot.AddComponent<Button>();
         button.targetGraphic = frame;
+        button.transition = Selectable.Transition.None;
         int captured = index;
         button.onClick.AddListener(() =>
         {
@@ -109,29 +111,33 @@ public class AbilityHud : MonoBehaviour
             if (_runtime.TryActivateSlot(captured)) _punchAge[captured] = 0f;
         });
 
-        // Icon fills the slot when the ability has one; the text label is the fallback.
-        // The transparent glyph rides on a white 90%-opacity tile (matches the ability card).
-        Image icon = RuntimeUiKit.CreateIconTile(slot.transform, 0.9f, 6f, out Image iconTile);
-        RectTransform tileRect = iconTile.rectTransform;
-        tileRect.offsetMin = new Vector2(10f, 10f);
-        tileRect.offsetMax = new Vector2(-10f, -10f);
-        iconTile.gameObject.SetActive(false);
+        GameObject iconObject = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        RectTransform iconRect = (RectTransform)iconObject.transform;
+        iconRect.SetParent(slot.transform, false);
+        iconRect.anchorMin = Vector2.zero;
+        iconRect.anchorMax = Vector2.one;
+        iconRect.offsetMin = new Vector2(IconInset, IconInset);
+        iconRect.offsetMax = new Vector2(-IconInset, -IconInset);
+        Image icon = iconObject.GetComponent<Image>();
+        icon.preserveAspect = true;
+        icon.raycastTarget = false;
         _slotIcons[index] = icon;
-        _slotTiles[index] = iconTile;
 
-        Text label = RuntimeUiKit.CreateLabel(slot.transform, string.Empty, 20, SlotSize,
+        Text label = RuntimeUiKit.CreateLabel(slot.transform, string.Empty, 16, SlotSize,
             FontStyle.Bold, RuntimeUiKit.TitleColor);
         RectTransform labelRect = label.rectTransform;
         labelRect.anchorMin = Vector2.zero;
         labelRect.anchorMax = Vector2.one;
-        labelRect.offsetMin = new Vector2(6f, 6f);
-        labelRect.offsetMax = new Vector2(-6f, -6f);
+        labelRect.offsetMin = new Vector2(14f, 14f);
+        labelRect.offsetMax = new Vector2(-14f, -14f);
         label.horizontalOverflow = HorizontalWrapMode.Wrap;
+        label.raycastTarget = false;
         _slotLabels[index] = label;
 
         _slotGroups[index] = slot.AddComponent<CanvasGroup>();
         _slotShownUsable[index] = true;
         _punchAge[index] = -1f;
+        slot.SetActive(false);
     }
 
     private void RefreshSlots()
@@ -141,70 +147,93 @@ public class AbilityHud : MonoBehaviour
             ConsumableAbility source = _runtime.GetSlotSource(i);
             if (_slotFrames[i] == null) continue;
 
-            _slotFrames[i].color = source != null ? SlotFilledColor : SlotEmptyColor;
+            bool filled = source != null;
+            _slots[i].SetActive(filled);
+            _slotFrames[i].color = BubbleColor;
 
             bool hasIcon = source != null && source.Icon != null;
-            if (_slotTiles[i] != null) _slotTiles[i].gameObject.SetActive(hasIcon);
-            if (hasIcon) _slotIcons[i].sprite = source.Icon;
+            if (_slotIcons[i] != null)
+            {
+                _slotIcons[i].enabled = hasIcon;
+                if (hasIcon) _slotIcons[i].sprite = source.Icon;
+            }
             _slotLabels[i].text = source != null && !hasIcon ? source.DisplayName : string.Empty;
         }
+
+        ReflowSlots();
     }
 
     private void Update()
     {
         if (_runtime == null || _root == null) return;
 
-        // Re-seat the slots when the screen geometry / safe area changes (rotation, resize). The
-        // exclusion rect recomputes per query, so only the visual position needs refreshing.
-        Vector3 screenState = new Vector3(Screen.width, Screen.height, Screen.safeArea.yMin);
+        // Re-seat the slots when the screen geometry / safe area changes (rotation, resize).
+        Vector3 screenState = new Vector3(Screen.width, Screen.height, Screen.safeArea.xMax);
         if (screenState != _lastScreenState)
         {
             _lastScreenState = screenState;
-            float slotY = SlotBottomOffset();
-            for (int i = 0; i < AbilityRuntime.ConsumableSlotCount; i++)
-            {
-                if (_slotFrames[i] == null) continue;
-                Vector2 p = _slotFrames[i].rectTransform.anchoredPosition;
-                p.y = slotY;
-                _slotFrames[i].rectTransform.anchoredPosition = p;
-            }
+            ReflowSlots();
         }
 
         for (int i = 0; i < AbilityRuntime.ConsumableSlotCount; i++)
         {
-            if (_slotGroups[i] == null) continue;
+            if (_slotGroups[i] == null || _slots[i] == null || !_slots[i].activeSelf) continue;
 
             // Elastic tap punch - unscaled time so the hit-stop never freezes UI feel.
-            // Activation empties the slot BEFORE this runs (TryActivateSlot fires
-            // InventoryChanged synchronously), so the punch alone would scale a
-            // near-invisible empty frame: a white flash settling into the slot's
-            // final color carries the "consumed!" read instead.
             if (_punchAge[i] >= 0f)
             {
                 _punchAge[i] += Time.unscaledDeltaTime;
                 float t = _punchAge[i];
-                Color settled = _runtime.GetSlotSource(i) != null ? SlotFilledColor : SlotEmptyColor;
                 if (t >= 0.45f)
                 {
                     _punchAge[i] = -1f;
                     _slotFrames[i].rectTransform.localScale = Vector3.one;
-                    _slotFrames[i].color = settled;
+                    _slotFrames[i].color = BubbleColor;
                 }
                 else
                 {
                     float scale = FxKit.Elastic(t, amplitude: 0.28f, damping: 6f, frequency: 18f);
                     _slotFrames[i].rectTransform.localScale = new Vector3(scale, scale, 1f);
-                    _slotFrames[i].color = Color.Lerp(new Color(1f, 1f, 1f, 0.9f), settled, t / 0.45f);
+                    _slotFrames[i].color = Color.Lerp(new Color(1f, 1f, 1f, 0.96f), BubbleColor, t / 0.45f);
                 }
             }
 
             bool filled = _runtime.GetSlotSource(i) != null;
-            bool usable = !filled || _runtime.CanActivateSlot(i);
+            bool usable = filled && _runtime.CanActivateSlot(i);
             if (usable == _slotShownUsable[i]) continue; // don't dirty the canvas for nothing
 
             _slotShownUsable[i] = usable;
             _slotGroups[i].alpha = usable ? 1f : DimAlpha;
             _slotGroups[i].interactable = usable;
         }
+    }
+
+    private void ReflowSlots()
+    {
+        float rightInset = RuntimeUiKit.SafeAreaRightInset(_canvas);
+        int visibleCount = 0;
+        for (int i = 0; i < AbilityRuntime.ConsumableSlotCount; i++)
+        {
+            if (_slots[i] != null && _slots[i].activeSelf) visibleCount++;
+        }
+
+        int ordinal = 0;
+        for (int i = 0; i < AbilityRuntime.ConsumableSlotCount; i++)
+        {
+            if (_slotFrames[i] == null || _slots[i] == null || !_slots[i].activeSelf) continue;
+
+            float y = ((visibleCount - 1) * 0.5f - ordinal) * (SlotSize + SlotGap);
+            _slotFrames[i].rectTransform.anchoredPosition = new Vector2(-(RightMargin + rightInset), y);
+            ordinal++;
+        }
+    }
+
+    private static Rect Union(Rect a, Rect b)
+    {
+        float xMin = Mathf.Min(a.xMin, b.xMin);
+        float yMin = Mathf.Min(a.yMin, b.yMin);
+        float xMax = Mathf.Max(a.xMax, b.xMax);
+        float yMax = Mathf.Max(a.yMax, b.yMax);
+        return Rect.MinMaxRect(xMin, yMin, xMax, yMax);
     }
 }

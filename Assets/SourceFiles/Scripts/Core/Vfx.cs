@@ -15,6 +15,10 @@ public static class Vfx
     public static GameObject Spawn(GameObject prefab, Vector3 position, float scale = 1f, float lifetime = 0f)
     {
         if (prefab == null) return null;
+        // Decorative prefab VFX are off when the player disables Visual Effects (Graphics settings).
+        // Every authored effect plays through here, so this one gate covers all of them - current
+        // and future. Returning null matches the existing "unassigned effect plays nothing" contract.
+        if (!SettingsService.VisualEffects) return null;
 
         position.z = 0f; // keep effects on the gameplay plane (2D ortho)
         GameObject instance = Object.Instantiate(prefab, position, Quaternion.identity);

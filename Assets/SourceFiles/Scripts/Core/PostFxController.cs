@@ -51,26 +51,33 @@ public class PostFxController : MonoBehaviour
         volume.priority = 0f;
         volume.profile = profile;
 
-        EnablePostProcessingOnCamera();
+        ApplyPostProcessing();
         SceneManager.sceneLoaded += OnSceneLoaded;
+        // Live toggle from the Graphics settings; idempotent re-bind (static survives fast-playmode).
+        SettingsService.Changed -= ApplyPostProcessing;
+        SettingsService.Changed += ApplyPostProcessing;
     }
 
     private void OnDestroy()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
+        SettingsService.Changed -= ApplyPostProcessing;
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        EnablePostProcessingOnCamera(); // each scene load brings a fresh camera
+        ApplyPostProcessing(); // each scene load brings a fresh camera
     }
 
-    private static void EnablePostProcessingOnCamera()
+    // Whole post stack (vignette + bloom + grading) follows the user's Visual Effects setting -
+    // turning it off is the cheap GPU/battery win on mobile. The Volume stays built; we just
+    // toggle the camera's renderPostProcessing.
+    private static void ApplyPostProcessing()
     {
         Camera camera = Camera.main;
         if (camera == null) return;
 
         UniversalAdditionalCameraData data = camera.GetUniversalAdditionalCameraData();
-        if (data != null) data.renderPostProcessing = true;
+        if (data != null) data.renderPostProcessing = SettingsService.VisualEffects;
     }
 }

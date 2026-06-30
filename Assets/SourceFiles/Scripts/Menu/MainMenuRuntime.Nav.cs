@@ -10,7 +10,7 @@ public static partial class MainMenuRuntime
     {
         RectTransform panel = CreateRect(parent, $"{tab}Panel",
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            new Vector2(0f, -70f), new Vector2(740f, tab == MenuTab.Settings ? 380f : 260f));
+            new Vector2(0f, -70f), new Vector2(740f, 260f));
         Image image = panel.gameObject.AddComponent<Image>();
         image.sprite = RuntimeSprites.RoundedPanel();
         image.type = Image.Type.Sliced;
@@ -23,14 +23,6 @@ public static partial class MainMenuRuntime
         CreateTmp(panel, "Status", "COMING SOON", 24, TextMuted,
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -132f), new Vector2(740f, 54f), new Vector2(0.5f, 1f));
-
-        if (tab == MenuTab.Settings && ContentCatalog.IsAvailable)
-        {
-            Button custom = CreateMenuButton(panel, "CustomGameButton", "CUSTOM GAME",
-                new Vector2(0f, -230f), new Vector2(430f, 76f), OpenCustomGame);
-            Text label = custom.GetComponentInChildren<Text>();
-            if (label != null) label.color = TextPrimary;
-        }
     }
 
     // A gold-rimmed bar that STRETCHES to the screen width (constant side insets, so it fits any
@@ -173,26 +165,6 @@ public static partial class MainMenuRuntime
 
         CreateTmp(hex, "Label", "HOME", 16, glyphColor, TextAnchor.MiddleCenter,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -32f), new Vector2(124f, 26f), new Vector2(0.5f, 0.5f));
-    }
-
-    private static Button CreateMenuButton(Transform parent, string name, string label,
-        Vector2 anchoredPosition, Vector2 size, UnityEngine.Events.UnityAction onClick)
-    {
-        RectTransform rect = CreateRect(parent, name,
-            new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-            anchoredPosition, size);
-        Image image = rect.gameObject.AddComponent<Image>();
-        image.sprite = RuntimeSprites.RoundedPanel();
-        image.type = Image.Type.Sliced;
-        image.color = new Color(0.12f, 0.1f, 0.08f, 0.82f);
-        RuntimeUiKit.AddOutline(rect, GoldOutline(0.22f));
-
-        Button button = rect.gameObject.AddComponent<Button>();
-        button.targetGraphic = image;
-        button.onClick.AddListener(() => { SfxPlayer.Play("ui-button-click"); onClick?.Invoke(); });
-        CreateTmp(rect, "Label", label, 26, TextPrimary, TextAnchor.MiddleCenter,
-            FontStyle.Bold, RuntimeUiKit.TitleFont);
-        return button;
     }
 
     private static void OpenCustomGame()

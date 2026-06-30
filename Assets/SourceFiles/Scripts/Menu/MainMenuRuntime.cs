@@ -148,6 +148,7 @@ public static partial class MainMenuRuntime
         _chapterIndex = 0;
         _chapterIndexInitialized = false;
         _activeTab = MenuTab.Home;
+        _activeSettingsTab = SettingsTab.Sound;
         ReleaseVideoTexture();
     }
 
@@ -228,6 +229,7 @@ public static partial class MainMenuRuntime
 
         Transform contentRoot = RecreateSection(ref _contentRoot, _contentLayer, "ContentRoot");
         if (_activeTab == MenuTab.Home) BuildPlayScreen(contentRoot, chapter);
+        else if (_activeTab == MenuTab.Settings) BuildSettingsScreen(contentRoot, chapter);
         else BuildDummyScreen(contentRoot, _activeTab);
 
         Transform navRoot = RecreateSection(ref _navRoot, _navLayer, "BottomNavRoot");

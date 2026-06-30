@@ -92,6 +92,9 @@ public class TowerCameraController : MonoBehaviour
     public static void Impact(float amplitude = 0.16f, float duration = 0.22f)
     {
         if (_instance == null) return;
+        // Every screen shake in the game routes through here, so honouring the Screen Shake
+        // setting at this one point disables them all (current and future). See GRAPHICS.md.
+        if (!SettingsService.ScreenShake) return;
         _instance._shakeAmplitude = amplitude;
         _instance._shakeDuration = duration;
         _instance._shakeTime = duration;

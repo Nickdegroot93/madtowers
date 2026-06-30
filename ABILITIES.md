@@ -775,6 +775,12 @@ behind the standard, so the next consumable composes instead of copy-pasting:
 | `BlockQuery.IsOnScreen(block)` | is the block within the camera viewport (shared by the targeting abilities) |
 | `FxKit.Elastic(t, amp, damp, freq)` | the game's one elastic settle curve |
 
+> **These honour the player's Graphics settings for free** (see [GRAPHICS.md](GRAPHICS.md)):
+> `Vfx.Spawn` no-ops when **Visual Effects** is off, and `ImpactPunch` /
+> `TowerCameraController.Impact` no-op when **Screen Shake** is off. So compose with these
+> helpers and your effect is toggle-able automatically — never `Instantiate` an effect prefab
+> or move the camera directly.
+
 `ZapSession.Fire` and `BombBlockBehaviour` show the composition: find the target →
 `BurstFromEveryCell` + `ImpactPunch` + sfx → `DestroyBlockWithShatter`. Every reusable mechanic is
 one of the calls above; the ability owns only its own decisions (guards, which sounds).

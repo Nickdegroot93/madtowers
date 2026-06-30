@@ -61,11 +61,12 @@ public class UIManager : MonoBehaviour
     private const int MaxHearts = 12;
     private static readonly Color NudgePillColor = new Color(1f, 1f, 1f, 0.09f);
     private static readonly Color NudgeChevronColor = new Color(0.95f, 0.98f, 1f, 0.32f);
-    private const float NudgePillInset = 10f;
     private const float NudgeChevronSize = 30f;
+    private const float NudgeHintVisibility = 0f;
 
-    // Dimmed while a failed nudge's rebound lockout runs, so a dead corner button reads
-    // as "rebounding", never as unresponsive UI.
+    // Dimmed while a failed nudge's rebound lockout runs. This still routes through the
+    // hidden hint images so a later settings toggle can reveal the same UI without changing
+    // the nudge-state plumbing.
     private const float NudgeLockoutDimFactor = 0.3f;
 
     private Spawner _spawner;
@@ -624,11 +625,12 @@ public class UIManager : MonoBehaviour
         return image;
     }
 
-    // The nudge zones' "ghost buttons": a soft rounded translucent pill filling each
-    // bottom-corner zone with a faint chevron pointing the dash direction - reads as a
-    // touchable glass surface instead of stray grid lines. Pure hints (raycast off; the
-    // touch handling lives in TouchGestureInput), anchored at the SAME screen fractions
-    // as the gesture constants so the visual never lies about the hitbox.
+    // The nudge zones' hint buttons: invisible by default, but still built to exactly fill
+    // each bottom-corner touch zone. A later settings toggle can raise NudgeHintVisibility
+    // / user state and reveal these same objects without changing the gesture contract.
+    // Pure hints (raycast off; the touch handling lives in TouchGestureInput), anchored at
+    // the SAME screen fractions as the gesture constants so the visual never lies about the
+    // hitbox.
     private void EnsureNudgeButtons()
     {
         if (HudRoot() == null) return;
@@ -647,14 +649,13 @@ public class UIManager : MonoBehaviour
         rect.SetParent(HudRoot(), false);
         rect.anchorMin = anchorMin;
         rect.anchorMax = anchorMax;
-        // the glass sits just inside the touch zone: generous hitbox, calmer look
-        rect.offsetMin = new Vector2(NudgePillInset, NudgePillInset);
-        rect.offsetMax = new Vector2(-NudgePillInset, -NudgePillInset);
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
 
         Image fill = pill.GetComponent<Image>();
         fill.sprite = RuntimeSprites.RoundedPanel();
         fill.type = Image.Type.Sliced;
-        fill.color = NudgePillColor;
+        fill.color = NudgeHintColor(NudgePillColor, dimmed: false);
         fill.raycastTarget = false;
         _nudgePillImages.Add((fill, NudgePillColor));
 
@@ -668,7 +669,7 @@ public class UIManager : MonoBehaviour
 
         Image chevron = icon.GetComponent<Image>();
         chevron.sprite = RuntimeSprites.Chevron();
-        chevron.color = NudgeChevronColor;
+        chevron.color = NudgeHintColor(NudgeChevronColor, dimmed: false);
         chevron.raycastTarget = false;
         _nudgePillImages.Add((chevron, NudgeChevronColor));
     }
@@ -701,15 +702,19 @@ public class UIManager : MonoBehaviour
         if (dim == _nudgePillsDimmed) return;
         _nudgePillsDimmed = dim;
 
-        float factor = dim ? NudgeLockoutDimFactor : 1f;
         for (int i = 0; i < _nudgePillImages.Count; i++)
         {
             (Image image, Color baseColor) = _nudgePillImages[i];
             if (image == null) continue;
 
-            // identity lives in alpha; scale it, keep the tint
-            image.color = new Color(baseColor.r, baseColor.g, baseColor.b, baseColor.a * factor);
+            image.color = NudgeHintColor(baseColor, dim);
         }
+    }
+
+    private static Color NudgeHintColor(Color baseColor, bool dimmed)
+    {
+        float dimFactor = dimmed ? NudgeLockoutDimFactor : 1f;
+        return new Color(baseColor.r, baseColor.g, baseColor.b, baseColor.a * NudgeHintVisibility * dimFactor);
     }
 
     private readonly Vector3[] _hudCornerBuffer = new Vector3[4];

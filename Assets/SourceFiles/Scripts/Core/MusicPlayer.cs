@@ -11,7 +11,9 @@ using UnityEngine;
 /// </summary>
 public class MusicPlayer : MonoBehaviour
 {
-    private const float Volume = 0.55f;
+    // Ceiling mix level: the source plays at BaseVolume when the user's music setting is 100%,
+    // scaled down from there (and silenced by mute-all). See SettingsService.
+    private const float BaseVolume = 0.55f;
 
     private static MusicPlayer _instance;
 
@@ -98,7 +100,20 @@ public class MusicPlayer : MonoBehaviour
         _source.clip = clip;
         // A single track loops natively (gapless); multi-track playlists advance in Update.
         _source.loop = _playlist.Count == 1;
+        ApplyVolume();
         _source.Play();
+    }
+
+    // Reflects the current user music setting onto the live source. Subscribed to
+    // SettingsService.Changed so dragging the music slider updates the volume in real time.
+    private void ApplyVolume()
+    {
+        if (_source != null) _source.volume = BaseVolume * SettingsService.EffectiveMusic;
+    }
+
+    private void OnDestroy()
+    {
+        SettingsService.Changed -= ApplyVolume;
     }
 
     private static void EnsureInstance()
@@ -111,6 +126,7 @@ public class MusicPlayer : MonoBehaviour
         _instance._source = host.AddComponent<AudioSource>();
         _instance._source.playOnAwake = false;
         _instance._source.spatialBlend = 0f;
-        _instance._source.volume = Volume;
+        SettingsService.Changed += _instance.ApplyVolume;
+        _instance.ApplyVolume();
     }
 }

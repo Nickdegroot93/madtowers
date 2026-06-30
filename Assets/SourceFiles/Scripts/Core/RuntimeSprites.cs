@@ -92,7 +92,7 @@ public static partial class RuntimeSprites
     }
 
     // ---- bubble (circular HUD button: Pocket Cache hold, any future round button) ----------
-    // A glassy disc: faint translucent fill + a bright soft rim ring, soft-AA outer edge.
+    // A glassy disc: translucent fill + a very fine soft rim, soft-AA outer edge.
     // White; tint via color. Supersampled for clean curves; keep the Image square for a true circle.
     private static Sprite _bubble;
 
@@ -103,7 +103,8 @@ public static partial class RuntimeSprites
         const int S = 256;
         const float Fill = 0.12f;   // translucent interior alpha
         const float Ring = 0.93f;   // rim sits near the edge
-        const float RingW = 0.035f; // thin, clean stroke
+        const float RingW = 0.016f; // hairline, mostly a highlight rather than a border
+        const float RingBoost = 0.13f;
         Texture2D tex = NewTexture(S, S);
         for (int y = 0; y < S; y++)
         {
@@ -122,7 +123,7 @@ public static partial class RuntimeSprites
                     }
                 }
                 inside *= 0.25f; ring *= 0.25f;
-                float a = Mathf.Min(inside, Mathf.Max(Fill, ring));       // rim clipped to the disc
+                float a = inside * Mathf.Clamp01(Fill + ring * RingBoost);
                 tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
             }
         }

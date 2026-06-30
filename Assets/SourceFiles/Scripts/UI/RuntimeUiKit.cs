@@ -378,4 +378,170 @@ public static partial class RuntimeUiKit
         backdrop.color = color;
         return backdrop;
     }
+
+    /// <summary>A themed 0..1 horizontal slider: full-width rounded track, accent fill, round
+    /// handle, and a transparent hit area so a tap/drag anywhere on the band moves it. Fills its
+    /// parent rect. <paramref name="onChanged"/> fires continuously while dragging - add a
+    /// <c>PointerUpProxy</c> to the returned slider for a commit-on-release hook.</summary>
+    public static Slider CreateSlider(Transform parent, string name, float value,
+        Color fillColor, Color trackColor, UnityEngine.Events.UnityAction<float> onChanged)
+    {
+        const float trackThickness = 12f;
+        const float handleSize = 34f;
+
+        RectTransform root = CreateRect(parent, name, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+        Slider slider = root.gameObject.AddComponent<Slider>();
+
+        // Transparent full-area hit target so a tap/drag anywhere on the band drives the slider.
+        Image hit = root.gameObject.AddComponent<Image>();
+        hit.color = Color.clear;
+        hit.raycastTarget = true;
+
+        Image track = CreateImage(root, "Track", RuntimeSprites.RoundedPanel(), trackColor);
+        track.type = Image.Type.Sliced;
+        RectTransform trackRect = track.rectTransform;
+        trackRect.anchorMin = new Vector2(0f, 0.5f);
+        trackRect.anchorMax = new Vector2(1f, 0.5f);
+        trackRect.pivot = new Vector2(0.5f, 0.5f);
+        trackRect.anchoredPosition = Vector2.zero;
+        trackRect.sizeDelta = new Vector2(0f, trackThickness);
+
+        // Fill container is inset by the handle radius each side so the fill aligns with the
+        // handle's travel; the Slider drives this Fill's right anchor from the value.
+        RectTransform fillArea = CreateRect(root, "Fill Area", new Vector2(0f, 0.5f), new Vector2(1f, 0.5f),
+            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-handleSize, trackThickness));
+        Image fillImage = CreateImage(fillArea, "Fill", RuntimeSprites.RoundedPanel(), fillColor);
+        fillImage.type = Image.Type.Sliced;
+        RectTransform fillRect = fillImage.rectTransform;
+        fillRect.anchorMin = Vector2.zero;
+        fillRect.anchorMax = Vector2.one;
+        fillRect.offsetMin = Vector2.zero;
+        fillRect.offsetMax = Vector2.zero;
+
+        RectTransform handleArea = CreateRect(root, "Handle Slide Area", new Vector2(0f, 0.5f), new Vector2(1f, 0.5f),
+            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-handleSize, 0f));
+        Image handleImage = CreateImage(handleArea, "Handle", MenuSprites.CircleBadge(Color.white, fillColor), Color.white);
+        handleImage.preserveAspect = true;
+        handleImage.raycastTarget = true;
+        RectTransform handleRect = handleImage.rectTransform;
+        handleRect.anchorMin = new Vector2(0f, 0.5f);
+        handleRect.anchorMax = new Vector2(0f, 0.5f);
+        handleRect.pivot = new Vector2(0.5f, 0.5f);
+        handleRect.sizeDelta = new Vector2(handleSize, handleSize);
+
+        slider.direction = Slider.Direction.LeftToRight;
+        slider.fillRect = fillRect;
+        slider.handleRect = handleRect;
+        slider.targetGraphic = handleImage;
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.wholeNumbers = false;
+        slider.value = Mathf.Clamp01(value);
+        if (onChanged != null) slider.onValueChanged.AddListener(onChanged);
+        return slider;
+    }
+
+    /// <summary>A themed sliding pill toggle built into <paramref name="pill"/> (a fixed-size rect
+    /// the caller has positioned): rounded background that fills with <paramref name="accentColor"/>
+    /// when on, plus a sliding round knob. <paramref name="onChanged"/> fires with the new state on
+    /// tap. Sizes the knob/travel from the pill's own dimensions, so any pill size works.</summary>
+    public static void CreatePillToggle(RectTransform pill, bool value, Color accentColor,
+        UnityEngine.Events.UnityAction<bool> onChanged)
+    {
+        float width = pill.sizeDelta.x;
+        float height = pill.sizeDelta.y;
+        float knob = height - 8f;
+
+        Image bg = pill.gameObject.AddComponent<Image>();
+        bg.sprite = RuntimeSprites.RoundedPanel();
+        bg.type = Image.Type.Sliced;
+        Button button = pill.gameObject.AddComponent<Button>();
+        button.targetGraphic = bg;
+        button.transition = Selectable.Transition.None;
+
+        Image knobImage = CreateImage(pill, "Knob", MenuSprites.CircleBadge(Color.white, new Color(0f, 0f, 0f, 0.18f)), Color.white);
+        knobImage.preserveAspect = true;
+        RectTransform knobRect = knobImage.rectTransform;
+        knobRect.anchorMin = new Vector2(0f, 0.5f);
+        knobRect.anchorMax = new Vector2(0f, 0.5f);
+        knobRect.pivot = new Vector2(0.5f, 0.5f);
+        knobRect.sizeDelta = new Vector2(knob, knob);
+
+        Color offColor = new Color(1f, 1f, 1f, 0.18f);
+        float offX = 4f + knob * 0.5f;
+        float onX = width - 4f - knob * 0.5f;
+        bool on = value;
+        void Refresh()
+        {
+            bg.color = on ? accentColor : offColor;
+            knobRect.anchoredPosition = new Vector2(on ? onX : offX, 0f);
+        }
+        button.onClick.AddListener(() =>
+        {
+            on = !on;
+            Refresh();
+            onChanged?.Invoke(on);
+        });
+        Refresh();
+    }
+
+    /// <summary>A themed segmented (single-choice) control built into <paramref name="container"/>
+    /// (a fixed-size rect the caller positions): a rounded track with one accent-filled segment per
+    /// option. Tapping a segment selects it (recolours in place, no rebuild) and fires
+    /// <paramref name="onSelect"/> with its index.</summary>
+    public static void CreateSegmentedControl(RectTransform container, string[] options, int selectedIndex,
+        Color accentColor, UnityEngine.Events.UnityAction<int> onSelect)
+    {
+        Image track = container.gameObject.AddComponent<Image>();
+        track.sprite = RuntimeSprites.RoundedPanel();
+        track.type = Image.Type.Sliced;
+        track.color = new Color(1f, 1f, 1f, 0.08f);
+
+        int count = Mathf.Max(1, options.Length);
+        Image[] fills = new Image[count];
+        TextMeshProUGUI[] labels = new TextMeshProUGUI[count];
+        Color onText = new Color(0.12f, 0.12f, 0.11f, 1f);  // dark - reads on the bright accent fill
+        Color offText = new Color(1f, 1f, 1f, 0.62f);
+        int current = Mathf.Clamp(selectedIndex, 0, count - 1);
+
+        for (int i = 0; i < count; i++)
+        {
+            RectTransform seg = CreateRect(container, $"Seg{i}",
+                new Vector2(i / (float)count, 0f), new Vector2((i + 1) / (float)count, 1f),
+                new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            seg.offsetMin = Vector2.zero;
+            seg.offsetMax = Vector2.zero;
+            Image hit = seg.gameObject.AddComponent<Image>();
+            hit.color = Color.clear;
+            hit.raycastTarget = true;
+            Button button = seg.gameObject.AddComponent<Button>();
+            button.targetGraphic = hit;
+            button.transition = Selectable.Transition.None;
+
+            Image fill = CreateImage(seg, "Fill", RuntimeSprites.RoundedPanel(), accentColor);
+            fill.type = Image.Type.Sliced;
+            RectTransform fr = fill.rectTransform;
+            fr.anchorMin = Vector2.zero;
+            fr.anchorMax = Vector2.one;
+            fr.offsetMin = new Vector2(4f, 4f);
+            fr.offsetMax = new Vector2(-4f, -4f);
+            fills[i] = fill;
+
+            labels[i] = CreateTmp(seg, "Label", options[i], 20, offText, TextAnchor.MiddleCenter,
+                FontStyle.Bold, TitleFont);
+
+            int index = i;
+            button.onClick.AddListener(() => { current = index; Refresh(); onSelect?.Invoke(index); });
+        }
+
+        void Refresh()
+        {
+            for (int i = 0; i < count; i++)
+            {
+                fills[i].enabled = i == current;
+                labels[i].color = i == current ? onText : offText;
+            }
+        }
+        Refresh();
+    }
 }
