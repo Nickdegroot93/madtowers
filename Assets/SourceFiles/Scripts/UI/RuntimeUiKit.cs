@@ -386,8 +386,8 @@ public static partial class RuntimeUiKit
     public static Slider CreateSlider(Transform parent, string name, float value,
         Color fillColor, Color trackColor, UnityEngine.Events.UnityAction<float> onChanged)
     {
-        const float trackThickness = 12f;
-        const float handleSize = 34f;
+        const float trackThickness = 14f;
+        const float handleSize = 44f; // >= 44pt-equivalent so it's a comfortable touch grab
 
         RectTransform root = CreateRect(parent, name, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
         Slider slider = root.gameObject.AddComponent<Slider>();
@@ -490,7 +490,7 @@ public static partial class RuntimeUiKit
     /// option. Tapping a segment selects it (recolours in place, no rebuild) and fires
     /// <paramref name="onSelect"/> with its index.</summary>
     public static void CreateSegmentedControl(RectTransform container, string[] options, int selectedIndex,
-        Color accentColor, UnityEngine.Events.UnityAction<int> onSelect)
+        Color accentColor, UnityEngine.Events.UnityAction<int> onSelect, int fontSize = 20)
     {
         Image track = container.gameObject.AddComponent<Image>();
         track.sprite = RuntimeSprites.RoundedPanel();
@@ -527,7 +527,7 @@ public static partial class RuntimeUiKit
             fr.offsetMax = new Vector2(-4f, -4f);
             fills[i] = fill;
 
-            labels[i] = CreateTmp(seg, "Label", options[i], 20, offText, TextAnchor.MiddleCenter,
+            labels[i] = CreateTmp(seg, "Label", options[i], fontSize, offText, TextAnchor.MiddleCenter,
                 FontStyle.Bold, TitleFont);
 
             int index = i;

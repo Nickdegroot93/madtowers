@@ -193,6 +193,7 @@ public static partial class MainMenuRuntime
 
         if (tab == SettingsTab.Sound) BuildSoundSettings(panel, light);
         else if (tab == SettingsTab.Graphics) BuildGraphicsSettings(panel, light);
+        else if (tab == SettingsTab.Controls) BuildControlsSettings(panel, chapter, light);
         else BuildEmptyState(panel, icon, light);
     }
 
@@ -263,6 +264,40 @@ public static partial class MainMenuRuntime
         BuildToggleRow(panel, MenuSprites.Shake, "SCREEN SHAKE", "Camera shake on impacts.",
             SettingsService.ScreenShake, accent, y,
             on => { SettingsService.ScreenShake = on; CommitSetting(); });
+    }
+
+    // ---- UI / Controls tab ------------------------------------------------------------------
+    // The tab's only action is opening the layout editor, so it's one prominent centred button.
+    private static void BuildControlsSettings(RectTransform panel, ChapterDefinition chapter, Color accent)
+    {
+        RectTransform button = CreateRect(panel, "CustomizeButton",
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+            new Vector2(0f, 26f), new Vector2(440f, 176f));
+        Image image = button.gameObject.AddComponent<Image>();
+        image.sprite = RuntimeSprites.RoundedPanel();
+        image.type = Image.Type.Sliced;
+        image.color = WithAlpha(accent, 0.14f);
+        RuntimeUiKit.AddOutline(button, WithAlpha(accent, 0.6f));
+        Button click = button.gameObject.AddComponent<Button>();
+        click.targetGraphic = image;
+        click.transition = Selectable.Transition.None;
+        click.onClick.AddListener(() =>
+        {
+            SfxPlayer.Play("ui-button-click");
+            HudLayoutEditor.Open(chapter, accent, null);
+        });
+
+        Image icon = CreateImage(button, "Icon", MenuSprites.NavGrid(accent), Color.white);
+        icon.preserveAspect = true;
+        SetCenteredAt(icon.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -44f), new Vector2(62f, 62f));
+        CreateTmp(button, "Label", "CUSTOMIZE LAYOUT", 28, TextPrimary, TextAnchor.MiddleCenter, FontStyle.Bold,
+            RuntimeUiKit.TitleFont, new Vector2(0f, -118f), new Vector2(420f, 40f), new Vector2(0.5f, 1f));
+
+        TextMeshProUGUI desc = CreateTmp(panel, "CustomizeDesc",
+            "Move & resize the consumable slots and set the nudge-guide visibility.", 18, SettingsDescColor,
+            TextAnchor.UpperCenter, FontStyle.Normal, RuntimeUiKit.TitleFont, new Vector2(0f, -104f),
+            new Vector2(560f, 60f), new Vector2(0.5f, 0.5f));
+        desc.textWrappingMode = TextWrappingModes.Normal;
     }
 
     // A full-width row anchored under the header, inset by the row padding. Children anchor to its

@@ -25,6 +25,7 @@ public static class SettingsService
     private const string FrameRateKey = "settings.graphics.frameRate";
     private const string VisualEffectsKey = "settings.graphics.visualEffects";
     private const string ScreenShakeKey = "settings.graphics.screenShake";
+    private const string HudLayoutKey = "settings.controls.hudLayout";
 
     private const int DefaultFrameRate = 60;
 
@@ -34,6 +35,7 @@ public static class SettingsService
     private static int _frameRate;
     private static bool _visualEffects;
     private static bool _screenShake;
+    private static HudLayout _hud;
     private static bool _loaded;
 
     private static void EnsureLoaded()
@@ -45,6 +47,7 @@ public static class SettingsService
         _frameRate = PlayerPrefs.GetInt(FrameRateKey, DefaultFrameRate);
         _visualEffects = PlayerPrefs.GetInt(VisualEffectsKey, 1) != 0;
         _screenShake = PlayerPrefs.GetInt(ScreenShakeKey, 1) != 0;
+        _hud = HudLayout.FromJsonOrDefault(PlayerPrefs.GetString(HudLayoutKey, string.Empty));
         _loaded = true;
     }
 
@@ -138,6 +141,29 @@ public static class SettingsService
             Changed?.Invoke();
         }
     }
+
+    // ---- Controls / HUD layout (read by UIManager nudge guides + AbilityHud slots; edited by the
+    // layout editor). See HudLayout + SETTINGS.md. ----
+
+    /// <summary>The full HUD layout. Treat as read-only for display; commit edits via
+    /// <see cref="ApplyHudLayout"/> so they persist and notify.</summary>
+    public static HudLayout Hud { get { EnsureLoaded(); return _hud; } }
+
+    /// <summary>Opacity (0..1) of the nudge corner guides — visual only; the touch zones are fixed.
+    /// Written as part of the whole layout via <see cref="ApplyHudLayout"/> (the editor).</summary>
+    public static float NudgeGuideOpacity { get { EnsureLoaded(); return _hud.nudgeGuideOpacity; } }
+
+    /// <summary>Replace the whole HUD layout (the editor commits its draft here).</summary>
+    public static void ApplyHudLayout(HudLayout layout)
+    {
+        EnsureLoaded();
+        if (layout == null) return;
+        _hud = layout;
+        PersistHud();
+        Changed?.Invoke();
+    }
+
+    private static void PersistHud() => PlayerPrefs.SetString(HudLayoutKey, JsonUtility.ToJson(_hud));
 
     /// <summary>Flush in-memory PlayerPrefs writes to disk. Unity also auto-saves on quit/pause,
     /// so this is belt-and-suspenders for slider releases / leaving the settings screen.</summary>

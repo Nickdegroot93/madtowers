@@ -1,13 +1,15 @@
 # SETTINGS.md — Settings screen design spec
 
-**Status:** binding. The **skeleton + Sound & Haptics + Graphics tabs are
-implemented** — `MainMenuRuntime.Settings.cs` builds the chapter-themed rail and
+**Status:** binding. **Sound & Haptics and Graphics are implemented; Controls is
+in progress** — `MainMenuRuntime.Settings.cs` builds the chapter-themed rail and
 panels (wired into `BuildMenu` under `MenuTab.Settings`), `SettingsService`
 persists settings. Sound has Music / SFX sliders + Mute-all; Graphics has frame
-rate / visual effects / screen shake (enforced via central gates — see
-[GRAPHICS.md](GRAPHICS.md)). Controls + Notifications/Account/About still show the
-empty placeholder (§4). Pairs with [RESPONSIVE.md](RESPONSIVE.md) for layout and
-with the chapter theming already in `MainMenuRuntime`.
+rate / visual effects / screen shake (central gates — see
+[GRAPHICS.md](GRAPHICS.md)); Controls launches a full-screen **HUD layout editor**
+(`HudLayoutEditor`) — drag/resize the two consumable slots (independently or
+linked), set the nudge-guide opacity in context, reset to default. Notifications /
+Account / About still show the empty placeholder (§4). Pairs with
+[RESPONSIVE.md](RESPONSIVE.md) for layout and the chapter theming in `MainMenuRuntime`.
 
 This doc covers **structure + theming + the tab set**. Individual per-tab
 controls are deliberately deferred (see §4).
@@ -109,7 +111,7 @@ Listed so we can judge whether each tab earns its place. Tagged by readiness:
 
 | Tab | Candidate rows |
 |---|---|
-| **UI / Controls** | nudge buttons on/off **(now)** · consumable slot position (L/R) & size **(now)** · handedness preset = mirror whole layout **(now)** · HUD element visibility **(now)** |
+| **UI / Controls** | ✅ HUD layout editor (`HudLayoutEditor`): per-slot drag-move + resize, link toggle, in-context nudge-guide opacity, reset-to-default — all over a live preview. Handedness / HUD-element visibility = later. |
 | **Graphics** | ✅ **implemented:** frame-rate cap (30/60/120) · visual effects (bloom/post + prefab VFX) · screen shake. Enforced via central gates — see [GRAPHICS.md](GRAPHICS.md). Quality preset / render-scale can layer in later. |
 | **Sound & Haptics** | ✅ **implemented:** music volume · SFX volume · mute all. Vibration on/off (+ intensity) deferred — no haptics layer yet. |
 | **Notifications** | daily-reward / lives-refilled / events push toggles — **infra** (push, Phase E backend) |
@@ -183,6 +185,28 @@ Listed so we can judge whether each tab earns its place. Tagged by readiness:
 - **Rail icons** are procedural placeholders in `MenuSprites` (`Sliders`,
   `Monitor`, `Equalizer`, `Bell`, `Person`, `Info`; rows use `Note` / `Speaker` /
   `SpeakerOff` / `Sparkle` / `Shake`) — final per-tab art is a design pass (§7).
+- **HUD layout (`HudLayout`):** `SettingsService.Hud` is the persisted player HUD
+  layout — nudge-guide opacity + per-slot position/size + the editor link mode —
+  stored as one JSON key. `UIManager` reads `NudgeGuideOpacity` live (replacing the
+  old `NudgeHintVisibility` constant; the touch zones in `TouchGestureInput` are
+  untouched — opacity is visual only). `AbilityHud` positions/sizes its slots from
+  `Hud.slots` inside a `SafeAreaFitter` container (defaults calibrated to the prior
+  right-edge stack), and re-seats them on `Changed`. Slot positions are normalized
+  **within the safe area** so a layout authored on one device maps to any other.
+  `HudLayoutEditor` (full-screen, from the Controls tab) edits a **draft** clone. An
+  always-visible segmented **target picker** — *Consumable Slots* | *Nudge Buttons* —
+  chooses what's being edited (so a 0%-opacity guide is never a trap: you pick the
+  target, not the invisible element). Only the active target's controls show — slots:
+  drag via `HudDragHandle` + size slider + "move together" toggle; nudge: an opacity
+  slider with its zones **framed** so they're findable at any opacity — and the other
+  group **dims** to read as context. Commits via `SettingsService.ApplyHudLayout` on
+  Save; Reset writes `HudLayout.CreateDefault()`; Cancel discards. **Laid out for
+  touch** (Apple 44pt / Material 48dp minimums): ~120px-tall picker segments and
+  Save/Cancel buttons with generous gaps, and the destructive **Reset isolated
+  top-right**, far from the frequent Save/Cancel at the bottom, so a fat-finger tap
+  can't wipe the layout. A **flip handle** on the panel's outer edge snaps the whole
+  panel top↔bottom (the placement clamp flips with it), so a slot can be placed on
+  whichever half the panel is currently covering.
 - **Per-tab dispatch:** `BuildSettingsPanelContent` currently branches
   `if Sound … else if Graphics … else empty`. Fine at two content tabs; when a
   third lands, move the content builder onto the `SettingsTabInfo` tuple (one

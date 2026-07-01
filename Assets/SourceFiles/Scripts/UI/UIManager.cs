@@ -62,11 +62,10 @@ public class UIManager : MonoBehaviour
     private static readonly Color NudgePillColor = new Color(1f, 1f, 1f, 0.09f);
     private static readonly Color NudgeChevronColor = new Color(0.95f, 0.98f, 1f, 0.32f);
     private const float NudgeChevronSize = 30f;
-    private const float NudgeHintVisibility = 0f;
 
-    // Dimmed while a failed nudge's rebound lockout runs. This still routes through the
-    // hidden hint images so a later settings toggle can reveal the same UI without changing
-    // the nudge-state plumbing.
+    // Dimmed while a failed nudge's rebound lockout runs. The base opacity (including fully hidden)
+    // is the player's Nudge Guides setting (SettingsService.NudgeGuideOpacity); this dim multiplies
+    // on top of it. The guides are visual only - the touch zones live in TouchGestureInput.
     private const float NudgeLockoutDimFactor = 0.3f;
 
     private Spawner _spawner;
@@ -116,6 +115,7 @@ public class UIManager : MonoBehaviour
         GameEvents.LivesChanged += HandleLivesChanged;
         GameEvents.NextBlockChanged += HandleNextBlockChanged;
         GameEvents.GameOver += HandleGameOver;
+        SettingsService.Changed += ApplyNudgeHintColors; // live nudge-guide opacity
     }
 
     private void OnDisable()
@@ -125,6 +125,7 @@ public class UIManager : MonoBehaviour
         GameEvents.LivesChanged -= HandleLivesChanged;
         GameEvents.NextBlockChanged -= HandleNextBlockChanged;
         GameEvents.GameOver -= HandleGameOver;
+        SettingsService.Changed -= ApplyNudgeHintColors;
     }
 
     private void OnDestroy()
@@ -701,20 +702,24 @@ public class UIManager : MonoBehaviour
         bool dim = BlockController.NudgeLockoutRemaining > 0f;
         if (dim == _nudgePillsDimmed) return;
         _nudgePillsDimmed = dim;
+        ApplyNudgeHintColors();
+    }
 
+    // Re-tint every nudge hint from its base colour, the player's opacity setting, and the current
+    // lockout dim. Called on lockout changes and on SettingsService.Changed (live opacity edits).
+    private void ApplyNudgeHintColors()
+    {
         for (int i = 0; i < _nudgePillImages.Count; i++)
         {
             (Image image, Color baseColor) = _nudgePillImages[i];
-            if (image == null) continue;
-
-            image.color = NudgeHintColor(baseColor, dim);
+            if (image != null) image.color = NudgeHintColor(baseColor, _nudgePillsDimmed);
         }
     }
 
     private static Color NudgeHintColor(Color baseColor, bool dimmed)
     {
         float dimFactor = dimmed ? NudgeLockoutDimFactor : 1f;
-        return new Color(baseColor.r, baseColor.g, baseColor.b, baseColor.a * NudgeHintVisibility * dimFactor);
+        return new Color(baseColor.r, baseColor.g, baseColor.b, baseColor.a * SettingsService.NudgeGuideOpacity * dimFactor);
     }
 
     private readonly Vector3[] _hudCornerBuffer = new Vector3[4];

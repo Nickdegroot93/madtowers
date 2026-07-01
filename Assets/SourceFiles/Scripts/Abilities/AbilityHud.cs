@@ -11,10 +11,7 @@ using UnityEngine.UI;
 /// </summary>
 public class AbilityHud : MonoBehaviour
 {
-    private const float SlotSize = 124f;
-    private const float SlotGap = 18f;
-    private const float RightMargin = 92f;
-    private const float HeightAnchor = 0.58f;
+    private const float DefaultSlotSize = 124f; // initial rect size; the real size comes from HudLayout
     private const float IconInset = 24f;
     private const float DimAlpha = 0.35f;
     private static readonly Color BubbleColor = new Color(0.92f, 0.97f, 1f, 0.9f);
@@ -22,6 +19,7 @@ public class AbilityHud : MonoBehaviour
     private AbilityRuntime _runtime;
     private GameObject _root;
     private Canvas _canvas;
+    private RectTransform _slotsLayer; // safe-area container; slots anchor at normalized HudLayout points
     private readonly GameObject[] _slots = new GameObject[AbilityRuntime.ConsumableSlotCount];
     private readonly Image[] _slotFrames = new Image[AbilityRuntime.ConsumableSlotCount];
     private readonly Image[] _slotIcons = new Image[AbilityRuntime.ConsumableSlotCount];
@@ -39,6 +37,7 @@ public class AbilityHud : MonoBehaviour
 
         BuildHud();
         _runtime.InventoryChanged += RefreshSlots;
+        SettingsService.Changed += ApplyLayout; // re-seat slots when the player edits the HUD layout
         RefreshSlots();
 
         _exclusionRect = GetSlotsScreenRect;
@@ -48,6 +47,7 @@ public class AbilityHud : MonoBehaviour
     private void OnDestroy()
     {
         if (_runtime != null) _runtime.InventoryChanged -= RefreshSlots;
+        SettingsService.Changed -= ApplyLayout;
         if (_exclusionRect != null) TouchGestureInput.UnregisterUiExclusionRect(_exclusionRect);
     }
 
@@ -59,12 +59,13 @@ public class AbilityHud : MonoBehaviour
         Rect rect = Rect.zero;
         bool hasRect = false;
         float scale = _canvas != null ? _canvas.scaleFactor : 1f;
-        float side = SlotSize * scale;
+        HudLayout hud = SettingsService.Hud;
 
         for (int i = 0; i < AbilityRuntime.ConsumableSlotCount; i++)
         {
             if (_slots[i] == null || !_slots[i].activeSelf) continue;
 
+            float side = (i < hud.slots.Length ? hud.slots[i].size : DefaultSlotSize) * scale;
             Vector3 center = _slotFrames[i].rectTransform.position;
             Rect slotRect = new Rect(center.x - side * 0.5f, center.y - side * 0.5f, side, side);
             rect = hasRect ? Union(rect, slotRect) : slotRect;
@@ -79,10 +80,18 @@ public class AbilityHud : MonoBehaviour
         _root = RuntimeUiKit.CreateOverlayCanvas("Ability Slots", 2500);
         _canvas = _root.GetComponent<Canvas>();
 
+        // Slots live in a safe-area container and anchor at normalized points from HudLayout, so the
+        // layout the player arranged in the editor maps onto any device (the fitter owns the insets).
+        _slotsLayer = RuntimeUiKit.CreateRect(_root.transform, "SafeArea",
+            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+        RuntimeUiKit.Stretch(_slotsLayer);
+        _slotsLayer.gameObject.AddComponent<SafeAreaFitter>();
+
         for (int i = 0; i < AbilityRuntime.ConsumableSlotCount; i++)
         {
             CreateSlot(i);
         }
+        ApplyLayout();
     }
 
     private void CreateSlot(int index)
@@ -90,11 +99,9 @@ public class AbilityHud : MonoBehaviour
         GameObject slot = new GameObject($"Slot{index}", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         _slots[index] = slot;
         RectTransform rect = (RectTransform)slot.transform;
-        rect.SetParent(_root.transform, false);
-        rect.anchorMin = new Vector2(1f, HeightAnchor);
-        rect.anchorMax = new Vector2(1f, HeightAnchor);
+        rect.SetParent(_slotsLayer, false);
         rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.sizeDelta = new Vector2(SlotSize, SlotSize);
+        // anchor + size are applied from HudLayout in ApplyLayout().
 
         Image frame = slot.GetComponent<Image>();
         frame.sprite = RuntimeSprites.Bubble();
@@ -123,7 +130,7 @@ public class AbilityHud : MonoBehaviour
         icon.raycastTarget = false;
         _slotIcons[index] = icon;
 
-        Text label = RuntimeUiKit.CreateLabel(slot.transform, string.Empty, 16, SlotSize,
+        Text label = RuntimeUiKit.CreateLabel(slot.transform, string.Empty, 16, DefaultSlotSize,
             FontStyle.Bold, RuntimeUiKit.TitleColor);
         RectTransform labelRect = label.rectTransform;
         labelRect.anchorMin = Vector2.zero;
@@ -160,7 +167,7 @@ public class AbilityHud : MonoBehaviour
             _slotLabels[i].text = source != null && !hasIcon ? source.DisplayName : string.Empty;
         }
 
-        ReflowSlots();
+        ApplyLayout();
     }
 
     private void Update()
@@ -172,7 +179,7 @@ public class AbilityHud : MonoBehaviour
         if (screenState != _lastScreenState)
         {
             _lastScreenState = screenState;
-            ReflowSlots();
+            ApplyLayout();
         }
 
         for (int i = 0; i < AbilityRuntime.ConsumableSlotCount; i++)
@@ -208,23 +215,21 @@ public class AbilityHud : MonoBehaviour
         }
     }
 
-    private void ReflowSlots()
+    // Anchor and size each slot from the saved HudLayout (normalized within the safe-area
+    // container). Replaces the old fixed right-edge stack; the editor writes these per slot.
+    private void ApplyLayout()
     {
-        float rightInset = RuntimeUiKit.SafeAreaRightInset(_canvas);
-        int visibleCount = 0;
+        HudLayout hud = SettingsService.Hud;
         for (int i = 0; i < AbilityRuntime.ConsumableSlotCount; i++)
         {
-            if (_slots[i] != null && _slots[i].activeSelf) visibleCount++;
-        }
+            if (_slotFrames[i] == null || i >= hud.slots.Length) continue;
 
-        int ordinal = 0;
-        for (int i = 0; i < AbilityRuntime.ConsumableSlotCount; i++)
-        {
-            if (_slotFrames[i] == null || _slots[i] == null || !_slots[i].activeSelf) continue;
-
-            float y = ((visibleCount - 1) * 0.5f - ordinal) * (SlotSize + SlotGap);
-            _slotFrames[i].rectTransform.anchoredPosition = new Vector2(-(RightMargin + rightInset), y);
-            ordinal++;
+            HudLayout.SlotLayout s = hud.slots[i];
+            RectTransform rect = _slotFrames[i].rectTransform;
+            rect.anchorMin = new Vector2(s.x, s.y);
+            rect.anchorMax = new Vector2(s.x, s.y);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(s.size, s.size);
         }
     }
 
