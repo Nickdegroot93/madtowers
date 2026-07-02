@@ -13,7 +13,10 @@ public partial class BlockController
     private void HandleDynamicControl()
     {
         InitDynamicControlBody();
-        _controlElapsed += Time.fixedDeltaTime;
+        // The safety cap exists for pieces that never FIND a landing; a deliberately
+        // suspended piece (Fission hover, a tutorial lesson) isn't stuck, it's waiting on
+        // the player - so hover time never counts toward the force-lock.
+        if (!_descentSuspended) _controlElapsed += Time.fixedDeltaTime;
 
         if (!_hasTouchedDown)
         {
@@ -106,7 +109,8 @@ public partial class BlockController
         // so no transform is written on a landed block - first contact is just deferred).
         if (_descentSuspended)
         {
-            if (_autoDrop || _isFastDrop || _moveInput.y < -0.5f)
+            // _isFastDrop folds in every soft-drop source (touch pull, key, held down-axis).
+            if (_autoDrop || _isFastDrop)
             {
                 _descentSuspended = false;
             }

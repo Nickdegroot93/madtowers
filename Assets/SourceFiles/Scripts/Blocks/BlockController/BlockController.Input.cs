@@ -2,10 +2,35 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
 
+/// <summary>
+/// The player gestures the active piece accepts, as a run-local gate. Default Everything;
+/// the first-run tutorial narrows it to the gestures already taught (plus the one being
+/// taught) so a stray flick can't dump the piece mid-lesson (TUTORIAL.md). Every input
+/// path - touch, mouse, keyboard - funnels through the gated BlockController entry points,
+/// so narrowing this is sufficient to truly disable a control, not just its touch gesture.
+/// </summary>
+[System.Flags]
+public enum PieceGestures
+{
+    None = 0,
+    Rotate = 1 << 0,
+    Move = 1 << 1,
+    SoftDrop = 1 << 2, // held fast drop (drag down / S key)
+    HardDrop = 1 << 3, // flick = latched auto drop
+    Nudge = 1 << 4,
+    Everything = Rotate | Move | SoftDrop | HardDrop | Nudge,
+}
+
 // Player commands: drag steps, the corner-zone nudge dash (with its failure slam and
 // rebound lockout), rotation, fast drop, and the DAS auto-repeat that drives held input.
 public partial class BlockController
 {
+    /// <summary>See <see cref="PieceGestures"/>. Owners that narrow it must restore
+    /// Everything when done (the tutorial does in its teardown); also reset per run.</summary>
+    public static PieceGestures AllowedGestures = PieceGestures.Everything;
+
+    private static bool GestureAllowed(PieceGestures gesture) => (AllowedGestures & gesture) != 0;
+
     // Why a sideways step was (or wasn't) taken. Drag steps ignore this (a blocked drag
     // stays silent); the nudge dash reads it to decide between wind and a slam.
     private enum ColumnStepResult { Moved, Gated, OutOfBounds, BlockedByBlocks, BlockedByStatic }
@@ -19,7 +44,13 @@ public partial class BlockController
     // placement-buffer and obstacle rules apply exactly as for keyboard movement.
     public void StepColumn(int direction)
     {
-        TryStepColumn(direction);
+        if (!GestureAllowed(PieceGestures.Move)) return;
+        // Only the drag/keyboard step path counts as the Move gesture; the nudge dash routes
+        // through TryStepColumn separately and reports itself as Nudge.
+        if (TryStepColumn(direction) == ColumnStepResult.Moved)
+        {
+            GameEvents.RaisePieceGesturePerformed(this, PieceGestures.Move);
+        }
     }
 
     private ColumnStepResult TryStepColumn(int direction, bool collectBlockers = false)
@@ -54,6 +85,7 @@ public partial class BlockController
     // there to hit.
     public void Nudge(int direction)
     {
+        if (!GestureAllowed(PieceGestures.Nudge)) return;
         if (NudgeLockoutRemaining > 0f) return; // still rebounding from a failed nudge
 
         int attempted = AttemptedStepDirection(direction);
@@ -69,6 +101,14 @@ public partial class BlockController
             case ColumnStepResult.BlockedByStatic:
                 FailNudge(result == ColumnStepResult.BlockedByBlocks, attempted);
                 break;
+        }
+
+        // Every deliberate corner tap on a controllable piece counts as the gesture - including
+        // an out-of-bounds dash that stays silent in gameplay terms. Only non-attempts (paused,
+        // control already ended) are excluded: pressing the button IS the lesson.
+        if (result != ColumnStepResult.Gated)
+        {
+            GameEvents.RaisePieceGesturePerformed(this, PieceGestures.Nudge);
         }
     }
 
@@ -111,26 +151,36 @@ public partial class BlockController
     // falling, so they stay on the same grid rules as horizontal movement.
     public void RotateLeft()
     {
-        if (!_isControlEnabled) return;
+        if (!_isControlEnabled || !GestureAllowed(PieceGestures.Rotate)) return;
         if (!CanRotateVariant) { _appliedData?.OnRotationDenied(this, -1); return; }
         _targetAngleZ -= RotationStep;
         SfxPlayer.Play("rotate-swoosh", 0.5f, 0.06f);
+        GameEvents.RaisePieceGesturePerformed(this, PieceGestures.Rotate);
     }
 
     public void RotateRight()
     {
-        if (!_isControlEnabled) return;
+        if (!_isControlEnabled || !GestureAllowed(PieceGestures.Rotate)) return;
         if (!CanRotateVariant) { _appliedData?.OnRotationDenied(this, 1); return; }
         _targetAngleZ += RotationStep;
         SfxPlayer.Play("rotate-swoosh", 0.5f, 0.06f);
+        GameEvents.RaisePieceGesturePerformed(this, PieceGestures.Rotate);
     }
 
-    private bool CanRotateVariant => _appliedData == null || _appliedData.CanRotate;
+    /// <summary>Whether the applied variant permits rotation at all (Locked-style bricks
+    /// refuse it). Public so the tutorial can ask the piece itself instead of re-deriving
+    /// the rule from BlockIdentity - the piece's applied data is the truth.</summary>
+    public bool CanRotateVariant => _appliedData == null || _appliedData.CanRotate;
 
     // Fast Drop
-    // External (touch) fast-drop request; OR-ed with the keyboard each frame in Update.
+    // External (touch) fast-drop request; OR-ed with the keyboard each frame in Update, which
+    // owns the SoftDrop gesture-event edge (so touch and keyboard report identically).
     private bool _externalFastDrop;
-    public void SetFastDrop(bool active) => _externalFastDrop = active;
+    public void SetFastDrop(bool active)
+    {
+        if (active && !GestureAllowed(PieceGestures.SoftDrop)) return; // releasing always allowed
+        _externalFastDrop = active;
+    }
 
     // Latched full-speed descent (triggered by a quick downward flick): stays on until the
     // piece lands, no held finger required. The plunge is COMMITTED - all horizontal steps
@@ -138,6 +188,16 @@ public partial class BlockController
     // stays available. Flicking means deciding the column first.
     private bool _autoDrop;
     public void StartAutoDrop()
+    {
+        if (!_isControlEnabled || !GestureAllowed(PieceGestures.HardDrop)) return;
+        _autoDrop = true;
+        GameEvents.RaisePieceGesturePerformed(this, PieceGestures.HardDrop);
+    }
+
+    /// <summary>The system-initiated plunge (magma melt cells): same committed descent as a
+    /// player flick, but it bypasses the gesture gate and never reads as a player gesture -
+    /// a machine drop must neither be blocked by a tutorial step nor complete one.</summary>
+    public void ForceAutoDrop()
     {
         if (_isControlEnabled) _autoDrop = true;
     }
@@ -193,9 +253,10 @@ public partial class BlockController
     {
         // Fast paths (flick / held fast drop / down) use the BASE speed: the player chose to
         // go fast, so ability slows (Air Brake, recovery / slo-mo) never apply. Only normal
-        // descent gets the ability factor.
+        // descent gets the ability factor. _isFastDrop already folds in every soft-drop
+        // source, including the held down-axis (computed each Update).
         if (_autoDrop) return fallSpeed * fastDropMultiplier * AutoDropBoost;
-        if (_isFastDrop || _moveInput.y < -0.5f) return fallSpeed * fastDropMultiplier;
+        if (_isFastDrop) return fallSpeed * fastDropMultiplier;
         // Slowburn's per-piece initial-slow folds in here (normal descent only); it lapses to 1 after
         // its window, so the piece resumes full ramped speed. A flick/fast-drop above bypasses it.
         return fallSpeed * _normalFallSpeedFactor * CurrentInitialSlowFactor();

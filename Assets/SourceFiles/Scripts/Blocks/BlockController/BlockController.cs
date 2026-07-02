@@ -252,6 +252,7 @@ public partial class BlockController : MonoBehaviour
         _standardBlockMassMultiplier = 1f;
         _nudgeLockedUntilTime = 0f;
         _features = BlockFeature.None;
+        AllowedGestures = PieceGestures.Everything;
         _reachGeometryVersion = 0;
         _placementOccupancyVersion = 0;
         _placementOccupancyStamp = -1;
@@ -398,16 +399,39 @@ public partial class BlockController : MonoBehaviour
             _moveInput = _inputs.Gameplay.Move.ReadValue<Vector2>();
             if (InvertSteering) _moveInput.x = -_moveInput.x;
 
+            // The keyboard steering axis obeys the same gesture gate as the touch entry points
+            // (see PieceGestures): a gated-off axis reads as unpressed. Down-intent folds into
+            // _isFastDrop below, which is the single source of soft-drop truth.
+            if (!GestureAllowed(PieceGestures.Move)) _moveInput.x = 0f;
+
             // Handle rotation triggers
             if (_inputs.Gameplay.RotateLeft.triggered) RotateLeft();
             if (_inputs.Gameplay.RotateRight.triggered) RotateRight();
-            
-            // Handle fast drop button (keyboard OR touch gesture)
-            _isFastDrop = _inputs.Gameplay.FastDrop.IsPressed() || _externalFastDrop;
+
+            // _isFastDrop is the SINGLE source of down intent: the OR of every soft-drop source
+            // (keyboard FastDrop key, held down-axis, touch pull via SetFastDrop), gesture-gated
+            // once. Fall speed and the hover release read only this flag - no raw down-axis
+            // checks elsewhere. The gesture event is edge-triggered here, on the combined value,
+            // so keyboard and touch soft drops report identically.
+            bool fastDrop = ((_inputs.Gameplay.FastDrop.IsPressed() || _moveInput.y < -0.5f)
+                             && GestureAllowed(PieceGestures.SoftDrop))
+                            || _externalFastDrop;
+            if (fastDrop != _isFastDrop)
+            {
+                _isFastDrop = fastDrop;
+                if (fastDrop) GameEvents.RaisePieceGesturePerformed(this, PieceGestures.SoftDrop);
+            }
         }
 
-        // cached: a fresh delegate every Update is a per-frame allocation
-        _dasStep ??= direction => ShiftTargetColumn(direction); // DAS ignores the step result
+        // cached: a fresh delegate every Update is a per-frame allocation. The keyboard/DAS
+        // step is a Move gesture like any drag step, so it reports through the same event.
+        _dasStep ??= direction =>
+        {
+            if (ShiftTargetColumn(direction) == ColumnStepResult.Moved)
+            {
+                GameEvents.RaisePieceGesturePerformed(this, PieceGestures.Move);
+            }
+        };
         ProcessHorizontalDas(_dasStep);
     }
 

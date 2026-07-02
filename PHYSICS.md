@@ -119,7 +119,7 @@ Inspector in debug mode if behaviour diverges between pieces.
 | `landingMinSupportWidthFraction` | 0.15 | A landing also needs ≥15% of a cell of horizontal overlap. Stops 0.5 mm corner grazes from being treated as a floor (the original "block lands on nothing and tips" bug). Too high and valid narrow placements get rejected. |
 | Lateral placement assist | **removed** | The magnetic placement assist caused historical chaos and was deleted. If ever rebuilt, it is polish on top of verified geometry, never a bug fix. |
 | `groundedCheckDistance` | 0.03 | Small so last-second tucks stay possible. |
-| `maxControlTime` | 12 | Safety lock for pieces that never find a landing. |
+| `maxControlTime` | 12 | Safety lock for pieces that never find a landing. The timer does **not** accrue while `_descentSuspended` (Fission hover, tutorial lessons) — a deliberately suspended piece isn't stuck, it's waiting on the player; force-locking it mid-air dropped the piece out from under the lesson (July 2026). |
 | Collision detection | Continuous while falling, **Discrete once landed** | CCD on resting bodies only adds speculative-contact noise and cost; descent is cast-driven anyway. |
 
 Code-level details that are part of the contract (not inspector values):
@@ -164,7 +164,8 @@ Code-level details that are part of the contract (not inspector values):
   falling piece only. It wraps target columns across the current camera bounds, snaps
   them back onto the placement grid, then runs the normal side-step collision
   classification; landed blocks are never moved.
-- The Fission ability may **suspend the controlled descent** of the active piece
+- The Fission ability (and the first-run tutorial's lesson hover — TUTORIAL.md) may **suspend
+  the controlled descent** of the active piece
   (`BlockController.SetDescentSuspended`): while suspended, `SteerWhileFalling` still runs
   the horizontal grid step and rotation but skips the Y advance and the landing cast, so the
   shard hovers and is steerable but does not fall. Any descent intent (flick / held fast-drop /

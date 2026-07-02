@@ -18,7 +18,7 @@ using UnityEngine;
 /// </summary>
 public static class ProgressStore
 {
-    private const int CurrentSchemaVersion = 1;
+    private const int CurrentSchemaVersion = 2;
 
     [Serializable]
     public class PlayerProgress
@@ -26,6 +26,10 @@ public static class ProgressStore
         public int schemaVersion = CurrentSchemaVersion;
         public List<string> completedLevelIds = new List<string>();
         public List<LevelBest> bests = new List<LevelBest>();
+        // One-shot: the first-run gesture tutorial has been finished (see TUTORIAL.md). Monotonic
+        // false->true, so merging two devices is just an OR. v1 saves lack the field and default
+        // to false - correct, since those players never saw the new tutorial.
+        public bool tutorialCompleted;
     }
 
     [Serializable]
@@ -56,6 +60,27 @@ public static class ProgressStore
         if (id == null || Data.completedLevelIds.Contains(id)) return;
 
         Data.completedLevelIds.Add(id);
+        Save();
+    }
+
+    /// <summary>Has the player finished the one-time gesture tutorial? Gates the tutorial
+    /// overlay only (never the level's own win/completion). See TUTORIAL.md.</summary>
+    public static bool IsTutorialCompleted() => Data.tutorialCompleted;
+
+    /// <summary>Mark the gesture tutorial done, forever. Idempotent.</summary>
+    public static void MarkTutorialCompleted()
+    {
+        if (Data.tutorialCompleted) return;
+        Data.tutorialCompleted = true;
+        Save();
+    }
+
+    /// <summary>Clear only the tutorial flag so it plays again next run (Settings > Account).
+    /// Leaves level completions and bests untouched. Idempotent.</summary>
+    public static void ResetTutorial()
+    {
+        if (!Data.tutorialCompleted) return;
+        Data.tutorialCompleted = false;
         Save();
     }
 

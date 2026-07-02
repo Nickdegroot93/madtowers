@@ -29,4 +29,15 @@ public abstract class LevelModifier : ScriptableObject
 
     /// <summary>Called each time a block locks into the tower.</summary>
     public virtual void OnBlockLocked(LevelModifierContext context, int totalBlocksPlaced) { }
+
+    /// <summary>Called once when the level tears down (scene unload). Unsubscribe from any
+    /// events and destroy any UI built in OnLevelStart here - the runtime clone is otherwise
+    /// kept alive by a live static-event subscription, leaking it (and firing stale handlers
+    /// against destroyed objects) after a scene reload.</summary>
+    public virtual void OnLevelEnd(LevelModifierContext context) { }
+
+    /// <summary>True while this modifier owns the level's intro messaging, so the runtime
+    /// should not stack its own goal banner on top (the first-run tutorial shows the goal
+    /// itself when its lessons end).</summary>
+    public virtual bool SuppressesGoalBanner => false;
 }

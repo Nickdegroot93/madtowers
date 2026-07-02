@@ -61,6 +61,15 @@ public class TouchGestureInput : MonoBehaviour
     private Camera _camera;
     private BlockController _lastActive;
 
+    // Hard input lock. While true, no touch/mouse gesture reaches the active piece - used by the
+    // tutorial to let the first brick settle to a good height untouched before the lesson begins.
+    // Static (the input host is a persistent singleton); owners must clear it. Safety nets: the
+    // reset below runs once per app/domain load, and GameManager.Awake clears it per run.
+    public static bool Suspended;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetSuspended() => Suspended = false;
+
     // Screen regions owned by interactive UI (ability slot buttons): touches STARTING
     // inside one never become gestures - the same publish-the-zones idea as the nudge
     // constants above, inverted. Providers return their rect in screen pixels each call
@@ -117,6 +126,16 @@ public class TouchGestureInput : MonoBehaviour
     private void Update()
     {
         BlockController active = BlockController.ActiveControlled;
+
+        // Hard lock (tutorial pre-roll): swallow everything and drop any leftover drag/fast-drop
+        // so a held finger from before the lock can't carry into the piece once it releases.
+        if (Suspended)
+        {
+            CancelAllTouches(active);
+            _lastActive = active;
+            return;
+        }
+
         bool paused = GameManager.Instance != null && GameManager.Instance.IsGamePaused;
 
         // A new piece spawned mid-gesture: rebase the drag so leftover pointer offset from
@@ -204,6 +223,17 @@ public class TouchGestureInput : MonoBehaviour
     {
         BlockController active = BlockController.ActiveControlled;
         if (active != null) active.Nudge(direction); // pause/control checks live in Nudge
+    }
+
+    // One place owns "throw away all touch state": the drag-owner claim and the held fast-drop
+    // must ALWAYS be released with the states that carried them - a cleared TouchState can never
+    // reach its PointerEnded, and an orphaned claim blocks every future drag (the "can't move
+    // after the tutorial" bug).
+    private void CancelAllTouches(BlockController active)
+    {
+        if (active != null) active.SetFastDrop(false);
+        _touches.Clear();
+        _dragOwnerId = -2;
     }
 
     private void PointerHeld(int id, Vector2 pos, BlockController active)

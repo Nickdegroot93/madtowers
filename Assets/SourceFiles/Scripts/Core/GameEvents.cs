@@ -34,6 +34,14 @@ public static class GameEvents
     public static event Action<bool> SpawnAvailabilityChanged;
     public static event Action<int, float> GameOver;
 
+    // A control gesture the player just PERFORMED on a controlled piece (rotate, drag/key move,
+    // soft-drop engaged, hard-drop flick, corner nudge). Exists so the first-run tutorial can
+    // detect "the player did X" and advance a step; gameplay itself ignores it. Raised once per
+    // performed gesture from the gated BlockController entry points - which every input path
+    // (touch, mouse, keyboard, DAS repeat) funnels through. System-initiated moves (e.g. the
+    // magma melt's forced plunge) deliberately do NOT raise it. See TUTORIAL.md.
+    public static event Action<BlockController, PieceGestures> PieceGesturePerformed;
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void Reset()
     {
@@ -52,6 +60,7 @@ public static class GameEvents
         PhaseChanged = null;
         SpawnAvailabilityChanged = null;
         GameOver = null;
+        PieceGesturePerformed = null;
     }
 
     public static void RaiseScoreChanged(int score) => ScoreChanged?.Invoke(score);
@@ -90,4 +99,7 @@ public static class GameEvents
     public static void RaisePhaseChanged(GamePhase previous, GamePhase current) => PhaseChanged?.Invoke(previous, current);
     public static void RaiseSpawnAvailabilityChanged(bool canSpawn) => SpawnAvailabilityChanged?.Invoke(canSpawn);
     public static void RaiseGameOver(int score, float maxHeight) => GameOver?.Invoke(score, maxHeight);
+
+    public static void RaisePieceGesturePerformed(BlockController block, PieceGestures gesture) =>
+        PieceGesturePerformed?.Invoke(block, gesture);
 }

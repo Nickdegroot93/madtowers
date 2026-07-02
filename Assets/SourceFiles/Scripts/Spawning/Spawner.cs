@@ -56,6 +56,12 @@ public class Spawner : MonoBehaviour
     /// it synchronously). One entry by default, more once Foresight widens visibility.</summary>
     public IReadOnlyList<string> GetUpcomingBlockNames() => _upcomingNames;
 
+    /// <summary>The level's configured shape set (the bag, pre-expansion), for callers that must
+    /// pick a specific teaching shape from what this level can legally spawn - the first-run
+    /// tutorial chooses its visibly-rotatable demo pieces here. Null when no mode is configured.</summary>
+    public IReadOnlyList<BlockDefinition> ConfiguredBlockBag =>
+        ActiveGameModeConfig != null ? ActiveGameModeConfig.BlockBag : null;
+
     /// <summary>Widen (or restore) how many upcoming shapes are prepared and previewed.
     /// Tops the queue up immediately so new previews appear without waiting for a spawn.</summary>
     public void SetVisibleQueueDepth(int depth)
@@ -148,7 +154,12 @@ public class Spawner : MonoBehaviour
     private void AnnounceUpcoming()
     {
         _upcomingNames.Clear();
-        for (int i = 0; i < _upcoming.Count; i++)
+        // The queue can transiently exceed the visible depth (RequeueDefinition inserts at the
+        // front - Rebound, the tutorial's teaching shapes - and it drains on the next spawn).
+        // Announce only the visible window, or a requeued piece reads as a Foresight-style
+        // double preview the player never earned.
+        int visible = Mathf.Min(_upcoming.Count, _visibleQueueDepth);
+        for (int i = 0; i < visible; i++)
         {
             _upcomingNames.Add(_upcoming[i] != null ? _upcoming[i].DisplayName : "None");
         }

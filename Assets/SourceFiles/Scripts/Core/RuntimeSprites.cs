@@ -308,6 +308,35 @@ public static partial class RuntimeSprites
         return _vectorGuideGhostLine = Finish(tex, S);
     }
 
+    // ---- tutorial ghost hand --------------------------------------------------------------
+    // A stylised pointing hand (fist + index finger + thumb), fingertip at the TOP so a tap
+    // ripple reads as coming from the fingertip. White; tint via color. Placeholder art for the
+    // first-run tutorial (TUTORIAL.md) - a real sprite can drop in behind the same animation.
+    private static Sprite _hand;
+
+    public static Sprite Hand()
+    {
+        if (_hand != null) return _hand;
+
+        const int S = 128;
+        Vector2 fingerBase = new Vector2(60f, 58f), fingerTip = new Vector2(60f, 112f);
+        Vector2 thumbBase = new Vector2(45f, 56f), thumbTip = new Vector2(32f, 74f);
+        Texture2D tex = NewTexture(S, S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float dFist = RoundedBoxDistance(p.x, p.y, 62f, 42f, 27f, 24f, 16f);
+                float dFinger = DistanceToSegment(p, fingerBase, fingerTip) - 13f;
+                float dThumb = DistanceToSegment(p, thumbBase, thumbTip) - 8f;
+                float d = Mathf.Min(dFist, Mathf.Min(dFinger, dThumb));
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Clamp01(0.5f - d))); // 1px soft edge
+            }
+        }
+        return _hand = Finish(tex, S);
+    }
+
     // ---- vertical gradient ---------------------------------------------------------------
     // NOT cached: returns a fresh sprite the caller owns (and should DestroyImmediate,
     // texture included, when replacing - see LevelPresentationController).

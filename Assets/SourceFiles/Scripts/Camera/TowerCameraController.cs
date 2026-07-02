@@ -40,6 +40,9 @@ public class TowerCameraController : MonoBehaviour
     private static float _framingCenterX;
     public static float FramingCenterX => _framingCenterX;
 
+    /// <summary>The gameplay camera, for world-to-screen work (e.g. the tutorial's settle check).</summary>
+    public static Camera Camera => _instance != null ? _instance._camera : null;
+
     private Camera _camera;
     private float _verticalVelocity;
     private float _zoomVelocity;

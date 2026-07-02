@@ -59,7 +59,9 @@ public class LevelRuntimeController : MonoBehaviour
         StartModifiers();
         InitializeTimedGoal();
 
-        if (_level != null && !string.IsNullOrWhiteSpace(_level.Instruction))
+        // A modifier that owns the intro messaging (the first-run tutorial) suppresses the goal
+        // banner - it would talk over the lessons; the tutorial shows the goal itself instead.
+        if (_level != null && !string.IsNullOrWhiteSpace(_level.Instruction) && !GoalBannerSuppressed())
         {
             ShowBanner(_level.Instruction);
         }
@@ -138,6 +140,7 @@ public class LevelRuntimeController : MonoBehaviour
         GameEvents.GameOver -= HandleGameOver;
         DestroyCountdownUi();   // also stops the countdown loop - SfxPlayer persists across scenes
         DestroyTimerUi();
+        EndModifiers();
         if (GameManager.Instance != null)
         {
             GameManager.Instance.PopPause(this);
@@ -472,8 +475,36 @@ public class LevelRuntimeController : MonoBehaviour
 
             LevelModifier runtimeCopy = Instantiate(modifiers[i]);
             _activeModifiers.Add(runtimeCopy);
-            runtimeCopy.OnLevelStart(_modifierContext);
+            // Isolated like EndModifiers: one modifier failing to start must not abort the
+            // rest of them - or the remainder of the controller's own Start.
+            try { runtimeCopy.OnLevelStart(_modifierContext); }
+            catch (System.Exception e) { Debug.LogException(e); }
         }
+    }
+
+    // Checked after StartModifiers so each clone has decided whether it actually runs.
+    private bool GoalBannerSuppressed()
+    {
+        for (int i = 0; i < _activeModifiers.Count; i++)
+        {
+            if (_activeModifiers[i] != null && _activeModifiers[i].SuppressesGoalBanner) return true;
+        }
+        return false;
+    }
+
+    // Symmetric with StartModifiers: let each modifier release its subscriptions/UI before the
+    // scene unloads, then drop the clones (they are otherwise pinned alive by static-event handlers).
+    // Isolated per modifier: one throwing teardown must not rob the rest of theirs - the tutorial's
+    // teardown restores global input state, which must never be skippable.
+    private void EndModifiers()
+    {
+        for (int i = 0; i < _activeModifiers.Count; i++)
+        {
+            if (_activeModifiers[i] == null) continue;
+            try { _activeModifiers[i].OnLevelEnd(_modifierContext); }
+            catch (System.Exception e) { Debug.LogException(e); }
+        }
+        _activeModifiers.Clear();
     }
 
     private void HandleBlockPlaced(int totalBlocksPlaced)

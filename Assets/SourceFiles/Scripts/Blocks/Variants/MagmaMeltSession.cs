@@ -110,7 +110,7 @@ public sealed class MagmaMeltSession : AbilitySessionBase
         // gated during auto-drop, so the player can't divert the melt).
         MagmaBlobVisual visual = cell.gameObject.AddComponent<MagmaBlobVisual>();
         visual.InitMeltCell(_data.MoltenColor, _data.SolidifyEffect, _data.SolidifyEffectScale);
-        cell.StartAutoDrop();
+        cell.ForceAutoDrop(); // system plunge: bypasses the gesture gate, raises no gesture event
 
         SfxPlayer.Play("impact_soft_01", 0.4f, 0.1f);
         _index++;

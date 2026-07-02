@@ -194,6 +194,7 @@ public static partial class MainMenuRuntime
         if (tab == SettingsTab.Sound) BuildSoundSettings(panel, light);
         else if (tab == SettingsTab.Graphics) BuildGraphicsSettings(panel, light);
         else if (tab == SettingsTab.Controls) BuildControlsSettings(panel, chapter, light);
+        else if (tab == SettingsTab.Account) BuildAccountSettings(panel, light);
         else BuildEmptyState(panel, icon, light);
     }
 
@@ -298,6 +299,46 @@ public static partial class MainMenuRuntime
             TextAnchor.UpperCenter, FontStyle.Normal, RuntimeUiKit.TitleFont, new Vector2(0f, -104f),
             new Vector2(560f, 60f), new Vector2(0.5f, 0.5f));
         desc.textWrappingMode = TextWrappingModes.Normal;
+    }
+
+    // ---- Account tab ------------------------------------------------------------------------
+    // Only a testing/replay affordance for now: a small button that clears the one-shot tutorial
+    // flag so the first-run walkthrough plays again. Leaves level progress untouched.
+    private static void BuildAccountSettings(RectTransform panel, Color accent)
+    {
+        TextMeshProUGUI desc = CreateTmp(panel, "ResetTutorialDesc",
+            "Play the first-time controls walkthrough again on your next level.", 18, SettingsDescColor,
+            TextAnchor.UpperCenter, FontStyle.Normal, RuntimeUiKit.TitleFont, new Vector2(0f, 118f),
+            new Vector2(520f, 48f), new Vector2(0.5f, 0.5f));
+        desc.textWrappingMode = TextWrappingModes.Normal;
+
+        RectTransform button = CreateRect(panel, "ResetTutorialButton",
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+            new Vector2(0f, 40f), new Vector2(360f, 84f));
+        Image image = button.gameObject.AddComponent<Image>();
+        image.sprite = RuntimeSprites.RoundedPanel();
+        image.type = Image.Type.Sliced;
+        image.color = WithAlpha(accent, 0.14f);
+        RuntimeUiKit.AddOutline(button, WithAlpha(accent, 0.55f));
+
+        CreateTmp(button, "Label", "RESET TUTORIAL", 24, TextPrimary, TextAnchor.MiddleCenter, FontStyle.Bold,
+            RuntimeUiKit.TitleFont, Vector2.zero, new Vector2(340f, 40f), new Vector2(0.5f, 0.5f));
+
+        // Confirmation line, hidden until the button is pressed.
+        TextMeshProUGUI confirm = CreateTmp(panel, "ResetTutorialConfirm", "", 18, WithAlpha(accent, 0.95f),
+            TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -34f),
+            new Vector2(520f, 44f), new Vector2(0.5f, 0.5f));
+        confirm.textWrappingMode = TextWrappingModes.Normal;
+
+        Button click = button.gameObject.AddComponent<Button>();
+        click.targetGraphic = image;
+        click.transition = Selectable.Transition.None;
+        click.onClick.AddListener(() =>
+        {
+            ProgressStore.ResetTutorial();
+            SfxPlayer.Play("ui-button-click");
+            confirm.text = "Done - the tutorial will replay on your next level.";
+        });
     }
 
     // A full-width row anchored under the header, inset by the row padding. Children anchor to its

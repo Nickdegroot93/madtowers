@@ -716,10 +716,30 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    // Tutorial spotlight for the corner pills: the nudge step must be able to SHOW the
+    // otherwise-invisible buttons, whatever the player's Nudge Guides setting says. 0..1
+    // blends each hint toward a clearly visible version of itself. Owners must set it back
+    // to 0 (the tutorial does in its teardown); reset per run for safety.
+    private const float NudgeGuideBoostAlphaFactor = 3.5f;
+    private static float _nudgeGuideBoost;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetNudgeGuideBoost() => _nudgeGuideBoost = 0f;
+
+    public static void SetNudgeGuideBoost(float boost)
+    {
+        boost = Mathf.Clamp01(boost);
+        if (Mathf.Approximately(_nudgeGuideBoost, boost)) return;
+        _nudgeGuideBoost = boost;
+        if (Instance != null) Instance.ApplyNudgeHintColors();
+    }
+
     private static Color NudgeHintColor(Color baseColor, bool dimmed)
     {
         float dimFactor = dimmed ? NudgeLockoutDimFactor : 1f;
-        return new Color(baseColor.r, baseColor.g, baseColor.b, baseColor.a * SettingsService.NudgeGuideOpacity * dimFactor);
+        float alpha = baseColor.a * SettingsService.NudgeGuideOpacity;
+        alpha = Mathf.Lerp(alpha, Mathf.Min(1f, baseColor.a * NudgeGuideBoostAlphaFactor), _nudgeGuideBoost);
+        return new Color(baseColor.r, baseColor.g, baseColor.b, alpha * dimFactor);
     }
 
     private readonly Vector3[] _hudCornerBuffer = new Vector3[4];
