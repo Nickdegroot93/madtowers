@@ -13,9 +13,9 @@ Shader "MadTowers/Frost"
         _Turn ("Pattern Quarter Turn", Range(0,3)) = 0
         _DetailStrength ("Detail Strength", Range(0,1)) = 1
 
-        _IceColor ("Ice Body", Color) = (0.72, 0.88, 1, 1)
+        _IceColor ("Ice Body", Color) = (0.47, 0.74, 0.96, 1)
         _FrostColor ("Frost Lines", Color) = (0.96, 0.99, 1, 1)
-        _ShadowColor ("Cold Shadow", Color) = (0.34, 0.43, 0.58, 1)
+        _ShadowColor ("Cold Shadow", Color) = (0.2, 0.32, 0.54, 1)
         _BodyOpacity ("Body Opacity", Range(0,1)) = 0.9
         _ColorPreserve ("Source Colour", Range(0,1)) = 0.42
 
@@ -25,7 +25,7 @@ Shader "MadTowers/Frost"
         _RimStrength ("Rim Brightness", Range(0, 2)) = 1.15
 
         _CrackWidth ("Crack Width", Range(0.001, 0.05)) = 0.01
-        _CrackStrength ("Crack Brightness", Range(0, 2)) = 0.65
+        _CrackStrength ("Crack Brightness", Range(0, 2)) = 0.9
         _ScratchStrength ("Scratch Brightness", Range(0, 1)) = 0.16
         _MottleStrength ("Cloudiness", Range(0,1)) = 0.26
         _FrontStrength ("Crawl Front Brightness", Range(0, 2)) = 0.9

@@ -10,10 +10,10 @@ Shader "MadTowers/Vortex"
     Properties
     {
         [PerRendererData] _MainTex ("Sprite", 2D) = "white" {}
-        _DeepColor ("Deep (plum)", Color) = (0.42, 0.12, 0.32, 1)
-        _MidColor ("Mid (rose)", Color) = (0.90, 0.42, 0.66, 1)
-        _LightColor ("Vein / pearl", Color) = (1.0, 0.88, 0.94, 1)
-        _AccentColor ("Iridescent accent", Color) = (0.66, 0.60, 0.96, 1)
+        _DeepColor ("Deep (void indigo)", Color) = (0.13, 0.09, 0.32, 1)
+        _MidColor ("Mid (violet)", Color) = (0.44, 0.30, 0.82, 1)
+        _LightColor ("Vein / starlight", Color) = (0.82, 0.88, 1.0, 1)
+        _AccentColor ("Energy accent (cyan)", Color) = (0.30, 0.92, 0.95, 1)
         _Swirl ("Swirl angle (driven)", Float) = 0
         _Seed ("Per-cell seed", Float) = 0
         _DiscRadius ("Disc radius", Range(0.1, 0.5)) = 0.36
@@ -133,13 +133,20 @@ Shader "MadTowers/Vortex"
                 float veins = 0.5 + 0.5 * sin(swirlTheta * _Arms + nr * _Spiral + warp * _WarpAmt);
                 veins = pow(saturate(veins), 1.4);
 
-                // Marble colour ramp: deep plum -> rose -> pearly veins, with a faint iridescent mid band.
+                // Galaxy colour ramp: void indigo -> violet arms -> starlight vein cores, with a cyan
+                // energy band riding the arm edges.
                 float3 col = lerp(_DeepColor.rgb, _MidColor.rgb, smoothstep(0.0, 0.6, veins));
-                col = lerp(col, _LightColor.rgb, smoothstep(0.62, 1.0, veins));
-                col += _AccentColor.rgb * (0.12 * (1.0 - abs(veins - 0.5) * 2.0));
+                col = lerp(col, _LightColor.rgb, smoothstep(0.66, 1.0, veins));
+                col += _AccentColor.rgb * (0.22 * (1.0 - abs(veins - 0.55) * 2.5)) * saturate(nr * 2.0);
 
-                // Dark vortex eye at the centre.
-                col *= lerp(0.5, 1.0, smoothstep(0.0, 0.32, nr));
+                // Star specks caught in the spiral (they orbit with the churn).
+                float2 star = float2(swirlTheta * 1.2732, nr * 7.0);
+                float sh = hash21(floor(star));
+                float spk = step(0.955, sh) * smoothstep(0.4, 0.1, length(frac(star) - 0.5));
+                col += _LightColor.rgb * spk * (0.5 + 0.5 * sin(_Swirl * 3.0 + sh * 6.2831));
+
+                // Deep dark vortex eye at the centre - the void you steer into.
+                col *= lerp(0.28, 1.0, smoothstep(0.0, 0.30, nr));
 
                 // Glassy dome highlight (top-left) so it reads as a recessed gem, not a flat decal.
                 float2 nd = p / max(r, 1e-4);

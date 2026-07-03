@@ -30,13 +30,13 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _BevelWidth: 0.14
-    - _CornerRadius: 0.12
-    - _Emission: 0.8
+    - _BevelWidth: 0.102
+    - _CornerRadius: 0.086
+    - _Emission: 1.25
     - _Inset: 0
-    - _OutlineWidth: 0.1
+    - _OutlineWidth: 0.066
     - _PulseSpeed: 1.5
     m_Colors:
-    - _GlowColor: {r: 1, g: 0.26, b: 0.09, a: 1}
+    - _GlowColor: {r: 1, g: 0.38, b: 0.1, a: 1}
     - _StoneColor: {r: 0.93, g: 0.18, b: 0.08, a: 1}
   m_BuildTextureStacks: []

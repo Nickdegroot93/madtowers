@@ -1,22 +1,23 @@
 Shader "MadTowers/Feather"
 {
-    // Feather cell: a fixed, theme-independent TRANSLUCENT frosted block - light because you can see
-    // through it. Keeps the brick silhouette + bevel so it still reads as a block, is more see-through in
-    // the centre and frostier toward the rim, with a soft glowing rim (bloom-lit). Suspended INSIDE the
-    // glass are a couple of very faint down wisps - feathers built FROM soft barbs fanning off a curved
-    // shaft within a tapered vane (not a solid ellipse), so they read as down, not leaves. Not a true blur
-    // (that needs the screen behind it); this is frosted translucency. Motion (float + flutter) is in
-    // FeatherBlockSkin. Theme-locked.
+    // Feather cell: a warm, downy PLUME PILLOW - the block is upholstered in overlapping feather
+    // shingles (cosine-scalloped rows, light cream at the top sinking to warm shadow at the bottom,
+    // each row casting a soft crescent shadow on the one below). A few tiny down-flecks drift slowly
+    // upward inside the fill - the whole brick reads soft, warm and nearly weightless, the opposite of
+    // Ice's cold glossy pane. Extra-round corners + a softer outline keep it pillowy while still
+    // sitting in the outlined art style. _Seed staggers the scallops per cell. Motion (float + sway +
+    // landing flutter) is FeatherBlockSkin's job. Theme-independent (the chapter art is hidden).
     Properties
     {
         [PerRendererData] _MainTex ("Sprite", 2D) = "white" {}
-        _GlassColor ("Glass Colour", Color) = (0.86, 0.92, 0.98, 1)
-        _WispColor ("Down Wisp Colour", Color) = (0.99, 0.98, 0.94, 1)
-        _WispStrength ("Wisp Strength", Range(0, 1)) = 0.3
-        _Alpha ("Centre Opacity", Range(0, 1)) = 0.6
-        _RimGlow ("Rim Glow", Range(0, 2)) = 0.6
-        _CornerRadius ("Corner Radius", Range(0, 0.3)) = 0.16
-        _Seed ("Per-cell Seed", Float) = 0
+        _DownLight ("Down Colour (top)", Color) = (0.97, 0.94, 0.87, 1)
+        _DownDeep ("Down Colour (bottom)", Color) = (0.80, 0.71, 0.55, 1)
+        _ShadowColor ("Scallop Shadow", Color) = (0.62, 0.54, 0.44, 1)
+        _CornerRadius ("Corner Radius", Range(0, 0.3)) = 0.15
+        _OutlineWidth ("Outline Width", Range(0, 0.2)) = 0.06
+        _BevelWidth ("Bevel Width", Range(0, 0.3)) = 0.11
+        _Rows ("Plume Rows", Float) = 4
+        _Seed ("Per-cell Seed (driven)", Float) = 0
     }
 
     SubShader
@@ -45,17 +46,27 @@ Shader "MadTowers/Feather"
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
-                float4 _GlassColor;
-                float4 _WispColor;
-                float _WispStrength;
-                float _Alpha;
-                float _RimGlow;
+                float4 _DownLight;
+                float4 _DownDeep;
+                float4 _ShadowColor;
                 float _CornerRadius;
+                float _OutlineWidth;
+                float _BevelWidth;
+                float _Rows;
                 float _Seed;
             CBUFFER_END
 
-            struct Attributes { float4 positionOS : POSITION; float2 uv : TEXCOORD0; };
-            struct Varyings { float4 positionHCS : SV_POSITION; float2 uv : TEXCOORD0; };
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+                float2 uv         : TEXCOORD0;
+            };
+
+            struct Varyings
+            {
+                float4 positionHCS : SV_POSITION;
+                float2 uv          : TEXCOORD0;
+            };
 
             float hash21(float2 p)
             {
@@ -64,56 +75,10 @@ Shader "MadTowers/Feather"
                 return frac(p.x * p.y);
             }
 
-            float vnoise(float2 p)
-            {
-                float2 i = floor(p);
-                float2 f = frac(p);
-                f = f * f * (3.0 - 2.0 * f);
-                float a = hash21(i);
-                float b = hash21(i + float2(1.0, 0.0));
-                float c = hash21(i + float2(0.0, 1.0));
-                float d = hash21(i + float2(1.0, 1.0));
-                return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
-            }
-
-            float fbm(float2 p)
-            {
-                float s = 0.0, a = 0.5;
-                for (int i = 0; i < 4; i++) { s += a * vnoise(p); p *= 2.0; a *= 0.5; }
-                return s;
-            }
-
             float sdRoundBox(float2 p, float2 b, float r)
             {
                 float2 q = abs(p) - b + r;
                 return length(max(q, float2(0.0, 0.0))) + min(max(q.x, q.y), 0.0) - r;
-            }
-
-            // A soft down feather built FROM its barbs: fine barb strands fanning off a gently curved shaft
-            // within a tapered vane (lobe that points at the tip). Returns 0..1 intensity. Soft everywhere
-            // so it reads as down, not a crisp leaf.
-            float featherWisp(float2 p, float2 center, float angle, float len, float maxW, float ph)
-            {
-                float2 q = p - center;
-                float c = cos(angle), s = sin(angle);
-                float2 r = float2(c * q.x + s * q.y, -s * q.x + c * q.y); // r.y along shaft, r.x lateral
-                float t = r.y / len + 0.5;                                // 0 base -> 1 tip
-                if (t < 0.0 || t > 1.0) return 0.0;
-
-                float shaftX = 0.05 * sin(t * 3.14159 + ph) * (1.0 - t);  // gentle curve, straighter at tip
-                float adist = abs(r.x - shaftX);
-
-                float env = pow(sin(3.14159 * t), 0.7);                   // vane lobe: 0 at ends, full mid
-                float w = maxW * env * (1.0 - 0.40 * t);                  // narrower toward the pointed tip
-                float vane = smoothstep(w + 0.02, w - 0.02, adist);       // soft vane edge
-
-                float barbId = (r.y - adist * 0.6) * 34.0 + ph * 2.0;     // barbs sweep up-and-out
-                float fr = frac(barbId);
-                float barb = 1.0 - smoothstep(0.0, 0.40, min(fr, 1.0 - fr)); // soft, downy strands
-
-                float shaft = 1.0 - smoothstep(0.0, 0.012, adist);
-                float ends = smoothstep(0.0, 0.10, t) * smoothstep(1.0, 0.85, t);
-                return saturate(max(shaft, barb * vane)) * ends;
             }
 
             Varyings vert(Attributes IN)
@@ -131,41 +96,71 @@ Shader "MadTowers/Feather"
 
                 float2 p = uv - 0.5;
                 float halfBox = 0.5;
-                float rad = min(_CornerRadius, halfBox - 0.001);
-                float d = sdRoundBox(p, float2(halfBox, halfBox), rad);
+                float r = min(_CornerRadius, halfBox - 0.001);
+                float2 bb = float2(halfBox, halfBox);
+                float d = sdRoundBox(p, bb, r);
                 float aa = max(fwidth(d), 0.001);
                 float mask = 1.0 - smoothstep(0.0, aa, d);
 
-                // Form: gradient + a soft in-hue bevel so it still reads as a block, not a flat pane.
-                float grad = 0.92 + 0.14 * uv.y;
-                float3 col = _GlassColor.rgb * grad;
+                // Plume shingles: rows from the top down; each row's lower edge is a cosine scallop and
+                // the row below darkens slightly, with a soft crescent shadow right under the edge.
+                float rows = max(2.0, _Rows);
+                float scAmp = 0.45 / rows;                     // scallop depth
+                float freq = 3.0;                              // scallops per row
+                float yTop = 1.0 - uv.y;                       // 0 at top edge
+                float rowF = yTop * rows;
+                float shade = 0.0;                             // accumulated shadow
+                float rowIdx = 0.0;
+                // Walk the two rows that can affect this pixel (its own and the one above).
+                for (int k = 0; k < 2; k++)
+                {
+                    float row = floor(rowF) - float(k);
+                    if (row < 0.0) continue;
+                    float phase = row * 0.5 + ph + _Seed * 3.7;
+                    float edgeY = (row + 1.0) / rows + scAmp * (0.5 - 0.5 * cos((uv.x * freq + phase) * 6.2831));
+                    float below = yTop - edgeY;                // >0 = below this row's scalloped hem
+                    if (k == 0) rowIdx = row;
+                    // Soft crescent shadow cast on whatever is below the hem.
+                    shade = max(shade, smoothstep(0.05, 0.0, abs(below - 0.012)) * step(0.0, below) * 0.68);
+                    // The hem also owns the pixel just above it: track the deepest row covering us.
+                    if (k == 0 && below > 0.0) rowIdx = row + 1.0;
+                }
+                float rowT = saturate(rowIdx / (rows - 0.5));
+                float3 body = lerp(_DownLight.rgb, _DownDeep.rgb, rowT);
+                body = lerp(body, _ShadowColor.rgb, shade);
 
+                // Barb hint: whisper-fine vertical strands, denser toward each hem.
+                float strand = (hash21(float2(floor(uv.x * 90.0), rowIdx)) - 0.5) * 0.05;
+                body *= (1.0 + strand);
+
+                // Soft pillow bevel: gentle all-round light falloff, extra top light, mild bottom shade.
+                float grad = 1.08 - 0.22 * pow(saturate(1.0 - uv.y), 1.2);
+                body *= grad;
                 float e = 0.012;
-                float dY = sdRoundBox(p + float2(0, e), float2(halfBox, halfBox), rad)
-                         - sdRoundBox(p - float2(0, e), float2(halfBox, halfBox), rad);
+                float dY = sdRoundBox(p + float2(0, e), bb, r) - sdRoundBox(p - float2(0, e), bb, r);
                 float ny = dY / (2.0 * e);
-                float band = saturate((d + 0.16) / 0.16);
-                if (ny > 0.4) col *= 1.0 + 0.10 * band;
-                else if (ny < -0.4) col *= 1.0 - 0.08 * band;
+                float band = pow(saturate((d + _OutlineWidth + _BevelWidth) / max(_BevelWidth, 0.001)), 1.6);
+                band *= saturate((-d - _OutlineWidth * 0.55) / max(_OutlineWidth * 0.45, 0.001));
+                float topness = saturate((ny - 0.25) / 0.5);
+                float botness = saturate((-ny - 0.25) / 0.5);
+                body *= (1.0 - 0.06 * band);
+                body = lerp(body, float3(1.0, 0.99, 0.96) * grad, 0.45 * band * topness);
+                body *= (1.0 - 0.16 * band * botness);
 
-                // Soft frosted cloud so the glass isn't dead flat.
-                float fn = fbm(uv * 5.0 + ph);
-                col *= (0.94 + 0.12 * fn);
+                // Tiny down-flecks drifting upward inside the pillow (scaled time via _Time is fine here -
+                // it's ambient shimmer, not gameplay motion).
+                float2 fuv = uv * 7.0 + float2(0.0, -_Time.y * 0.25) + ph;
+                float fleck = step(0.972, hash21(floor(fuv)));
+                float2 ff = frac(fuv) - 0.5;
+                fleck *= smoothstep(0.30, 0.05, length(ff));
+                body = lerp(body, float3(1.0, 1.0, 0.98), fleck * 0.35);
 
-                // Translucency: see-through in the centre, frostier (more opaque) toward the rim.
-                float rim = saturate(1.0 + d / 0.16);
-                float alpha = _Alpha + 0.24 * rim + 0.06 * (fn - 0.5);
+                // Outline: softer & warmer than stone bricks (still closed, still darkest thing on the brick).
+                float tOut = saturate(1.0 + d / max(_OutlineWidth, 0.001));
+                float3 outCol = _DownDeep.rgb * 0.34;
+                body = lerp(body, outCol * grad, tOut);
 
-                // Gentle glowing rim (bloom-lit) for an ethereal, weightless feel.
-                col += _GlassColor.rgb * rim * _RimGlow * 0.25;
-
-                // A couple of faint down wisps suspended inside the glass (seeded angles per cell).
-                float wisp = featherWisp(p, float2(-0.04, 0.02), 0.30 + (frac(ph) - 0.5) * 0.5, 0.72, 0.17, ph);
-                wisp = max(wisp, featherWisp(p, float2(0.14, -0.10), -0.45 + (frac(ph * 1.7) - 0.5) * 0.5, 0.50, 0.115, ph + 2.3));
-                col = lerp(col, _WispColor.rgb, wisp * _WispStrength);
-                alpha += wisp * _WispStrength * 0.20;
-
-                return half4(col, saturate(alpha) * mask);
+                return half4(body, mask * 0.985);
             }
             ENDHLSL
         }

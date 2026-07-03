@@ -1,21 +1,21 @@
 Shader "MadTowers/Locked"
 {
-    // A Locked HARDWARE overlay: a rusted iron gear bound by a chain and a screw-head locking pin, drawn
+    // A Locked HARDWARE overlay: an aged-iron gear bound by a chain and a screw-head locking pin, drawn
     // ON TOP of the kept chapter art (like Vine/Vortex, unlike Anchor which replaces it) so the brick stays
     // solid and the chapter colour shows in the frame around it. A gear is rotation made physical, so a
     // chained, pinned gear reads as "rotation locked" - the cue Locked lacked. Theme-independent fixed
-    // rust/iron colours. Driven props: _Strain (-1..1) lurches the gear (_MaxLurch) and snaps the chain taut;
+    // cool iron/steel colours (the only warmth is the refusal spark, so it pops). Driven props: _Strain (-1..1) lurches the gear (_MaxLurch) and snaps the chain taut;
     // _Flash sparks the pin. _GearAngle rests each cell's teeth at a different phase; _Col makes the chain's
     // links continuous from one cell to the next so a multi-cell piece reads as one bound chain. The skin
     // drives _Strain/_Flash on scaled time so a pause freezes them (PHYSICS.md). See BLOCKVARIANTS.md.
     Properties
     {
         [PerRendererData] _MainTex ("Sprite", 2D) = "white" {}
-        _RustColor ("Gear rust", Color) = (0.68, 0.33, 0.12, 1)
-        _RustHi ("Gear highlight", Color) = (1.0, 0.74, 0.42, 1)
-        _ChainColor ("Chain iron", Color) = (0.26, 0.21, 0.19, 1)
-        _ChainHi ("Chain highlight", Color) = (1.0, 0.86, 0.66, 1)
-        _PinColor ("Pin steel", Color) = (0.82, 0.74, 0.60, 1)
+        _RustColor ("Gear iron", Color) = (0.34, 0.31, 0.28, 1)
+        _RustHi ("Gear highlight", Color) = (0.80, 0.78, 0.72, 1)
+        _ChainColor ("Chain iron", Color) = (0.23, 0.22, 0.22, 1)
+        _ChainHi ("Chain highlight", Color) = (0.84, 0.87, 0.93, 1)
+        _PinColor ("Pin steel", Color) = (0.70, 0.68, 0.64, 1)
         _FlashColor ("Spark colour", Color) = (1.0, 0.92, 0.72, 1)
         _Strain ("Strain (-1..1, driven)", Float) = 0
         _Flash ("Flash (0..1, driven)", Float) = 0

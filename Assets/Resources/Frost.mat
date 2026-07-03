@@ -34,13 +34,13 @@ Material:
     - _BodyOpacity: 0.9
     - _ColorPreserve: 0.42
     - _CornerRadius: 0.075
-    - _CrackStrength: 0.65
+    - _CrackStrength: 0.9
     - _CrackWidth: 0.01
     - _DetailStrength: 1
     - _EdgeWidth: 0.12
     - _FrontStrength: 0.9
     - _Freeze: 0
-    - _MottleStrength: 0.26
+    - _MottleStrength: 0.2
     - _NoiseScale: 5
     - _PaneInset: 0.035
     - _Pattern: 0
@@ -51,6 +51,6 @@ Material:
     - _UpwardBias: 0.35
     m_Colors:
     - _FrostColor: {r: 0.96, g: 0.99, b: 1, a: 1}
-    - _IceColor: {r: 0.72, g: 0.88, b: 1, a: 1}
-    - _ShadowColor: {r: 0.34, g: 0.43, b: 0.58, a: 1}
+    - _IceColor: {r: 0.47, g: 0.74, b: 0.96, a: 1}
+    - _ShadowColor: {r: 0.2, g: 0.32, b: 0.54, a: 1}
   m_BuildTextureStacks: []

@@ -13,8 +13,8 @@ Shader "MadTowers/Tremor"
         _RockColor ("Rock Colour", Color) = (0.50, 0.38, 0.21, 1)
         _GlowColor ("Fault Glow Colour", Color) = (1.0, 0.55, 0.16, 1)
         _CornerRadius ("Corner Radius", Range(0, 0.35)) = 0.14
-        _OutlineWidth ("Outline Width", Range(0, 0.2)) = 0.1
-        _BevelWidth ("Bevel Width", Range(0, 0.3)) = 0.13
+        _OutlineWidth ("Outline Width", Range(0, 0.2)) = 0.066
+        _BevelWidth ("Bevel Width", Range(0, 0.3)) = 0.102
         _RockScale ("Rock Lump Scale", Float) = 4.0
         _CrackScale ("Fault Scale", Float) = 5.0
         _CrackWidth ("Fault Width", Range(0.01, 0.15)) = 0.06
@@ -132,39 +132,57 @@ Shader "MadTowers/Tremor"
                 float aa = max(fwidth(d), 0.001);
                 float mask = 1.0 - smoothstep(0.0, aa, d);
 
-                // Lumpy earth facets - uneven brightness, warm and dry.
+                // Tectonic slabs: posterized plates of warm dry earth with hairline joints - the ground
+                // is already broken into pieces that the quake will rattle.
                 float n = fbm(uv * _RockScale + 1.7);
-                float3 rock = _RockColor.rgb * (0.78 + 0.46 * n);
+                float fq = frac(n * 4.0);
+                float slabEdge = 1.0 - smoothstep(0.0, 0.20, min(fq, 1.0 - fq));
+                float3 rock = _RockColor.rgb * (0.70 + 0.56 * (floor(n * 4.0) / 4.0));
+                rock *= (1.0 - 0.30 * slabEdge);
 
-                // Vertical gradient, lighter at the top; base heavier.
-                float grad = 0.74 + 0.36 * uv.y;
+                // Vertical gradient, lighter at the top; base heavier than normal bricks.
+                float grad = 1.10 - 0.40 * pow(saturate(1.0 - uv.y), 1.15);
                 rock *= grad;
 
-                // Soft in-hue bevel (worn earth edges).
+                // Soft embossed bevel (worn earth edges), same structure as the piece generator:
+                // AO ring, lit top rim, shadowed bottom, shaded sides.
                 float e = 0.012;
                 float dY = sdRoundBox(p + float2(0, e), bb, r) - sdRoundBox(p - float2(0, e), bb, r);
+                float dX = sdRoundBox(p + float2(e, 0), bb, r) - sdRoundBox(p - float2(e, 0), bb, r);
                 float ny = dY / (2.0 * e);
-                float band = saturate((d + _OutlineWidth + _BevelWidth) / max(_BevelWidth, 0.001));
-                if (ny > 0.4) rock *= 1.0 + 0.16 * band;
-                else if (ny < -0.4) rock *= 1.0 - 0.16 * band;
+                float nx = dX / (2.0 * e);
+                float band = pow(saturate((d + _OutlineWidth + _BevelWidth) / max(_BevelWidth, 0.001)), 1.6);
+                band *= saturate((-d - _OutlineWidth * 0.55) / max(_OutlineWidth * 0.45, 0.001));
+                float topness  = saturate((ny - 0.25) / 0.5);
+                float botness  = saturate((-ny - 0.25) / 0.5);
+                float sideness = saturate((abs(nx) - 0.25) / 0.5) * (1.0 - topness) * (1.0 - botness);
+                rock *= (1.0 - 0.09 * band);
+                float3 hiRock = lerp(_RockColor.rgb * 1.5, 1.0 - (1.0 - _RockColor.rgb) * 0.42, 0.45) * grad;
+                rock = lerp(rock, hiRock, 0.40 * band * topness);
+                rock *= (1.0 - 0.22 * band * botness);
+                rock *= (1.0 - 0.10 * band * sideness);
 
-                // Outline: blend toward a darker earth near the edge (no hard line).
+                // Outline: thick, near-black, hue kept (mildly desaturated darker earth).
                 float tOut = saturate(1.0 + d / max(_OutlineWidth, 0.001));
-                rock = lerp(rock, _RockColor.rgb * 0.26 * grad, tOut);
+                float lumT = dot(_RockColor.rgb, float3(0.299, 0.587, 0.114));
+                float3 outCol = lerp(_RockColor.rgb, float3(lumT, lumT, lumT), 0.30) * 0.22;
+                rock = lerp(rock, outCol * grad, tOut);
 
                 // Fault network: a domain-warped noise band. The channel floor is recessed (darker), and
                 // the glow rides inside it.
                 float warp = fbm(uv * _CrackScale * 0.5 + 4.0);
                 float cf = vnoise(uv * _CrackScale + warp * 1.5);
-                float fault = 1.0 - smoothstep(0.0, _CrackWidth, abs(cf - 0.5));
-                rock *= (1.0 - 0.5 * fault);
+                float fd = abs(cf - 0.5);
+                float fault = 1.0 - smoothstep(0.0, _CrackWidth, fd);
+                float halo = 1.0 - smoothstep(0.0, _CrackWidth * 2.6, fd);
+                rock *= (1.0 - 0.62 * fault);
 
                 // Travelling pulse: a bright band sweeps diagonally across the brick, lighting the part of
                 // the fault network it passes over (energy looking for a way out).
                 float axis = saturate((uv.x + uv.y) * 0.5);            // 0..1 corner-to-corner
                 float waveBand = exp(-pow((axis - _Wave) * 6.0, 2.0)); // soft moving lobe
                 float glow = _IdleEmber + waveBand * 0.85 + _Quake * 1.6; // quake flashes the whole network
-                rock += _GlowColor.rgb * fault * glow;
+                rock += _GlowColor.rgb * (fault * glow + halo * glow * 0.30);
 
                 // Quake shockwave: a ring expands from the centre to the rim as _Quake goes 0->1, fading as
                 // it grows. Reads as the seismic discharge on landing.

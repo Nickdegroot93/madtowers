@@ -3,14 +3,16 @@ using UnityEngine;
 
 /// <summary>
 /// The Magma look: a fixed, theme-independent molten slab (procedural Resources/Lava shader), replacing the
-/// chapter art. Cells alternate BLACK and RED across the piece (a 1x4 reads black-red-black-red; 2D shapes
-/// checkerboard) via the per-cell _StoneColor; red cells glow. The piece gently wobbles, out of phase per
-/// cell, so it bubbles. When the magma melts (MagmaMelt) the resulting 1x1 cells use the chapter's own
-/// skin - only the molten block itself is theme-locked. See BLOCKVARIANTS.md.
+/// chapter art. Every cell is the same charcoal crust riven by glowing molten veins; cells alternate a HOT
+/// and a COOL cast across the piece (via the per-cell _StoneColor heat tint - hot cells run brighter veins)
+/// and _Seed desyncs each cell's vein layout. The piece gently wobbles, out of phase per cell, so it
+/// bubbles. When the magma melts (MagmaMelt) the resulting 1x1 cells use the chapter's own skin - only the
+/// molten block itself is theme-locked. See BLOCKVARIANTS.md.
 /// </summary>
 public sealed class MagmaBlockSkin : BlockVariantSkin
 {
     private static readonly int StoneColorId = Shader.PropertyToID("_StoneColor");
+    private static readonly int SeedId = Shader.PropertyToID("_Seed");
 
     // Bright fire orange-red (the shader adds bloom glow, so it reads molten not bloody) + clean dark stone.
     private static readonly Color RedStone = new Color(0.93f, 0.18f, 0.08f, 1f);
@@ -35,6 +37,7 @@ public sealed class MagmaBlockSkin : BlockVariantSkin
     {
         bool hot = ((col + row) & 1) == 0;
         mpb.SetColor(StoneColorId, hot ? RedStone : BlackStone);
+        mpb.SetFloat(SeedId, (index * 0.6180339f) % 1f); // desync each cell's vein layout
         _phases.Add(col * 1.7f + row * 0.9f); // slight per-cell phase so it bubbles, not in lockstep
     }
 

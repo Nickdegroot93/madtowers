@@ -9,8 +9,8 @@ Shader "MadTowers/Vine"
     Properties
     {
         [PerRendererData] _MainTex ("Sprite", 2D) = "white" {}
-        _VineColor ("Stem Colour", Color) = (0.26, 0.28, 0.13, 1)
-        _LeafColor ("Leaf Colour", Color) = (0.32, 0.60, 0.22, 1)
+        _VineColor ("Stem Colour", Color) = (0.24, 0.30, 0.12, 1)
+        _LeafColor ("Leaf Colour", Color) = (0.36, 0.66, 0.24, 1)
         _Growth ("Growth (0..1)", Range(0, 1)) = 1
         _Seed ("Per-cell Seed", Float) = 0
         _Sway ("Sway Amount", Range(0, 0.1)) = 0.02
@@ -68,14 +68,27 @@ Shader "MadTowers/Vine"
                 return 0.20 * sin(g * 5.0 + ph);
             }
 
-            // Leaf blob in (lat, along) space: an ellipse rotated by ang, taller than wide.
-            float leafMask(float2 q, float ang, float2 sz)
+            // Signed distance (normalized) to an ellipse rotated by ang, taller than wide.
+            float leafDist(float2 q, float ang, float2 sz)
             {
                 float c = cos(ang), s = sin(ang);
                 float2 r = float2(c * q.x - s * q.y, s * q.x + c * q.y);
-                float2 e = r / sz;
-                float d = length(e) - 1.0;
-                return smoothstep(0.10, 0.0, d);
+                return length(r / sz) - 1.0;
+            }
+
+            // One shaded leaf: dark rim (reads as an outline over the brick), brighter centre, and an
+            // extra light lobe offset toward the tip - matches the game's outlined/bevelled language.
+            void addLeaf(float2 q, float2 c, float ang, float2 sz, float reveal, float growth, float idx,
+                         inout float mask, inout float shade, inout float varr)
+            {
+                float d = leafDist(q - c, ang, sz);
+                float m = smoothstep(0.06, -0.04, d) * step(reveal, growth);
+                if (m <= mask) return;
+                float inner = saturate(-d * 4.5);
+                float hi = saturate(-leafDist(q - c - float2(0.012, 0.024), ang, sz * 0.62) * 4.0);
+                mask = m;
+                shade = 0.45 + 0.55 * inner + 0.38 * hi;
+                varr = frac(idx * 0.618 + 0.13);
             }
 
             Varyings vert(Attributes IN)
@@ -104,33 +117,46 @@ Shader "MadTowers/Vine"
                 float sway = _Sway * sin(_Time.y * 1.6 + ph) * g;
                 float lat2 = lat - sway;
 
-                // Main winding stem, tapering toward the tip; revealed up to _Growth.
+                // Main winding stem, tapering toward the tip; revealed up to _Growth. Drawn with a dark
+                // outline ring (outCore) so it reads as part of the outlined art, not a decal.
                 float sc = stemCenter(g, ph);
-                float stemW = lerp(0.075, 0.024, g);
-                float stem = smoothstep(stemW, stemW * 0.4, abs(lat2 - sc)) * step(g, _Growth);
+                float stemW = lerp(0.085, 0.030, g);
+                float dstem = abs(lat2 - sc) - stemW;
 
                 // A thinner offshoot for density.
                 float sc2 = 0.20 * sin(g * 5.0 + ph + 2.5) + 0.12;
-                float stem2 = smoothstep(0.042, 0.014, abs(lat2 - sc2)) * step(g, _Growth) * 0.7;
-                stem = max(stem, stem2);
+                float dstem2 = abs(lat2 - sc2) - 0.032;
+                dstem = min(dstem, dstem2);
+
+                float grow = step(g, _Growth);
+                float stem = smoothstep(0.012, 0.0, dstem) * grow;         // stem body
+                float stemOut = smoothstep(0.034, 0.016, dstem) * grow;    // body + dark rim
 
                 // Leaves sprout along the stem, alternating sides; each pops in as growth passes it.
+                // Larger, layered clusters than before - a big and a small lobe per node.
                 float2 q = float2(lat2, g);
-                float leaves = 0.0;
-                leaves = max(leaves, leafMask(q - float2(stemCenter(0.22, ph) - 0.07, 0.22), -0.8, float2(0.092, 0.150) * leafScale) * step(0.22, _Growth));
-                leaves = max(leaves, leafMask(q - float2(stemCenter(0.44, ph) + 0.07, 0.44),  0.8, float2(0.066, 0.112) * leafScale) * step(0.44, _Growth));
-                leaves = max(leaves, leafMask(q - float2(stemCenter(0.64, ph) - 0.07, 0.64), -0.8, float2(0.088, 0.146) * leafScale) * step(0.64, _Growth));
-                leaves = max(leaves, leafMask(q - float2(stemCenter(0.84, ph) + 0.06, 0.84),  0.8, float2(0.058, 0.100) * leafScale) * step(0.84, _Growth));
+                float lm = 0.0, lsh = 1.0, lv = 0.0;
+                addLeaf(q, float2(stemCenter(0.20, ph) - 0.085, 0.20), -0.75, float2(0.115, 0.190) * leafScale, 0.20, _Growth, 1.0, lm, lsh, lv);
+                addLeaf(q, float2(stemCenter(0.20, ph) + 0.060, 0.16),  0.95, float2(0.070, 0.120) * leafScale, 0.20, _Growth, 2.0, lm, lsh, lv);
+                addLeaf(q, float2(stemCenter(0.44, ph) + 0.080, 0.44),  0.80, float2(0.095, 0.160) * leafScale, 0.44, _Growth, 3.0, lm, lsh, lv);
+                addLeaf(q, float2(stemCenter(0.62, ph) - 0.080, 0.62), -0.85, float2(0.105, 0.175) * leafScale, 0.62, _Growth, 4.0, lm, lsh, lv);
+                addLeaf(q, float2(stemCenter(0.62, ph) + 0.055, 0.70),  0.70, float2(0.062, 0.105) * leafScale, 0.62, _Growth, 5.0, lm, lsh, lv);
+                addLeaf(q, float2(stemCenter(0.86, ph) + 0.060, 0.86),  0.85, float2(0.080, 0.135) * leafScale, 0.86, _Growth, 6.0, lm, lsh, lv);
+                addLeaf(q, float2(stemCenter(0.33, ph) + 0.075, 0.33),  0.88, float2(0.082, 0.140) * leafScale, 0.33, _Growth, 7.0, lm, lsh, lv);
+                addLeaf(q, float2(stemCenter(0.75, ph) - 0.070, 0.76), -0.78, float2(0.092, 0.155) * leafScale, 0.75, _Growth, 8.0, lm, lsh, lv);
 
-                // Shade: stem as a little tube (lighter on one side); leaves a brighter green on top.
+                // Stem: dark outline ring under a tube-shaded core (lighter on one side).
                 float tube = 0.85 + 0.30 * saturate((sc - lat2) / max(stemW, 1e-3));
-                float3 col = _VineColor.rgb * tube;
-                float a = stem;
+                float3 stemDark = _VineColor.rgb * 0.35;
+                float3 col = lerp(stemDark, _VineColor.rgb * tube, stem);
+                float a = stemOut;
 
-                col = lerp(col, _LeafColor.rgb, leaves);
-                a = max(a, leaves);
+                // Leaves over stems: per-leaf value variance, dark rims, bright tip lobes.
+                float3 leafCol = _LeafColor.rgb * lerp(0.85, 1.18, lv) * lsh;
+                col = lerp(col, leafCol, lm);
+                a = max(a, lm);
 
-                return half4(col, saturate(a) * 0.95);
+                return half4(col, saturate(a));
             }
             ENDHLSL
         }

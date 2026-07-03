@@ -15,6 +15,7 @@ public sealed class IceBlockSkin : BlockVariantSkin
     private static readonly int PatternId = Shader.PropertyToID("_Pattern");
     private static readonly int TurnId = Shader.PropertyToID("_Turn");
     private static readonly int BodyOpacityId = Shader.PropertyToID("_BodyOpacity");
+    private static readonly int ColorPreserveId = Shader.PropertyToID("_ColorPreserve");
 
     protected override string MaterialResource => "Frost"; // reuse the Freeze ability's ice material
     protected override bool HidesChapterArt => false;       // keep the brick under the translucent ice (chapter-colour hint)
@@ -36,6 +37,8 @@ public sealed class IceBlockSkin : BlockVariantSkin
         mpb.SetFloat(SeedId, seed * 20f);
         mpb.SetFloat(PatternId, Mathf.Floor(((seed * 7.13f) % 1f) * 5f)); // one of the 5 crack patterns
         mpb.SetFloat(TurnId, Mathf.Floor(((seed * 3.71f) % 1f) * 4f));    // quarter-turn the pattern
-        mpb.SetFloat(BodyOpacityId, 0.72f);                              // a touch more translucent than Freeze so the chapter colour shows
+        mpb.SetFloat(BodyOpacityId, 0.78f);                              // translucent enough for a chapter-colour hint
+        mpb.SetFloat(ColorPreserveId, 0.20f);                            // ...but properly GLACIAL BLUE, unlike Freeze
+                                                                         // which keeps the victim's colour recognisable
     }
 }
