@@ -21,26 +21,37 @@ here changes, change it in every generator (and the C# constant it mirrors).
   randomization, ever.
 
 **Outline**
-- Block pieces: every silhouette has a closed outline, **13–14 px** thick (at
-  256 px/cell), colored **the local base color at 30% value** — never pure
-  black, never a different hue.
+- Block pieces: every silhouette has a closed outline, **17 px** thick (at
+  256 px/cell), colored **the local base color at ~20–28% value, desaturated
+  30% toward gray** — reads near-black but never pure black, never a
+  different hue. (Variant shaders mirror this as `_OutlineWidth 0.066`,
+  outline colour `lerp(tint, luma, 0.30) * 0.22`.)
 - Plateau strips: strong edge lines and end caps in a darker shade of the
   base (30–50% value per theme). Edges stay crisp and axis-aligned; the
   invariant is "darker shade of itself", not the exact strength.
 
 **Lighting (the light always comes from straight above)**
-- Vertical gradient on every body: ~**+10–16% brightness at the top edge**
-  falling to ~**−35–50% at the bottom**.
-- Bevel highlight just inside the top outline: **+20–24%** over a 16–26 px
-  band. Bottom-facing inner edges get a subtle −16% shade.
-- Grain/noise: **±5%** per-pixel brightness, always on, never stronger.
+- Vertical gradient on every body: **1.13× at the top edge falling to 0.77×
+  at the bottom** (curve `1.13 − 0.36·t^1.15`).
+- Embossed bevel just inside the outline, over a **26 px band** (variant
+  shaders: `_BevelWidth 0.102`): a faint **−9% AO ring** all around, a strong
+  top rim **blended 72% toward the base color pushed ~40% to white** (hue
+  kept — dark tints stay mostly in-hue), a **−26% bottom** inner shadow, and
+  **−12% sides**. This is what makes bricks read as 3D.
+- Body mottling: multi-octave value noise, ~**±8%** brightness, feature size
+  ~110/52/22 px. Grain/noise: **±5%** per-pixel brightness on top, always on,
+  never stronger.
 
 **Surface language**
-- Cell seams are hinted by **bold dark cracks** (~9 px, −50% brightness),
-  jittered, never straight grid lines. Thin hairline cracks (~5 px, −30%)
-  wander elsewhere. In a theme where cracks make no sense (Neon), the seam
-  *placement* stays but its rendering flips (e.g. glowing lines) — the motif
-  "pieces are assembled from cells" must stay readable.
+- Cell seams are **bold dark carved cracks** (~9 px, −55% brightness),
+  jittered, never straight grid lines, and they **run all the way through the
+  outline** so every cell reads as its own stone. Cracks are embossed: a
+  **+30% lit lip below** each chunky crack, a −13% shadow above. A few short
+  **plate cracks** (7 px) anchor to the silhouette edge or branch off seams;
+  faint hairlines (~3 px) and sparse pit specks add wear. In a theme where
+  cracks make no sense (Neon), the seam *placement* stays but its rendering
+  flips (e.g. glowing lines) — the motif "pieces are assembled from cells"
+  must stay readable.
 - The 7 shapes keep their **hue identities** in every theme: I cyan-family,
   O yellow/gold, T purple, S green, Z red, J blue, L orange. A theme may
   shift saturation/value (Haunted = desaturated, Ice = pale) but never
@@ -67,8 +78,8 @@ here changes, change it in every generator (and the C# constant it mirrors).
 
 ## Process
 
-- All block/ground art is generated: `Tools/generate_piece_sprites.py`,
-  `Tools/generate_ground_sprite.py`. A new theme = a preset (colors + motif
+- All block/ground art is generated: `Tools/generate_piece_sprites.py`
+  (needs numpy + Pillow), `Tools/generate_ground_sprite.py`. A new theme = a preset (colors + motif
   parameters) in those scripts writing to `Assets/Resources/Skins/<Theme>/`,
   never a fork of the pipeline.
 - Hand-made override PNGs must follow every invariant above to be accepted.
