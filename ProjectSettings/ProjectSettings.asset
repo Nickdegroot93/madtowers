@@ -835,8 +835,8 @@ PlayerSettings:
   webWasm2023: 0
   webEnableSubmoduleStrippingCompatibility: 0
   scriptingDefineSymbols:
-    Android: SENTIS_ANALYTICS_ENABLED;APP_UI_EDITOR_ONLY
-    Standalone: SENTIS_ANALYTICS_ENABLED;APP_UI_EDITOR_ONLY
+    Android: SENTIS_ANALYTICS_ENABLED;APP_UI_EDITOR_ONLY;MADTOWERS_UNLOCK_ALL
+    Standalone: SENTIS_ANALYTICS_ENABLED;APP_UI_EDITOR_ONLY;MADTOWERS_UNLOCK_ALL
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:

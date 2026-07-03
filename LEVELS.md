@@ -187,10 +187,13 @@ Each chapter's `skinFolder` drives all generated art (blocks/ground/laser) via
 
 ### Current level inventory
 
-**Chapter: Training Wheels (sortOrder 10)**
+**Chapter: Sakura Ridge (sortOrder 10)** — imported Japan Landscape menu art, layered Japan
+gameplay backdrop, Japan skin folder, music pending
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| Foundations | GameMode_Classic | Place 100 | Plain stacking endurance. |
+| Morning Gate | GameMode_Classic | Place 100 | Stacking endurance, Japan dressing. |
+| Lantern Drift | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
+| Temple Steps | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
 
 **Chapter: Barren Lands (sortOrder 20)** — imported Desert Vibe menu art, layered desert
 gameplay backdrop, desert skin, desert A/B music

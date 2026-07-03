@@ -68,21 +68,21 @@ MonoBehaviour:
     alpha: 1
   - sprite: {fileID: 21300000, guid: f924ac498134a88409ebc504c42de111, type: 3}
     worldHeight: 12
-    floorOffsetY: 1
+    floorOffsetY: -0.4
     worldOffsetX: 0
     verticalParallax: 0.2
     horizontalParallax: 0.18
     alpha: 1
   - sprite: {fileID: 21300000, guid: bab1d0afeb048c8488e9eebdedf9e2b7, type: 3}
     worldHeight: 11
-    floorOffsetY: 0
+    floorOffsetY: -1.6
     worldOffsetX: 0
     verticalParallax: 0.13
     horizontalParallax: 0.1
     alpha: 1
   - sprite: {fileID: 21300000, guid: 955d8b3b30fc69448969558ca02bee01, type: 3}
     worldHeight: 10
-    floorOffsetY: -0.3
+    floorOffsetY: -2.8
     worldOffsetX: 0
     verticalParallax: 0.07
     horizontalParallax: 0.04

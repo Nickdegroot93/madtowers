@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: ae6f175798714ee8a3bb9db94f0331a9
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 258112
+  packageName: Japan landscape - Day Mode
+  packageVersion: 1.0
+  assetPath: Assets/Art/ChapterPacks/Japan Landscape/Scripts~/BackgroundParalax.cs
+  uploadId: 595074

@@ -179,14 +179,15 @@ if __name__ == "__main__":
     render_islands("Classic", STONE, line=tuple(v * 0.30 for v in STONE))
     remove_legacy("Classic")
 
-    # Training Wheels: grass-capped earth - the floor belongs to the hill scenery
-    render_plateau("TrainingWheels", (166, 124, 88), line=(96, 72, 52),
-                   blocks=1, top=(118, 180, 98))
-    render_islands("TrainingWheels", (166, 124, 88), line=(96, 72, 52))
-    remove_legacy("TrainingWheels")
+    # Sakura Ridge: indigo stone with a sakura-coral cap. Dark enough to separate
+    # from the pale sky, warm enough to belong with the temple/flower foreground.
+    render_plateau("Japan", (74, 75, 116), line=(34, 34, 62),
+                   blocks=1, top=(232, 145, 138), top_h=24)
+    render_islands("Japan", (74, 75, 116), line=(34, 34, 62))
+    remove_legacy("Japan")
 
     # Desert: sun-baked terracotta capped with wind-blown sand - the floor belongs to
-    # the dunes the same way Training Wheels' grass cap belongs to its hills
+    # the dunes the same way each chapter's cap belongs to its scenery.
     render_plateau("Desert", (206, 118, 82),
                    blocks=1, top=(243, 190, 132))
     render_islands("Desert", (206, 118, 82))

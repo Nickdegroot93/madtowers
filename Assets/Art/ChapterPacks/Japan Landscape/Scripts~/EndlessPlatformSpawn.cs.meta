@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: a0deae9d33a3460095444bbcd476ed01
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 258112
+  packageName: Japan landscape - Day Mode
+  packageVersion: 1.0
+  assetPath: Assets/Art/ChapterPacks/Japan Landscape/Scripts~/EndlessPlatformSpawn.cs
+  uploadId: 595074

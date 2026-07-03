@@ -240,6 +240,7 @@ public static partial class MainMenuRuntime
 
     private static bool IsLevelVisuallyUnlocked(ChapterDefinition chapter, int levelIndex)
     {
+        if (Campaign.UnlockAllForTesting) return true;
         if (chapter == null) return false;
         if (chapter.AlwaysUnlocked) return true;
         if (levelIndex <= 0) return true;

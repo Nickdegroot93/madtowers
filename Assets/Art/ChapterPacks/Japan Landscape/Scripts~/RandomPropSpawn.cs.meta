@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: c9a1144b1ac94c698000c6eb2a851735
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 258112
+  packageName: Japan landscape - Day Mode
+  packageVersion: 1.0
+  assetPath: Assets/Art/ChapterPacks/Japan Landscape/Scripts~/RandomPropSpawn.cs
+  uploadId: 595074

@@ -71,6 +71,24 @@ THEME_PRESETS = {
         "outline": 0.28,
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
     },
+    # Sakura Ridge: muted ukiyo-e / washi tones. These belong to the background's
+    # sakura, Fuji, temple indigo, and coral highlights; readability comes from the
+    # outline/shape language rather than neon opposite colors.
+    "Japan": {
+        "colors": {
+            "I": (83, 171, 172),    # patinated teal
+            "O": (222, 201, 130),   # washi gold
+            "T": (158, 96, 157),    # muted plum
+            "S": (120, 154, 120),   # soft moss jade
+            "Z": (215, 104, 108),   # sakura vermilion
+            "J": (86, 106, 160),    # temple indigo
+            "L": (218, 133, 92),    # warm terracotta
+            "Pip": (220, 116, 150),     # sakura pink
+            "Domino": (128, 92, 150),   # wisteria purple
+        },
+        "outline": 0.24,
+        "edgeShine": {"Pip": 0.15, "Domino": 0.15},
+    },
 }
 
 SHAPES = {  # (col,row), row 0 = top of canvas, matches prefab spawn orientation
