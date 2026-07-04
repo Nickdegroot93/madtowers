@@ -99,6 +99,7 @@ public class AbilityChoiceController : MonoBehaviour
         GameManager.Instance.PushPause(this);
         GameManager.Instance.RequestPhase(this, GamePhase.AbilityChoice);
         RuntimeUiKit.EnsureEventSystem();
+        SfxPlayer.Play("ability_offer", 0.7f, 0.04f);
         BuildChoicePanel();
     }
 
@@ -114,6 +115,7 @@ public class AbilityChoiceController : MonoBehaviour
 
     private void Pick(AbilityDefinition definition)
     {
+        SfxPlayer.Play("ability_pick", 0.8f, 0.03f);
         switch (definition)
         {
             case InstantAbility instant:
@@ -212,6 +214,12 @@ public class AbilityChoiceController : MonoBehaviour
         for (int i = 0; i < _rollBuffer.Count; i++)
         {
             AbilityCardView.Create(cardRow.transform, _rollBuffer[i], _runtime, Pick, ShowDetailPanel);
+        }
+
+        // Cards arrive one beat apart with a soft pop - the offer feels dealt, not dumped.
+        for (int i = 0; i < cardRow.transform.childCount; i++)
+        {
+            UiEntranceFx.Play(cardRow.transform.GetChild(i).gameObject, delay: 0.06f + i * 0.08f);
         }
 
         // Reroll: if the player banked rerolls (RerollPowerUp), show a button under the cards

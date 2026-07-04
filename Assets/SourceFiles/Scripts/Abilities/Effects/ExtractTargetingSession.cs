@@ -89,6 +89,7 @@ public sealed class ExtractTargetingSession : AbilitySessionBase
             Destroy(gameObject);
             return;
         }
+        SfxPlayer.Play("extract_open", 0.7f, 0.04f);
         _effect = effect;
         _anchorVariant = anchorVariant;
         _camera = Camera.main;
@@ -337,7 +338,7 @@ public sealed class ExtractTargetingSession : AbilitySessionBase
         if (_effect == TargetEffect.Extract)
         {
             GameEvents.RaiseBlockDestroyed(_selected.Block);
-            SfxPlayer.Play("impact_soft_01", 0.7f, 0.06f);
+            SfxPlayer.Play("extract_delete", 0.75f, 0.04f);
             Destroy(_selected.Block.gameObject);
             return;
         }
@@ -346,7 +347,7 @@ public sealed class ExtractTargetingSession : AbilitySessionBase
         // (ApplyData re-tints the existing skin), then freeze it as a Static body.
         if (_anchorVariant != null) _selected.Block.ApplyData(_anchorVariant);
         _selected.Block.FreezeInPlace();
-        SfxPlayer.Play("pop_01", 0.7f, 0.04f);
+        SfxPlayer.Play("suspension_lock", 0.75f, 0.04f);
     }
 
     private bool CanTarget(BlockController block) => IsTargetable(block, _effect == TargetEffect.Suspension);

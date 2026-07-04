@@ -26,7 +26,7 @@ public sealed class OverdrawSession : AbilitySessionBase
         public Vector3 FlyFrom;
     }
 
-    private const float HudClearanceCells = 1.45f;
+    private const float HudClearanceCells = 2.6f;
     private const float DropBelowQueueCells = 0.55f;
     private const float ChoiceSpacingCells = 2.15f;
     private const float ChoiceScale = 0.62f;
@@ -199,7 +199,9 @@ public sealed class OverdrawSession : AbilitySessionBase
             target -= choice.VisualOffset * ChoiceScale;
             target.y += Mathf.Sin(time * HoverSpeed + choice.Phase) * HoverAmplitude;
             choice.Root.position = Vector3.Lerp(choice.Root.position, target, 1f - Mathf.Exp(-ReflowLerp * dt));
-            choice.Root.localScale = Vector3.one * Mathf.Lerp(ChoiceScale * 0.82f, ChoiceScale, e);
+            // Gentle overshoot mid-intro (pop past, settle back) - the classic satisfying arrival.
+            float overshoot = 1f + 0.08f * Mathf.Sin(e * Mathf.PI);
+            choice.Root.localScale = Vector3.one * (Mathf.Lerp(ChoiceScale * 0.82f, ChoiceScale, e) * overshoot);
             SetChoiceAlpha(choice, ChoiceAlpha * e);
             UpdateRing(choice, time, selected: false);
             RecalculateChoiceBounds(choice);
@@ -263,7 +265,7 @@ public sealed class OverdrawSession : AbilitySessionBase
         choice.FlyAge = 0f;
         choice.FlyFrom = choice.Root.position;
         _flyingChoice = choice;
-        if (playSound) SfxPlayer.Play("swoosh_01", 0.45f, 0.08f);
+        if (playSound) SfxPlayer.Play("overdraw_pick", 0.6f, 0.05f);
     }
 
     private bool TryPickChoice(Vector2 screenPoint, out Choice picked)
@@ -311,9 +313,18 @@ public sealed class OverdrawSession : AbilitySessionBase
         color.a = 0f;
         renderer.color = color;
 
-        LineRenderer halo = CreateCircle(visual.transform, "Halo", SortingOrder - 1, 0.065f, new Color(0.2f, 0.78f, 1f, 0.16f));
-        LineRenderer ring = CreateCircle(visual.transform, "Ring", SortingOrder + 1, 0.023f, new Color(0.72f, 0.9f, 1f, 0.66f));
+        // A soft glow BEHIND the piece carries the "magical draft" read; the stroke rings stay
+        // whisper-thin (hard circles read as debug gizmos, not juice).
         float radius = Mathf.Max(sprite.bounds.extents.x, sprite.bounds.extents.y) + 0.32f;
+        var glow = new GameObject("Glow").AddComponent<SpriteRenderer>();
+        glow.transform.SetParent(visual.transform, false);
+        glow.sprite = RuntimeSprites.SoftBlob();
+        glow.sortingOrder = SortingOrder - 2;
+        glow.color = new Color(0.35f, 0.8f, 1f, 0.20f);
+        glow.transform.localScale = new Vector3(radius * 1.6f, radius * 1.25f, 1f);
+
+        LineRenderer halo = CreateCircle(visual.transform, "Halo", SortingOrder - 1, 0.05f, new Color(0.2f, 0.78f, 1f, 0.08f));
+        LineRenderer ring = CreateCircle(visual.transform, "Ring", SortingOrder + 1, 0.016f, new Color(0.72f, 0.9f, 1f, 0.30f));
         ConfigureCircle(halo, radius * 1.08f);
         ConfigureCircle(ring, radius);
 
@@ -326,7 +337,8 @@ public sealed class OverdrawSession : AbilitySessionBase
             Halo = halo,
             BaseColor = Color.white,
             VisualOffset = visualOffset,
-            Phase = index * 1.7f + Random.Range(0f, Mathf.PI * 2f)
+            Phase = index * 1.7f + Random.Range(0f, Mathf.PI * 2f),
+            IntroAge = -index * 0.09f // staggered entrance: each choice pops in a beat after the last
         };
         RecalculateChoiceBounds(choice);
         return choice;

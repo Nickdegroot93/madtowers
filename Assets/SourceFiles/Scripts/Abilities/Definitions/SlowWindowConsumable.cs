@@ -19,6 +19,6 @@ public class SlowWindowConsumable : ConsumableAbility
     public override void Activate(AbilityContext context)
     {
         context.Runtime.GrantSlowWindow(blocks, slowFactor);
-        SfxPlayer.Play("swoosh_01", 0.75f, 0.05f);
+        SfxPlayer.Play("slowmo_engage", 0.8f, 0.03f);
     }
 }

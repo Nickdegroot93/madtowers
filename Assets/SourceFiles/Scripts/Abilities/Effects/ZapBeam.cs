@@ -28,6 +28,8 @@ public sealed class ZapBeam : MonoBehaviour
     private float _seed;
 
     private SpriteRenderer _core;
+    private SpriteRenderer _targetGlow;   // grows on the victim as the charge builds - the anticipation focus
+    private SpriteRenderer _impactFlare;  // flat horizontal flare at the hit point on fire
     private LineRenderer[] _strands;
     private float[] _offsetFrac;
     private float[] _shade;
@@ -43,6 +45,16 @@ public sealed class ZapBeam : MonoBehaviour
         _core.transform.SetParent(transform, false);
         _core.sprite = RuntimeSprites.SoftVerticalBar(0.18f);
         _core.sortingOrder = SortingOrder + 3;
+
+        _targetGlow = new GameObject("TargetGlow").AddComponent<SpriteRenderer>();
+        _targetGlow.transform.SetParent(transform, false);
+        _targetGlow.sprite = RuntimeSprites.SoftBlob();
+        _targetGlow.sortingOrder = SortingOrder + 4;
+
+        _impactFlare = new GameObject("ImpactFlare").AddComponent<SpriteRenderer>();
+        _impactFlare.transform.SetParent(transform, false);
+        _impactFlare.sprite = RuntimeSprites.SoftHorizontalBar(0.12f);
+        _impactFlare.sortingOrder = SortingOrder + 5;
 
         if (_strandMat == null) _strandMat = new Material(Shader.Find("Sprites/Default"));
         _strands = new LineRenderer[StrandCount];
@@ -82,6 +94,24 @@ public sealed class ZapBeam : MonoBehaviour
         _core.transform.position = new Vector3(BeamX, (TopY + BottomY) * 0.5f, 0f);
         _core.transform.localScale = new Vector3(coreWidth,
             length / Mathf.Max(0.0001f, _core.sprite.bounds.size.y), 1f);
+
+        // Target glow: a pinpoint that swells and brightens on the victim as the charge converges -
+        // the player's eye lands exactly where the payoff will happen. Pops wide with the fire flash.
+        float glowSize = Mathf.Lerp(0.25f, 1.15f, charge * charge) + FireFlash * 1.6f;
+        float pulse = 1f + 0.08f * Mathf.Sin(t * (4f + 8f * charge)); // heartbeat quickens as it charges
+        Color glowCol = Color.Lerp(_color, Color.white, 0.35f + FireFlash * 0.65f);
+        glowCol.a = Mathf.Lerp(0.15f, 0.7f, charge) + FireFlash * 0.3f;
+        _targetGlow.color = glowCol;
+        _targetGlow.transform.position = new Vector3(BeamX, BottomY + 0.06f, 0f);
+        _targetGlow.transform.localScale = new Vector3(glowSize * pulse * 0.5f, glowSize * pulse * 0.35f, 1f);
+
+        // Impact flare: a flat horizontal shockwave sliver that only lives during the fire flash.
+        Color flareCol = Color.Lerp(Color.white, _accent, 0.25f);
+        flareCol.a = FireFlash * 0.9f;
+        _impactFlare.color = flareCol;
+        _impactFlare.transform.position = new Vector3(BeamX, BottomY + 0.03f, 0f);
+        float flareWidth = Mathf.Lerp(0.4f, 3.2f, 1f - FireFlash) * (FireFlash > 0.001f ? 1f : 0f);
+        _impactFlare.transform.localScale = new Vector3(flareWidth / Mathf.Max(0.0001f, _impactFlare.sprite.bounds.size.x), 1f, 1f);
 
         float spread = Mathf.Lerp(WideSpread, 0f, charge);
         float jitter = Mathf.Lerp(MaxJitter, MinJitter, charge);

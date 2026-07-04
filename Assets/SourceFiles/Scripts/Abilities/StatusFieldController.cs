@@ -56,7 +56,7 @@ public sealed class StatusFieldController : MonoBehaviour
 
     private GameObject ShowField(GameObject prefab)
     {
-        SfxPlayer.Play("swoosh_01", 0.55f, 0.05f);
+        SfxPlayer.Play("status_engage", 0.65f, 0.04f);
 
         GameObject effect = Instantiate(prefab); // HS_ScreenEffect parents it to Camera.main and sizes it
         // A prefab can bundle several systems (e.g. a buff + its smoke); they ship as one-shots,

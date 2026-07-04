@@ -54,6 +54,7 @@ public class ApplyVariantConsumable : ConsumableAbility
         context.Spawner.QueueVariantOverride(variant, Mathf.Max(1, count) - 1);
 
         Vfx.Spawn(transformEffect, active.transform.position, transformScale); // null-safe
+        TransmutePulseFx.Play(active);
         ImpactFx.ImpactPunch(0.03f, 0.08f, 0.12f);
         SfxPlayer.Play("transmute", 0.9f);
     }

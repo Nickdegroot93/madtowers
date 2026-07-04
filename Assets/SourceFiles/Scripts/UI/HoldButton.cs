@@ -136,7 +136,7 @@ public class HoldButton : MonoBehaviour
         _shown = true;
         _button.SetActive(true);
         Punch(); // pop in
-        SfxPlayer.Play("swoosh_01", 0.55f, 0.05f);
+        SfxPlayer.Play("flip_swap", 0.55f, 0.06f);
 
         // Sync the dim state up front so the button doesn't show a full-alpha, interactable frame
         // before the first Update if a hold isn't currently allowed (a tap there would dead-no-op).

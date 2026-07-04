@@ -183,9 +183,17 @@ License: CC0, CC-BY (credits screen later), or owned.
 
 ## 9. Sound effects
 
-**Generated, not sourced** — `Tools/generate_sfx.py` synthesizes the SFX (16-bit WAVs)
-into `Assets/Resources/Audio/Sfx/`; playback goes through `SfxPlayer`
-(pooled, cached, pitch-jittered one-shots). Iterate by tweaking the parameter dicts,
+**Generated, not sourced** — two generators, one folder, one player:
+- `Tools/generate_elevenlabs_sfx.py` — **the ability/impact SFX library** (July 2026):
+  AI-generated with the ElevenLabs sound-generation API from a per-sound prompt table with
+  duration matched to the gameplay moment (e.g. `zap_charge` is exactly ZapSession's 3.0 s).
+  `export ELEVENLABS_API_KEY=…` then `python3 Tools/generate_elevenlabs_sfx.py`
+  (`--only <name>` regenerates one sound — THE tuning loop: tweak prompt, regen, listen).
+  Destruction sounds are per-cause (`shatter_zap/bomb/sacrifice/generic`, `maw_crunch`) and
+  routed via `ImpactFx.DestroyBlockWithShatter(..., sfx:)`. Never hardcode/commit the key.
+- `Tools/generate_sfx.py` — the older stdlib synth (landing thumps, nudges, swooshes).
+Playback goes through `SfxPlayer` (pooled, cached, pitch-jittered one-shots; charge-style
+clips are played with 0 jitter so their length stays synced to the visual). Iterate by tweaking the parameter dicts,
 rerunning, and previewing with `afplay` — no Unity needed. Current set: two
 flick-drop impact variants (the picked "round 2" recipe), `impact_soft_01` —
 the quiet dull thud (now wired as Zap's wasted-shot feedback; must stay

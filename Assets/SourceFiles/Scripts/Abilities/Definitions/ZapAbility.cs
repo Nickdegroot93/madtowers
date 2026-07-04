@@ -42,8 +42,10 @@ public class ZapAbility : ConsumableAbility
         BlockController active = BlockController.ActiveControlled;
         if (active != null)
         {
-            ImpactFx.BurstFromEveryCell(active, detonateEffect, detonateScale * 0.6f); // piece blinks out
-            SfxPlayer.Play("swoosh_01", 0.7f, 0.04f);
+            // The piece DEMATERIALIZES into the beam (soft rising shimmer), it does not explode -
+            // the kill burst is reserved for the target block so the two moments read differently.
+            DematerializeFx.Spawn(active);
+            SfxPlayer.Play("zap_dematerialize", 0.7f, 0.04f);
         }
 
         ZapSession.Begin(context.Spawner, detonateEffect, detonateScale, beamColor, accentColor);

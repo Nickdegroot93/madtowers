@@ -54,6 +54,7 @@ public class SacrificeAbility : PassiveAbility
         GameObject go = new GameObject("SacrificeLaserLine");
         _laserLine = go.AddComponent<SacrificeLaserLine>();
         _laserLine.Configure(laserColor);
+        SfxPlayer.Play("laser_line_on", 0.65f, 0.04f);
     }
 
     private BlockController FindTopmostTowerBlockExcept(BlockController excluded)
@@ -84,7 +85,7 @@ public class SacrificeAbility : PassiveAbility
         {
             BlockShatterFx.Spawn(bounds, laserColor);
         }
-        SfxPlayer.Play("impact_shatter_01", 0.85f, 0.06f);
+        SfxPlayer.Play("shatter_sacrifice", 0.85f, 0.05f);
         GameEvents.RaiseBlockDestroyed(block);
         Object.Destroy(block.gameObject);
     }

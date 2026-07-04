@@ -61,7 +61,7 @@ public class HardlineAbility : PassiveAbility
         }
 
         ImpactFx.BurstFromEveryCell(block, catchEffect, catchEffectScale);
-        SfxPlayer.Play("swoosh_01", 0.75f, 0.05f);
+        SfxPlayer.Play("hardline_catch", 0.8f, 0.04f);
         ImpactFx.ImpactPunch(0.035f, 0.11f, 0.12f);
         return true;
     }
@@ -73,6 +73,7 @@ public class HardlineAbility : PassiveAbility
         GameObject go = new GameObject("HardlineLaserLine");
         _laserLine = go.AddComponent<SacrificeLaserLine>();
         _laserLine.Configure(laserColor, laserYOffset, laserSortingOrder, LaserAccent);
+        SfxPlayer.Play("laser_line_on", 0.65f, 0.04f);
     }
 
     private bool TryPlanPlatform(BlockController block, float catchY, out Vector3 targetPosition, out float targetAngle)

@@ -77,6 +77,11 @@ public sealed class ZapSession : AbilitySessionBase
             return;
         }
 
+        // The charge sound is authored at EXACTLY ChargeDuration (3.0 s, ElevenLabs) - it builds
+        // to the verge of firing in sync with the beam converging. No pitch jitter: jitter would
+        // desync its length from the visual charge.
+        SfxPlayer.Play("zap_charge", 0.75f, 0f);
+
         _beam = new GameObject("ZapBeam").AddComponent<ZapBeam>();
         _beam.Configure(color, accent);
         UpdateBeam();
@@ -168,12 +173,17 @@ public sealed class ZapSession : AbilitySessionBase
             if (body == null || body.bodyType != RigidbodyType2D.Dynamic) continue;
             BlockController bc = col.GetComponentInParent<BlockController>();
             if (bc == null || !bc.HasLanded) continue;
-            if (_hits[i].distance < bestDist) { bestDist = _hits[i].distance; best = bc; }
+            if (_hits[i].distance < bestDist) { bestDist = _hits[i].distance; best = bc; _bestHitCollider = col; }
         }
 
-        bottomY = best != null && best.TryGetWorldBounds(out Bounds b) ? b.max.y : floorY + 1f;
+        // Endpoint = the top of the CELL the beam actually hits, not the whole piece's bounds -
+        // a piece whose tallest cell sits in another column used to pull the beam up a full row,
+        // leaving a visible gap between beam tip and the brick under it.
+        bottomY = best != null && _bestHitCollider != null ? _bestHitCollider.bounds.max.y : floorY + 1f;
         return best;
     }
+
+    private Collider2D _bestHitCollider;
 
     private void Fire()
     {
@@ -185,12 +195,12 @@ public sealed class ZapSession : AbilitySessionBase
         {
             ImpactFx.BurstFromEveryCell(_target, _detonateEffect, _detonateScale);
             ImpactFx.ImpactPunch(0.05f, 0.12f, 0.16f);
-            SfxPlayer.Play("impact_shatter_01", 0.9f, 0.05f);
-            ImpactFx.DestroyBlockWithShatter(_target, new Color(0.5f, 0.8f, 1f, 1f));
+            SfxPlayer.Play("zap_fire", 0.9f, 0.03f);
+            ImpactFx.DestroyBlockWithShatter(_target, new Color(0.5f, 0.8f, 1f, 1f), sfx: null);
         }
         else
         {
-            SfxPlayer.Play("impact_soft_01", 0.6f, 0.06f); // empty column - the shot reads as a dud
+            SfxPlayer.Play("zap_dud", 0.65f, 0.05f); // empty column - the shot reads as a dud
         }
     }
 

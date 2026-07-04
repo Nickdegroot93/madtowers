@@ -123,7 +123,7 @@ public sealed class RescueLift : MonoBehaviour
         {
             Vfx.Spawn(_burstEffect, transform.position, _cellSize * _burstScale);
         }
-        SfxPlayer.Play("swoosh_01", 0.7f, 0.06f);
+        SfxPlayer.Play("rescue_beam", 0.75f, 0.04f);
     }
 
     private void SetBodyAlpha(float a)

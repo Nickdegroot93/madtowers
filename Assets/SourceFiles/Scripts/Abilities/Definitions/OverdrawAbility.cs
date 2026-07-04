@@ -37,7 +37,7 @@ public class OverdrawAbility : ConsumableAbility
 
         ImpactFx.BurstFromEveryCell(active, vanishEffect, vanishScale);
         ImpactFx.ImpactPunch(0.045f, 0.08f, 0.12f);
-        SfxPlayer.Play("swoosh_01", 0.65f, 0.05f);
+        SfxPlayer.Play("overdraw_open", 0.7f, 0.04f);
 
         OverdrawSession.Begin(context.Spawner, choiceCount);
     }

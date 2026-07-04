@@ -15,8 +15,10 @@ using UnityEngine;
 public static class ImpactFx
 {
     /// <summary>Destroy a block with the standard shatter presentation. The caller owns the
-    /// decision; this owns the consistent look/sound and the board accounting.</summary>
-    public static void DestroyBlockWithShatter(BlockController block, Color tint)
+    /// decision; this owns the consistent look and the board accounting. <paramref name="sfx"/>
+    /// names the destruction sound so every CAUSE sounds like itself (shatter_generic default,
+    /// maw_crunch for a devour, ...); pass null when the caller plays its own (Zap's zap_fire).</summary>
+    public static void DestroyBlockWithShatter(BlockController block, Color tint, string sfx = "shatter_generic")
     {
         if (block == null) return;
 
@@ -24,7 +26,7 @@ public static class ImpactFx
         {
             BlockShatterFx.Spawn(bounds, tint);
         }
-        SfxPlayer.Play("impact_soft_01", 0.7f, 0.06f);
+        if (!string.IsNullOrEmpty(sfx)) SfxPlayer.Play(sfx, 0.75f, 0.05f);
         // A destroyed placed block is one fewer block on the board.
         GameEvents.RaiseBlockDestroyed(block);
         Object.Destroy(block.gameObject);

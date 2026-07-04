@@ -14,15 +14,22 @@ public sealed class SacrificeLaserLine : MonoBehaviour
     // and deliberately stays in front (a momentary destructive bang).
     private const int DefaultSortingOrder = -10;
 
+    // Four coherent layers breathing SLOWLY and in phase (one confident line, not six nervous
+    // ones): a wide ambient glow, a soft body, a hot core and a bright needle. Life comes from
+    // the travelling energy pulses below, never from jitter.
     private readonly BeamLayer[] _layers =
     {
-        new BeamLayer("OuterGlow", 0.54f, 0f, 0.055f, 4.3f, 0.3f, 0.10f, 0.22f, 0.05f, 0.45f, -2),
-        new BeamLayer("BlueBody", 0.24f, 0f, 0.032f, 5.4f, 1.2f, 0.20f, 0.38f, 0.15f, 0.55f, -1),
-        new BeamLayer("UpperFilament", 0.055f, 0.08f, 0.045f, 7.6f, 2.1f, 0.36f, 0.66f, 0.35f, 0.82f, 0),
-        new BeamLayer("LowerFilament", 0.05f, -0.075f, 0.04f, 8.1f, 4.0f, 0.34f, 0.62f, 0.10f, 0.75f, 0),
-        new BeamLayer("HotCore", 0.038f, 0f, 0.024f, 9.2f, 5.7f, 0.74f, 0.96f, 0.55f, 0.98f, 1),
-        new BeamLayer("Needle", 0.018f, 0.012f, 0.018f, 11.5f, 3.5f, 0.54f, 0.82f, 0.78f, 1f, 2),
+        new BeamLayer("OuterGlow", 0.52f, 0f, 0.010f, 1.1f, 0f, 0.10f, 0.16f, 0.05f, 0.45f, -2),
+        new BeamLayer("Body",      0.20f, 0f, 0.006f, 1.1f, 0f, 0.24f, 0.34f, 0.15f, 0.55f, -1),
+        new BeamLayer("HotCore",   0.05f, 0f, 0.004f, 1.1f, 0f, 0.70f, 0.85f, 0.55f, 0.95f, 1),
+        new BeamLayer("Needle",    0.02f, 0f, 0.000f, 1.1f, 0f, 0.80f, 0.95f, 0.85f, 1f, 2),
     };
+
+    // Bright short dashes drifting along the line: the "energy is flowing" read.
+    private const int PulseCount = 3;
+    private const float PulseSpan = 22f;      // world units of drift range around the camera
+    private const float PulseSpeed = 3.2f;
+    private readonly SpriteRenderer[] _pulses = new SpriteRenderer[PulseCount];
 
     private Color _color;
     private Color _accentColor;
@@ -39,6 +46,17 @@ public sealed class SacrificeLaserLine : MonoBehaviour
         for (int i = 0; i < _layers.Length; i++)
         {
             _layers[i].Create(transform, _color, _accentColor, sortingOrder);
+        }
+
+        for (int i = 0; i < PulseCount; i++)
+        {
+            var go = new GameObject("EnergyPulse");
+            go.transform.SetParent(transform, false);
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = RuntimeSprites.SoftHorizontalBar(0.06f);
+            sr.sortingOrder = sortingOrder + 3;
+            sr.transform.localScale = new Vector3(90f, 1f, 1f); // a short bright dash (~1.3 world units)
+            _pulses[i] = sr;
         }
     }
 
@@ -57,12 +75,26 @@ public sealed class SacrificeLaserLine : MonoBehaviour
         if (cam == null) return;
 
         float t = Time.time + _phaseOffset;
-        float mainWobble = Mathf.Sin(t * 3.6f) * 0.018f + Mathf.Sin(t * 6.1f + 1.4f) * 0.01f;
-        transform.position = new Vector3(cam.transform.position.x, LossZone.CurrentLossLineY(cam) + _verticalOffset + mainWobble, 0f);
+        float breath = Mathf.Sin(t * 1.1f) * 0.008f; // one slow calm breath, no jitter
+        transform.position = new Vector3(cam.transform.position.x, LossZone.CurrentLossLineY(cam) + _verticalOffset + breath, 0f);
 
         for (int i = 0; i < _layers.Length; i++)
         {
             _layers[i].Update(_color, _accentColor, t);
+        }
+
+        // Energy pulses drift steadily along the line and soft-fade near their turnaround.
+        for (int i = 0; i < PulseCount; i++)
+        {
+            SpriteRenderer pulse = _pulses[i];
+            if (pulse == null) continue;
+            float cycle = Mathf.Repeat(t * PulseSpeed + i * (PulseSpan / PulseCount), PulseSpan);
+            float x = cycle - PulseSpan * 0.5f;
+            pulse.transform.localPosition = new Vector3(x, 0f, 0f);
+            float edgeFade = Mathf.InverseLerp(0f, 2.5f, Mathf.Min(cycle, PulseSpan - cycle));
+            Color c = Color.Lerp(_color, Color.white, 0.75f);
+            c.a = 0.85f * edgeFade;
+            pulse.color = c;
         }
     }
 

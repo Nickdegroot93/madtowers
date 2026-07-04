@@ -20,7 +20,7 @@ public class FlipAbility : ConsumableAbility
 
         if (context.Spawner.SwapActiveWithNextQueued())
         {
-            SfxPlayer.Play("swoosh_01", 0.72f, 0.04f);
+            SfxPlayer.Play("flip_swap", 0.72f, 0.05f);
         }
     }
 }

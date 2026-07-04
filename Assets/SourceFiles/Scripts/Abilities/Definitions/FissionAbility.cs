@@ -45,7 +45,7 @@ public class FissionAbility : ConsumableAbility
         // hand off to the session which spawns shard #1 in its place and floats the rest.
         ImpactFx.BurstFromEveryCell(active, splitEffect, splitScale);
         ImpactFx.ImpactPunch();
-        SfxPlayer.Play("impact_shatter_01", 0.85f, 0.06f);
+        SfxPlayer.Play("fission_split", 0.85f, 0.04f);
 
         FissionSession.Begin(context.Spawner, pipDefinition, cells);
     }

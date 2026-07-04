@@ -30,7 +30,7 @@ public class TransmuteAbility : ConsumableAbility
         if (context.Spawner.ReplaceActivePiece(targetShape))
         {
             BlockController piece = BlockController.ActiveControlled;
-            if (piece != null) Vfx.Spawn(transformEffect, piece.transform.position, transformScale);
+            if (piece != null) { Vfx.Spawn(transformEffect, piece.transform.position, transformScale); TransmutePulseFx.Play(piece); }
             SfxPlayer.Play("transmute", 0.9f);
         }
     }

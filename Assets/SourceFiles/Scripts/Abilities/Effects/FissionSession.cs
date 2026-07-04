@@ -29,10 +29,10 @@ public sealed class FissionSession : AbilitySessionBase
 
     private const float GhostScale = 0.62f;
     private const float GhostAlpha = 0.72f;
-    private const float HudClearanceCells = 0.65f;   // queue row sits this far BELOW the HUD bottom
+    private const float HudClearanceCells = 2.1f;    // queue row sits this far BELOW the HUD bottom (clear of the top bar, over the playfield)
     private const float QueueToDropCells = 1.2f;      // drop slot sits this far below the queue row
     private const float QueueSpacingCells = 0.82f;   // horizontal gap between queued shards
-    private const float HoverAmplitude = 0.06f;      // floating up/down bob
+    private const float HoverAmplitude = 0.035f;     // floating up/down bob (calm, not jittery)
     private const float HoverSpeed = 3.1f;
     private const float ReflowLerp = 13f;            // how briskly the row recenters when one leaves
     private const float FlyInSeconds = 0.2f;         // front ghost gliding into the drop slot
@@ -48,9 +48,16 @@ public sealed class FissionSession : AbilitySessionBase
     private float _queueWorldY;
     private float _dropWorldY;
 
-    // The active drop slot: play-area centre X (the spawn column) at the resolved drop height.
+    // The presentation is centred on the SCREEN (live camera X), not the spawn column: the camera
+    // frames the tower span, so the spawn column can sit visibly off-centre - the shard queue
+    // hovering there read as misplaced. The spawned shard is steerable, so dropping from the
+    // screen-centre column is exactly as playable as any normal spawn.
+    private float CenterX => Camera.main != null
+        ? Camera.main.transform.position.x
+        : (_spawner != null ? _spawner.SpawnPosition.x : 0f);
+
     private Vector3 DropPos => new Vector3(
-        _spawner != null ? _spawner.SpawnPosition.x : 0f,
+        CenterX,
         _dropWorldY,
         _spawner != null ? _spawner.SpawnPosition.z : 0f);
 
@@ -157,7 +164,7 @@ public sealed class FissionSession : AbilitySessionBase
 
             ConsumeFrontGhost();
             _shardsRemaining--;
-            SfxPlayer.Play("swoosh_01", 0.6f, 0.06f);
+            SfxPlayer.Play("fission_feed", 0.6f, 0.06f);
         }
         else
         {
@@ -257,8 +264,7 @@ public sealed class FissionSession : AbilitySessionBase
     private Vector3 SlotPosition(int index, int liveCount)
     {
         float totalWidth = Mathf.Max(0, liveCount - 1) * QueueSpacingCells;
-        float centerX = _spawner != null ? _spawner.SpawnPosition.x : 0f;
-        float x = centerX - totalWidth * 0.5f + index * QueueSpacingCells;
+        float x = CenterX - totalWidth * 0.5f + index * QueueSpacingCells;
         return new Vector3(x, _queueWorldY, _spawner != null ? _spawner.SpawnPosition.z : 0f);
     }
 

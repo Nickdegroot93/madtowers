@@ -70,7 +70,7 @@ public class BombBlockBehaviour : MonoBehaviour
             ? selfBounds.center : transform.position;
         Vfx.Spawn(_explosionEffect, center, _explosionScale);
         ImpactFx.ImpactPunch();
-        SfxPlayer.Play("impact_shatter_01", 0.9f, 0.06f);
+        SfxPlayer.Play("shatter_bomb", 0.95f, 0.04f);
 
         // Each destroyed block (and the bomb itself) leaves the board, so drop it from the live
         // placed-block total - same accounting as any block destruction or a fall-off (BLOCKS.md). Neighbours

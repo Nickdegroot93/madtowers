@@ -16,7 +16,7 @@ public class WardPowerUp : PassiveAbility
         if (data == null || !data.IsHazard) return false;                 // only act on a real hazard
         if (!AbilityEffects.NeutralizeToPlain(context, block)) return false; // and only spend if it actually defused
 
-        SfxPlayer.Play("pop_01", 0.7f, 0.05f); // soft cue that a ward fired
+        SfxPlayer.Play("ward_absorb", 0.75f, 0.04f); // the ward audibly absorbs the hazard
         return true; // consume the one charge
     }
 

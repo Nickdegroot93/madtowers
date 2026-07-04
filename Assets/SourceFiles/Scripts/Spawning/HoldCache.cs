@@ -115,7 +115,7 @@ public class HoldCache : MonoBehaviour
 
         _usedThisPiece = true;
         HeldChanged?.Invoke(_held);
-        SfxPlayer.Play("swoosh_01", 0.7f, 0.06f);
+        SfxPlayer.Play("flip_swap", 0.7f, 0.06f);
         return true;
     }
 }

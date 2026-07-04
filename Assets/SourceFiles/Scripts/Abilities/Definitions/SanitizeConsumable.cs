@@ -46,6 +46,7 @@ public class SanitizeConsumable : ConsumableAbility
         if (!AbilityEffects.NeutralizeToPlain(context, active)) return;
 
         Vfx.Spawn(transformEffect, active.transform.position, transformScale); // null-safe
+        TransmutePulseFx.Play(active);
         SfxPlayer.Play("transmute", 0.9f);
     }
 }
