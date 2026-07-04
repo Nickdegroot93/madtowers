@@ -178,6 +178,10 @@ public static class CustomGameMenu
         Header(panel, "Play Area");
         RuntimeUiKit.CreateStepperRow(panel, "Floor width (columns)", _settings.FloorColumns, 1f, 21f, 1f, "0",
             v => _settings.FloorColumns = Mathf.RoundToInt(v));
+        // Terrain preset shown by name; the stepper drives the index (see CustomGameSettings.FloorShapeNames).
+        RuntimeUiKit.CreateStepperRow(panel, "Floor shape (0=Flat 1=Steps 2=Valley 3=Twin 4=Trio)",
+            _settings.FloorShape, 0f, CustomGameSettings.FloorShapeNames.Length - 1, 1f, "0",
+            v => _settings.FloorShape = Mathf.RoundToInt(v));
     }
 
     private static void BuildSpawningSection(Transform panel)

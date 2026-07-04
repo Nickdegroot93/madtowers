@@ -38,7 +38,7 @@ LevelDefinition  (Assets/Resources/Levels/  — one per level)
  │   the progress-scaled rarity odds of offers; see ABILITIES.md §7)
  └─ GameModeConfig  (Assets/Resources/GameModes/  — the entire rule set)
      ├─ Difficulty: fall speed start/ramp/cap, lives, spawn delay
-     ├─ Floor: segments (position + width — gaps and multiple towers possible)
+     ├─ Floor: segments (span + heights + pockets — pillars, stairs, valleys, niches; FLOORS.md)
      ├─ Block bag: which BlockDefinitions are in play, and how many copies each
      │    └─ BlockDefinition → shape prefab + default BlockData variant
      ├─ Ambient variant chances: % rolls that replace spawns with a variant
@@ -262,7 +262,7 @@ jungle gameplay backdrop, jungle skin folder, jungle A/B music
 ### Floor & play area
 | Setting | What it does |
 |---|---|
-| `floorSegments` | List of (centerColumn, columnCount). One wide segment = classic. One narrow = Narrow mode. **Multiple segments = islands with gaps / build two towers.** |
+| `floorSegments` | The level's terrain: per-segment column span, base height, per-column height steps, carved nudge-in pockets — flat strips, stairs, valleys, pillars, side niches, all pure data. **Full field reference, worked examples and rules: [FLOORS.md](FLOORS.md) (binding).** |
 | `gridSpacing` | Cell size. Leave at 1 unless everything else is retuned. |
 | `horizontalPlacementBufferColumns` | How far past the tower/floor edge the player may steer. Floored in code at `BlockController.WidestBlockColumns` (4): the effective reach is `max(this, 4)` so the widest block (horizontal 1×4) can always slip down the outer side of any obstacle — block **or** sky island — and fall off. Islands count toward this reach (PHYSICS.md). |
 
@@ -384,6 +384,15 @@ a chapter's `levels` array at the position it should play. The menu groups by ch
    Locks/unlocks and menu placement come automatically from `sortOrder` + completion.
 6. Run `Tools > MadTowers > Validate Chapter Content` before committing. Fix errors;
    warnings are intentional review prompts (for example, WAV music or orphan levels).
+
+## Floor terrain (see FLOORS.md — binding)
+
+Floors are pure data on the mode asset: `floorSegments` = per-segment column span,
+base height, per-column height steps, and carved nudge-in pockets — flat strips, stairs,
+valleys, free-standing pillars, side niches. Per-chapter looks and the fog are generated.
+Randomized floors: `ProceduralFloorModifier` (constraints in, fresh layout per run).
+**The complete authoring guide, field reference, worked examples, physics contract and
+procedural recipe live in [FLOORS.md](FLOORS.md)** — point any new-level work there.
 
 **"1-grid floor, stack 5" level:** mode with `floorSegments: columnCount 1` + level with
 `targetType: PlaceBlocks`, `targetValue: 5`. Pure settings — no code.

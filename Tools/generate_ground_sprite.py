@@ -171,12 +171,110 @@ def remove_legacy(theme):
                 print(f"removed {path}")
 
 
+def _hash01(*vals):
+    h = 2166136261
+    for v in vals:
+        h = ((h ^ int(v)) * 16777619) & 0xffffffff
+    return (h % 10000) / 10000.0
+
+
+def render_ground_fill(theme, base, mortar_factor=0.32, tone_var=0.10):
+    """Seamless 1x1-unit masonry tile (128x128) the grounded floor COLUMNS are built from
+    (FloorTerrain tiles it from each run's top down into the fog). Running-bond bricks,
+    64x32 px (0.5 x 0.25 u), classic 2:1 - the same carved language as the piece sprites:
+    dark mortar joints, per-brick tone steps, a top-lit bevel per brick, fine grain.
+    Both axes are periodic so any column height/width tiles cleanly."""
+    S, COURSE, BRICK, MORTAR = 128, 32, 64, 4
+    px = bytearray(S * S * 4)
+    mortar_col = tuple(c * mortar_factor for c in base)
+    for y in range(S):
+        course = y // COURSE
+        yy = y % COURSE
+        offset = (course % 2) * (BRICK // 2)
+        for x in range(S):
+            xs = (x + offset) % S
+            brick_col_idx = xs // BRICK
+            xx = xs % BRICK
+            in_mortar = yy < MORTAR or xx < MORTAR
+            if in_mortar:
+                r, g, b = mortar_col
+            else:
+                tone = 1.0 + (_hash01(hash(theme) & 0xffff, course, brick_col_idx) - 0.5) * 2 * tone_var
+                f = tone
+                # Top-lit bevel inside the brick face (light from straight above, STYLE.md).
+                if yy < MORTAR + 5:
+                    f *= 1.16
+                elif yy >= COURSE - 4:
+                    f *= 0.86
+                if xx < MORTAR + 3:
+                    f *= 1.05
+                elif xx >= BRICK - 3:
+                    f *= 0.94
+                # Sparse pits for wear.
+                if _hash01(hash(theme) & 0xffff, x * 7, y * 13) > 0.985:
+                    f *= 0.72
+                f *= grain(x, y)
+                r, g, b = (base[0] * f, base[1] * f, base[2] * f)
+            o = (y * S + x) * 4
+            px[o] = min(255, max(0, int(r)))
+            px[o + 1] = min(255, max(0, int(g)))
+            px[o + 2] = min(255, max(0, int(b)))
+            px[o + 3] = 255
+    out_dir = os.path.join(SKINS_DIR, theme)
+    out = os.path.abspath(os.path.join(out_dir, "ground_fill.png"))
+    write_png(out, S, S, px)
+    print(f"{out}  ({S}x{S})")
+
+
+def render_ground_cap(theme, cap, fleck=None, fleck_chance=0.0):
+    """Walkable cap band (256x64 = 2 x 0.5 u, horizontally seamless) FloorTerrain lays along
+    every floor-run top: a near-black baked outline at the very top (the landable line), a
+    top-lit band in the cap colour, and a scalloped lower edge (period 32 px, jittered per
+    scallop) that hangs over the masonry with a shadow lip - grass/moss/sand per theme.
+    Optional flecks (petals, grains) scatter inside the band."""
+    W, H, OUTLINE = 256, 64, 6
+    px = bytearray(W * H * 4)
+    outline_col = tuple(c * 0.22 for c in cap)
+    for x in range(W):
+        scallop = x // 32
+        jitter = (_hash01(hash(theme) & 0xffff, scallop) - 0.5) * 10
+        import math as _m
+        edge = 40 + 8 * _m.sin(x * _m.tau / 32.0) + jitter
+        for y in range(H):
+            o = (y * W + x) * 4
+            if y < OUTLINE:
+                r, g, b, a = (*outline_col, 255)
+            elif y < edge:
+                f = 1.14 - 0.30 * ((y - OUTLINE) / max(1.0, edge - OUTLINE))
+                f *= 1.0 + (_hash01(hash(theme) & 0xffff, x // 16, 3) - 0.5) * 0.10
+                f *= grain(x, y)
+                r, g, b = (cap[0] * f, cap[1] * f, cap[2] * f)
+                # Shadow lip along the scalloped edge.
+                if y > edge - 4:
+                    r, g, b = (r * 0.62, g * 0.62, b * 0.62)
+                if fleck is not None and _hash01(hash(theme) & 0xffff, x * 3, y * 5) > 1.0 - fleck_chance:
+                    r, g, b = fleck
+                a = 255
+            else:
+                r, g, b, a = (0, 0, 0, 0)
+            px[o] = min(255, max(0, int(r)))
+            px[o + 1] = min(255, max(0, int(g)))
+            px[o + 2] = min(255, max(0, int(b)))
+            px[o + 3] = a
+    out_dir = os.path.join(SKINS_DIR, theme)
+    out = os.path.abspath(os.path.join(out_dir, "ground_cap.png"))
+    write_png(out, W, H, px)
+    print(f"{out}  ({W}x{H})")
+
+
 if __name__ == "__main__":
-    # Classic: chunky beveled stone blocks
+    # Classic: chunky beveled stone blocks; masonry columns in the same stone family.
     STONE = (148, 142, 132)
     render_plateau("Classic", STONE, line=tuple(v * 0.30 for v in STONE),
                    blocks=2, bevel=0.12, tone_steps=(1.0, 0.93))
     render_islands("Classic", STONE, line=tuple(v * 0.30 for v in STONE))
+    render_ground_fill("Classic", (124, 116, 104))
+    render_ground_cap("Classic", (172, 164, 148))
     remove_legacy("Classic")
 
     # Sakura Ridge: indigo stone with a sakura-coral cap. Dark enough to separate
@@ -184,6 +282,8 @@ if __name__ == "__main__":
     render_plateau("Japan", (74, 75, 116), line=(34, 34, 62),
                    blocks=1, top=(232, 145, 138), top_h=24)
     render_islands("Japan", (74, 75, 116), line=(34, 34, 62))
+    render_ground_fill("Japan", (88, 90, 128))
+    render_ground_cap("Japan", (150, 168, 128), fleck=(232, 145, 152), fleck_chance=0.010)
     remove_legacy("Japan")
 
     # Desert: sun-baked terracotta capped with wind-blown sand - the floor belongs to
@@ -191,6 +291,8 @@ if __name__ == "__main__":
     render_plateau("Desert", (206, 118, 82),
                    blocks=1, top=(243, 190, 132))
     render_islands("Desert", (206, 118, 82))
+    render_ground_fill("Desert", (182, 118, 78))
+    render_ground_cap("Desert", (238, 192, 124), fleck=(210, 158, 96), fleck_chance=0.012)
     remove_legacy("Desert")
 
     # Jungle: damp dark stone capped with moss, matching the imported jungle layers
@@ -198,4 +300,6 @@ if __name__ == "__main__":
     render_plateau("Jungle", (74, 103, 76), line=(35, 55, 43),
                    blocks=1, top=(83, 151, 79), top_h=30)
     render_islands("Jungle", (74, 103, 76), line=(35, 55, 43))
+    render_ground_fill("Jungle", (82, 104, 80))
+    render_ground_cap("Jungle", (96, 158, 74), fleck=(140, 196, 96), fleck_chance=0.012)
     remove_legacy("Jungle")

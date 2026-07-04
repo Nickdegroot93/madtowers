@@ -1,39 +1,29 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Owns the level's floor. The scene's legacy "Base Platform" bar is now only the DATUM anchor -
+/// its top edge defines floor height 0 (the origin for tower height, islands and backdrop
+/// anchoring) - while the actual landable terrain (colliders + grounded visuals + fog) is built by
+/// <see cref="FloorTerrain"/> from the active GameModeConfig's FloorSegmentConfigs: flat strips,
+/// steps, valleys or free-standing pillars, all grounded to the bottom of the screen.
+/// The bar's own renderer and collider are disabled at runtime; keeping the object lets old scenes
+/// and the height systems keep their reference point without migration.
+/// </summary>
 public class PlayAreaController : MonoBehaviour
 {
-    [System.Serializable]
-    private sealed class FloorSegmentBinding
-    {
-        [SerializeField] private Transform floorTransform;
-        [SerializeField] private int configIndex = 0;
-        [SerializeField] private int fallbackCenterColumn = 0;
-        [Min(1)]
-        [SerializeField] private int fallbackColumnCount = 9;
-
-        public Transform FloorTransform => floorTransform;
-        public int ConfigIndex => Mathf.Max(0, configIndex);
-        public int FallbackCenterColumn => fallbackCenterColumn;
-        public int FallbackColumnCount => Mathf.Max(1, fallbackColumnCount);
-    }
-
     [SerializeField] private GameModeConfig gameModeConfig;
-    [SerializeField] private FloorSegmentBinding[] floorSegments;
     [SerializeField] private Transform floorTransform;
     [SerializeField] private int fallbackCenterColumn = 0;
     [Min(1)]
     [SerializeField] private int fallbackColumnCount = 9;
-    [Tooltip("Pulls the floor's collider in by this many world units per side (the green visual is unchanged, so it still spans exactly its configured columns). Matches the block collider inset so pieces don't snag on the floor's top corners. Set to 0 to disable.")]
+    [Tooltip("Pulls each floor run's collider in by this many world units per side so pieces don't snag on top corners (PHYSICS.md section 3). The visual spans the configured columns exactly.")]
     [SerializeField] private float floorColliderEdgeInset = 0.03f;
-    [Tooltip("Friction applied to the floor so blocks grip it instead of sliding. Should roughly match the block friction.")]
+    [Tooltip("Friction applied to the floor so blocks grip it instead of sliding. Should roughly match the block friction (PHYSICS.md section 3).")]
     [Range(0f, 1f)]
     [SerializeField] private float floorFriction = 0.95f;
 
-    [Tooltip("Sorting order of the plateau skin: behind blocks (0), in front of the chapter background (-100).")]
-    [SerializeField] private int groundSkinSortingOrder = -50;
-
-    private PhysicsMaterial2D _floorMaterial;
+    private FloorTerrain _terrain;
 
     private void Awake()
     {
@@ -43,190 +33,74 @@ public class PlayAreaController : MonoBehaviour
     public void ApplyConfig()
     {
         GameModeConfig activeConfig = LevelSelectionState.ResolveGameMode(gameModeConfig);
-        IReadOnlyList<FloorSegmentConfig> configuredSegments = activeConfig != null
-            ? activeConfig.FloorSegments
-            : null;
+        float gridSpacing = activeConfig != null ? activeConfig.GridSpacing : 1f;
 
-        if (floorSegments != null && floorSegments.Length > 0)
-        {
-            for (int i = 0; i < floorSegments.Length; i++)
-            {
-                FloorSegmentBinding binding = floorSegments[i];
-                if (binding == null) continue;
+        IReadOnlyList<FloorSegmentConfig> segments =
+            activeConfig != null && activeConfig.FloorSegments != null && activeConfig.FloorSegments.Count > 0
+                ? activeConfig.FloorSegments
+                : new[] { new FloorSegmentConfig(fallbackCenterColumn, fallbackColumnCount) };
 
-                Transform target = binding.FloorTransform != null ? binding.FloorTransform : transform;
-                FloorSegmentConfig segment = GetConfiguredSegment(configuredSegments, binding.ConfigIndex);
-                ApplySegment(
-                    target,
-                    segment,
-                    binding.FallbackCenterColumn,
-                    binding.FallbackColumnCount,
-                    activeConfig);
-            }
+        float datumY = ResolveDatumY();
+        DisableLegacyBar();
 
-            return;
-        }
-
-        Transform singleFloorTransform = floorTransform != null ? floorTransform : transform;
-        ApplySegment(
-            singleFloorTransform,
-            GetConfiguredSegment(configuredSegments, 0),
-            fallbackCenterColumn,
-            fallbackColumnCount,
-            activeConfig);
+        _terrain = FloorTerrain.Build(
+            _terrain, segments, datumY, gridSpacing, floorColliderEdgeInset, floorFriction, ResolveFogColor());
     }
 
-    /// <summary>World Y of the floor's top surface - the origin for tower height in meters.</summary>
+    /// <summary>World Y of the floor datum (height-0 top surface) - the origin for tower height in
+    /// meters. Raised terrain columns sit above this; the datum is always the lowest landable
+    /// surface, so every consumer of a single "floor Y" keeps its meaning.</summary>
     public bool TryGetFloorTopWorldY(out float floorTopY)
     {
-        floorTopY = 0f;
-        Transform target = floorTransform != null ? floorTransform : transform;
-        if (floorSegments != null && floorSegments.Length > 0 && floorSegments[0] != null &&
-            floorSegments[0].FloorTransform != null)
-        {
-            target = floorSegments[0].FloorTransform;
-        }
-
-        Collider2D floorCollider = target.GetComponent<Collider2D>();
-        if (floorCollider == null) return false;
-
-        floorTopY = floorCollider.bounds.max.y;
+        floorTopY = ResolveDatumY();
         return true;
     }
 
-    private FloorSegmentConfig GetConfiguredSegment(IReadOnlyList<FloorSegmentConfig> configuredSegments, int index)
+    // The datum comes from the legacy bar's sprite bounds, not its collider: AutoSyncTransforms is
+    // off project-wide (stale collider bounds), and the collider is disabled once the terrain owns
+    // collision. Sprite math works before AND after ApplyConfig, whatever the Awake order.
+    private float ResolveDatumY()
     {
-        if (configuredSegments == null || index < 0 || index >= configuredSegments.Count) return null;
-        return configuredSegments[index];
-    }
-
-    private void ApplySegment(
-        Transform target,
-        FloorSegmentConfig segment,
-        int fallbackSegmentCenterColumn,
-        int fallbackSegmentColumnCount,
-        GameModeConfig activeConfig = null)
-    {
-        if (activeConfig == null)
+        Transform target = floorTransform != null ? floorTransform : transform;
+        SpriteRenderer bar = target.GetComponent<SpriteRenderer>();
+        if (bar != null && bar.sprite != null)
         {
-            activeConfig = LevelSelectionState.ResolveGameMode(gameModeConfig);
-        }
-        float gridSpacing = activeConfig != null ? activeConfig.GridSpacing : 1f;
-        float width = segment != null
-            ? segment.GetWidth(gridSpacing)
-            : Mathf.Max(1, fallbackSegmentColumnCount) * gridSpacing;
-        float centerX = segment != null
-            ? segment.GetCenterX(gridSpacing)
-            : GetFallbackCenterX(fallbackSegmentCenterColumn, fallbackSegmentColumnCount, gridSpacing);
-
-        Vector3 scale = target.localScale;
-        scale.x = width;
-        target.localScale = scale;
-
-        Vector3 position = target.position;
-        position.x = centerX;
-        target.position = position;
-
-        ApplyFloorColliderInset(target, width);
-        ApplyFloorFriction(target);
-        ApplyGroundSkin(target, width);
-    }
-
-    // Visual only: replaces the floating floor bar with the chapter's plateau strip -
-    // plateau.png TILED to the floor width (never stretched; outlined end caps mark its
-    // boundary, preserved by the sprite border). The visual matches the landable collider
-    // width EXACTLY: what you see is what you can land on. Chapter scenery (hills, dunes,
-    // mountains) lives in the backdrop, never attached to the floor - nothing decorative
-    // can be mistaken for a landing surface. Collider, inset and friction are untouched.
-    private void ApplyGroundSkin(Transform target, float width)
-    {
-        SpriteRenderer floorRenderer = target.GetComponent<SpriteRenderer>();
-        if (floorRenderer == null) return;
-
-        Sprite plateau = ChapterSkins.LoadPlateau();
-        if (plateau == null) return;
-
-        Transform existing = target.Find("PlateauSkin");
-        SpriteRenderer skin;
-        if (existing != null)
-        {
-            skin = existing.GetComponent<SpriteRenderer>();
-        }
-        else
-        {
-            GameObject go = new GameObject("PlateauSkin");
-            go.transform.SetParent(target, false);
-            skin = go.AddComponent<SpriteRenderer>();
+            return target.position.y + bar.sprite.bounds.extents.y * Mathf.Abs(target.lossyScale.y);
         }
 
-        skin.sprite = plateau;
-        skin.drawMode = SpriteDrawMode.Tiled;
-        skin.sortingLayerID = floorRenderer.sortingLayerID;
-        skin.sortingOrder = groundSkinSortingOrder;
-
-        // Counter the floor bar's stretched scale; size in world units via Tiled mode.
-        Vector3 parentScale = target.lossyScale;
-        skin.transform.localScale = new Vector3(
-            1f / Mathf.Max(0.0001f, Mathf.Abs(parentScale.x)),
-            1f / Mathf.Max(0.0001f, Mathf.Abs(parentScale.y)),
-            1f);
-        float plateauHeight = plateau.bounds.size.y;
-        skin.size = new Vector2(width, plateauHeight);
-
-        // Floor top from the bar sprite's local bounds and scale (not collider bounds:
-        // AutoSyncTransforms is off project-wide, so those can be stale right after the
-        // move above; not renderer.bounds either, as the renderer is disabled on re-runs).
-        float floorTopY = target.position.y
-            + floorRenderer.sprite.bounds.extents.y * Mathf.Abs(target.lossyScale.y);
-        skin.transform.position = new Vector3(
-            target.position.x, floorTopY - plateauHeight * 0.5f, target.position.z);
-
-        floorRenderer.enabled = false;
+        Collider2D collider = target.GetComponent<Collider2D>();
+        if (collider != null) return collider.bounds.max.y;
+        return target.position.y;
     }
 
-    // Gives the floor a real friction material so blocks grip it instead of sliding off the
-    // engine default. Shared across all floor segments.
-    private void ApplyFloorFriction(Transform target)
+    private void DisableLegacyBar()
     {
-        Collider2D floorCollider = target.GetComponent<Collider2D>();
-        if (floorCollider == null) return;
+        Transform target = floorTransform != null ? floorTransform : transform;
 
-        if (_floorMaterial == null)
-        {
-            _floorMaterial = new PhysicsMaterial2D("FloorFriction")
-            {
-                friction = floorFriction,
-                bounciness = 0f
-            };
-        }
+        SpriteRenderer bar = target.GetComponent<SpriteRenderer>();
+        if (bar != null) bar.enabled = false;
 
-        floorCollider.sharedMaterial = _floorMaterial;
+        Collider2D collider = target.GetComponent<Collider2D>();
+        if (collider != null) collider.enabled = false;
+
+        // The old plateau skin child, if a scene still carries one from a previous run.
+        Transform plateau = target.Find("PlateauSkin");
+        if (plateau != null) Destroy(plateau.gameObject);
     }
 
-    // Shrinks the floor collider horizontally a touch (leaving the sprite at full width) so its
-    // collision edge sits just inside the column boundary - matching the block collider inset -
-    // and pieces in the next column over fall cleanly instead of catching on the floor's corner.
-    private void ApplyFloorColliderInset(Transform target, float width)
+    // Fog colour: the chapter's explicit override, or derived from its near-hill colour so every
+    // backdrop gets a plausible haze without authoring.
+    private Color ResolveFogColor()
     {
-        if (floorColliderEdgeInset <= 0f) return;
+        ChapterDefinition chapter = Campaign.FindChapterOf(LevelSelectionState.SelectedLevel);
+        BackdropPreset preset = chapter != null && chapter.Backdrop != null
+            ? chapter.Backdrop
+            : BackdropPreset.Defaults;
 
-        BoxCollider2D box = target.GetComponent<BoxCollider2D>();
-        if (box == null) return;
+        Color explicitFog = preset.GroundFogColor;
+        if (explicitFog.a > 0.01f) return new Color(explicitFog.r, explicitFog.g, explicitFog.b, 1f);
 
-        float scaleX = Mathf.Abs(target.localScale.x);
-        if (scaleX < 0.0001f) return;
-
-        float desiredWorldWidth = Mathf.Max(0.1f, width - 2f * floorColliderEdgeInset);
-        Vector2 size = box.size;
-        size.x = desiredWorldWidth / scaleX;
-        box.size = size;
-    }
-
-    private float GetFallbackCenterX(int centerColumn, int columnCount, float gridSpacing)
-    {
-        int count = Mathf.Max(1, columnCount);
-        int leftColumn = centerColumn - count / 2;
-        int rightColumn = leftColumn + count - 1;
-        return (leftColumn + rightColumn) * 0.5f * gridSpacing;
+        Color derived = Color.Lerp(preset.HillNearColor, Color.white, 0.45f);
+        return new Color(derived.r, derived.g, derived.b, 1f);
     }
 }

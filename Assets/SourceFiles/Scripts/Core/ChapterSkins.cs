@@ -42,6 +42,12 @@ public static class ChapterSkins
     /// <summary>Optional chapter art for the height-limit laser line, or null.</summary>
     public static Sprite LoadLaser() => LoadWithFallback("laser");
 
+    /// <summary>Seamless 1x1-unit masonry tile the grounded floor columns are built from.</summary>
+    public static Sprite LoadGroundFill() => LoadWithFallback("ground_fill");
+
+    /// <summary>Walkable cap band (2 x 0.5 units, horizontally seamless) laid along floor tops.</summary>
+    public static Sprite LoadGroundCap() => LoadWithFallback("ground_cap");
+
     /// <summary>
     /// One floating support-island cell (1x1, rotation-safe; variant 1..3 per chapter,
     /// see generate_ground_sprite.py). Out-of-range variants clamp to 1.

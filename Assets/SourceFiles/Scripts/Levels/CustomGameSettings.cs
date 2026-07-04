@@ -24,6 +24,11 @@ public sealed class CustomGameSettings
 
     // Play area
     public int FloorColumns;
+    public int FloorShape; // index into FloorShapeNames; segments built by GameModeConfig.BuildCustomFloorSegments
+
+    /// <summary>Display names for the floor terrain presets (index = FloorShape). Keep in step
+    /// with GameModeConfig.BuildCustomFloorSegments.</summary>
+    public static readonly string[] FloorShapeNames = { "Flat", "Steps", "Valley", "Twin pillars", "Three pillars" };
 
     // Spawning
     public float SpawnDelay;

@@ -85,20 +85,34 @@ import the pack and configure its layers according to [BACKDROPS.md](BACKDROPS.m
 ## 4. Ground / floor
 
 **Generated, not painted** — `Tools/generate_ground_sprite.py` renders each
-chapter's `plateau.png` into `Assets/Resources/Skins/<Chapter>/`: one tile
-(256×96 px = 2×0.75 u) of the landable strip, **tiled** by the game to any
-floor width (never stretched, outlined end caps mark its exact boundary).
-Each chapter picks a material via the renderer's parameters: beveled stone
-blocks (Classic), grass-capped earth (Training Wheels), sandstone slabs
-(Desert) — block count, bevel, tone steps, and an optional cap band (grass,
-snow, moss…) per chapter.
+chapter's ground set into `Assets/Resources/Skins/<Chapter>/`:
 
-The plateau is the **only** ground visual, and it matches the landable
-collider width exactly — what you see is what you can land on. There are
-deliberately **no buildings under the floor**: anything decorative near the
-platform risks reading as a landing surface, and it's invisible once the
-tower climbs anyway. Chapter scenery (hills, dunes, mountains, props) lives in
-the backdrop system (§3) instead.
+- `ground_fill.png` — a **128×128 seamless masonry tile** (1×1 u; running-bond
+  0.5×0.25 u bricks with dark mortar, per-brick tone steps and a top-lit bevel).
+  `FloorTerrain` tiles it from every floor column's landable top down past the
+  screen bottom — the floor is **grounded terrain**, never a floating strip.
+- `ground_cap.png` — a **256×64 horizontally-seamless cap band** (2×0.5 u) laid
+  along every walkable top: baked near-black outline at the landable line, then
+  a top-lit band (stone/sand/moss/grass per chapter, optional flecks) with a
+  scalloped, shadowed lower edge hanging over the masonry.
+- `plateau.png` — **legacy** (the old floating strip); still generated but no
+  longer used by the floor.
+
+At runtime `FloorTerrain` (built by `PlayAreaController` from the mode's
+`floorSegments` — per-column heights, steps, valleys, free-standing pillars,
+and carved 1×1 nudge-in **pockets**; the authoring bible is FLOORS.md) adds a
+depth-shade ramp, silhouette outline strips on exposed sides (split around
+pocket openings — pockets are REAL holes cut from the fill, the backdrop shows
+through, outlined on their solid edges), and a bottom fade into a chapter-tinted **fog bank**
+(camera-following bands + drifting world wisps, behind the ground and IN
+FRONT of the blocks, so pieces falling into pillar gaps sink into it). Fog
+colour: `BackdropPreset.groundFogColor`, auto-derived from the near-hill
+colour when unset.
+
+The terrain matches the landable colliders exactly — what you see is what you
+can land on. There are deliberately **no buildings under the floor**: anything
+decorative near the platform risks reading as a landing surface. Chapter
+scenery (hills, dunes, mountains, props) lives in the backdrop system (§3).
 
 **Floating support islands** — the same script renders `island_1..3.png`
 (128×128 px = one 1×1 cell, 128 px/unit) per chapter: the sky stones pieces can

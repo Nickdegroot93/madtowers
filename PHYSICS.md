@@ -217,8 +217,10 @@ Code-level details that are part of the contract (not inspector values):
 
 | Where | Setting | Value | Why |
 |---|---|---|---|
-| PlayAreaController | `floorFriction` | 0.95 | Friction mixing — see above. |
-| PlayAreaController | `floorColliderEdgeInset` | 0.03 | Collision edge sits just inside the visual floor so pieces don't snag its corners. |
+| PlayAreaController | `floorFriction` | 0.95 | Friction mixing — see above. Applied by `FloorTerrain` to every column-run collider. |
+| PlayAreaController | `floorColliderEdgeInset` | 0.03 | Collision edge sits just inside the visual floor so pieces don't snag its corners. Applied per run, both sides. |
+| FloorTerrain | terrain build | (code) | The floor is built by `FloorTerrain` from `FloorSegmentConfig`s (July 2026): one STATIC BoxCollider2D per column (grid − 2·inset wide, 24 u deep so nothing passes underneath), split vertically around carved 1×1 **pockets**. Column heights are always ≥ 0 above the **datum** (the legacy Base Platform's top = `floorOriginY`), so the datum stays the lowest landable surface and every single-floor-Y consumer (tower height, islands, backdrop anchors, the `floorOriginY − 3` steering bailout) keeps its meaning. Landing/casts/reach/camera are collider-generic and need no registration. All terrain visuals are collider-free children. |
+| FloorTerrain | pocket leniency | rounded + 0.05 | Boxes around a pocket get the ISLAND collider prescription (shrink by 2r, `edgeRadius` r = 0.06·grid — "shave past and slide in"), and the pocket **ceiling is raised 0.05** so the full-height piece cell has real clearance while the pocket floor stays grid-exact to rest on. Without these, the snapped-row forgiveness allowed the step but `TuckIntoStaticPocket`'s final overlap check reverted it (sharp corners + zero clearance = always still overlapped) — pockets classified as enterable yet were physically unenterable, the same bug the island pockets had in June 2026. Plain floor spans keep sharp full boxes: coplanar tops, no rounding dips. Verified: entry succeeds across the full ±0.4-cell misalignment window. |
 | StaticSupportIslandManager | `_islandFriction` | 0.95 | Islands are the tower's anchors; the prefab itself has **no** material, the manager applies it at spawn. |
 | StaticSupportIslandManager | `_islandFootprintScale` | 0.94 width only | **Must equal** the blocks' width scale or pieces wedge beside/between islands. Height stays 1.0 to preserve support height. |
 | StaticSupportIslandManager | `_islandCornerRadiusFraction` | 0.06 | Match blocks. |

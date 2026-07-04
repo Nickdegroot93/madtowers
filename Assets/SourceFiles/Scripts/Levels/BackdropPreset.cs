@@ -104,6 +104,10 @@ public class BackdropPreset : ScriptableObject
     [SerializeField] private Color hillFarColor = new Color(0.17f, 0.21f, 0.29f);
     [SerializeField] private Color hillNearColor = new Color(0.13f, 0.16f, 0.23f);
 
+    [Header("Ground fog (the haze the floor terrain dissolves into at the screen bottom)")]
+    [Tooltip("Fog bank colour at the base of the floor columns. Leave alpha at 0 to auto-derive a haze from the near-hill colour.")]
+    [SerializeField] private Color groundFogColor = new Color(0f, 0f, 0f, 0f);
+
     [Header("Imported backdrop layers (optional, far to near)")]
     [SerializeField] private SpriteBackdropLayer[] spriteBackdropLayers;
 
@@ -139,6 +143,7 @@ public class BackdropPreset : ScriptableObject
     public HillStyle Hills => hillStyle;
     public Color HillFarColor => hillFarColor;
     public Color HillNearColor => hillNearColor;
+    public Color GroundFogColor => groundFogColor;
     public IReadOnlyList<SpriteBackdropLayer> SpriteBackdropLayers => spriteBackdropLayers;
     public int ParticleCount => particleCount;
     public Color ParticleColor => particleColor;

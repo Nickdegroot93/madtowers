@@ -11,7 +11,7 @@ public sealed class BlockSkinImportSettings : AssetPostprocessor
 {
     // Bump whenever the import logic changes so already-imported skin textures reimport
     // with the new settings instead of keeping cached results.
-    public override uint GetVersion() => 7;
+    public override uint GetVersion() => 8;
 
     private void OnPreprocessTexture()
     {
@@ -22,7 +22,7 @@ public sealed class BlockSkinImportSettings : AssetPostprocessor
         float pixelsPerUnit;
         if (fileName.StartsWith("piece_")) pixelsPerUnit = 256f;
         else if (fileName.StartsWith("plateau") || fileName.StartsWith("laser") ||
-                 fileName.StartsWith("island_")) pixelsPerUnit = 128f;
+                 fileName.StartsWith("island_") || fileName.StartsWith("ground_")) pixelsPerUnit = 128f;
         else return;
 
         TextureImporter importer = (TextureImporter)assetImporter;

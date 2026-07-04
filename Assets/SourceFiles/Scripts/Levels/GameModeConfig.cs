@@ -129,7 +129,19 @@ public class GameModeConfig : ScriptableObject
     public int StaticSupportIslandMaxColumn => Mathf.Max(staticSupportIslandMinColumn, staticSupportIslandMaxColumn);
     public int StaticSupportIslandCenterClearColumns => Mathf.Max(0, staticSupportIslandCenterClearColumns);
     public IReadOnlyList<StaticSupportIslandShapeConfig> StaticSupportIslandShapes => staticSupportIslandShapes;
-    public IReadOnlyList<FloorSegmentConfig> FloorSegments => floorSegments;
+    // Runtime-generated floor layout (ProceduralFloorModifier). NonSerialized: it can never dirty
+    // the asset. EVERY floor consumer (terrain build, camera framing, reach bounds, island
+    // weighting, props) reads FloorSegments, so overriding here keeps them all consistent.
+    // The modifier that sets it MUST clear it in OnLevelEnd - the asset instance outlives the
+    // scene in the editor, and a stale override would leak into other levels sharing this config.
+    [System.NonSerialized] private FloorSegmentConfig[] _runtimeFloorOverride;
+
+    /// <summary>Replace (or clear, with null) the floor layout for this run only. See
+    /// FLOORS.md - call PlayAreaController.ApplyConfig() afterwards to rebuild the terrain.</summary>
+    public void SetRuntimeFloorOverride(FloorSegmentConfig[] segments) => _runtimeFloorOverride = segments;
+
+    public IReadOnlyList<FloorSegmentConfig> FloorSegments =>
+        _runtimeFloorOverride != null && _runtimeFloorOverride.Length > 0 ? _runtimeFloorOverride : floorSegments;
     public float FloorWidth => floorSegments != null && floorSegments.Length > 0
         ? floorSegments[0].GetWidth(gridSpacing)
         : gridSpacing;
@@ -163,7 +175,7 @@ public class GameModeConfig : ScriptableObject
         speedIncreaseIntervalSeconds = s.SpeedIncreaseIntervalSeconds;
         speedIncreasePerInterval = s.SpeedIncreasePerInterval;
 
-        floorSegments = new[] { new FloorSegmentConfig(0, Mathf.Max(1, s.FloorColumns)) };
+        floorSegments = BuildCustomFloorSegments(s.FloorShape, Mathf.Max(1, s.FloorColumns));
 
         spawnDelay = Mathf.Max(0f, s.SpawnDelay);
         powerUpChoiceEveryBlocks = Mathf.Max(0, s.PowerUpChoiceEveryBlocks);
@@ -180,6 +192,55 @@ public class GameModeConfig : ScriptableObject
             if (kv.Key != null && kv.Value > 0f)
                 ambient.Add(new AmbientBlockVariantChance(kv.Key, kv.Value));
         ambientBlockVariantChances = ambient.ToArray();
+    }
+
+    /// <summary>Custom Game floor shapes: deterministic terrain presets built from a shape index +
+    /// total width, so the whole FloorSegmentConfig terrain space is testable without authoring
+    /// assets. Mirrors CustomGameSettings.FloorShapeNames - keep the two lists in step.</summary>
+    private static FloorSegmentConfig[] BuildCustomFloorSegments(int shape, int columns)
+    {
+        switch (shape)
+        {
+            case 1: // Steps - a staircase rising left to right
+            {
+                int[] steps = new int[columns];
+                for (int i = 0; i < columns; i++) steps[i] = (i * 3) / Mathf.Max(1, columns - 1);
+                return new[] { new FloorSegmentConfig(0, columns, 0, steps) };
+            }
+            case 2: // Valley - raised shoulders, sunken middle to nudge into
+            {
+                int[] steps = new int[columns];
+                for (int i = 0; i < columns; i++)
+                {
+                    int fromEdge = Mathf.Min(i, columns - 1 - i);
+                    steps[i] = fromEdge == 0 ? 3 : (fromEdge == 1 ? 1 : 0);
+                }
+                return new[] { new FloorSegmentConfig(0, columns, 0, steps) };
+            }
+            case 3: // Twin pillars - two towers with a void between them
+            {
+                int pillarWidth = Mathf.Clamp(columns / 3, 2, 5);
+                int offset = Mathf.Max(pillarWidth + 1, columns / 3 + 1);
+                return new[]
+                {
+                    new FloorSegmentConfig(-offset, pillarWidth, 4),
+                    new FloorSegmentConfig(offset, pillarWidth, 6)
+                };
+            }
+            case 4: // Three pillars - Tricky-Towers-style trio at different heights
+            {
+                int pillarWidth = Mathf.Clamp(columns / 4, 2, 4);
+                int offset = Mathf.Max(pillarWidth + 2, columns / 3 + 2);
+                return new[]
+                {
+                    new FloorSegmentConfig(-offset, pillarWidth, 5),
+                    new FloorSegmentConfig(0, pillarWidth, 2),
+                    new FloorSegmentConfig(offset, pillarWidth, 7)
+                };
+            }
+            default: // Flat - the classic single strip
+                return new[] { new FloorSegmentConfig(0, columns) };
+        }
     }
 }
 
@@ -236,6 +297,13 @@ public sealed class FloorSegmentConfig
     [SerializeField] private int centerColumn = 0;
     [Min(1)]
     [SerializeField] private int columnCount = 9;
+    [Tooltip("Raises this whole segment's top surface this many cells above the floor datum (0 = classic flat floor). Pillars = several raised segments with gaps between their column spans.")]
+    [Min(0)]
+    [SerializeField] private int baseHeightCells = 0;
+    [Tooltip("Optional per-column EXTRA cells on top of Base Height, left to right; missing/short entries mean 0. Steps, ridges and valleys: e.g. [3,0,0,0,3] digs a valley between two shoulders. Heights are always ABOVE the datum - the datum stays the lowest landable surface.")]
+    [SerializeField] private int[] columnHeightSteps = null;
+    [Tooltip("Carve 1x1 nudge-in POCKETS into the ground body: each entry names a column (0-based from this segment's left edge) and a depth in cells below that column's top surface (1 = directly under the top). Put them on columns whose side face is exposed (outer edges, or beside a height step) so a brick can be nudged in sideways and stick out of the wall.")]
+    [SerializeField] private FloorPocketConfig[] pockets = null;
 
     public FloorSegmentConfig()
     {
@@ -247,10 +315,43 @@ public sealed class FloorSegmentConfig
         this.columnCount = Mathf.Max(1, columnCount);
     }
 
+    public FloorSegmentConfig(int centerColumn, int columnCount, int baseHeightCells, int[] columnHeightSteps = null,
+        FloorPocketConfig[] pockets = null)
+        : this(centerColumn, columnCount)
+    {
+        this.baseHeightCells = Mathf.Max(0, baseHeightCells);
+        this.columnHeightSteps = columnHeightSteps;
+        this.pockets = pockets;
+    }
+
+    public IReadOnlyList<FloorPocketConfig> Pockets => pockets;
+
     public int CenterColumn => centerColumn;
     public int ColumnCount => Mathf.Max(1, columnCount);
     public int LeftColumn => centerColumn - ColumnCount / 2;
     public int RightColumn => LeftColumn + ColumnCount - 1;
+    public int BaseHeightCells => Mathf.Max(0, baseHeightCells);
+
+    /// <summary>Top height of the i-th column (0 = LeftColumn) in cells above the floor datum.</summary>
+    public int GetColumnHeightCells(int columnIndex)
+    {
+        int extra = columnHeightSteps != null && columnIndex >= 0 && columnIndex < columnHeightSteps.Length
+            ? Mathf.Max(0, columnHeightSteps[columnIndex])
+            : 0;
+        return BaseHeightCells + extra;
+    }
+
+    public int MaxColumnHeightCells
+    {
+        get
+        {
+            int max = BaseHeightCells;
+            if (columnHeightSteps != null)
+                for (int i = 0; i < Mathf.Min(columnHeightSteps.Length, ColumnCount); i++)
+                    max = Mathf.Max(max, BaseHeightCells + Mathf.Max(0, columnHeightSteps[i]));
+            return max;
+        }
+    }
 
     public float GetCenterX(float gridSpacing)
     {
@@ -261,4 +362,30 @@ public sealed class FloorSegmentConfig
     {
         return ColumnCount * gridSpacing;
     }
+}
+
+/// <summary>A 1x1-cell niche carved into a floor segment's ground body (FloorTerrain splits the
+/// column's collider around it and draws a dark socket). Column is 0-based from the segment's
+/// LEFT edge; depth 1 is the cell directly below that column's top surface. Keep depths <= 3 -
+/// the active-piece bailout force-locks a kinematic piece ~3 units below the datum.</summary>
+[System.Serializable]
+public sealed class FloorPocketConfig
+{
+    [Min(0)]
+    [SerializeField] private int column = 0;
+    [Min(1)]
+    [SerializeField] private int depthCells = 1;
+
+    public FloorPocketConfig()
+    {
+    }
+
+    public FloorPocketConfig(int column, int depthCells)
+    {
+        this.column = Mathf.Max(0, column);
+        this.depthCells = Mathf.Max(1, depthCells);
+    }
+
+    public int Column => Mathf.Max(0, column);
+    public int DepthCells => Mathf.Max(1, depthCells);
 }
