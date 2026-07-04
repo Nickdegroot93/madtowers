@@ -20,7 +20,10 @@ public static partial class MainMenuRuntime
     private const float LevelCardFrostWash = 0.95f;
 
     private const float LevelListTopInset = 485f;
-    private const float LevelListBottomInset = 205f;
+    // The list's scroll area must end ABOVE the next-chapter card (card bottom 232 + height 160
+    // + a small gap): long chapters scroll behind neither the card nor the nav, and a partly
+    // visible next row peeks out at this edge as the natural "there's more" cue.
+    private const float LevelListBottomInset = 410f;
     private const float LevelRowHeight = 220f;
     private const float LevelCardHeight = 184f;
     private const float LevelCardTop = 6f;
@@ -28,6 +31,7 @@ public static partial class MainMenuRuntime
     // the row between these insets, so their width tracks the screen width on any device. Matches
     // the chapter title's left inset (see ChapterTitle x) so the cards line up under the title.
     private const float LevelCardSideInset = 76f;
+    private const float LevelRailGutter = 64f; // the timeline rail's column, left of the cards
     // Action badge (the play / check / lock circle) centre, measured in from the card's RIGHT
     // edge so it rides the edge as the card widens.
     private const float LevelCardActionInsetRight = 72f;

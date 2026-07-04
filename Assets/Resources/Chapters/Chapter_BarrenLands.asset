@@ -22,13 +22,13 @@ MonoBehaviour:
   menuBackgroundVideo: {fileID: 0}
   menuBackgroundImage: {fileID: 21300000, guid: b32f045e60c54bd98e7204d76f423999, type: 3}
   nextChapterPreviewImage: {fileID: 0}
+  menuTopIsLight: 1
   menuAccentColor: {r: 0.85, g: 0.62, b: 0.34, a: 1}
   menuAccentSecondaryColor: {r: 0.62, g: 0.36, b: 0.13, a: 1}
   menuPanelColor: {r: 0.14, g: 0.1, b: 0.065, a: 0.76}
   playButtonTopColor: {r: 1, g: 0.72, b: 0.27, a: 1}
   playButtonBottomColor: {r: 0.88, g: 0.38, b: 0.08, a: 1}
   backdrop: {fileID: 11400000, guid: 31e96611fa81425c95f969c4555b64ef, type: 2}
-  music: {fileID: 0}
   musicPlaylist:
   - {fileID: 8300000, guid: d9f552169c04445bbd1fef5d7b1bf100, type: 3}
   - {fileID: 8300000, guid: 5355854078be47c1b1ccd62602d4c27a, type: 3}

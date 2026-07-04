@@ -87,28 +87,62 @@ public static class MenuSprites
         string key = $"hex:{Key(top)}:{Key(bottom)}";
         if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
 
-        const int S = 192;
-        Texture2D tex = NewTexture(S, S);
-        for (int y = 0; y < S; y++)
+        // The concepts' centre nav button: a point-top hexagon a little TALLER than wide, with
+        // gently ROUNDED corners, sitting on a slightly wider darker back plate that peeks out
+        // as a thin vertical seam along the flat left/right sides (barely at the points), the
+        // whole thing wrapped in a fine light outline.
+        const int W = 160, H = 192;
+        const float rOuter = 9f;   // corner rounding
+        const float rimSide = 7f;  // back plate visible on the flat sides...
+        const float rimTop = 3f;   // ...and only barely at the top/bottom points
+        Texture2D tex = NewTexture(W, H);
+        Vector2 c0 = new Vector2(W * 0.5f, H * 0.5f);
+        float wx = W * 0.5f - 5f, hy = H * 0.5f - 4f;
+
+        Color rim = Color.Lerp(bottom, Color.black, 0.30f);
+        Color outline = Color.Lerp(top, Color.white, 0.45f);
+
+        // Signed distance to a rounded point-top hexagon (half extents halfW x halfH). By
+        // symmetry only the abs-quadrant matters: the boundary there is the vertical flat side
+        // up to the shoulder, then the slant to the top point.
+        float HexDist(Vector2 p, float halfW, float halfH, float round)
         {
-            for (int x = 0; x < S; x++)
+            float kw = halfW - round, kh = halfH - round;
+            float ky = kh * 0.52f; // shoulder height (top of the flat side)
+            Vector2 a = new Vector2(Mathf.Abs(p.x), Mathf.Abs(p.y));
+            float dist = Mathf.Min(
+                DistToSegment(a, new Vector2(kw, 0f), new Vector2(kw, ky)),
+                DistToSegment(a, new Vector2(kw, ky), new Vector2(0f, kh)));
+            bool inside = a.x <= kw && a.y <= ky + (kw - a.x) * (kh - ky) / kw;
+            return (inside ? -dist : dist) - round;
+        }
+
+        for (int y = 0; y < H; y++)
+        {
+            for (int x = 0; x < W; x++)
             {
-                float u = ((x + 0.5f) / S) * 2f - 1f;
-                float v = ((y + 0.5f) / S) * 2f - 1f;
-                float au = Mathf.Abs(u);
-                float av = Mathf.Abs(v);
-                // Point-TOP hexagon: flat left/right edges, points at top and bottom (taller than
-                // wide). Swap the roles of u/v versus a flat-top hex.
-                float d = Mathf.Max(au, av * 0.8660254f + au * 0.5f) - 0.76f;
-                float edge = Mathf.Clamp01(0.5f - d * 55f);
-                float border = Mathf.Clamp01(1.3f - Mathf.Abs(d) * 85f);
-                Color c = Color.Lerp(bottom, top, (v + 1f) * 0.5f);
-                c = Color.Lerp(c, Color.white, border * 0.16f);
-                c.a = edge;
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f) - c0;
+                float dOut = HexDist(p, wx, hy, rOuter);
+                float aOut = Mathf.Clamp01(0.5f - dOut);
+                if (aOut <= 0f) { tex.SetPixel(x, y, Color.clear); continue; }
+
+                float dIn = HexDist(p, wx - rimSide, hy - rimTop, rOuter * 0.8f);
+                float aIn = Mathf.Clamp01(0.5f - dIn);
+
+                float v = Mathf.Clamp01((p.y / hy + 1f) * 0.5f);
+                Color face = Color.Lerp(bottom, top, v);
+                // Subtle sheen just inside the face's upper edge, so the front plate reads convex.
+                face = Color.Lerp(face, Color.white, Mathf.Clamp01(1f - Mathf.Abs(dIn + 2f) / 3f) * 0.10f * v);
+                Color c = Color.Lerp(rim, face, aIn);
+
+                // Fine light outline hugging the outer edge.
+                float edge = Mathf.Clamp01(1.4f - Mathf.Abs(dOut + 0.7f));
+                c = Color.Lerp(c, outline, edge * 0.85f);
+                c.a = aOut;
                 tex.SetPixel(x, y, c);
             }
         }
-        return Cache[key] = Finish(tex, S);
+        return Cache[key] = Finish(tex, H);
     }
 
     public static Sprite PointHexBadge(Color top, Color bottom, Color border)
@@ -249,6 +283,135 @@ public static class MenuSprites
     // A crisp tick mark drawn as the union of two anti-aliased strokes (the short down-stroke
     // and the long up-stroke). Tinted by `color`; the font's U+2713 glyph renders as tofu in our
     // SDF font, so the completed badge uses this sprite instead.
+    /// <summary>Small goal-type glyphs for the level cards: "cube" (block count), "waves"
+    /// (puzzle waves), "mountain" (height challenge), "timer" (timed goals). Drawn as thin
+    /// strokes in the given colour, matching the concepts' inline marks.</summary>
+    public static Sprite GoalGlyph(string kind, Color color)
+    {
+        string key = $"goal:{kind}:{Key(color)}";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 96;
+        Texture2D tex = NewTexture(S, S);
+        float half = 0.055f * S;
+
+        System.Func<Vector2, float> dist;
+        switch (kind)
+        {
+            case "waves":
+            {
+                dist = p2 =>
+                {
+                    float best = float.MaxValue;
+                    for (int row = 0; row < 3; row++)
+                    {
+                        float baseY = (0.26f + 0.24f * row) * S;
+                        float wave = baseY + Mathf.Sin(p2.x / S * Mathf.PI * 2.4f + row * 0.8f) * 0.055f * S;
+                        if (p2.x < 0.12f * S || p2.x > 0.88f * S) continue;
+                        best = Mathf.Min(best, Mathf.Abs(p2.y - wave));
+                    }
+                    return best;
+                };
+                break;
+            }
+            case "mountain":
+            {
+                Vector2 a = new Vector2(0.08f * S, 0.28f * S);
+                Vector2 b = new Vector2(0.38f * S, 0.74f * S);
+                Vector2 c = new Vector2(0.54f * S, 0.50f * S);
+                Vector2 d = new Vector2(0.70f * S, 0.80f * S);
+                Vector2 e = new Vector2(0.92f * S, 0.28f * S);
+                dist = p2 => Mathf.Min(
+                    Mathf.Min(DistToSegment(p2, a, b), DistToSegment(p2, b, c)),
+                    Mathf.Min(DistToSegment(p2, c, d), DistToSegment(p2, d, e)));
+                break;
+            }
+            case "timer":
+            {
+                Vector2 center = new Vector2(0.5f * S, 0.44f * S);
+                float radius = 0.30f * S;
+                Vector2 handEnd = center + new Vector2(0.16f * S, 0.16f * S);
+                Vector2 stemA = new Vector2(0.5f * S, 0.80f * S);
+                Vector2 stemB = new Vector2(0.5f * S, 0.90f * S);
+                dist = p2 => Mathf.Min(
+                    Mathf.Abs(Vector2.Distance(p2, center) - radius),
+                    Mathf.Min(DistToSegment(p2, center, handEnd), DistToSegment(p2, stemA, stemB)));
+                break;
+            }
+            default: // cube: isometric outline - hexagon silhouette + Y-shaped inner edges
+            {
+                Vector2 centerC = new Vector2(0.5f * S, 0.5f * S);
+                float r = 0.36f * S;
+                Vector2[] v = new Vector2[6];
+                for (int k = 0; k < 6; k++)
+                {
+                    float ang = (30f + 60f * k) * Mathf.Deg2Rad;
+                    v[k] = centerC + new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * r;
+                }
+                dist = p2 =>
+                {
+                    float best = float.MaxValue;
+                    for (int k = 0; k < 6; k++) best = Mathf.Min(best, DistToSegment(p2, v[k], v[(k + 1) % 6]));
+                    best = Mathf.Min(best, DistToSegment(p2, centerC, v[1]));
+                    best = Mathf.Min(best, DistToSegment(p2, centerC, v[3]));
+                    best = Mathf.Min(best, DistToSegment(p2, centerC, v[5]));
+                    return best;
+                };
+                break;
+            }
+        }
+
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p2 = new Vector2(x + 0.5f, y + 0.5f);
+                float a = Mathf.Clamp01(half - dist(p2) + 0.5f);
+                Color c = color;
+                c.a = color.a * a;
+                tex.SetPixel(x, y, c);
+            }
+        }
+        return Cache[key] = Finish(tex, S);
+    }
+
+    /// <summary>A 9-sliced soft glow RING for highlighting a rounded card: alpha peaks at the
+    /// rounded-rect edge and falls off smoothly outward (and quickly inward), so tinting it and
+    /// stretching it slightly past a card yields a real halo - not a solid slab. White; tint via
+    /// the Image colour.</summary>
+    public static Sprite GlowFrame()
+    {
+        const string key = "glowframe";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+
+        const int S = 144;
+        const float radius = 26f;
+        Texture2D tex = NewTexture(S, S);
+        Vector2 center = new Vector2(S * 0.5f, S * 0.5f);
+        // The rect edge sits well inside the texture so the outward falloff has room to breathe.
+        Vector2 half = new Vector2(S * 0.5f - 26f, S * 0.5f - 26f);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                float d = RoundedBoxDist(p, center, half, radius);
+                // Outward: a tight bloom (~10 px) multiplied by a window that reaches EXACTLY
+                // zero before the texture edge - an exponential alone still holds ~6% alpha at
+                // the sprite rect, which renders as a hard cut-off rectangle around the halo.
+                float a = d >= 0f
+                    ? Mathf.Exp(-d / 5f) * Mathf.Clamp01((24f - d) / 10f)
+                    : Mathf.Exp(d / 2.5f);        // hugs the edge inward, never floods the card
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+            }
+        }
+        tex.Apply(false, true);
+        Sprite sprite = Sprite.Create(tex, new Rect(0f, 0f, S, S), new Vector2(0.5f, 0.5f), 100f, 0,
+            SpriteMeshType.FullRect, new Vector4(60f, 60f, 60f, 60f));
+        sprite.hideFlags = HideFlags.HideAndDontSave;
+        return Cache[key] = sprite;
+    }
+
     public static Sprite CheckMark(Color color)
     {
         string key = $"check:{Key(color)}";

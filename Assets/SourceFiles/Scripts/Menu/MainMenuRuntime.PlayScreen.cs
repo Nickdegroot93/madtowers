@@ -53,21 +53,51 @@ public static partial class MainMenuRuntime
     private static void BuildChapterContent(Transform parent, ChapterDefinition chapter, int chapterIndex)
     {
         bool chapterUnlocked = Campaign.IsChapterUnlocked(_chapters, chapterIndex);
-        Color eyebrowColor = Color.Lerp(chapter.MenuAccentColor, TextPrimary, 0.42f);
+        // Adaptive ink: chapters whose background TOP is light (Desert sand, Sakura sky) render
+        // the header in dark ink; dark tops (Jungle canopy) keep cream. No drop shadows - the
+        // ink itself carries the contrast (the shadows were a patch for light-on-light).
+        bool lightTop = chapter.MenuTopIsLight;
+        Color titleInk = lightTop ? new Color(0.16f, 0.13f, 0.10f, 1f) : TextPrimary;
+        Color eyebrowColor = lightTop
+            ? Color.Lerp(chapter.MenuAccentColor, Color.black, 0.35f)
+            : Color.Lerp(chapter.MenuAccentColor, TextPrimary, 0.42f);
 
-        // "CHAPTER N" eyebrow, left-aligned with the title below and sitting close to it.
-        TextMeshProUGUI eyebrow = CreateTmp(parent, "ChapterEyebrow", $"{TrackedUpper("Chapter", " ", "   ")}  {chapter.ChapterNumber}", 20,
-            eyebrowColor, TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.TitleFont,
-            new Vector2(76f, -252f), new Vector2(180f, 42f), new Vector2(0f, 1f));
-        AutoSize(eyebrow, 16, 20);
-        AddTextShadow(eyebrow, 0.18f, new Vector2(0f, -1f), 1f);
+        // "- CHAPTER N -" eyebrow flanked by tiny accent diamonds (the concepts' ornament),
+        // left-aligned with the title below and sitting close to it.
+        RectTransform eyebrowRow = CreateRect(parent, "ChapterEyebrowRow",
+            new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
+            new Vector2(76f, -252f), new Vector2(420f, 42f));
+        HorizontalLayoutGroup eyebrowGroup = eyebrowRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+        eyebrowGroup.spacing = 10f;
+        eyebrowGroup.childAlignment = TextAnchor.MiddleLeft;
+        eyebrowGroup.childControlWidth = false;
+        eyebrowGroup.childControlHeight = false;
+        eyebrowGroup.childForceExpandWidth = false;
+        eyebrowGroup.childForceExpandHeight = false;
 
-        TextMeshProUGUI title = CreateTmp(parent, "ChapterTitle", chapter.DisplayName.ToUpperInvariant(), 68,
-            TextPrimary, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(76f, -276f), new Vector2(700f, 104f), new Vector2(0f, 1f));
-        title.characterSpacing = 6f;
-        AutoSize(title, 40, 68);
-        AddTextShadow(title, 0.28f, new Vector2(0f, -2f), 1f);
+        Image leftDiamond = CreateImage(eyebrowRow, "EyebrowDiamondL",
+            MenuSprites.DiamondBadge(eyebrowColor, eyebrowColor), Color.white);
+        leftDiamond.raycastTarget = false;
+        leftDiamond.rectTransform.sizeDelta = new Vector2(13f, 13f);
+
+        TextMeshProUGUI eyebrow = CreateTmp(eyebrowRow, "ChapterEyebrow",
+            $"{TrackedUpper("Chapter", " ", "   ")}  {chapter.ChapterNumber}", 21,
+            eyebrowColor, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        eyebrow.characterSpacing = 6f;
+        eyebrow.rectTransform.sizeDelta = new Vector2(230f, 42f);
+        // Hug the actual tracked text width so the right diamond sits snug against it.
+        eyebrow.gameObject.AddComponent<ContentSizeFitter>().horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        Image rightDiamond = CreateImage(eyebrowRow, "EyebrowDiamondR",
+            MenuSprites.DiamondBadge(eyebrowColor, eyebrowColor), Color.white);
+        rightDiamond.raycastTarget = false;
+        rightDiamond.rectTransform.sizeDelta = new Vector2(13f, 13f);
+
+        TextMeshProUGUI title = CreateTmp(parent, "ChapterTitle", chapter.DisplayName.ToUpperInvariant(), 62,
+            titleInk, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(76f, -276f), new Vector2(760f, 104f), new Vector2(0f, 1f));
+        title.characterSpacing = 3f;
+        AutoSize(title, 38, 62);
 
         if (!chapterUnlocked)
         {
@@ -156,7 +186,9 @@ public static partial class MainMenuRuntime
 
         RectTransform card = CreateRect(parent, "NextChapterCard",
             new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f),
-            new Vector2(-60f, 210f), new Vector2(300f, 160f));
+            // Bottom edge clears the nav bar (top at 204 with the raised NavBottomMargin) by a
+            // real margin, so the card never sits glued to the bar.
+            new Vector2(-60f, 232f), new Vector2(300f, 160f));
         Color cardFill = new Color(0.05f, 0.06f, 0.065f, 1f);
         Image cardImage = card.gameObject.AddComponent<Image>();
         cardImage.sprite = RuntimeSprites.RoundedPanel();
@@ -261,7 +293,11 @@ public static partial class MainMenuRuntime
         Image viewportHitTarget = viewport.gameObject.AddComponent<Image>();
         viewportHitTarget.color = Color.clear;
         viewportHitTarget.raycastTarget = true;
-        viewport.gameObject.AddComponent<RectMask2D>();
+        // The mask trims the list for scrolling, but the FIRST card sits only LevelCardTop (6 px)
+        // below the viewport top - the active card's halo pokes past that and would get sheared
+        // into a hard horizontal line. Relax the mask a touch top and bottom; the list content
+        // fits the viewport in normal chapters, so nothing meaningful leaks.
+        viewport.gameObject.AddComponent<RectMask2D>().padding = new Vector4(0f, -12f, 0f, -12f);
 
         RectTransform content = CreateRect(viewport, "LevelListContent",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
@@ -287,6 +323,35 @@ public static partial class MainMenuRuntime
         scroll.movementType = ScrollRect.MovementType.Clamped;
         scroll.scrollSensitivity = 34f;
 
+        // A thin auto-hiding scrollbar in the gutter right of the cards, so a chapter with many
+        // levels visibly READS as scrollable (on top of the half-card peeking past the mask).
+        // AutoHide keeps it entirely absent while the list fits the viewport. Sibling of the
+        // viewport, not a child - the mask must not clip it.
+        RectTransform sbar = CreateRect(parent, "LevelScrollbar",
+            new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
+        sbar.offsetMin = new Vector2(-42f, LevelListBottomInset + 12f);
+        sbar.offsetMax = new Vector2(-34f, -(LevelListTopInset + 12f));
+        Image track = sbar.gameObject.AddComponent<Image>();
+        track.sprite = RuntimeSprites.RoundedPanel();
+        track.type = Image.Type.Sliced;
+        track.pixelsPerUnitMultiplier = 6f; // shrink the panel's corner radius to capsule scale
+        track.color = WithAlpha(TextPrimary, 0.10f);
+        track.raycastTarget = false;
+        Scrollbar scrollbar = sbar.gameObject.AddComponent<Scrollbar>();
+        scrollbar.direction = Scrollbar.Direction.BottomToTop;
+        RectTransform handle = CreateRect(sbar, "Handle",
+            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+        Image handleImage = handle.gameObject.AddComponent<Image>();
+        handleImage.sprite = RuntimeSprites.RoundedPanel();
+        handleImage.type = Image.Type.Sliced;
+        handleImage.pixelsPerUnitMultiplier = 6f;
+        handleImage.color = WithAlpha(chapter != null ? ChapterLight(chapter) : GoldBase, 0.55f);
+        handleImage.raycastTarget = false;
+        scrollbar.handleRect = handle;
+        scrollbar.targetGraphic = handleImage;
+        scroll.verticalScrollbar = scrollbar;
+        scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+
         int count = chapter.Levels.Count;
         for (int i = 0; i < count; i++)
         {
@@ -303,8 +368,77 @@ public static partial class MainMenuRuntime
             bool isCurrent = i == currentIndex;
             bool current = isCurrent && unlocked && !completed;
 
+            BuildLevelRail(row, i, count, chapter, unlocked, completed, current);
             BuildLevelCard(row, chapter, level, i, unlocked, completed, current);
         }
+    }
+
+    // The progress rail beside the cards (the concepts' timeline): a thin cream line through
+    // every row with one node per level - filled diamond = completed, glowing diamond = the
+    // level you are on, small hollow circle = still locked. Purely visual, never intercepts taps.
+    private static void BuildLevelRail(Transform row, int index, int count, ChapterDefinition chapter,
+        bool unlocked, bool completed, bool current)
+    {
+        Color chapterLight = ChapterLight(chapter);
+        float railX = LevelCardSideInset + 16f;
+        float nodeY = -(LevelCardTop + LevelCardHeight * 0.5f);
+        float nodeHalf = current ? 26f : (completed ? 17f : 11f);
+        Color lineColor = WithAlpha(TextPrimary, 0.30f);
+
+        if (index > 0)
+        {
+            RectTransform seg = CreateRect(row, "RailUp",
+                new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(railX, 0f), new Vector2(3f, -nodeY - nodeHalf));
+            Image segImage = seg.gameObject.AddComponent<Image>();
+            segImage.color = lineColor;
+            segImage.raycastTarget = false;
+        }
+        if (index < count - 1)
+        {
+            float top = -nodeY + nodeHalf;
+            RectTransform seg = CreateRect(row, "RailDown",
+                new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(railX, -top), new Vector2(3f, LevelRowHeight - top));
+            Image segImage = seg.gameObject.AddComponent<Image>();
+            segImage.color = lineColor;
+            segImage.raycastTarget = false;
+        }
+
+        if (current)
+        {
+            Image glow = CreateImage(row, "RailGlow", RuntimeSprites.SoftBlob(), WithAlpha(chapterLight, 0.6f));
+            glow.raycastTarget = false;
+            SetCenteredAt(glow.rectTransform, new Vector2(0f, 1f), new Vector2(railX, nodeY), new Vector2(96f, 96f));
+            Image node = CreateImage(row, "RailNode",
+                MenuSprites.DiamondBadge(Color.Lerp(chapterLight, Color.white, 0.35f), Color.white), Color.white);
+            node.raycastTarget = false;
+            SetCenteredAt(node.rectTransform, new Vector2(0f, 1f), new Vector2(railX, nodeY), new Vector2(44f, 44f));
+        }
+        else if (completed)
+        {
+            Image node = CreateImage(row, "RailNode",
+                MenuSprites.DiamondBadge(WithAlpha(TextPrimary, 0.92f), WithAlpha(chapterLight, 0.9f)), Color.white);
+            node.raycastTarget = false;
+            SetCenteredAt(node.rectTransform, new Vector2(0f, 1f), new Vector2(railX, nodeY), new Vector2(30f, 30f));
+        }
+        else
+        {
+            Image node = CreateImage(row, "RailNode",
+                MenuSprites.CircleBadge(WithAlpha(TextPrimary, 0.35f), WithAlpha(TextPrimary, 0.95f)), Color.white);
+            node.raycastTarget = false;
+            SetCenteredAt(node.rectTransform, new Vector2(0f, 1f), new Vector2(railX, nodeY), new Vector2(20f, 20f));
+        }
+    }
+
+    // Which little glyph sits before the challenge label (the concepts' cube/waves/mountain marks).
+    private static string GoalGlyphKind(string challengeLabel)
+    {
+        string label = challengeLabel != null ? challengeLabel.ToUpperInvariant() : "";
+        if (label.Contains("TIMED")) return "timer";
+        if (label.Contains("WAVE")) return "waves";
+        if (label.Contains("HEIGHT")) return "mountain";
+        return "cube";
     }
 
     private static void BuildLevelCard(Transform parent, ChapterDefinition chapter, LevelDefinition level,
@@ -318,7 +452,7 @@ public static partial class MainMenuRuntime
         RectTransform card = CreateRect(parent, $"LevelCard{index + 1}",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
             Vector2.zero, Vector2.zero);
-        card.offsetMin = new Vector2(LevelCardSideInset, -(LevelCardTop + LevelCardHeight));
+        card.offsetMin = new Vector2(LevelCardSideInset + LevelRailGutter, -(LevelCardTop + LevelCardHeight));
         card.offsetMax = new Vector2(-LevelCardSideInset, -LevelCardTop);
         Image cardImage = card.gameObject.AddComponent<Image>();
         cardImage.sprite = RuntimeSprites.RoundedPanel();
@@ -337,17 +471,22 @@ public static partial class MainMenuRuntime
 
         if (current)
         {
-            // Outer glow via UIEffect on the FILLED card silhouette (a blurred thin outline is too
-            // faint to read): a zero-distance, Replace-tinted shadow of the whole rounded rect is
-            // a broad soft halo behind the card. uGUI has no box-shadow, so this is the halo; the
-            // AddOutline above stays the crisp border on top.
-            UIEffect glowFx = cardImage.gameObject.AddComponent<UIEffect>();
-            glowFx.shadowMode = ShadowMode.Shadow;
-            glowFx.shadowDistance = Vector2.zero;
-            glowFx.shadowIteration = 5;
-            glowFx.shadowBlurIntensity = 1f;
-            glowFx.shadowColorFilter = ColorFilter.Replace;
-            glowFx.shadowColor = WithAlpha(chapterLight, 0.85f);
+            // A REAL glow: the 9-sliced GlowFrame ring (soft baked falloff) stretched slightly
+            // past the card. Reads as a thin bright rim that blooms outward - never a slab.
+            // Kept SMALL and quiet: the crisp border above carries the highlight, the halo
+            // just breathes a few pixels past it.
+            const float grow = 12f;
+            RectTransform halo = CreateRect(parent, "ActiveHalo",
+                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
+                Vector2.zero, Vector2.zero);
+            halo.offsetMin = new Vector2(LevelCardSideInset + LevelRailGutter - grow, -(LevelCardTop + LevelCardHeight + grow));
+            halo.offsetMax = new Vector2(-(LevelCardSideInset - grow), -(LevelCardTop - grow));
+            halo.SetAsFirstSibling(); // behind the card
+            Image haloImage = halo.gameObject.AddComponent<Image>();
+            haloImage.sprite = MenuSprites.GlowFrame();
+            haloImage.type = Image.Type.Sliced;
+            haloImage.color = WithAlpha(Color.Lerp(chapterLight, Color.white, 0.2f), 0.6f);
+            haloImage.raycastTarget = false;
         }
 
         Sprite thumbSprite = level.MenuThumbnail != null
@@ -396,13 +535,31 @@ public static partial class MainMenuRuntime
         titleLayout.preferredHeight = 48f;
         titleLayout.flexibleHeight = 0f;
 
-        // Type label: real TMP letter-spacing instead of the old "inject spaces" hack.
-        TextMeshProUGUI challenge = CreateTmp(column, "Challenge", presentation.ChallengeLabel.ToUpperInvariant(), 17,
-            unlocked ? chapterLight : LockedColor, TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.DefaultFont);
-        challenge.characterSpacing = 5f;
-        LayoutElement challengeLayout = challenge.gameObject.AddComponent<LayoutElement>();
+        // Type row: a small goal glyph (cube/waves/mountain/timer) + the label with real TMP
+        // letter-spacing - the concepts' "icon in front of the game type".
+        Color challengeColor = unlocked ? chapterLight : LockedColor;
+        RectTransform challengeRow = CreateRect(column, "ChallengeRow",
+            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+        LayoutElement challengeLayout = challengeRow.gameObject.AddComponent<LayoutElement>();
         challengeLayout.preferredHeight = 24f;
         challengeLayout.flexibleHeight = 0f;
+        HorizontalLayoutGroup challengeGroup = challengeRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+        challengeGroup.spacing = 8f;
+        challengeGroup.childAlignment = TextAnchor.MiddleLeft;
+        challengeGroup.childControlWidth = false;
+        challengeGroup.childControlHeight = false;
+        challengeGroup.childForceExpandWidth = false;
+        challengeGroup.childForceExpandHeight = false;
+
+        Image goalIcon = CreateImage(challengeRow, "GoalIcon",
+            MenuSprites.GoalGlyph(GoalGlyphKind(presentation.ChallengeLabel), challengeColor), Color.white);
+        goalIcon.raycastTarget = false;
+        goalIcon.rectTransform.sizeDelta = new Vector2(22f, 22f);
+
+        TextMeshProUGUI challenge = CreateTmp(challengeRow, "Challenge", presentation.ChallengeLabel.ToUpperInvariant(), 17,
+            challengeColor, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.DefaultFont);
+        challenge.characterSpacing = 5f;
+        challenge.rectTransform.sizeDelta = new Vector2(420f, 24f);
 
         BuildProgressLine(column, presentation, unlocked, completed, chapterDark, chapterLight);
 

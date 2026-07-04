@@ -21,7 +21,8 @@ public static partial class RuntimeUiKit
         {
             if (_titleFont == null)
             {
-                _titleFont = Resources.Load<Font>("Fonts/Inter-Variable");
+                _titleFont = Resources.Load<Font>("Fonts/ArchivoBlack-Regular");
+                if (_titleFont == null) _titleFont = Resources.Load<Font>("Fonts/Inter-Variable");
                 if (_titleFont == null) _titleFont = DefaultFont;
             }
             return _titleFont;

@@ -29,9 +29,12 @@ public static partial class MainMenuRuntime
     // phone), five evenly-spaced tabs split by thin dividers, and a raised gold Home hexagon at
     // the centre. Lives in the menu's safe-area layer, so it already clears the home indicator.
     private const float NavSideInset = 60f;     // gap from each screen edge to the bar
-    private const float NavBottomMargin = 28f;  // gap from the safe-area bottom to the bar
+    // The Home hexagon (230 tall vs the 150 bar) overhangs the bar by 40 px below - the bar must
+    // sit high enough that the point still clears the screen WITH breathing room on devices whose
+    // safe area has no bottom inset, or the button looks sheared off.
+    private const float NavBottomMargin = 54f;  // gap from the safe-area bottom to the bar
     private const float NavBarHeight = 150f;
-    private const float NavLabelY = -47f;       // label baseline, shared by every tab
+    private const float NavLabelY = -35f;       // label baseline, tucked close under the icon
     private const float NavIconY = 20f;         // side-tab icon centre, above the label
 
     private static void BuildBottomNav(Transform parent)
@@ -53,17 +56,21 @@ public static partial class MainMenuRuntime
 
         MenuTab[] tabs = { MenuTab.Shop, MenuTab.Chapters, MenuTab.Home, MenuTab.Vault, MenuTab.Settings };
 
-        // Thin vertical dividers on the four internal slot boundaries (not the rounded ends).
+        // Thin vertical dividers on the internal slot boundaries - but NOT the two flanking the
+        // centre Home hexagon, which is its own separator.
         for (int i = 1; i < tabs.Length; i++)
         {
-            Image divider = CreateImage(nav, $"NavDivider{i}", RuntimeSprites.Square(), WithAlpha(gold, 0.22f));
+            if (tabs[i] == MenuTab.Home || tabs[i - 1] == MenuTab.Home) continue;
+            // Wide/bright enough to survive the canvas downscale to phone resolution - the old
+            // 1.5 px at 0.22 alpha rendered subpixel and simply vanished.
+            Image divider = CreateImage(nav, $"NavDivider{i}", RuntimeSprites.Square(), WithAlpha(gold, 0.34f));
             RectTransform d = divider.rectTransform;
             float fx = i / (float)tabs.Length;
             d.anchorMin = new Vector2(fx, 0.5f);
             d.anchorMax = new Vector2(fx, 0.5f);
             d.pivot = new Vector2(0.5f, 0.5f);
             d.anchoredPosition = Vector2.zero;
-            d.sizeDelta = new Vector2(1.5f, NavBarHeight * 0.5f);
+            d.sizeDelta = new Vector2(3f, NavBarHeight * 0.52f);
         }
 
         for (int i = 0; i < tabs.Length; i++)
@@ -113,7 +120,7 @@ public static partial class MainMenuRuntime
         {
             Image icon = CreateImage(slot, "Icon", glyph, Color.white);
             icon.preserveAspect = true;
-            SetCenteredAt(icon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, NavIconY), new Vector2(48f, 48f));
+            SetCenteredAt(icon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, NavIconY), new Vector2(60f, 60f));
         }
         CreateTmp(slot, "Label", tab.ToString().ToUpperInvariant(), 17, tint, TextAnchor.MiddleCenter,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, NavLabelY), new Vector2(160f, 30f), new Vector2(0.5f, 0.5f));
@@ -131,10 +138,10 @@ public static partial class MainMenuRuntime
 
         bool active = _activeTab == MenuTab.Home;
 
-        // A point-top hexagon, centred on the bar and TALLER than it, so its top and bottom points
-        // overhang both bar edges - the reference's prominent centre button. Darker amber base
-        // with a gradient up to a lighter top (HexButton lerps bottom->top); the house glyph and
-        // the HOME label both sit INSIDE the hexagon.
+        // A rounded point-top hexagon, taller than wide, centred on the bar and TALLER than it,
+        // so its top and bottom points overhang both bar edges - the reference's prominent centre
+        // button (HexButton also bakes the darker back-plate seam and the light outline). The
+        // house glyph and the HOME label both sit INSIDE the hexagon.
         Color topColor, bottomColor;
         if (chapter != null)
         {
@@ -147,9 +154,15 @@ public static partial class MainMenuRuntime
             bottomColor = new Color(0.55f, 0.24f, 0.05f, 1f);
         }
 
+        // Soft drop shadow so the hexagon reads as floating over the bar (the concepts' depth).
+        Image hexShadow = CreateImage(slot, "HomeHexShadow", RuntimeSprites.SoftBlob(),
+            new Color(0f, 0f, 0f, 0.4f));
+        hexShadow.raycastTarget = false;
+        SetCenteredAt(hexShadow.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, -18f), new Vector2(190f, 105f));
+
         RectTransform hex = CreateRect(slot, "HomeHex",
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            Vector2.zero, new Vector2(208f, 208f));
+            Vector2.zero, new Vector2(224f, 230f));
         Image image = hex.gameObject.AddComponent<Image>();
         image.sprite = MenuSprites.HexButton(topColor, bottomColor);
         image.preserveAspect = true;
@@ -161,7 +174,7 @@ public static partial class MainMenuRuntime
         Color glyphColor = active ? Color.Lerp(gold, Color.white, 0.3f) : Color.Lerp(TextMuted, gold, 0.35f);
         Image house = CreateImage(hex, "HomeIcon", MenuSprites.NavHouse(glyphColor), Color.white);
         house.preserveAspect = true;
-        SetCenteredAt(house.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, 26f), new Vector2(52f, 52f));
+        SetCenteredAt(house.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, 28f), new Vector2(64f, 64f));
 
         CreateTmp(hex, "Label", "HOME", 16, glyphColor, TextAnchor.MiddleCenter,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -32f), new Vector2(124f, 26f), new Vector2(0.5f, 0.5f));

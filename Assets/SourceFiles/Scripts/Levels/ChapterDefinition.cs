@@ -28,6 +28,8 @@ public class ChapterDefinition : ScriptableObject
     [SerializeField] private Sprite menuBackgroundImage;
     [Tooltip("Small locked-preview image for the next chapter card. Empty = procedural placeholder.")]
     [SerializeField] private Sprite nextChapterPreviewImage;
+    [Tooltip("True when the TOP of the menu background image is LIGHT (pale sky, sand): the chapter eyebrow + title then render in dark ink instead of cream, so they stay readable without drop shadows.")]
+    [SerializeField] private bool menuTopIsLight = false;
     [SerializeField] private Color menuAccentColor = new Color(1f, 0.62f, 0.18f, 1f);
     [SerializeField] private Color menuAccentSecondaryColor = new Color(0.58f, 0.38f, 0.16f, 1f);
     [SerializeField] private Color menuPanelColor = new Color(0.12f, 0.09f, 0.06f, 0.72f);
@@ -57,6 +59,7 @@ public class ChapterDefinition : ScriptableObject
     public VideoClip MenuBackgroundVideo => menuBackgroundVideo;
     public Sprite MenuBackgroundImage => menuBackgroundImage;
     public Sprite NextChapterPreviewImage => nextChapterPreviewImage;
+    public bool MenuTopIsLight => menuTopIsLight;
     public Color MenuAccentColor => menuAccentColor;
     public Color MenuAccentSecondaryColor => menuAccentSecondaryColor;
     public Color MenuPanelColor => menuPanelColor;
