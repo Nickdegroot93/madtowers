@@ -22,12 +22,23 @@ public class LossZone : MonoBehaviour
     // which put the line and the death itself off-screen once the camera climbed.)
     private const float LossLineAboveScreenBottom = 2f;
 
+    // The kill line must never eat a LEGITIMATE landing zone: the floor terrain carves pockets up
+    // to ~3 cells below the datum (FLOORS.md), and pieces can hook a floor edge below the datum
+    // while still clearly on screen. Near the ground the line is therefore clamped this far under
+    // the datum (inside the fog, off-screen at start); once the camera climbs, the camera-relative
+    // line rises above this and the original altitude behaviour takes over unchanged.
+    private const float TerrainClearanceBelowDatum = 4f;
+
     /// <summary>The world-space line below which a block counts as lost, for the given camera -
     /// the single definition the sweep, the death beam and abilities all consult (a doomed piece
-    /// must not accept a consumable spent on it). Sits just inside the bottom edge of the view.</summary>
+    /// must not accept a consumable spent on it). Camera-relative at altitude; clamped safely
+    /// below the floor terrain near the ground.</summary>
     public static float CullY(Camera camera)
     {
-        return camera.transform.position.y - camera.orthographicSize + LossLineAboveScreenBottom;
+        float line = camera.transform.position.y - camera.orthographicSize + LossLineAboveScreenBottom;
+        GameManager gm = GameManager.Instance;
+        if (gm != null) line = Mathf.Min(line, gm.floorOriginY - TerrainClearanceBelowDatum);
+        return line;
     }
 
     /// <summary>True if a world position sits below the bottom-screen kill line right now - i.e. a
@@ -87,6 +98,21 @@ public class LossZone : MonoBehaviour
         // the backstop trigger sits; players should never see it.
         SpriteRenderer guide = GetComponent<SpriteRenderer>();
         if (guide != null) guide.enabled = false;
+    }
+
+    private void Start()
+    {
+        // Keep the fixed backstop below every legit landing zone too (same clearance rule as
+        // CullY) - a scene-authored trigger sitting higher would still eat terrain pockets.
+        GameManager gm = GameManager.Instance;
+        if (gm == null || _triggerCollider == null) return;
+
+        float maxTop = gm.floorOriginY - TerrainClearanceBelowDatum;
+        float overshoot = _triggerCollider.bounds.max.y - maxTop;
+        if (overshoot > 0f)
+        {
+            transform.position += Vector3.down * overshoot;
+        }
     }
 
     private void OnEnable()

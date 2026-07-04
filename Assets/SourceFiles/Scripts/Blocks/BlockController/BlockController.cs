@@ -383,6 +383,7 @@ public partial class BlockController : MonoBehaviour
     // own gate keeps the lost piece from scoring posthumously.
     public void HandleLostBelowScreen()
     {
+        LifeLossFx.Play(transform.position); // the mist swallows the block - visible at the screen edge
         if (GameManager.Instance != null) GameManager.Instance.GameOver();
         if (!HasLanded) LockBlock(); // end control cleanly so (lives permitting) the next piece spawns
         Destroy(gameObject);

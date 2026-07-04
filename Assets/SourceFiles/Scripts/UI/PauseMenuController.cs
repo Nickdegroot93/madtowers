@@ -95,13 +95,15 @@ public class PauseMenuController : MonoBehaviour
         _menuCanvas = RuntimeUiKit.CreateOverlayCanvas("Pause Menu", 7000);
         CreateShroud(_menuCanvas.transform);
 
-        GameObject panel = RuntimeUiKit.CreateCenteredPanel(_menuCanvas.transform, new Vector2(560f, 480f));
-        RuntimeUiKit.CreateLabel(panel.transform, "Paused", 52, 82f, FontStyle.Bold, RuntimeUiKit.TitleColor);
-        RuntimeUiKit.CreateButton(panel.transform, "Resume", 88f, Resume);
-        RuntimeUiKit.CreateButton(panel.transform, "Restart Level", 88f,
-            () => BuildConfirm("Restart this level?\nYour current run will be lost.", RestartLevel));
-        RuntimeUiKit.CreateButton(panel.transform, "Back to Menu", 88f,
-            () => BuildConfirm("Quit to the level menu?\nYour current run will be lost.", ReturnToMenu));
+        GameObject panel = RuntimeUiKit.CreateCenteredPanel(_menuCanvas.transform, new Vector2(560f, 560f));
+        GameMenuStyle.StylePanel(panel);
+        RuntimeUiKit.CreateLabel(panel.transform, "Paused", 52, 82f, FontStyle.Bold, GameMenuStyle.Accent);
+        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Resume", 88f, Resume), primary: true);
+        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Restart Level", 88f,
+            () => BuildConfirm("Restart this level?\nYour current run will be lost.", RestartLevel)), primary: false);
+        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Back to Menu", 88f,
+            () => BuildConfirm("Quit to the level menu?\nYour current run will be lost.", ReturnToMenu)), primary: false);
+        UiEntranceFx.Play(panel, 0.02f);
     }
 
     private void BuildConfirm(string question, UnityEngine.Events.UnityAction onYes)
@@ -110,12 +112,13 @@ public class PauseMenuController : MonoBehaviour
         _menuCanvas = RuntimeUiKit.CreateOverlayCanvas("Pause Confirm", 7000);
         CreateShroud(_menuCanvas.transform);
 
-        GameObject panel = RuntimeUiKit.CreateCenteredPanel(_menuCanvas.transform, new Vector2(560f, 430f));
-        RuntimeUiKit.CreateLabel(panel.transform, "Are you sure?", 46, 70f, FontStyle.Bold, RuntimeUiKit.TitleColor);
-        RuntimeUiKit.CreateLabel(panel.transform, question, 28, 92f, FontStyle.Normal,
-            new Color(0.78f, 0.85f, 0.9f, 1f));
-        RuntimeUiKit.CreateButton(panel.transform, "Yes", 88f, onYes);
-        RuntimeUiKit.CreateButton(panel.transform, "No, keep playing", 88f, BuildMenu);
+        GameObject panel = RuntimeUiKit.CreateCenteredPanel(_menuCanvas.transform, new Vector2(560f, 500f));
+        GameMenuStyle.StylePanel(panel);
+        RuntimeUiKit.CreateLabel(panel.transform, "Are you sure?", 46, 70f, FontStyle.Bold, GameMenuStyle.Accent);
+        RuntimeUiKit.CreateLabel(panel.transform, question, 28, 92f, FontStyle.Normal, GameMenuStyle.BodyText);
+        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Yes", 88f, onYes), primary: false);
+        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "No, keep playing", 88f, BuildMenu), primary: true);
+        UiEntranceFx.Play(panel, 0.02f);
     }
 
     private void Resume()

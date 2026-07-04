@@ -173,15 +173,71 @@ public class UIManager : MonoBehaviour
         if (heightText != null) heightText.text = $"{height:F1}m";
     }
 
+    private int _shownLives = -1;
+
     private void HandleLivesChanged(int lives)
     {
         EnsureHearts();
         if (_heartsContainer == null) return;
 
+        int previous = _shownLives < 0 ? lives : _shownLives;
+        _shownLives = lives;
+
         for (int i = 0; i < _hearts.Length; i++)
         {
-            if (_hearts[i] != null) _hearts[i].enabled = i < lives;
+            if (_hearts[i] == null) continue;
+            if (i < lives && !_hearts[i].enabled)
+            {
+                _hearts[i].enabled = true;
+                if (previous < lives) StartCoroutine(PopHeart(_hearts[i]));      // gained: pop in
+            }
+            else if (i >= lives && _hearts[i].enabled)
+            {
+                if (i < previous) StartCoroutine(BreakHeart(_hearts[i]));        // lost: swell + fade out
+                else _hearts[i].enabled = false;
+            }
         }
+
+        if (lives < previous) SfxPlayer.Play("life_lost", 0.8f, 0.03f);
+    }
+
+    // The lost heart swells, blanches and dissolves - a beat of grief, on unscaled time so the
+    // pause/game-over freeze can't rob the player of the feedback.
+    private System.Collections.IEnumerator BreakHeart(Image heart)
+    {
+        const float duration = 0.45f;
+        Vector3 baseScale = heart.rectTransform.localScale;
+        Color baseColor = heart.color;
+        float age = 0f;
+        while (age < duration && heart != null)
+        {
+            age += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(age / duration);
+            heart.rectTransform.localScale = baseScale * (1f + 0.6f * Mathf.Sin(t * Mathf.PI * 0.5f));
+            Color c = Color.Lerp(baseColor, Color.white, t * 0.7f);
+            c.a = baseColor.a * (1f - t * t);
+            heart.color = c;
+            yield return null;
+        }
+        if (heart == null) yield break;
+        heart.enabled = false;
+        heart.rectTransform.localScale = baseScale;
+        heart.color = baseColor;
+    }
+
+    private System.Collections.IEnumerator PopHeart(Image heart)
+    {
+        const float duration = 0.3f;
+        Vector3 baseScale = heart.rectTransform.localScale;
+        float age = 0f;
+        while (age < duration && heart != null)
+        {
+            age += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(age / duration);
+            heart.rectTransform.localScale = baseScale * (0.5f + 0.5f * t + 0.18f * Mathf.Sin(t * Mathf.PI));
+            yield return null;
+        }
+        if (heart != null) heart.rectTransform.localScale = baseScale;
     }
 
     private void HandleNextBlockChanged(System.Collections.Generic.IReadOnlyList<string> blockNames)
@@ -267,16 +323,32 @@ public class UIManager : MonoBehaviour
         ShowGameOver(finalScore, maxHeight);
     }
 
+    private GameObject _gameOverOverlay;
+
+    // The legacy scene gameOverPanel is retired: the overlay is runtime-built in the chapter's
+    // menu palette (GameMenuStyle), with an entrance pop and the game-over sting.
     private void ShowGameOver(int finalScore, float maxHeight)
     {
-        if (gameOverPanel != null && !gameOverPanel.activeSelf)
+        if (gameOverPanel != null) gameOverPanel.SetActive(false);
+        if (_gameOverOverlay != null) return;
+
+        SfxPlayer.Play("game_over", 0.85f, 0f);
+
+        _gameOverOverlay = RuntimeUiKit.CreateOverlayCanvas("Game Over", 7100);
+        RuntimeUiKit.CreateBackdrop(_gameOverOverlay.transform, GameMenuStyle.BackdropColor);
+
+        GameObject panel = RuntimeUiKit.CreateCenteredPanel(_gameOverOverlay.transform, new Vector2(560f, 640f));
+        GameMenuStyle.StylePanel(panel);
+        RuntimeUiKit.CreateLabel(panel.transform, "GAME OVER", 56, 92f, FontStyle.Bold, GameMenuStyle.Accent);
+        RuntimeUiKit.CreateLabel(panel.transform, $"Final Score  {finalScore}", 32, 56f, FontStyle.Bold, GameMenuStyle.BodyText);
+        RuntimeUiKit.CreateLabel(panel.transform, $"Max Height  {maxHeight:F1}m", 32, 56f, FontStyle.Normal, GameMenuStyle.BodyText);
+        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Try Again", 92f, RestartGame), primary: true);
+        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Back to Menu", 92f, () =>
         {
-            gameOverPanel.SetActive(true);
-            if (finalScoreText != null)
-            {
-                finalScoreText.text = $"Final Score: {finalScore}\nMax Height: {maxHeight:F1}m";
-            }
-        }
+            SfxPlayer.Play("ui-leave-game");
+            MainMenuRuntime.ReturnToMenu();
+        }), primary: false);
+        UiEntranceFx.Play(panel, 0.15f); // a breath after the sting starts
     }
 
     public void RestartGame()

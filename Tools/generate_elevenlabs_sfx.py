@@ -78,6 +78,10 @@ SOUNDS = {
         "whoosh, snappy and quick.", 0.5, 0.5),  # KEEPER
     "slowmo_engage": (STYLE + "Time bending into slow motion: one big smooth deep WHOOM "
         "sweep dropping down, dramatic.", 1.0, 0.5),
+    "life_lost": (STYLE + "Losing a life in a puzzle game: one deep soft muffled thud with "
+        "a short sad downward whoosh, weighty but not harsh, brief.", 0.9, 0.55),
+    "game_over": (STYLE + "Game over: three slow deep muffled drum thuds descending in pitch, "
+        "dark heavy and somber, very low frequency, absolutely no melodic or high tones.", 1.6, 0.6),
     "status_engage": (STYLE + "A protective wind aura whooshing around: full circular gust "
         "swirl, breathy and energetic.", 0.9, 0.5),
 }
