@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RerollPowerUp
   displayName: Reroll
   icon: {fileID: 0}
-  shortDescription: Banks 3 rerolls - redraw the choice cards with the Reroll button.
+  shortDescription: Banks 3 rerolls for future ability offers.
   ownedShortDescription:
   description: 'Banks three rerolls. Whenever ability choices appear, a Reroll button sits
     under the cards - tap it to redraw all three. The rerolls are saved across offers, so

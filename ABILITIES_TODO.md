@@ -77,3 +77,11 @@ campaign layout is fixed. (Mechanism: `AbilityDefinition.minChapterNumber`, ABIL
 
 - [ ] Revisit Guardian (50%) + Rebound (20%) co-ownership balance once playtested
       (combined ~60% lost-block save).
+
+## 4. Short-description copy rule
+
+Shorts must be genuinely SHORT: one plain clause, no " - flavor tail" (that's the long
+description's job), aim ≤ ~50 chars. A July 2026 audit flagged 18 of 55 and all were
+rewritten (Freeze also gained a real `shortDescription` instead of falling back to the
+long). Keep new abilities to the same bar; the swap dialog + HUD slots show the same
+string, so a bad short leaks into three surfaces.

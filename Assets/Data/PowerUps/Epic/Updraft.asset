@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FallSpeedReductionPowerUp
   displayName: Updraft
   icon: {fileID: 0}
-  shortDescription: Drastically slows block falling speed for the rest of the run.
+  shortDescription: Drastically slows all falling blocks.
   ownedShortDescription:
   description: 'A constant updraft drags on every falling block - they descend far
     more slowly and the top speed stays well below normal for the whole run. One

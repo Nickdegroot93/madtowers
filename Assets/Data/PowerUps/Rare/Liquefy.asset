@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ApplyVariantConsumable
   displayName: Liquefy
   icon: {fileID: 0}
-  shortDescription: Tap to turn the falling brick molten - it pours into the gaps below and hardens to stone.
+  shortDescription: Tap to melt the falling brick into the gaps below.
   ownedShortDescription:
   description: 'Tap to make the brick you are dropping molten. When it lands it pours like lava into the empty gaps beneath it, then cools into solid stone - one piece fills holes and flattens your tower.'
   rarity: 1

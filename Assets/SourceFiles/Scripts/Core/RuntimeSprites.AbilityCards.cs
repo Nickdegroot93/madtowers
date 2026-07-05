@@ -1,85 +1,91 @@
 using UnityEngine;
 
 /// <summary>
-/// Ability-card chrome: the cut-corner sci-fi frame from the design mockups, drawn as
-/// SDF sprites. Two layers per card - a fixed dark PLATE and a rarity-tinted FRAME
-/// (bright border + soft outer glow) - so one white frame sprite serves all four
-/// rarities via Image.color. Both are 9-sliceable; the chamfered corners live inside
-/// the slice border so they stay crisp at any card size.
+/// Ability/UI glyph sprites that grew up around the ability cards: the placeholder ability
+/// glyph, the shared rounded-outline stroke, HUD bar/cube shapes, and the small decorative
+/// diamond. (The old cut-corner card frame/plate sprites are gone - cards are now composed
+/// from the shared rounded-panel vocabulary in AbilityCardView.)
 /// </summary>
 public static partial class RuntimeSprites
 {
-    private const int CardTexSize = 96;
-    private const float CardChamfer = 18f;   // 45-degree corner cut, px
-    private const float CardBorderWidth = 1.6f; // half-width of the crisp line core
-    private const float CardGlowWidth = 2.2f;   // hairline aura
-    private const float CardGlowStrength = 0.16f;
-    private const float CardGlowCutoff = 5.5f;  // aura is fully gone past this distance
-    private const float CardSliceBorder = 30f;
+    // ---- neon card chrome ------------------------------------------------------------------
+    // The ability cards' body + edge, drawn on a PADDED canvas so the neon bloom has room
+    // OUTSIDE the card edge: a rounded-rect vertical gradient fill (accent-dark at the top,
+    // near-black at the bottom) and a matching bright ring with an outer glow. Both share the
+    // exact same geometry, so fill + ring always align; stretch both to the card rect expanded
+    // by CardSpritePad per side. 9-sliced; every column carries the same vertical gradient, so
+    // slicing never distorts it.
+    public const float CardSpritePad = 16f;
+    private const int CardTexSize = 128;
+    private const float CardCornerRadius = 30f;
 
-    // Signed distance to a chamfered (octagon) box centered in the texture - the max of
-    // the three half-plane distances (box sides + 45-degree corner planes). Not a true
-    // Euclidean SDF, but exact along the borders we draw.
-    private static float ChamferBoxDistance(float x, float y, float half, float chamfer)
+    private static readonly System.Collections.Generic.Dictionary<string, Sprite> _cardGradients =
+        new System.Collections.Generic.Dictionary<string, Sprite>();
+
+    // Signed distance to the card's rounded box (negative inside), centered coords.
+    private static float CardBoxDistance(float cx, float cy, float half, float radius)
     {
-        float ax = Mathf.Abs(x);
-        float ay = Mathf.Abs(y);
-        float side = Mathf.Max(ax, ay) - half;
-        float corner = (ax + ay - (2f * half - chamfer)) * 0.70710678f;
-        return Mathf.Max(side, corner);
+        float qx = Mathf.Abs(cx) - (half - radius);
+        float qy = Mathf.Abs(cy) - (half - radius);
+        return new Vector2(Mathf.Max(qx, 0f), Mathf.Max(qy, 0f)).magnitude
+               + Mathf.Min(Mathf.Max(qx, qy), 0f) - radius;
     }
 
-    // ---- card frame (rarity-tinted border + glow) ----------------------------------------
-    private static Sprite _cardFrame;
-
-    public static Sprite CardFrame()
+    public static Sprite CardGradient(Color top, Color bottom)
     {
-        if (_cardFrame != null) return _cardFrame;
+        Color32 t32 = top; Color32 b32 = bottom;
+        string key = $"{t32.r:x2}{t32.g:x2}{t32.b:x2}{t32.a:x2}:{b32.r:x2}{b32.g:x2}{b32.b:x2}{b32.a:x2}";
+        if (_cardGradients.TryGetValue(key, out Sprite cached) && cached != null) return cached;
 
         const int S = CardTexSize;
-        const float half = S * 0.5f - CardGlowWidth - 2f;
+        const float half = S * 0.5f - CardSpritePad;
+        Texture2D tex = NewTexture(S, S);
+        for (int y = 0; y < S; y++)
+        {
+            float t = Mathf.Clamp01((y - CardSpritePad) / (S - 2f * CardSpritePad));
+            Color row = Color.Lerp(bottom, top, t);
+            for (int x = 0; x < S; x++)
+            {
+                float d = CardBoxDistance(x + 0.5f - S * 0.5f, y + 0.5f - S * 0.5f, half, CardCornerRadius);
+                Color c = row;
+                c.a *= Mathf.Clamp01(0.5f - d);
+                tex.SetPixel(x, y, c);
+            }
+        }
+        float border = CardSpritePad + CardCornerRadius + 2f;
+        return _cardGradients[key] = Finish(tex, 100f, new Vector4(border, border, border, border));
+    }
+
+    private static Sprite _cardNeonRing;
+
+    public static Sprite CardNeonRing()
+    {
+        if (_cardNeonRing != null) return _cardNeonRing;
+
+        const int S = CardTexSize;
+        const float half = S * 0.5f - CardSpritePad;
         Texture2D tex = NewTexture(S, S);
         for (int y = 0; y < S; y++)
         {
             for (int x = 0; x < S; x++)
             {
-                float d = ChamferBoxDistance(x + 0.5f - S * 0.5f, y + 0.5f - S * 0.5f, half, CardChamfer);
+                float d = CardBoxDistance(x + 0.5f - S * 0.5f, y + 0.5f - S * 0.5f, half, CardCornerRadius);
 
-                // A crisp solid line (1px anti-alias ramp) with a hairline aura. The
-                // aura is force-faded to zero before the cutoff: an exponential tail
-                // reaching the texture edge reads as a square halo around the chamfered
-                // corners - the EDGE is the design, not a feather.
-                float border = Mathf.Clamp01(CardBorderWidth - Mathf.Abs(d) + 0.5f);
-                float fade = Mathf.Clamp01(1f - Mathf.Abs(d) / CardGlowCutoff);
-                float glow = Mathf.Exp(-Mathf.Abs(d) / CardGlowWidth) * CardGlowStrength * fade * fade;
+                // A crisp bright core stroke, an outer bloom forced to zero before the canvas
+                // edge (an exponential alone leaves a visible cut-off square), and a faint
+                // inner glow so the interior reads lit from its edges (the card BODY stays
+                // near-black - the edge light is where the rarity colour lives).
+                float core = Mathf.Clamp01(1.7f - Mathf.Abs(d) + 0.5f);
+                float outer = d > 0f
+                    ? Mathf.Exp(-d / 5f) * 0.5f * Mathf.Clamp01((CardSpritePad - 2f - d) / 6f)
+                    : 0f;
+                float inner = d < 0f ? Mathf.Exp(d / 5.5f) * 0.28f : 0f;
 
-                tex.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Clamp01(border + glow)));
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Clamp01(core + outer + inner)));
             }
         }
-        return _cardFrame = Finish(tex, 100f,
-            new Vector4(CardSliceBorder, CardSliceBorder, CardSliceBorder, CardSliceBorder));
-    }
-
-    // ---- card plate (fixed dark fill behind the frame) -----------------------------------
-    private static Sprite _cardPlate;
-
-    public static Sprite CardPlate()
-    {
-        if (_cardPlate != null) return _cardPlate;
-
-        const int S = CardTexSize;
-        const float half = S * 0.5f - CardGlowWidth - 2f;
-        Texture2D tex = NewTexture(S, S);
-        for (int y = 0; y < S; y++)
-        {
-            for (int x = 0; x < S; x++)
-            {
-                float d = ChamferBoxDistance(x + 0.5f - S * 0.5f, y + 0.5f - S * 0.5f, half, CardChamfer);
-                tex.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Clamp01(0.5f - d)));
-            }
-        }
-        return _cardPlate = Finish(tex, 100f,
-            new Vector4(CardSliceBorder, CardSliceBorder, CardSliceBorder, CardSliceBorder));
+        float border = CardSpritePad + CardCornerRadius + 2f;
+        return _cardNeonRing = Finish(tex, 100f, new Vector4(border, border, border, border));
     }
 
     // ---- placeholder ability glyph --------------------------------------------------------
@@ -112,33 +118,6 @@ public static partial class RuntimeSprites
             }
         }
         return _abilityGlyph = Finish(tex, S);
-    }
-
-    // ---- card header band ---------------------------------------------------------------
-    // The top section of the card as its own region (the mockups' header is a COLOR
-    // AREA, not a divider line): chamfered top corners, straight bottom edge, subtle
-    // baked vertical gradient (brighter at the top). White; tint per rarity.
-    private static Sprite _cardHeaderBand;
-
-    public static Sprite CardHeaderBand()
-    {
-        if (_cardHeaderBand != null) return _cardHeaderBand;
-
-        const int W = 96, H = 64;
-        const float half = 96 * 0.5f - CardGlowWidth - 2f;
-        Texture2D tex = NewTexture(W, H);
-        for (int y = 0; y < H; y++)
-        {
-            // Rows map to the TOP band of the full 96x96 chamfer box.
-            float cy = (y + 32f) + 0.5f - 48f;
-            float gradient = Mathf.Lerp(0.30f, 0.60f, (float)y / (H - 1));
-            for (int x = 0; x < W; x++)
-            {
-                float d = ChamferBoxDistance(x + 0.5f - W * 0.5f, cy, half, CardChamfer);
-                tex.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Clamp01(0.5f - d) * gradient));
-            }
-        }
-        return _cardHeaderBand = Finish(tex, 100f, new Vector4(30f, 6f, 30f, 30f));
     }
 
     // ---- rounded outline (Details button border) -------------------------------------------

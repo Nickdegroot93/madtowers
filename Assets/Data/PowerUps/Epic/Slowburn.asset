@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SlowburnPowerUp
   displayName: Slowburn
   icon: {fileID: 0}
-  shortDescription: Every new piece falls slowly for a moment before speeding up.
+  shortDescription: New pieces fall slowly at first.
   ownedShortDescription:
   description: 'Every new piece drifts down slowly for its first moment - time to read the
     board and line up your placement - then resumes full speed. A breather on every single

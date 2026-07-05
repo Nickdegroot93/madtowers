@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BlockVariantChancePowerUp
   displayName: Magma
   icon: {fileID: 0}
-  shortDescription: Rare molten blocks that pour into gaps and harden to stone.
+  shortDescription: Molten bricks start dropping now and then.
   ownedShortDescription: Drops molten blocks more often.
   description: 'Every so often an incoming piece arrives molten. When it lands it pours
     like lava into the empty gaps directly beneath it, then cools and hardens into solid

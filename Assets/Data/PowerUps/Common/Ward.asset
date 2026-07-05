@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WardPowerUp
   displayName: Ward
   icon: {fileID: 0}
-  shortDescription: Neutralizes the next hazard brick into a plain brick - once.
+  shortDescription: Defuses the next hazard brick.
   ownedShortDescription:
   description: 'Holds a charge that defuses the next hazard brick the moment it appears -
     a Maw, Vortex, Bomb and the like becomes a plain brick of the same shape, just once.

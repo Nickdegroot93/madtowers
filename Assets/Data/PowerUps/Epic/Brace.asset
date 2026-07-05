@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   displayName: Brace
   icon: {fileID: 21300000, guid: ffc2021964364f91bfa77c02a438a3cb, type: 3}
-  shortDescription: Losing a life grants 10 seconds of immunity to further life loss.
+  shortDescription: Losing a life grants 10s of immunity.
   description: Losing a life grants 10 seconds of total immunity to further life loss.
     If a catastrophic chain reaction causes the entire top half of your tower to slide
     into the abyss during this window, it still only costs you exactly 1 life.

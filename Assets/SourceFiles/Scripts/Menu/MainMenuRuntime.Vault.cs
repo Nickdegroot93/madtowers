@@ -7,7 +7,7 @@ using static RuntimeUiKit;
 // The Vault: the player's collection of discovered bricks and abilities. Locked entries are
 // silhouettes + "???" (the name is part of the reward); discovered bricks get a live-rendered
 // showcase poster and a detail modal with the SAME looping demo the in-game debut shows
-// (BLOCKPREVIEWS.md's codex surface); discovered abilities get their real framed card art.
+// (BLOCKPREVIEWS.md's codex surface); discovered abilities get their real glass-slab card.
 // (partial of MainMenuRuntime, split from the main file for readability - same class, shared statics.)
 public static partial class MainMenuRuntime
 {
@@ -655,7 +655,7 @@ public static partial class MainMenuRuntime
 
         RectTransform panel = CreateRect(overlay.transform, "Panel",
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            Vector2.zero, new Vector2(880f, 1360f));
+            Vector2.zero, new Vector2(880f, 1160f));
         Image panelImage = panel.gameObject.AddComponent<Image>();
         panelImage.sprite = RuntimeSprites.RoundedPanel();
         panelImage.type = Image.Type.Sliced;
@@ -663,21 +663,15 @@ public static partial class MainMenuRuntime
         panelImage.raycastTarget = true;
         RuntimeUiKit.AddOutline(panel, GoldOutline(0.22f));
 
-        // The framed card, large, description slot included.
+        // The glass-slab card, large (rarity chrome + type chip + short description built in).
         RectTransform cardHolder = CreateRect(panel, "CardHolder",
             new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0f, -36f), new Vector2(500f, 894f));
+            new Vector2(0f, -36f), new Vector2(470f, 640f));
         AbilityCardView.CreateCollectionCard(cardHolder, ability, discovered: true, large: true);
-
-        Color rarityColor = AbilityRarityInfo.GetColor(ability.Rarity);
-        CreateTmp(panel, "TypeLine",
-            $"{AbilityTypeInfo.GetLabel(ability.Type)}  ·  {ability.Rarity.ToString().ToUpperInvariant()}",
-            24, Color.Lerp(rarityColor, TextPrimary, 0.3f), TextAnchor.MiddleCenter, FontStyle.Bold,
-            RuntimeUiKit.TitleFont, new Vector2(0f, -960f), new Vector2(700f, 34f), new Vector2(0.5f, 1f));
 
         TextMeshProUGUI bodyText = CreateTmp(panel, "Body", ability.LongDescription, 26,
             new Color(0.85f, 0.88f, 0.9f, 1f), TextAnchor.UpperCenter, FontStyle.Normal,
-            RuntimeUiKit.DefaultFont, new Vector2(0f, -1014f), new Vector2(760f, 290f), new Vector2(0.5f, 1f));
+            RuntimeUiKit.DefaultFont, new Vector2(0f, -716f), new Vector2(760f, 380f), new Vector2(0.5f, 1f));
         bodyText.textWrappingMode = TextWrappingModes.Normal;
 
         AddDetailClose(panel, Close);

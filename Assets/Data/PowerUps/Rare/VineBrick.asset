@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ApplyVariantConsumable
   displayName: Vine Bricks
   icon: {fileID: 0}
-  shortDescription: Tap to turn the falling brick - and the next one - into vine bricks
-    that weld to everything they touch.
+  shortDescription: Tap to make the next two bricks sticky vines.
   ownedShortDescription:
   description: 'Tap to transform the brick you''re dropping into a vine brick, and
     the next brick that falls becomes one too. A vine brick welds itself to every

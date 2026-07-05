@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ApplyVariantConsumable
   displayName: Anchor Brick
   icon: {fileID: 21300000, guid: 1d1d8dfad4504201b1130d923119c0d8, type: 3}
-  shortDescription: Tap to turn the falling brick into an anchor - it locks in place
-    exactly where it lands.
+  shortDescription: Tap to lock the falling brick where it lands.
   ownedShortDescription:
   description: 'Tap to transform the brick you''re dropping into an anchor brick.
     The moment it lands it freezes solid exactly where it is - permanent terrain that

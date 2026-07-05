@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BlockVariantChancePowerUp
   displayName: Overgrowth
   icon: {fileID: 0}
-  shortDescription: Vine bricks start dropping - they weld to everything they touch.
+  shortDescription: Vine bricks start dropping now and then.
   ownedShortDescription: Drops vine bricks more often.
   description: 'Mixes vine bricks into the falling pieces. A vine brick welds itself to every block it touches on landing, gluing loose stacks into one solid mass. Stack this to see them more often.'
   rarity: 2

@@ -249,6 +249,23 @@ public static partial class RuntimeUiKit
         }
     }
 
+    // The heavy display face (Archivo Black) as a TMP asset - the ability cards' titles,
+    // chips and buttons use it. TmpTitleFont (Inter) stays the menu's default title face;
+    // this is the louder voice for card/hero moments.
+    private static TMP_FontAsset _tmpDisplayFont;
+    public static TMP_FontAsset TmpDisplayFont
+    {
+        get
+        {
+            if (_tmpDisplayFont == null)
+            {
+                Font archivo = Resources.Load<Font>("Fonts/ArchivoBlack-Regular");
+                _tmpDisplayFont = archivo != null ? TMP_FontAsset.CreateFontAsset(archivo) : TmpTitleFont;
+            }
+            return _tmpDisplayFont;
+        }
+    }
+
     private static TMP_FontAsset TmpFontFor(Font font) => font == TitleFont ? TmpTitleFont : TmpBodyFont;
 
     private static TextAlignmentOptions TmpAlign(TextAnchor anchor)

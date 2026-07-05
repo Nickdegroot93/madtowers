@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BlockVariantChancePowerUp
   displayName: Anchor Drops
   icon: {fileID: 0}
-  shortDescription: Anchor bricks start dropping - they lock in place exactly where
-    they land.
+  shortDescription: Anchor bricks start dropping now and then.
   ownedShortDescription: Drops anchor bricks more often.
   description: 'Mixes anchor bricks into the falling pieces. An anchor brick freezes
     solid the instant it lands, becoming permanent terrain that holds even when the

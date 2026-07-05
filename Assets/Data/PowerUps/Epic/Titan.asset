@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TitanPowerUp
   displayName: Titan
   icon: {fileID: 0}
-  shortDescription: Future blocks are heavy and grip hard - a planted, topple-resistant tower.
+  shortDescription: Future blocks are heavy and grip hard.
   ownedShortDescription:
   description: 'From now on your blocks are heavy and grip hard: they plant firmly, resist
     sliding and shoves, and shrug off Tremor. The trade - they land with more force, so a

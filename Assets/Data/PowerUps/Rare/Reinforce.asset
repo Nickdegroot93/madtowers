@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ApplyVariantConsumable
   displayName: Reinforce
   icon: {fileID: 0}
-  shortDescription: Tap to turn the falling brick into a heavy boulder - dense, stable ballast.
+  shortDescription: Tap to turn the falling brick into a heavy boulder.
   ownedShortDescription:
   description: 'Tap to transform the brick you are dropping into a boulder - a heavy, dense block that drops hard and anchors a wobbling stack.'
   rarity: 1

@@ -171,15 +171,14 @@ public class AbilityChoiceController : MonoBehaviour
         _panelRoot = RuntimeUiKit.CreateModal("Ability Choice", 6000);
 
         GameObject panel = RuntimeUiKit.CreateCenteredPanel(
-            _panelRoot.transform, new Vector2(AbilityCardView.PanelWidth, 960f), drawBackground: false);
+            _panelRoot.transform, new Vector2(AbilityCardView.PanelWidth, 900f), drawBackground: false);
         // The shared panel builder leaves child heights uncontrolled; this layout is
-        // height-budgeted (header + cards), so LayoutElement heights must be honored.
+        // height-budgeted (header + card row), so LayoutElement heights must be honored and
+        // the leftover slack stays around the centered block instead of stretching the row.
         var panelLayout = panel.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
         panelLayout.childControlHeight = true;
-        panelLayout.spacing = 10f; // tighten the gap between the header and the cards
-        // Framed cards are fixed-height, so the panel has slack; without this the row stretches
-        // and the cards float far below the header. Keep preferred heights, center the block.
-        if (AbilityCardView.HasFrameSprite) panelLayout.childForceExpandHeight = false;
+        panelLayout.childForceExpandHeight = false;
+        panelLayout.spacing = 26f;
 
         Color offerAccent = _rollBuffer.Count > 0
             ? AbilityRarityInfo.GetColor(_rollBuffer[0].Rarity)
@@ -189,31 +188,18 @@ public class AbilityChoiceController : MonoBehaviour
         GameObject cardRow = new GameObject("Cards");
         cardRow.transform.SetParent(panel.transform, false);
 
-        bool framed = AbilityCardView.HasFrameSprite;
+        // Cards are a fixed height (their content auto-fits inside); the row reserves exactly it.
         LayoutElement rowElement = cardRow.AddComponent<LayoutElement>();
-        if (framed)
-        {
-            // Framed cards are fixed-aspect (no growing to fit text). Reserve the height the
-            // frame art needs at the row's REAL per-card width (FramedCardWidth already accounts
-            // for the panel's side padding) so the reserved row height matches the laid-out cards.
-            rowElement.minHeight = rowElement.preferredHeight =
-                AbilityCardView.FramedCardWidth / AbilityCardView.FrameAspectWidthOverHeight;
-        }
-        else
-        {
-            // No fixed height: the row reports the height of its TALLEST card, and
-            // childForceExpandHeight (below) stretches all three to match - so a long short-
-            // description lengthens every card equally. minHeight is just a floor for short text.
-            rowElement.minHeight = 460f;
-        }
+        rowElement.minHeight = rowElement.preferredHeight = AbilityCardView.CardHeight;
+        rowElement.flexibleHeight = 0f;
 
         HorizontalLayoutGroup rowLayout = cardRow.AddComponent<HorizontalLayoutGroup>();
         rowLayout.spacing = AbilityCardView.CardRowSpacing;
         rowLayout.childAlignment = TextAnchor.MiddleCenter;
         rowLayout.childControlWidth = true;
-        rowLayout.childControlHeight = !framed;   // framed cards own their height (AspectRatioFitter)
+        rowLayout.childControlHeight = true;
         rowLayout.childForceExpandWidth = true;
-        rowLayout.childForceExpandHeight = !framed;
+        rowLayout.childForceExpandHeight = true;
 
         for (int i = 0; i < _rollBuffer.Count; i++)
         {
@@ -246,7 +232,7 @@ public class AbilityChoiceController : MonoBehaviour
             LayoutElement rerollLayout = rerollButton.GetComponent<LayoutElement>();
             rerollLayout.preferredWidth = 260f;
             rerollLayout.flexibleWidth = 0f;
-            AbilityCardView.StyleDetailsButton(rerollButton, offerAccent);
+            AbilityCardView.StyleGhostButton(rerollButton, offerAccent);
         }
     }
 
@@ -276,46 +262,22 @@ public class AbilityChoiceController : MonoBehaviour
         BuildChoicePanel();
     }
 
-    // The "See details" view: full presentation block (type, rarity, icon, title, LONG
-    // description) with Choose/Back. The roll buffer is untouched, so Back rebuilds the
+    // The "See details" view: full presentation block (rarity chrome, icon, title, type,
+    // LONG description) with Choose/Back. The roll buffer is untouched, so Back rebuilds the
     // same three cards - no reroll. Future home of the explainer video.
     private void ShowDetailPanel(AbilityDefinition definition)
     {
         CloseChoicePanel();
 
         _panelRoot = RuntimeUiKit.CreateModal("Ability Details", 6000);
-        GameObject panel = RuntimeUiKit.CreateCenteredPanel(_panelRoot.transform, new Vector2(680f, 720f));
-
-        AbilityType type = definition.Type;
-        RuntimeUiKit.CreateLabel(panel.transform,
-            $"{AbilityTypeInfo.GetLabel(type)}  ·  {definition.Rarity.ToString().ToUpperInvariant()}",
-            24, 34f, FontStyle.Bold, AbilityTypeInfo.GetColor(type));
-
-        if (definition.Icon != null)
-        {
-            GameObject iconSlot = new GameObject("IconSlot", typeof(RectTransform));
-            iconSlot.transform.SetParent(panel.transform, false);
-            iconSlot.AddComponent<LayoutElement>().preferredHeight = 160f;
-
-            Image glyph = RuntimeUiKit.CreateIconTile(iconSlot.transform, 1f, 8f, out Image tile,
-                AbilityRarityInfo.GetColor(definition.Rarity));
-            RectTransform tileRect = tile.rectTransform;
-            tileRect.anchorMin = tileRect.anchorMax = new Vector2(0.5f, 0.5f);
-            tileRect.sizeDelta = new Vector2(160f, 160f);
-            glyph.sprite = definition.Icon;
-        }
-
-        RuntimeUiKit.CreateLabel(panel.transform, definition.DisplayName, 44, 64f,
-            FontStyle.Bold, RuntimeUiKit.TitleColor);
-        RuntimeUiKit.CreateLabel(panel.transform, definition.LongDescription, 27, 280f,
-            FontStyle.Normal, RuntimeUiKit.BodyTextColor, TextAnchor.UpperCenter);
-
-        RuntimeUiKit.CreateButton(panel.transform, $"Choose {definition.DisplayName}", 80f, () => Pick(definition));
-        RuntimeUiKit.CreateButton(panel.transform, "Back", 70f, () =>
-        {
-            CloseChoicePanel();
-            BuildChoicePanel();
-        });
+        int stacks = _runtime != null ? _runtime.GetOwnedStacks(definition) : 0;
+        AbilityCardView.CreateDetailPanel(_panelRoot.transform, definition, stacks,
+            onChoose: () => Pick(definition),
+            onBack: () =>
+            {
+                CloseChoicePanel();
+                BuildChoicePanel();
+            });
     }
 
     // Both slots are full: the player chooses what the new consumable replaces (or
@@ -327,12 +289,16 @@ public class AbilityChoiceController : MonoBehaviour
 
         _panelRoot = RuntimeUiKit.CreateModal("Ability Swap", 6000);
 
-        GameObject panel = RuntimeUiKit.CreateCenteredPanel(_panelRoot.transform, new Vector2(640f, 520f));
+        Color accent = AbilityRarityInfo.GetColor(incoming.Rarity);
+        GameObject panel = RuntimeUiKit.CreateCenteredPanel(
+            _panelRoot.transform, new Vector2(640f, 560f), drawBackground: false);
+        AbilityCardView.StyleModalPanel(panel, accent);
 
-        RuntimeUiKit.CreateLabel(panel.transform, "Slots are full", 44, 70f, FontStyle.Bold,
-            RuntimeUiKit.TitleColor);
-        RuntimeUiKit.CreateLabel(panel.transform, $"Swap in {incoming.DisplayName}?", 30, 50f,
-            FontStyle.Normal, RuntimeUiKit.BodyTextColor);
+        Text swapTitle = RuntimeUiKit.CreateLabel(panel.transform, "SLOTS ARE FULL", 40, 64f,
+            FontStyle.Bold, RuntimeUiKit.TitleColor);
+        swapTitle.font = RuntimeUiKit.TitleFont;
+        RuntimeUiKit.CreateLabel(panel.transform, $"Swap in {incoming.DisplayName}?", 30, 46f,
+            FontStyle.Bold, RuntimeUiKit.BodyTextColor);
         RuntimeUiKit.CreateLabel(panel.transform, incoming.ShortDescription, 24, 60f,
             FontStyle.Italic, RuntimeUiKit.BodyTextColor);
 
@@ -341,13 +307,16 @@ public class AbilityChoiceController : MonoBehaviour
             int slot = i;
             ConsumableAbility current = _runtime.GetSlotSource(i);
             string label = current != null ? $"Replace {current.DisplayName}" : $"Use slot {i + 1}";
-            RuntimeUiKit.CreateButton(panel.transform, label, 80f, () =>
+            Button replace = RuntimeUiKit.CreateButton(panel.transform, label, 80f, () =>
             {
                 _runtime.ReplaceConsumable(slot, incoming);
                 CloseAndResume();
             });
+            AbilityCardView.StylePrimaryButton(replace, accent);
         }
 
-        RuntimeUiKit.CreateButton(panel.transform, $"Discard {incoming.DisplayName}", 80f, CloseAndResume);
+        Button discard = RuntimeUiKit.CreateButton(panel.transform,
+            $"Discard {incoming.DisplayName}", 74f, CloseAndResume);
+        AbilityCardView.StyleGhostButton(discard, accent);
     }
 }

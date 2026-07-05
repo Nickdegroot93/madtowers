@@ -1,778 +1,573 @@
 using System;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Runtime UGUI renderer for ability offer cards. It owns the authored-frame strategy and the
-/// procedural fallback; AbilityChoiceController owns scheduling, pick routing, and modal flow.
+/// Runtime UGUI renderer for ability cards: the offer picker's three cards, the Vault's
+/// collection cards, and the shared detail panel. Cards are neon glass slabs drawn from
+/// procedural sprites (no authored frame art): a rounded vertical-gradient body tinted by
+/// the rarity, wrapped in a bright NEON RING with a real outer bloom, heavy Archivo Black
+/// display type, a solid type chip, the icon on a glowing white tile, and a ghost DETAILS
+/// pill. AbilityChoiceController owns scheduling, pick routing, and modal flow.
+///
+/// Rarity is never written as a word - the colour of the neon edge carries it (the body
+/// stays near-black at every tier), escalating from restraint to spectacle:
+///   Common     faint silver ring
+///   Rare       bright blue ring
+///   Epic       hot violet ring + extra halo + a slow shine sweep
+///   Legendary  gold ring, breathing halo, fast warm sweep
 /// </summary>
 public static class AbilityCardView
 {
-    public static bool HasFrameSprite => FrameSprite != null;
+    // Offer-panel geometry, shared with AbilityChoiceController so the reserved row height
+    // always matches the built cards.
+    public const float PanelWidth = 1000f;
+    public const float CardRowSpacing = 24f;
+    public const float CardHeight = 500f;
 
-    // "CHOOSE AN ABILITY" with the mockups' flourish: soft side bars + small diamonds,
-    // all tinted to the offer's rarity (single-rarity offers make this meaningful).
+    private static readonly Color BodyColor = new Color(0.85f, 0.89f, 0.94f, 1f);
+    private static readonly Color LockedColor = new Color(0.45f, 0.46f, 0.50f, 1f);
+    private static readonly Color PillDark = new Color(0.045f, 0.05f, 0.065f, 0.92f);
+
+    private static Color WithAlpha(Color c, float a) { c.a = a; return c; }
+
+    // Card text is display-first: titles/chips/buttons speak Archivo Black, descriptions Inter.
+    private static TextMeshProUGUI Display(TextMeshProUGUI tmp)
+    {
+        tmp.font = RuntimeUiKit.TmpDisplayFont;
+        return tmp;
+    }
+
+    // ---- rarity tiers -------------------------------------------------------------------------
+
+    private struct TierStyle
+    {
+        public float RingAlpha;      // neon edge strength - where the rarity colour lives
+        public float TopLerp;        // body top = Lerp(accent, black, TopLerp); the body stays
+                                     // NEAR-BLACK at every tier - only the tint whisper varies
+        public float HaloAlpha;      // extra outer bloom beyond the ring's own (0 = none)
+        public float IconGlow;       // soft accent glow behind the icon tile
+        public bool Shine;           // periodic light sweep across the card
+        public bool Pulse;           // the halo breathes (legendary only)
+        public float ShinePause;     // seconds between sweeps
+    }
+
+    private static TierStyle GetTier(AbilityRarity rarity)
+    {
+        switch (rarity)
+        {
+            case AbilityRarity.Legendary:
+                return new TierStyle { RingAlpha = 1f, TopLerp = 0.78f, HaloAlpha = 0.22f, IconGlow = 0.30f, Shine = true, Pulse = true, ShinePause = 2.0f };
+            case AbilityRarity.Epic:
+                return new TierStyle { RingAlpha = 1f, TopLerp = 0.80f, HaloAlpha = 0.14f, IconGlow = 0.26f, Shine = true, ShinePause = 3.6f };
+            case AbilityRarity.Rare:
+                return new TierStyle { RingAlpha = 0.85f, TopLerp = 0.84f, IconGlow = 0.22f };
+            default:
+                return new TierStyle { RingAlpha = 0.35f, TopLerp = 0.90f, IconGlow = 0.10f };
+        }
+    }
+
+    private static Color ShineColor(AbilityRarity rarity, Color accent) =>
+        rarity == AbilityRarity.Legendary
+            ? new Color(1f, 0.95f, 0.75f, 0.26f)
+            : WithAlpha(Color.Lerp(accent, Color.white, 0.55f), 0.16f);
+
+    // ---- "CHOOSE AN ABILITY" header -------------------------------------------------------------
+
+    /// <summary>Offer header: a letter-spaced rarity-tinted overline flanked by fading bars and
+    /// diamond points, over the display-face title. `accent` is the offer's rarity colour
+    /// (offers are single-rarity, so the tint is meaningful).</summary>
     public static void CreateHeader(Transform parent, Color accent)
     {
         GameObject header = new GameObject("Header", typeof(RectTransform));
         header.transform.SetParent(parent, false);
         LayoutElement headerElement = header.AddComponent<LayoutElement>();
-        headerElement.preferredHeight = 72f;
-        // The header's HorizontalLayoutGroup defaults to childForceExpandHeight=true, which makes
-        // the header report flexible height and swallow the panel's leftover space (231px instead
-        // of 72) - that empty space then sat between the title and the cards. Pin it to 0 flex so
-        // the header keeps its preferred height and the content block stays tight + centered.
-        // Only in the framed (fixed-height) layout; the procedural fallback relies on the slack.
-        if (FrameSprite != null) headerElement.flexibleHeight = 0f;
+        headerElement.preferredHeight = 148f;
+        headerElement.flexibleHeight = 0f;
 
-        HorizontalLayoutGroup row = header.AddComponent<HorizontalLayoutGroup>();
-        row.childAlignment = TextAnchor.MiddleCenter;
-        row.spacing = 14f;
-        row.childControlWidth = false;
-        row.childControlHeight = false;
+        TextMeshProUGUI overline = Display(RuntimeUiKit.CreateTmp(header.transform, "Overline",
+            "MILESTONE REWARD", 19, WithAlpha(Color.Lerp(accent, Color.white, 0.3f), 0.95f),
+            TextAnchor.MiddleCenter, FontStyle.Normal, RuntimeUiKit.TitleFont,
+            new Vector2(0f, -28f), new Vector2(560f, 30f), new Vector2(0.5f, 1f)));
+        overline.characterSpacing = 10f;
 
         CreateHeaderFlourish(header.transform, accent, leftSide: true);
-        Text title = RuntimeUiKit.CreateLabel(header.transform, "CHOOSE AN ABILITY", 48, 64f,
-            FontStyle.Bold, RuntimeUiKit.TitleColor);
-        title.font = RuntimeUiKit.TitleFont;
-        ((RectTransform)title.transform).sizeDelta = new Vector2(520f, 64f);
         CreateHeaderFlourish(header.transform, accent, leftSide: false);
+
+        TextMeshProUGUI title = Display(RuntimeUiKit.CreateTmp(header.transform, "Title",
+            "CHOOSE AN ABILITY", 44, RuntimeUiKit.TitleColor,
+            TextAnchor.MiddleCenter, FontStyle.Normal, RuntimeUiKit.TitleFont,
+            new Vector2(0f, -66f), new Vector2(920f, 72f), new Vector2(0.5f, 1f)));
+        title.characterSpacing = 5f;
     }
 
+    // A soft bar fading toward the screen edge, tipped by a small diamond pointing at the
+    // overline - sits on the overline's row, left or right of the text.
     private static void CreateHeaderFlourish(Transform parent, Color accent, bool leftSide)
     {
-        GameObject flourish = new GameObject(leftSide ? "FlourishL" : "FlourishR", typeof(RectTransform));
-        RectTransform rect = (RectTransform)flourish.transform;
-        rect.SetParent(parent, false);
-        rect.sizeDelta = new Vector2(120f, 20f);
+        RectTransform rect = RuntimeUiKit.CreateRect(parent, leftSide ? "FlourishL" : "FlourishR",
+            new Vector2(leftSide ? 0.03f : 0.72f, 1f), new Vector2(leftSide ? 0.28f : 0.97f, 1f),
+            new Vector2(0.5f, 1f), new Vector2(0f, -28f), new Vector2(0f, 30f));
 
-        GameObject barObject = new GameObject("Bar", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform bar = (RectTransform)barObject.transform;
-        bar.SetParent(rect, false);
-        bar.anchorMin = new Vector2(0f, 0.5f);
-        bar.anchorMax = new Vector2(1f, 0.5f);
-        bar.offsetMin = new Vector2(0f, -2f);
-        bar.offsetMax = new Vector2(0f, 2f);
-        Image barImage = barObject.GetComponent<Image>();
-        barImage.sprite = RuntimeSprites.SoftHorizontalBar(0.1f);
-        barImage.color = new Color(accent.r, accent.g, accent.b, 0.55f);
-        barImage.raycastTarget = false;
+        Image bar = RuntimeUiKit.CreateImage(rect, "Bar", RuntimeSprites.SoftHorizontalBar(0.1f),
+            WithAlpha(accent, 0.5f));
+        RectTransform barRect = bar.rectTransform;
+        barRect.anchorMin = new Vector2(0f, 0.5f);
+        barRect.anchorMax = new Vector2(1f, 0.5f);
+        barRect.offsetMin = new Vector2(leftSide ? 0f : 22f, -2f);
+        barRect.offsetMax = new Vector2(leftSide ? -22f : 0f, 2f);
 
-        GameObject diamondObject = new GameObject("Diamond", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform diamond = (RectTransform)diamondObject.transform;
-        diamond.SetParent(rect, false);
-        diamond.anchorMin = diamond.anchorMax = new Vector2(leftSide ? 1f : 0f, 0.5f);
-        diamond.sizeDelta = new Vector2(16f, 16f);
-        Image diamondImage = diamondObject.GetComponent<Image>();
-        diamondImage.sprite = RuntimeSprites.Diamond();
-        diamondImage.color = Color.Lerp(accent, Color.white, 0.2f);
-        diamondImage.raycastTarget = false;
+        Image diamond = RuntimeUiKit.CreateImage(rect, "Diamond", RuntimeSprites.Diamond(),
+            Color.Lerp(accent, Color.white, 0.25f));
+        RectTransform diamondRect = diamond.rectTransform;
+        diamondRect.anchorMin = diamondRect.anchorMax = new Vector2(leftSide ? 1f : 0f, 0.5f);
+        diamondRect.sizeDelta = new Vector2(13f, 13f);
     }
 
-    private static readonly Color CardPlateColor = new Color(0.055f, 0.045f, 0.105f, 0.96f);
+    // ---- shared card pieces ---------------------------------------------------------------------
 
-    // ---- PNG-framed cards -------------------------------------------------------------------
-    // A single authored frame sprite (Resources/AbilityCardFrame.png) drawn behind anchored
-    // content "slots". The art is grayscale and tinted per rarity (multiply). The card keeps the
-    // frame's aspect so it never stretches and long text auto-fits its slot instead of growing
-    // the card. If the sprite is ever missing, CreateCard falls back to the procedural look.
-    // Layout constants kept named so the per-card width (used to reserve the row height AND to
-    // size the gem glow) stays in sync with the real panel geometry instead of being re-typed.
-    public const float PanelWidth = 1000f;
-    private const float PanelSidePadding = 36f;   // matches CreateCenteredPanel's RectOffset
-    public const float CardRowSpacing = 24f;      // matches rowLayout.spacing
-    private const int CardCount = 3;               // a roll always offers three cards
-    // Real per-card width AFTER the panel's side padding and inter-card spacing.
-    public const float FramedCardWidth =
-        (PanelWidth - 2f * PanelSidePadding - CardRowSpacing * (CardCount - 1)) / CardCount;
-
-    // Frame art is FrameTexW x FrameTexH; the card holds that aspect and every slot below is a
-    // fraction measured against it - a re-export at a different size must re-measure the slots.
-    private const float FrameTexW = 752f, FrameTexH = 1344f;
-    public const float FrameAspectWidthOverHeight = FrameTexW / FrameTexH;
-
-    // Lazily load + cache a card sprite (statics reset on domain reload, so this reloads once per
-    // session). One helper keeps all the loaders identical.
-    private static Sprite LoadCardSprite(string resourceName, ref Sprite cache, ref bool loaded)
+    // The gradient body and neon ring live on a PADDED canvas (room for the outer bloom), so
+    // both stretch CardSpritePad past the card rect on every side.
+    private static Image AddPaddedSprite(Transform root, string name, Sprite sprite, Color color, float extra = 0f)
     {
-        if (!loaded) { cache = Resources.Load<Sprite>(resourceName); loaded = true; }
-        return cache;
-    }
-
-    // The authored frame, drawn behind anchored content "slots" and tinted per rarity. If it's
-    // ever missing, CreateCard falls back to the procedural look. Validated once: a mismatched
-    // re-export would silently misalign every slot, so warn loudly instead.
-    private static Sprite _frameSprite; private static bool _frameSpriteLoaded;
-    private static Sprite FrameSprite
-    {
-        get
-        {
-            bool first = !_frameSpriteLoaded;
-            Sprite s = LoadCardSprite("AbilityCardFrame", ref _frameSprite, ref _frameSpriteLoaded);
-#if UNITY_EDITOR
-            if (first && s != null &&
-                (Mathf.RoundToInt(s.rect.width) != (int)FrameTexW || Mathf.RoundToInt(s.rect.height) != (int)FrameTexH))
-                Debug.LogWarning($"[AbilityCard] frame art is {s.rect.width}x{s.rect.height}, expected " +
-                    $"{(int)FrameTexW}x{(int)FrameTexH}; slot rects + aspect were measured against the original " +
-                    "and will misalign. Re-measure the slots after re-export.");
-#endif
-            return s;
-        }
-    }
-
-    // White recess fill cut from the SAME frame canvas (alpha = exact recess shape), overlaid 1:1
-    // so the icon backing aligns pixel-perfectly with the bevel. Untinted (stays white).
-    private static Sprite _iconBacking; private static bool _iconBackingLoaded;
-    private static Sprite IconBackingSprite =>
-        LoadCardSprite("AbilityCardIconBacking", ref _iconBacking, ref _iconBackingLoaded);
-
-    // Faceted gem (grayscale + alpha), re-tinted lighter than the body for a lit-jewel look.
-    private static Sprite _gem; private static bool _gemLoaded;
-    private static Sprite GemSprite => LoadCardSprite("AbilityCardGem", ref _gem, ref _gemLoaded);
-
-    // Standalone soft radial gem glow - its own sprite so it isn't clipped by the frame canvas.
-    private static Sprite _glowDot; private static bool _glowDotLoaded;
-    private static Sprite GlowDotSprite => LoadCardSprite("AbilityCardGlowDot", ref _glowDot, ref _glowDotLoaded);
-
-    // Outer rim glow on a padded canvas; the overlay anchors extend RimGlowMarginFrac past the
-    // card to match the sprite's padding so the bloom isn't clipped. Interior is transparent.
-    private static Sprite _rim; private static bool _rimLoaded;
-    private static Sprite RimGlowSprite => LoadCardSprite("AbilityCardRimGlow", ref _rim, ref _rimLoaded);
-
-    // Gem center in card fractions (x from left, y from TOP); glow diameter as a fraction of width.
-    private static readonly Vector2 GemCenter = new Vector2(0.517f, 0.071f);
-    private const float GemGlowDiameterFrac = 0.30f;
-    private const float RimGlowMarginFrac = 0.06f;   // matches the rim sprite's padding fraction
-
-    // Content slots as fractions of the card from its TOP-LEFT - Rect stores them as
-    // (xMin=left, yMin=top, xMax=right, yMax=bottom), measured from the frame art's panels. The
-    // art's centerline sits ~1.5% right of geometric center, so the text slots are nudged right.
-    private static readonly Rect TitleSlot = Rect.MinMaxRect(0.269f, 0.130f, 0.759f, 0.205f);
-    private static readonly Rect BadgeSlot = Rect.MinMaxRect(0.314f, 0.232f, 0.714f, 0.283f);
-    private static readonly Rect IconSlot = Rect.MinMaxRect(0.261f, 0.318f, 0.769f, 0.608f); // recess flat bbox
-    private static readonly Rect DescSlot = Rect.MinMaxRect(0.205f, 0.645f, 0.795f, 0.860f);
-    private static readonly Rect ButtonSlot = Rect.MinMaxRect(0.27f, 0.898f, 0.73f, 0.966f);
-
-    // Child RectTransform occupying `slot` (fractions from the card's TOP-LEFT). The y axis
-    // flips because Unity UI anchors are bottom-left origin.
-    private static RectTransform FrameSlotRect(Transform card, string name, Rect slot)
-    {
-        GameObject go = new GameObject(name, typeof(RectTransform));
-        RectTransform rt = (RectTransform)go.transform;
-        rt.SetParent(card, false);
-        rt.anchorMin = new Vector2(slot.xMin, 1f - slot.yMax);
-        rt.anchorMax = new Vector2(slot.xMax, 1f - slot.yMin);
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = Vector2.zero;
-        return rt;
-    }
-
-    // Rotate a color's hue (degrees) and scale its saturation/value. Used to give the accent
-    // layers hues that are RELATED to the rarity but not identical, so a single-rarity offer
-    // isn't one flat wash of color.
-    private static Color ShiftHue(Color c, float degrees, float satMul, float valMul)
-    {
-        Color.RGBToHSV(c, out float h, out float s, out float v);
-        h = Mathf.Repeat(h + degrees / 360f, 1f);
-        return Color.HSVToRGB(h, Mathf.Clamp01(s * satMul), Mathf.Clamp01(v * valMul));
-    }
-
-    // A non-interactive Image stretched to the whole card, for sprites cut from the frame canvas
-    // (icon backing, gem, glow) that must overlay the frame at its exact pixel coordinates.
-    private static Image FullRectOverlay(Transform card, string name, Sprite sprite, Color color)
-    {
-        Image img = RuntimeUiKit.CreateImage(card, name, sprite, color);
-        img.type = Image.Type.Simple;
-        RuntimeUiKit.Stretch(img.rectTransform);
-        return img;
-    }
-
-    private static void CreateFramedCard(Transform parent, AbilityDefinition definition, AbilityRuntime runtime, Action<AbilityDefinition> onPick, Action<AbilityDefinition> onDetails)
-    {
-        Color rarityColor = AbilityRarityInfo.GetColor(definition.Rarity);
-        int stacks = runtime != null ? runtime.GetOwnedStacks(definition) : 0;
-
-        // Card root = the frame Image, and also the pick Button (the whole card is tappable).
-        GameObject cardObject = new GameObject(definition.DisplayName,
-            typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        cardObject.transform.SetParent(parent, false);
-
-        Image frame = cardObject.GetComponent<Image>();
-        frame.sprite = FrameSprite;
-        frame.type = Image.Type.Simple;
-        frame.color = rarityColor; // grayscale art -> rarity tint via multiply
-        frame.raycastTarget = true;
-
-        // Layout splits the row's width evenly; the fitter derives the height from the frame
-        // aspect so the art never distorts and the slots stay aligned at any card width.
-        LayoutElement cardElement = cardObject.AddComponent<LayoutElement>();
-        cardElement.preferredWidth = 10f;
-        cardElement.flexibleWidth = 1f;
-        AspectRatioFitter fitter = cardObject.AddComponent<AspectRatioFitter>();
-        fitter.aspectMode = AspectRatioFitter.AspectMode.WidthControlsHeight;
-        fitter.aspectRatio = FrameAspectWidthOverHeight;
-
-        Button button = cardObject.AddComponent<Button>();
-        ColorBlock colors = button.colors;
-        colors.normalColor = Color.white;
-        colors.highlightedColor = new Color(1.15f, 1.15f, 1.15f, 1f);
-        colors.pressedColor = new Color(0.82f, 0.82f, 0.82f, 1f);
-        colors.selectedColor = colors.highlightedColor;
-        colors.colorMultiplier = 1f;
-        button.colors = colors;
-        button.targetGraphic = frame;
-        AbilityDefinition picked = definition;
-        button.onClick.AddListener(() => onPick?.Invoke(picked));
-
-        // Subtle outer rim glow: a halo around the card silhouette, hue-shifted COOLER than the
-        // frame so the glow reads as its own light rather than more of the same color. Anchors
-        // reach past the card so the bloom isn't clipped; its interior is transparent.
-        if (RimGlowSprite != null)
-        {
-            Color rg = ShiftHue(rarityColor, -22f, 1.0f, 1.12f);
-            Image rim = RuntimeUiKit.CreateImage(cardObject.transform, "RimGlow", RimGlowSprite,
-                new Color(rg.r, rg.g, rg.b, 0.16f));
-            rim.type = Image.Type.Simple;
-            RectTransform rr = rim.rectTransform;
-            float m = RimGlowMarginFrac;
-            rr.anchorMin = new Vector2(-m, -m); rr.anchorMax = new Vector2(1f + m, 1f + m);
-            rr.offsetMin = Vector2.zero; rr.offsetMax = Vector2.zero;
-        }
-
-        // Gem accent: a small soft glow (its own rect, free to bleed past the card top), then the
-        // faceted gem re-tinted lighter than the body so it reads as a lit jewel. Glow is kept
-        // subtle - just a kiss of light around the gem, not a full bloom.
-        if (GlowDotSprite != null)
-        {
-            // warmer than the frame (and opposite the cooler rim) so the accents span a range
-            Color g = Color.Lerp(ShiftHue(rarityColor, 16f, 1f, 1.15f), Color.white, 0.4f);
-            Image glow = RuntimeUiKit.CreateImage(cardObject.transform, "GemGlow", GlowDotSprite,
-                new Color(g.r, g.g, g.b, 0.32f));
-            glow.type = Image.Type.Simple;
-            RectTransform gl = glow.rectTransform;
-            gl.anchorMin = gl.anchorMax = new Vector2(GemCenter.x, 1f - GemCenter.y);
-            gl.pivot = new Vector2(0.5f, 0.5f);
-            // Fixed-size in canvas units: the per-card width is constant per row, so derive the
-            // diameter from FramedCardWidth (same value used to reserve the row height).
-            float d = FramedCardWidth * GemGlowDiameterFrac;
-            gl.sizeDelta = new Vector2(d, d);
-            gl.anchoredPosition = Vector2.zero;
-        }
-        if (GemSprite != null)
-        {
-            FullRectOverlay(cardObject.transform, "Gem", GemSprite, Color.Lerp(rarityColor, Color.white, 0.5f));
-        }
-
-        // Title - auto-fits the top banner (short names big, long names shrink/wrap to fit).
-        RectTransform titleRect = FrameSlotRect(cardObject.transform, "Title", TitleSlot);
-        Text title = titleRect.gameObject.AddComponent<Text>();
-        title.font = RuntimeUiKit.TitleFont;
-        title.text = definition.DisplayName.ToUpperInvariant();
-        title.fontStyle = FontStyle.Bold;
-        title.alignment = TextAnchor.MiddleCenter;
-        title.color = RuntimeUiKit.TitleColor;
-        title.verticalOverflow = VerticalWrapMode.Truncate;
-        title.resizeTextForBestFit = true;
-        title.resizeTextMinSize = 10;
-        title.resizeTextMaxSize = 23;
-        title.raycastTarget = false;
-
-        // Type badge (PASSIVE / INSTANT / CONSUMABLE) inside the frame's pill.
-        RectTransform badgeRect = FrameSlotRect(cardObject.transform, "Badge", BadgeSlot);
-        Text badge = badgeRect.gameObject.AddComponent<Text>();
-        badge.font = RuntimeUiKit.TitleFont;
-        badge.text = AbilityTypeInfo.GetLabel(definition.Type);
-        badge.fontStyle = FontStyle.Bold;
-        badge.alignment = TextAnchor.MiddleCenter;
-        badge.color = Color.Lerp(rarityColor, Color.white, 0.65f);
-        badge.resizeTextForBestFit = true;
-        badge.resizeTextMinSize = 8;
-        badge.resizeTextMaxSize = 18;
-        badge.raycastTarget = false;
-
-        // White recess backing overlaid 1:1 over the frame (its alpha IS the recess shape, so it
-        // aligns to the bevel exactly). Drawn here, before the glyph, so the glyph sits on top.
-        if (IconBackingSprite != null)
-        {
-            FullRectOverlay(cardObject.transform, "IconBacking", IconBackingSprite, Color.white);
-        }
-
-        // Icon glyph, centered within the recess (inset so it never touches the white edge).
-        RectTransform iconRect = FrameSlotRect(cardObject.transform, "Icon", IconSlot);
-        Image glyph = RuntimeUiKit.CreateImage(iconRect, "Glyph",
-            definition.Icon != null ? definition.Icon : RuntimeSprites.AbilityGlyph(),
-            definition.Icon != null ? Color.white : Color.Lerp(rarityColor, Color.white, 0.3f));
-        glyph.preserveAspect = true;
-        RectTransform gr = glyph.rectTransform;
-        gr.anchorMin = Vector2.zero; gr.anchorMax = Vector2.one;
-        gr.offsetMin = new Vector2(26f, 26f); gr.offsetMax = new Vector2(-26f, -26f);
-
-        if (stacks > 0)
-        {
-            Text owned = RuntimeUiKit.CreateLabel(iconRect, $"Owned ×{stacks}", 18, 22f,
-                FontStyle.Bold, new Color(0.6f, 0.9f, 0.65f, 1f), TextAnchor.UpperCenter);
-            owned.GetComponent<LayoutElement>().ignoreLayout = true;
-            RectTransform or = owned.rectTransform;
-            or.anchorMin = new Vector2(0f, 1f); or.anchorMax = new Vector2(1f, 1f);
-            or.pivot = new Vector2(0.5f, 1f);
-            or.offsetMin = new Vector2(0f, -24f); or.offsetMax = new Vector2(0f, 2f);
-        }
-
-        // Short description - auto-fits the open area below the icon.
-        RectTransform descRect = FrameSlotRect(cardObject.transform, "Description", DescSlot);
-        Text desc = descRect.gameObject.AddComponent<Text>();
-        desc.font = RuntimeUiKit.DefaultFont;
-        desc.text = definition.ShortDescriptionFor(stacks);
-        desc.fontStyle = FontStyle.Bold;
-        desc.alignment = TextAnchor.MiddleCenter;
-        desc.color = new Color(0.92f, 0.95f, 1f, 1f);
-        desc.verticalOverflow = VerticalWrapMode.Truncate;
-        desc.resizeTextForBestFit = true;
-        desc.resizeTextMinSize = 10;
-        desc.resizeTextMaxSize = 26;
-        desc.raycastTarget = false;
-
-        // DETAILS: an invisible button over the frame's bottom plate. Its raycast target absorbs
-        // the tap so opening details never also picks the card (nested-button rule).
-        RectTransform detailsRect = FrameSlotRect(cardObject.transform, "Details", ButtonSlot);
-        Image detailsHit = detailsRect.gameObject.AddComponent<Image>();
-        detailsHit.color = new Color(1f, 1f, 1f, 0f);
-        detailsHit.raycastTarget = true;
-        Button details = detailsRect.gameObject.AddComponent<Button>();
-        details.targetGraphic = detailsHit;
-        ColorBlock dc = details.colors;
-        dc.normalColor = Color.white;
-        dc.highlightedColor = new Color(1f, 1f, 1f, 0.22f);
-        dc.pressedColor = new Color(1f, 1f, 1f, 0.4f);
-        dc.selectedColor = dc.highlightedColor;
-        dc.colorMultiplier = 1f;
-        details.colors = dc;
-        AbilityDefinition detailDef = definition;
-        details.onClick.AddListener(() => onDetails?.Invoke(detailDef));
-
-        Text detailsLabel = RuntimeUiKit.CreateLabel(detailsRect, "DETAILS", 22, 0f,
-            FontStyle.Bold, Color.Lerp(rarityColor, Color.white, 0.75f), TextAnchor.MiddleCenter);
-        detailsLabel.font = RuntimeUiKit.TitleFont;
-        detailsLabel.raycastTarget = false;
-        detailsLabel.resizeTextForBestFit = true;
-        detailsLabel.resizeTextMinSize = 8;
-        detailsLabel.resizeTextMaxSize = 19;
-        RuntimeUiKit.Stretch(detailsLabel.rectTransform);
-
-        if (definition.Rarity == AbilityRarity.Legendary)
-        {
-            // The shine band sweeps wider than the card and needs a RectMask2D to clip at the
-            // edges - but masking the whole card would ALSO clip the rim/gem glows that
-            // intentionally bleed past it. So mask an inner child sized exactly to the card; the
-            // glows are siblings of it and stay unclipped.
-            GameObject shineClip = new GameObject("ShineClip", typeof(RectTransform));
-            shineClip.transform.SetParent(cardObject.transform, false);
-            RuntimeUiKit.Stretch((RectTransform)shineClip.transform);
-            shineClip.AddComponent<RectMask2D>();
-            shineClip.AddComponent<AbilityCardShine>();
-        }
-    }
-
-    /// <summary>
-    /// The Vault's collection card: the same authored frame/gem/icon dressing as an offer card,
-    /// minus the offer-only chrome (no pick handler, no DETAILS sub-button, no Owned overlay).
-    /// Grid cards drop the description (unreadable at grid size - the whole card opens the detail
-    /// view instead); <paramref name="large"/> re-adds it for the detail modal. An undiscovered
-    /// ability renders as a SILHOUETTE tease: darkened frame, near-black icon shadow, "???" - the
-    /// name and rarity colour stay part of the reward. Returns the card root (sized by an
-    /// AspectRatioFitter against its parent; give the parent the cell rect).
-    /// </summary>
-    public static GameObject CreateCollectionCard(Transform parent, AbilityDefinition definition,
-        bool discovered, bool large)
-    {
-        Color rarityColor = AbilityRarityInfo.GetColor(definition.Rarity);
-        Color frameTint = discovered ? rarityColor : new Color(0.16f, 0.16f, 0.18f, 1f);
-
-        GameObject cardObject = new GameObject(definition.name,
-            typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        cardObject.transform.SetParent(parent, false);
-
-        Image frame = cardObject.GetComponent<Image>();
-        frame.sprite = FrameSprite;
-        frame.type = Image.Type.Simple;
-        frame.raycastTarget = false;
-
-        if (FrameSprite != null)
-        {
-            frame.color = frameTint;
-            AspectRatioFitter fitter = cardObject.AddComponent<AspectRatioFitter>();
-            fitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-            fitter.aspectRatio = FrameAspectWidthOverHeight;
-        }
-        else
-        {
-            // No authored frame in this project state: a plain plate so the Vault never renders blank.
-            frame.sprite = RuntimeSprites.CardPlate();
-            frame.type = Image.Type.Sliced;
-            frame.color = discovered ? CardPlateColor : new Color(0.05f, 0.05f, 0.06f, 0.96f);
-            RuntimeUiKit.Stretch((RectTransform)cardObject.transform);
-            RuntimeUiKit.AddOutline(cardObject.transform,
-                new Color(frameTint.r, frameTint.g, frameTint.b, discovered ? 0.8f : 0.3f));
-        }
-
-        if (discovered && GemSprite != null && FrameSprite != null)
-        {
-            FullRectOverlay(cardObject.transform, "Gem", GemSprite, Color.Lerp(rarityColor, Color.white, 0.5f));
-        }
-
-        // Title: the name is part of the discovery reward - locked cards say ??? instead.
-        RectTransform titleRect = FrameSlotRect(cardObject.transform, "Title",
-            FrameSprite != null ? TitleSlot : Rect.MinMaxRect(0.08f, 0.05f, 0.92f, 0.16f));
-        Text title = titleRect.gameObject.AddComponent<Text>();
-        title.font = RuntimeUiKit.TitleFont;
-        title.text = discovered ? definition.DisplayName.ToUpperInvariant() : "???";
-        title.fontStyle = FontStyle.Bold;
-        title.alignment = TextAnchor.MiddleCenter;
-        title.color = discovered ? RuntimeUiKit.TitleColor : new Color(0.5f, 0.5f, 0.52f, 1f);
-        title.verticalOverflow = VerticalWrapMode.Truncate;
-        title.resizeTextForBestFit = true;
-        title.resizeTextMinSize = 10;
-        title.resizeTextMaxSize = large ? 34 : 23;
-        title.raycastTarget = false;
-
-        // Type badge, or a lock glyph in the same pill for undiscovered entries.
-        RectTransform badgeRect = FrameSlotRect(cardObject.transform, "Badge",
-            FrameSprite != null ? BadgeSlot : Rect.MinMaxRect(0.3f, 0.18f, 0.7f, 0.24f));
-        if (discovered)
-        {
-            Text badge = badgeRect.gameObject.AddComponent<Text>();
-            badge.font = RuntimeUiKit.TitleFont;
-            badge.text = AbilityTypeInfo.GetLabel(definition.Type);
-            badge.fontStyle = FontStyle.Bold;
-            badge.alignment = TextAnchor.MiddleCenter;
-            badge.color = Color.Lerp(rarityColor, Color.white, 0.65f);
-            badge.resizeTextForBestFit = true;
-            badge.resizeTextMinSize = 8;
-            badge.resizeTextMaxSize = large ? 24 : 18;
-            badge.raycastTarget = false;
-        }
-        else
-        {
-            Image lockIcon = RuntimeUiKit.CreateImage(badgeRect, "Lock",
-                MenuSprites.Lock(new Color(0.45f, 0.45f, 0.48f, 1f)), Color.white);
-            lockIcon.preserveAspect = true;
-            RuntimeUiKit.Stretch(lockIcon.rectTransform);
-            lockIcon.raycastTarget = false;
-        }
-
-        if (discovered && IconBackingSprite != null && FrameSprite != null)
-        {
-            FullRectOverlay(cardObject.transform, "IconBacking", IconBackingSprite, Color.white);
-        }
-
-        // Icon glyph: full colour when discovered; a true black silhouette tease when locked.
-        RectTransform iconRect = FrameSlotRect(cardObject.transform, "Icon",
-            FrameSprite != null ? IconSlot : Rect.MinMaxRect(0.2f, 0.3f, 0.8f, 0.62f));
-        Image glyph = RuntimeUiKit.CreateImage(iconRect, "Glyph",
-            definition.Icon != null ? definition.Icon : RuntimeSprites.AbilityGlyph(),
-            discovered
-                ? (definition.Icon != null ? Color.white : Color.Lerp(rarityColor, Color.white, 0.3f))
-                : new Color(0.04f, 0.04f, 0.05f, 0.85f));
-        glyph.preserveAspect = true;
-        glyph.raycastTarget = false;
-        RectTransform gr = glyph.rectTransform;
-        gr.anchorMin = Vector2.zero; gr.anchorMax = Vector2.one;
-        float inset = large ? 34f : 18f;
-        gr.offsetMin = new Vector2(inset, inset); gr.offsetMax = new Vector2(-inset, -inset);
-
-        if (large && discovered)
-        {
-            RectTransform descRect = FrameSlotRect(cardObject.transform, "Description",
-                FrameSprite != null ? DescSlot : Rect.MinMaxRect(0.1f, 0.66f, 0.9f, 0.9f));
-            Text desc = descRect.gameObject.AddComponent<Text>();
-            desc.font = RuntimeUiKit.DefaultFont;
-            desc.text = definition.ShortDescriptionFor(0);
-            desc.fontStyle = FontStyle.Bold;
-            desc.alignment = TextAnchor.MiddleCenter;
-            desc.color = new Color(0.92f, 0.95f, 1f, 1f);
-            desc.verticalOverflow = VerticalWrapMode.Truncate;
-            desc.resizeTextForBestFit = true;
-            desc.resizeTextMinSize = 10;
-            desc.resizeTextMaxSize = 30;
-            desc.raycastTarget = false;
-        }
-
-        if (discovered && definition.Rarity == AbilityRarity.Legendary && FrameSprite != null)
-        {
-            GameObject shineClip = new GameObject("ShineClip", typeof(RectTransform));
-            shineClip.transform.SetParent(cardObject.transform, false);
-            RuntimeUiKit.Stretch((RectTransform)shineClip.transform);
-            shineClip.AddComponent<RectMask2D>();
-            shineClip.AddComponent<AbilityCardShine>();
-        }
-
-        return cardObject;
-    }
-
-    public static void Create(Transform parent, AbilityDefinition definition, AbilityRuntime runtime, Action<AbilityDefinition> onPick, Action<AbilityDefinition> onDetails)
-    {
-        if (FrameSprite != null)
-        {
-            CreateFramedCard(parent, definition, runtime, onPick, onDetails);
-            return;
-        }
-
-        Color rarityColor = AbilityRarityInfo.GetColor(definition.Rarity);
-
-        // Two-layer chrome: a fixed dark cut-corner plate, plus a rarity-tinted glowing
-        // frame stretched over it (outside the vertical layout's control).
-        GameObject cardObject = new GameObject(definition.DisplayName);
-        cardObject.transform.SetParent(parent, false);
-
-        Image plate = cardObject.AddComponent<Image>();
-        plate.sprite = RuntimeSprites.CardPlate();
-        plate.type = Image.Type.Sliced;
-        plate.color = CardPlateColor;
-        cardObject.AddComponent<RectMask2D>(); // clips the legendary shine sweep
-
-        // Header region: a rarity-tinted gradient AREA whose straight bottom edge is
-        // the header boundary (the mockups have no divider line). Height = card top
-        // padding + the header container, so its edge lands exactly where the badge
-        // pill straddles. Drawn under the frame so the border line stays on top.
-        GameObject bandObject = new GameObject("HeaderBand", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform bandRect = (RectTransform)bandObject.transform;
-        bandRect.SetParent(cardObject.transform, false);
-        bandRect.anchorMin = new Vector2(0f, 1f);
-        bandRect.anchorMax = new Vector2(1f, 1f);
-        bandRect.pivot = new Vector2(0.5f, 1f);
-        bandRect.offsetMin = new Vector2(3f, -CardHeaderBandHeight);
-        bandRect.offsetMax = new Vector2(-3f, -3f);
-        Image band = bandObject.GetComponent<Image>();
-        band.sprite = RuntimeSprites.CardHeaderBand();
-        band.type = Image.Type.Sliced;
-        band.color = new Color(rarityColor.r, rarityColor.g, rarityColor.b, 0.55f);
-        band.raycastTarget = false;
-        bandObject.AddComponent<LayoutElement>().ignoreLayout = true;
-
-        GameObject frameObject = new GameObject("Frame", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform frameRect = (RectTransform)frameObject.transform;
-        frameRect.SetParent(cardObject.transform, false);
-        frameRect.anchorMin = Vector2.zero;
-        frameRect.anchorMax = Vector2.one;
-        frameRect.offsetMin = Vector2.zero;
-        frameRect.offsetMax = Vector2.zero;
-        Image frame = frameObject.GetComponent<Image>();
-        frame.sprite = RuntimeSprites.CardFrame();
-        frame.type = Image.Type.Sliced;
-        frame.color = rarityColor;
-        frame.raycastTarget = false;
-        frameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-
-        // Equal card widths no matter the content: identical preferred + flexible
-        // weights mean the row splits its width evenly instead of by text length.
-        LayoutElement cardElement = cardObject.AddComponent<LayoutElement>();
-        cardElement.preferredWidth = 10f;
-        cardElement.flexibleWidth = 1f;
-
-        Button button = cardObject.AddComponent<Button>();
-        ColorBlock colors = button.colors;
-        colors.normalColor = Color.white;
-        colors.highlightedColor = new Color(1.25f, 1.25f, 1.25f, 1f);
-        colors.pressedColor = new Color(0.8f, 0.8f, 0.8f, 1f);
-        colors.selectedColor = colors.highlightedColor;
-        colors.colorMultiplier = 1f;
-        button.colors = colors;
-        button.targetGraphic = plate;
-
-        VerticalLayoutGroup cardLayout = cardObject.AddComponent<VerticalLayoutGroup>();
-        cardLayout.padding = new RectOffset(28, 28, 16, 76); // bottom reserves the pinned DETAILS button
-        cardLayout.spacing = 10f;
-        cardLayout.childAlignment = TextAnchor.UpperCenter;
-        cardLayout.childControlWidth = true;
-        cardLayout.childControlHeight = true; // LayoutElement heights are authoritative
-        cardLayout.childForceExpandWidth = true;
-        cardLayout.childForceExpandHeight = false;
-
-        // Header section: title over a divider line, the type badge pill straddling it.
-        CreateCardHeader(cardObject.transform, definition.DisplayName.ToUpperInvariant(),
-            definition.Type, rarityColor);
-
-        // Fixed breathing room between the header and the icon. Being a fixed height (not a
-        // flexible spacer), the icon's Y is identical on every card -> all icons share one line.
-        GameObject topGap = new GameObject("TopGap", typeof(RectTransform));
-        topGap.transform.SetParent(cardObject.transform, false);
-        topGap.AddComponent<LayoutElement>().preferredHeight = 34f;
-
-        // Artwork is TOP-ALIGNED at a fixed height (no flexible spacers), so every card's icon
-        // lands on the same horizontal line no matter how long the description is. The card
-        // itself grows to fit the description (the row sizes to its tallest card), and the
-        // DETAILS button is pinned to the bottom, so leftover space sits between them.
-        RectTransform iconArea;
-        if (definition.Icon != null)
-        {
-            // Authored icons are transparent glyphs, so they ride on a white rounded tile
-            // with a thin rarity-tinted border. A fixed centered square keeps the tile from
-            // stretching to the full card width in the vertical layout.
-            GameObject iconSlot = new GameObject("IconSlot", typeof(RectTransform));
-            iconSlot.transform.SetParent(cardObject.transform, false);
-            iconSlot.AddComponent<LayoutElement>().preferredHeight = 200f;
-            iconArea = (RectTransform)iconSlot.transform;
-
-            // Slick rarity border (off-white/blue/purple) is owned by CreateIconTile.
-            Image glyph = RuntimeUiKit.CreateIconTile(iconSlot.transform, 1f, 8f, out Image tile, rarityColor);
-            RectTransform tileRect = tile.rectTransform;
-            tileRect.anchorMin = tileRect.anchorMax = new Vector2(0.5f, 0.5f);
-            tileRect.sizeDelta = new Vector2(200f, 200f);
-            glyph.sprite = definition.Icon;
-        }
-        else
-        {
-            GameObject iconObject = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-            iconObject.transform.SetParent(cardObject.transform, false);
-            Image icon = iconObject.GetComponent<Image>();
-            icon.sprite = RuntimeSprites.AbilityGlyph();
-            icon.color = Color.Lerp(rarityColor, Color.white, 0.25f);
-            icon.preserveAspect = true;
-            icon.raycastTarget = false;
-            iconObject.AddComponent<LayoutElement>().preferredHeight = 200f;
-            iconArea = (RectTransform)iconObject.transform;
-        }
-
-        // "Owned xN" overlays the top of the icon (out of the layout flow via ignoreLayout),
-        // so an owned card's icon stays on the exact same line as an un-owned one.
-        int stacks = runtime != null ? runtime.GetOwnedStacks(definition) : 0;
-        if (stacks > 0)
-        {
-            Text owned = RuntimeUiKit.CreateLabel(iconArea, $"Owned ×{stacks}",
-                20, 24f, FontStyle.Bold, new Color(0.6f, 0.9f, 0.65f, 1f), TextAnchor.UpperCenter);
-            owned.GetComponent<LayoutElement>().ignoreLayout = true;
-            RectTransform ownedRect = owned.rectTransform;
-            ownedRect.anchorMin = new Vector2(0f, 1f);
-            ownedRect.anchorMax = new Vector2(1f, 1f);
-            ownedRect.pivot = new Vector2(0.5f, 1f);
-            ownedRect.offsetMin = new Vector2(0f, -28f);
-            ownedRect.offsetMax = new Vector2(0f, 2f);
-        }
-
-        // Description sits directly under the icon, bold + large, hugging its own wrapped-text
-        // height. Truncates rather than drawing over the pinned button on overlong text.
-        Text shortText = RuntimeUiKit.CreateLabel(cardObject.transform, definition.ShortDescriptionFor(stacks),
-            28, 0f, FontStyle.Bold, new Color(0.9f, 0.93f, 0.98f, 1f), TextAnchor.UpperCenter);
-        shortText.lineSpacing = 1.05f;
-        shortText.verticalOverflow = VerticalWrapMode.Truncate;
-        shortText.GetComponent<LayoutElement>().preferredHeight = -1f; // -1 => hug wrapped text
-
-        // Nested button: UGUI raycasts stop at the inner target, so tapping Details
-        // never also picks the card. Pinned to the card bottom (out of the vertical layout)
-        // so an overlong description - ShortDescription falls back to the full description -
-        // can never push it off the card or under the RectMask2D; worst case the text is
-        // clipped behind it, but the button stays visible and tappable.
-        Button details = RuntimeUiKit.CreateButton(cardObject.transform, "DETAILS", 52f,
-            () => onDetails?.Invoke(definition));
-        StyleDetailsButton(details, rarityColor);
-        details.GetComponent<LayoutElement>().ignoreLayout = true;
-        RectTransform detailsRect = (RectTransform)details.transform;
-        detailsRect.anchorMin = new Vector2(0f, 0f);
-        detailsRect.anchorMax = new Vector2(1f, 0f);
-        detailsRect.pivot = new Vector2(0.5f, 0f);
-        detailsRect.offsetMin = new Vector2(28f, 16f);
-        detailsRect.offsetMax = new Vector2(-28f, 16f + 52f);
-
-        if (definition.Rarity == AbilityRarity.Legendary)
-        {
-            cardObject.AddComponent<AbilityCardShine>();
-        }
-
-        AbilityDefinition picked = definition;
-        button.onClick.AddListener(() => onPick?.Invoke(picked));
-    }
-
-    // Card top padding + this header's height = where the header band's bottom edge
-    // lands; the badge pill straddles exactly that boundary.
-    private const float CardHeaderHeight = 84f;
-    private const float CardHeaderBandHeight = 16f + CardHeaderHeight; // + card top padding
-
-    // The card's header section: the title lives inside the rarity-tinted band region
-    // (drawn by CreateCard), and the type badge pill sits ON the band's bottom edge -
-    // centered, straddling it. The boundary IS the band edge; there is no divider line.
-    private static void CreateCardHeader(Transform parent, string titleText, AbilityType type, Color rarityColor)
-    {
-        GameObject header = new GameObject("CardHeader", typeof(RectTransform));
-        header.transform.SetParent(parent, false);
-        header.AddComponent<LayoutElement>().preferredHeight = CardHeaderHeight;
-
-        // Title fills the band area; best-fit keeps it to one line when it can, wraps
-        // to two only when a long name leaves no choice.
-        GameObject titleObject = new GameObject("Title", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
-        RectTransform titleRect = (RectTransform)titleObject.transform;
-        titleRect.SetParent(header.transform, false);
-        titleRect.anchorMin = new Vector2(0f, 0f);
-        titleRect.anchorMax = new Vector2(1f, 1f);
-        titleRect.offsetMin = new Vector2(4f, 22f);
-        titleRect.offsetMax = new Vector2(-4f, -4f);
-        Text title = titleObject.GetComponent<Text>();
-        title.font = RuntimeUiKit.TitleFont;
-        title.text = titleText;
-        title.fontStyle = FontStyle.Bold;
-        title.alignment = TextAnchor.MiddleCenter;
-        title.color = RuntimeUiKit.TitleColor;
-        title.resizeTextForBestFit = true;
-        title.resizeTextMinSize = 15;
-        title.resizeTextMaxSize = 28;
-        title.raycastTarget = false;
-
-        // The badge pill, straddling the band's bottom edge (container bottom).
-        GameObject pillObject = new GameObject("Badge", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform pill = (RectTransform)pillObject.transform;
-        pill.SetParent(header.transform, false);
-        pill.anchorMin = pill.anchorMax = new Vector2(0.5f, 0f);
-        pill.anchoredPosition = new Vector2(0f, 0f);
-        pill.sizeDelta = new Vector2(168f, 34f);
-        Image pillImage = pillObject.GetComponent<Image>();
-        pillImage.sprite = RuntimeSprites.RoundedPanel();
-        pillImage.type = Image.Type.Sliced;
-        pillImage.color = new Color(0.05f, 0.045f, 0.1f, 1f); // opaque: hides the line behind it
-        pillImage.raycastTarget = false;
-
-        RuntimeUiKit.AddOutline(pillObject.transform, new Color(rarityColor.r, rarityColor.g, rarityColor.b, 0.9f));
-
-        // The type as text (CONSUMABLE / PASSIVE / INSTANT) instead of a glyph - clearer.
-        GameObject labelObject = new GameObject("BadgeLabel", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
-        RectTransform labelRect = (RectTransform)labelObject.transform;
-        labelRect.SetParent(pillObject.transform, false);
-        labelRect.anchorMin = Vector2.zero;
-        labelRect.anchorMax = Vector2.one;
-        labelRect.offsetMin = new Vector2(10f, 0f);
-        labelRect.offsetMax = new Vector2(-10f, 0f);
-        Text badge = labelObject.GetComponent<Text>();
-        badge.font = RuntimeUiKit.TitleFont;
-        badge.text = AbilityTypeInfo.GetLabel(type);
-        badge.fontSize = 17;
-        badge.fontStyle = FontStyle.Bold;
-        badge.alignment = TextAnchor.MiddleCenter;
-        badge.color = Color.Lerp(rarityColor, Color.white, 0.45f);
-        badge.raycastTarget = false;
-    }
-
-    // Mockup-style Details button: near-transparent fill with a thin rarity outline.
-    public static void StyleDetailsButton(Button button, Color rarityColor)
-    {
-        Image image = button.GetComponent<Image>();
-        image.sprite = RuntimeSprites.RoundedPanel();
+        Image image = RuntimeUiKit.CreateImage(root, name, sprite, color);
         image.type = Image.Type.Sliced;
-        image.color = new Color(rarityColor.r, rarityColor.g, rarityColor.b, 0.08f);
+        RectTransform rect = image.rectTransform;
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        float pad = RuntimeSprites.CardSpritePad + extra;
+        rect.offsetMin = new Vector2(-pad, -pad);
+        rect.offsetMax = new Vector2(pad, pad);
+        return image;
+    }
 
-        RuntimeUiKit.AddOutline(button.transform, Color.Lerp(rarityColor, Color.white, 0.2f));
+    // Body + halo + ring. No ornaments - the card is a clean near-black slab and the neon
+    // edge carries the rarity. Content goes on top; the shine sweep (tier.Shine) must be
+    // attached AFTER content so it sweeps over everything. Returns the body Image (the pick
+    // button's target graphic).
+    private static Image BuildCardChrome(Transform root, Color accent, TierStyle tier, bool discovered)
+    {
+        Color top = discovered
+            ? WithAlpha(Color.Lerp(accent, Color.black, tier.TopLerp), 0.985f)
+            : new Color(0.075f, 0.08f, 0.09f, 0.98f);
+        Color bottom = discovered
+            ? WithAlpha(Color.Lerp(accent, Color.black, 0.94f), 0.985f)
+            : new Color(0.04f, 0.045f, 0.055f, 0.98f);
+        Image body = AddPaddedSprite(root, "Body", RuntimeSprites.CardGradient(top, bottom), Color.white);
 
+        if (discovered && tier.HaloAlpha > 0f)
+        {
+            Image halo = AddPaddedSprite(root, "Halo", MenuSprites.GlowFrame(),
+                WithAlpha(accent, tier.HaloAlpha), extra: 10f);
+            if (tier.Pulse) halo.gameObject.AddComponent<UiGlowPulse>();
+        }
+
+        // Locked cards keep a NEUTRAL ring - the rarity colour is part of the discovery reward.
+        AddPaddedSprite(root, "Ring", RuntimeSprites.CardNeonRing(), discovered
+            ? WithAlpha(Color.Lerp(accent, Color.white, 0.15f), tier.RingAlpha)
+            : WithAlpha(LockedColor, 0.25f));
+
+        return body;
+    }
+
+    private static void AddTitle(Transform root, string text, float top, float height, float maxSize, Color color)
+    {
+        RectTransform rect = RuntimeUiKit.CreateRect(root, "Title",
+            new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, Vector2.zero);
+        rect.offsetMin = new Vector2(16f, top - height);
+        rect.offsetMax = new Vector2(-16f, top);
+
+        TextMeshProUGUI title = Display(RuntimeUiKit.CreateTmp(rect, "Text", text.ToUpperInvariant(),
+            (int)maxSize, color, TextAnchor.MiddleCenter, FontStyle.Normal, RuntimeUiKit.TitleFont));
+        title.characterSpacing = 2f;
+        title.textWrappingMode = TextWrappingModes.Normal;
+        title.overflowMode = TextOverflowModes.Truncate;
+        RuntimeUiKit.AutoSize(title, 14f, maxSize);
+    }
+
+    // Type badge (PASSIVE / INSTANT / CONSUMABLE): a solid pill tinted by the DERIVED ability
+    // type (see ABILITIES.md - kind colour is a second information axis beside rarity).
+    private static void AddTypeChip(Transform root, AbilityType type, float centerY, float scale = 1f)
+    {
+        Color typeColor = AbilityTypeInfo.GetColor(type);
+        Image pill = RuntimeUiKit.CreateImage(root, "TypeChip", RuntimeSprites.RoundedPanel(),
+            WithAlpha(Color.Lerp(typeColor, Color.black, 0.58f), 0.95f));
+        pill.type = Image.Type.Sliced;
+        pill.pixelsPerUnitMultiplier = 1.4f;
+        RuntimeUiKit.SetRect(pill.rectTransform, new Vector2(0f, centerY),
+            new Vector2(160f * scale, 34f * scale), new Vector2(0.5f, 1f));
+
+        TextMeshProUGUI label = Display(RuntimeUiKit.CreateTmp(pill.transform, "Label",
+            AbilityTypeInfo.GetLabel(type), Mathf.RoundToInt(14f * scale),
+            Color.Lerp(typeColor, Color.white, 0.6f), TextAnchor.MiddleCenter,
+            FontStyle.Normal, RuntimeUiKit.TitleFont));
+        label.characterSpacing = 3f;
+        RuntimeUiKit.AutoSize(label, 9f, 14f * scale);
+    }
+
+    // The icon on a light rounded tile lifted by a soft accent glow (authored glyphs are drawn
+    // against white). Locked entries flip to a near-black silhouette tease.
+    private static RectTransform AddIconTile(Transform root, Sprite icon, Color accent, float top,
+        float size, bool discovered, float glowAlpha)
+    {
+        RectTransform holder = RuntimeUiKit.CreateRect(root, "IconSlot",
+            new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+            new Vector2(0f, top), new Vector2(size, size));
+
+        if (discovered && glowAlpha > 0f)
+        {
+            Image glow = RuntimeUiKit.CreateImage(holder, "Glow", MenuSprites.GlowFrame(),
+                WithAlpha(accent, glowAlpha));
+            glow.type = Image.Type.Sliced;
+            RectTransform glowRect = glow.rectTransform;
+            glowRect.anchorMin = Vector2.zero;
+            glowRect.anchorMax = Vector2.one;
+            glowRect.offsetMin = new Vector2(-12f, -12f);
+            glowRect.offsetMax = new Vector2(12f, 12f);
+        }
+
+        Image tile = RuntimeUiKit.CreateImage(holder, "IconTile", RuntimeSprites.RoundedPanel(),
+            discovered ? new Color(0.97f, 0.97f, 0.98f, 1f) : new Color(0.03f, 0.03f, 0.035f, 1f));
+        tile.type = Image.Type.Sliced;
+        RuntimeUiKit.Stretch(tile.rectTransform);
+
+        RuntimeUiKit.AddOutline(tile.transform,
+            discovered ? WithAlpha(accent, 0.5f) : WithAlpha(LockedColor, 0.15f));
+
+        Image glyph = RuntimeUiKit.CreateImage(tile.transform, "Glyph",
+            icon != null ? icon : RuntimeSprites.AbilityGlyph(),
+            discovered
+                ? (icon != null ? Color.white : Color.Lerp(accent, Color.white, 0.3f))
+                : new Color(0.05f, 0.05f, 0.06f, 0.9f));
+        glyph.preserveAspect = true;
+        RectTransform glyphRect = glyph.rectTransform;
+        glyphRect.anchorMin = Vector2.zero;
+        glyphRect.anchorMax = Vector2.one;
+        float inset = size * 0.11f;
+        glyphRect.offsetMin = new Vector2(inset, inset);
+        glyphRect.offsetMax = new Vector2(-inset, -inset);
+        return holder;
+    }
+
+    // "OWNED ×N" - a small gold tag riding the icon tile's top-right corner.
+    private static void AddOwnedBadge(RectTransform tile, int stacks)
+    {
+        Image pill = RuntimeUiKit.CreateImage(tile, "Owned", RuntimeSprites.RoundedPanel(),
+            new Color(1f, 0.9f, 0.68f, 1f));
+        pill.type = Image.Type.Sliced;
+        pill.pixelsPerUnitMultiplier = 3f;
+        RectTransform rect = pill.rectTransform;
+        rect.anchorMin = rect.anchorMax = new Vector2(1f, 1f);
+        rect.pivot = new Vector2(0.72f, 0.5f);
+        rect.anchoredPosition = new Vector2(6f, 4f);
+        rect.sizeDelta = new Vector2(104f, 30f);
+
+        TextMeshProUGUI label = Display(RuntimeUiKit.CreateTmp(pill.transform, "Label",
+            $"OWNED ×{stacks}", 13, new Color(0.16f, 0.13f, 0.05f, 1f), TextAnchor.MiddleCenter,
+            FontStyle.Normal, RuntimeUiKit.TitleFont));
+        label.characterSpacing = 1f;
+    }
+
+    private static void AddDescription(Transform root, string text, float top, float bottom, float maxSize)
+    {
+        RectTransform rect = RuntimeUiKit.CreateRect(root, "Description",
+            new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, Vector2.zero);
+        rect.offsetMin = new Vector2(22f, bottom);
+        rect.offsetMax = new Vector2(-22f, top);
+
+        TextMeshProUGUI body = RuntimeUiKit.CreateTmp(rect, "Text", text, (int)maxSize, BodyColor,
+            TextAnchor.MiddleCenter, FontStyle.Normal, RuntimeUiKit.DefaultFont);
+        body.font = RuntimeUiKit.TmpTitleFont; // Inter reads cleaner than the built-in body face
+        body.textWrappingMode = TextWrappingModes.Normal;
+        body.overflowMode = TextOverflowModes.Truncate;
+        RuntimeUiKit.AutoSize(body, 16f, maxSize);
+    }
+
+    // DETAILS: a dark pill with a bright accent outline (the mockups' ghost button), spanning
+    // the card width at a comfortable mobile touch height. A nested Button whose raycast
+    // target absorbs the tap, so opening details never also picks the card.
+    private static void AddDetailsButton(Transform root, Color accent, Action onDetails)
+    {
+        GameObject go = new GameObject("Details", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        go.transform.SetParent(root, false);
+        RectTransform rect = (RectTransform)go.transform;
+        rect.anchorMin = new Vector2(0f, 0f);
+        rect.anchorMax = new Vector2(1f, 0f);
+        rect.pivot = new Vector2(0.5f, 0f);
+        rect.offsetMin = new Vector2(26f, 18f);
+        rect.offsetMax = new Vector2(-26f, 18f + 64f);
+
+        Image pill = go.GetComponent<Image>();
+        pill.sprite = RuntimeSprites.RoundedPanel();
+        pill.type = Image.Type.Sliced;
+        pill.color = PillDark;
+        pill.raycastTarget = true;
+
+        RuntimeUiKit.AddOutline(go.transform, WithAlpha(Color.Lerp(accent, Color.white, 0.35f), 0.9f));
+
+        Button button = go.AddComponent<Button>();
         ColorBlock colors = button.colors;
         colors.normalColor = Color.white;
         colors.highlightedColor = new Color(1.6f, 1.6f, 1.6f, 1f);
         colors.pressedColor = new Color(0.7f, 0.7f, 0.7f, 1f);
         colors.selectedColor = colors.highlightedColor;
+        colors.colorMultiplier = 1f;
         button.colors = colors;
+        button.targetGraphic = pill;
+        button.onClick.AddListener(() => onDetails?.Invoke());
+
+        TextMeshProUGUI label = Display(RuntimeUiKit.CreateTmp(go.transform, "Label", "DETAILS", 19,
+            Color.Lerp(accent, Color.white, 0.7f), TextAnchor.MiddleCenter, FontStyle.Normal,
+            RuntimeUiKit.TitleFont));
+        label.characterSpacing = 4f;
+    }
+
+    // ---- offer card -----------------------------------------------------------------------------
+
+    /// <summary>One tappable offer card (the whole card picks; DETAILS opens the detail panel).
+    /// Sized by the offer row: width splits evenly, height is the row's CardHeight.</summary>
+    public static void Create(Transform parent, AbilityDefinition definition, AbilityRuntime runtime,
+        Action<AbilityDefinition> onPick, Action<AbilityDefinition> onDetails)
+    {
+        Color accent = AbilityRarityInfo.GetColor(definition.Rarity);
+        TierStyle tier = GetTier(definition.Rarity);
+        int stacks = runtime != null ? runtime.GetOwnedStacks(definition) : 0;
+
+        GameObject cardObject = new GameObject(definition.DisplayName, typeof(RectTransform));
+        cardObject.transform.SetParent(parent, false);
+
+        // Equal card widths no matter the content: identical preferred + flexible weights.
+        LayoutElement cardElement = cardObject.AddComponent<LayoutElement>();
+        cardElement.preferredWidth = 10f;
+        cardElement.flexibleWidth = 1f;
+
+        Image body = BuildCardChrome(cardObject.transform, accent, tier, discovered: true);
+        body.raycastTarget = true;
+
+        Button button = cardObject.AddComponent<Button>();
+        ColorBlock colors = button.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(1.08f, 1.08f, 1.08f, 1f);
+        colors.pressedColor = new Color(0.88f, 0.88f, 0.88f, 1f);
+        colors.selectedColor = colors.highlightedColor;
+        colors.colorMultiplier = 1f;
+        button.colors = colors;
+        button.targetGraphic = body;
+        AbilityDefinition picked = definition;
+        button.onClick.AddListener(() => onPick?.Invoke(picked));
+
+        AddTitle(cardObject.transform, definition.DisplayName, -28f, 62f, 29f, RuntimeUiKit.TitleColor);
+        AddTypeChip(cardObject.transform, definition.Type, -100f);
+        RectTransform tile = AddIconTile(cardObject.transform, definition.Icon, accent, -146f, 158f,
+            true, tier.IconGlow);
+        if (stacks > 0) AddOwnedBadge(tile, stacks);
+        AddDescription(cardObject.transform, definition.ShortDescriptionFor(stacks), -324f, -402f, 24f);
+        AbilityDefinition detailDef = definition;
+        AddDetailsButton(cardObject.transform, accent, () => onDetails?.Invoke(detailDef));
+
+        if (tier.Shine) AbilityCardShine.Attach(cardObject.transform, ShineColor(definition.Rarity, accent), tier.ShinePause);
+    }
+
+    // ---- collection card (Vault) ------------------------------------------------------------------
+
+    /// <summary>
+    /// The Vault's collection card: the same neon glass dressing as an offer card, minus the
+    /// offer-only chrome (no pick handler, no DETAILS sub-button, no Owned tag). Grid cards drop
+    /// the description (unreadable at grid size - the whole card opens the detail view);
+    /// <paramref name="large"/> re-adds it for the detail modal. An undiscovered ability renders
+    /// as a SILHOUETTE tease: darkened glass, near-black icon shadow, "???" - the name and rarity
+    /// colour stay part of the reward. Fills its parent rect; returns the card root.
+    /// </summary>
+    public static GameObject CreateCollectionCard(Transform parent, AbilityDefinition definition,
+        bool discovered, bool large)
+    {
+        Color accent = AbilityRarityInfo.GetColor(definition.Rarity);
+        TierStyle tier = GetTier(definition.Rarity);
+
+        GameObject cardObject = new GameObject(definition.name, typeof(RectTransform));
+        cardObject.transform.SetParent(parent, false);
+        RuntimeUiKit.Stretch((RectTransform)cardObject.transform);
+
+        BuildCardChrome(cardObject.transform, accent, tier, discovered);
+
+        if (large)
+        {
+            AddTitle(cardObject.transform, discovered ? definition.DisplayName : "???",
+                -36f, 80f, 38f, discovered ? RuntimeUiKit.TitleColor : LockedColor);
+            if (discovered) AddTypeChip(cardObject.transform, definition.Type, -132f, 1.15f);
+            AddIconTile(cardObject.transform, definition.Icon, accent, -190f, 240f, discovered, tier.IconGlow);
+            if (discovered)
+                AddDescription(cardObject.transform, definition.ShortDescriptionFor(0), -450f, -602f, 24f);
+        }
+        else
+        {
+            AddTitle(cardObject.transform, discovered ? definition.DisplayName : "???",
+                -26f, 66f, 26f, discovered ? RuntimeUiKit.TitleColor : LockedColor);
+            if (discovered)
+            {
+                AddTypeChip(cardObject.transform, definition.Type, -102f, 0.92f);
+            }
+            else
+            {
+                Image lockIcon = RuntimeUiKit.CreateImage(cardObject.transform, "Lock",
+                    MenuSprites.Lock(LockedColor), Color.white);
+                lockIcon.preserveAspect = true;
+                RuntimeUiKit.SetRect(lockIcon.rectTransform, new Vector2(0f, -102f),
+                    new Vector2(34f, 34f), new Vector2(0.5f, 1f));
+            }
+            AddIconTile(cardObject.transform, definition.Icon, accent, -152f, 194f, discovered, tier.IconGlow);
+        }
+
+        if (discovered && tier.Shine)
+            AbilityCardShine.Attach(cardObject.transform, ShineColor(definition.Rarity, accent), tier.ShinePause);
+
+        return cardObject;
+    }
+
+    // ---- detail panel (offer's DETAILS view) -------------------------------------------------------
+
+    /// <summary>The full-presentation detail view: rarity chrome, big icon, title, type chip,
+    /// LONG description, and Choose/Back. Built on the caller's modal canvas.</summary>
+    public static void CreateDetailPanel(Transform parent, AbilityDefinition definition, int stacks,
+        Action onChoose, Action onBack)
+    {
+        Color accent = AbilityRarityInfo.GetColor(definition.Rarity);
+        TierStyle tier = GetTier(definition.Rarity);
+
+        RectTransform panel = RuntimeUiKit.CreateRect(parent, "DetailPanel",
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+            Vector2.zero, new Vector2(720f, 1020f));
+        Image body = BuildCardChrome(panel, accent, tier, discovered: true);
+        body.raycastTarget = true;
+
+        AddTitle(panel, definition.DisplayName, -38f, 84f, 42f, RuntimeUiKit.TitleColor);
+        AddTypeChip(panel, definition.Type, -134f, 1.1f);
+        RectTransform tile = AddIconTile(panel, definition.Icon, accent, -188f, 216f, true, tier.IconGlow);
+        if (stacks > 0) AddOwnedBadge(tile, stacks);
+
+        RectTransform bodyRect = RuntimeUiKit.CreateRect(panel, "LongDescription",
+            new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, Vector2.zero);
+        bodyRect.offsetMin = new Vector2(46f, -770f);
+        bodyRect.offsetMax = new Vector2(-46f, -444f);
+        TextMeshProUGUI longDesc = RuntimeUiKit.CreateTmp(bodyRect, "Text", definition.LongDescription, 26,
+            BodyColor, TextAnchor.UpperCenter, FontStyle.Normal, RuntimeUiKit.DefaultFont);
+        longDesc.font = RuntimeUiKit.TmpTitleFont;
+        longDesc.textWrappingMode = TextWrappingModes.Normal;
+        longDesc.overflowMode = TextOverflowModes.Truncate;
+        RuntimeUiKit.AutoSize(longDesc, 18f, 26f);
+
+        CreateActionButton(panel, $"CHOOSE {definition.DisplayName.ToUpperInvariant()}",
+            new Vector2(0f, 134f), new Vector2(560f, 92f), primary: true, accent, onChoose);
+        CreateActionButton(panel, "BACK",
+            new Vector2(0f, 44f), new Vector2(560f, 70f), primary: false, accent, onBack);
+
+        if (tier.Shine) AbilityCardShine.Attach(panel, ShineColor(definition.Rarity, accent), tier.ShinePause);
+    }
+
+    // A hand-anchored rounded button: primary = filled with the accent (dark label);
+    // ghost = dark pill with a bright outline (accent label).
+    private static void CreateActionButton(Transform parent, string label, Vector2 bottomOffset,
+        Vector2 size, bool primary, Color accent, Action onClick)
+    {
+        GameObject go = new GameObject(label, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        go.transform.SetParent(parent, false);
+        RectTransform rect = (RectTransform)go.transform;
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0f);
+        rect.pivot = new Vector2(0.5f, 0f);
+        rect.anchoredPosition = bottomOffset;
+        rect.sizeDelta = size;
+
+        Image image = go.GetComponent<Image>();
+        image.sprite = RuntimeSprites.RoundedPanel();
+        image.type = Image.Type.Sliced;
+        image.color = Color.white;
+        image.raycastTarget = true;
+
+        Button button = go.AddComponent<Button>();
+        button.targetGraphic = image;
+        ApplyButtonPalette(button, primary, accent);
+        if (!primary) RuntimeUiKit.AddOutline(go.transform, WithAlpha(Color.Lerp(accent, Color.white, 0.35f), 0.9f));
+        button.onClick.AddListener(() => onClick?.Invoke());
+
+        TextMeshProUGUI text = Display(RuntimeUiKit.CreateTmp(go.transform, "Label", label,
+            primary ? 25 : 21,
+            primary ? Color.Lerp(accent, Color.black, 0.82f) : Color.Lerp(accent, Color.white, 0.7f),
+            TextAnchor.MiddleCenter, FontStyle.Normal, RuntimeUiKit.TitleFont));
+        text.characterSpacing = 2f;
+        RuntimeUiKit.AutoSize(text, 15f, primary ? 25f : 21f);
+    }
+
+    // The fill lives in the ColorBlock (image stays white) so Button tinting works, same
+    // pattern as GameMenuStyle.StyleButton.
+    private static void ApplyButtonPalette(Button button, bool primary, Color accent)
+    {
+        Color fill = primary
+            ? WithAlpha(Color.Lerp(accent, Color.white, 0.1f), 1f)
+            : PillDark;
+        ColorBlock colors = button.colors;
+        colors.normalColor = fill;
+        colors.highlightedColor = primary ? Color.Lerp(fill, Color.white, 0.1f) : new Color(0.14f, 0.15f, 0.18f, 0.95f);
+        colors.pressedColor = primary ? Color.Lerp(fill, Color.black, 0.2f) : new Color(0.02f, 0.025f, 0.035f, 0.95f);
+        colors.selectedColor = colors.highlightedColor;
+        colors.colorMultiplier = 1f;
+        button.colors = colors;
+    }
+
+    // ---- restyle helpers for kit-built panels/buttons (swap dialog, reroll) -------------------------
+
+    /// <summary>Give a kit panel (CreateCenteredPanel, drawBackground:false) the card look:
+    /// gradient glass + the neon ring, tinted by `accent`.</summary>
+    public static void StyleModalPanel(GameObject panel, Color accent)
+    {
+        Image body = AddPaddedSprite(panel.transform, "Body",
+            RuntimeSprites.CardGradient(
+                WithAlpha(Color.Lerp(accent, Color.black, 0.72f), 0.98f),
+                WithAlpha(Color.Lerp(accent, Color.black, 0.92f), 0.98f)), Color.white);
+        body.raycastTarget = true;
+        body.transform.SetAsFirstSibling();
+        Image ring = AddPaddedSprite(panel.transform, "Ring", RuntimeSprites.CardNeonRing(),
+            WithAlpha(Color.Lerp(accent, Color.white, 0.2f), 0.7f));
+        ring.transform.SetSiblingIndex(1);
+        // Keep the chrome out of the panel's vertical layout flow.
+        body.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+        ring.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+    }
+
+    /// <summary>Restyle a kit button (legacy Text child) as a filled accent primary.</summary>
+    public static void StylePrimaryButton(Button button, Color accent)
+    {
+        StyleKitButton(button, primary: true, accent);
+    }
+
+    /// <summary>Restyle a kit button (legacy Text child) as a ghost pill: dark fill,
+    /// bright outline, accent label.</summary>
+    public static void StyleGhostButton(Button button, Color accent)
+    {
+        StyleKitButton(button, primary: false, accent);
+    }
+
+    private static void StyleKitButton(Button button, bool primary, Color accent)
+    {
+        Image image = button.GetComponent<Image>();
+        if (image != null)
+        {
+            image.sprite = RuntimeSprites.RoundedPanel();
+            image.type = Image.Type.Sliced;
+            image.color = Color.white;
+        }
+        ApplyButtonPalette(button, primary, accent);
+        if (!primary) RuntimeUiKit.AddOutline(button.transform, WithAlpha(Color.Lerp(accent, Color.white, 0.35f), 0.9f));
 
         Text label = button.GetComponentInChildren<Text>();
         if (label != null)
         {
             label.font = RuntimeUiKit.TitleFont;
-            label.fontSize = 24;
-            label.color = Color.Lerp(rarityColor, Color.white, 0.5f);
+            label.fontSize = 26;
+            label.fontStyle = FontStyle.Bold;
+            label.color = primary
+                ? Color.Lerp(accent, Color.black, 0.82f)
+                : Color.Lerp(accent, Color.white, 0.7f);
         }
     }
-
 }

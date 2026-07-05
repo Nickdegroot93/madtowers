@@ -50,18 +50,22 @@ badge **text** collapses it to "PASSIVE" (a one-shot passive IS a passive; the o
 distinction is intentionally not surfaced to players), so the labels shown are
 **CONSUMABLE / PASSIVE / INSTANT**. Labels/colors in `AbilityTypeInfo`.
 
-Consumption today: choice cards are the mockup chrome - a dark cut-corner plate + a
-rarity-tinted glowing frame (both SDF sprites in `RuntimeSprites.AbilityCards`), title,
-a badge plate showing the type as **text** (`AbilityTypeInfo.GetLabel`), the authored
-icon on a white rounded tile with a rarity-tinted border (off-white / blue / purple,
-via `RuntimeUiKit.CreateIconTile`), "Owned xN", short description and an outlined rarity-tinted
-**Details** button; titles render in Rajdhani (Resources/Fonts, OFL) best-fit to one
-line; legendary cards get an animated
-shine sweep (`AbilityCardShine`). Details opens the detail view (type + rarity, icon,
-title, LONG description, Choose/Back - Back returns to the same three cards, no
-reroll). HUD slots show the icon (title text if none); the swap dialog shows title +
-short. The detail view is the future home of per-ability explainer videos - the icon
-and long text it needs are already authored.
+Consumption today: choice cards are procedural **neon slabs** (no authored frame art): a
+NEAR-BLACK rounded body with only a whisper of rarity tint (`RuntimeSprites.CardGradient`)
+wrapped in a bright neon edge with a real outer bloom (`RuntimeSprites.CardNeonRing`) -
+the rarity colour lives in the EDGE, never the body, and is never written as a word. Each
+card: Archivo Black title (`RuntimeUiKit.TmpDisplayFont`), a solid **type chip** tinted by
+the DERIVED type colour (`AbilityTypeInfo`), the authored icon on a white rounded tile
+lifted by a soft accent glow, an "OWNED ×N" gold tag when stacked, short description
+(Inter), and a full-width dark **DETAILS** pill (mobile touch height) with a bright
+outline. The rarity ladder: common = faint silver edge; rare = bright blue edge; epic =
+hot violet edge + extra halo + slow shine sweep; legendary = gold, breathing halo + fast
+warm sweep. Sweeps/pulse in `AbilityCardShine` (+ `UiGlowPulse`), unscaled time. Details
+opens the matching detail panel (`AbilityCardView.CreateDetailPanel`: same chrome, big
+icon, LONG description, filled-accent Choose / ghost Back - Back returns to the same
+three cards, no reroll). HUD slots show the icon (title text if none); the swap dialog
+shows title + short. The detail view is the future home of per-ability explainer videos -
+the icon and long text it needs are already authored.
 
 ### Delivery layer split
 
@@ -70,9 +74,9 @@ and consumable-slot swap flow. It deliberately delegates the other two heavy job
 
 - `AbilityOfferRoller` is the headless balance policy: availability filtering, rarity-profile
   weighting, run-progress escalation, and sampling without replacement.
-- `AbilityCardView` owns the UGUI card rendering strategies: authored PNG frame when present,
-  procedural fallback when not, card header, details button styling, and all pixel-measured frame
-  slots.
+- `AbilityCardView` owns all UGUI card rendering: the offer cards, the Vault collection
+  cards, the shared detail panel, the "CHOOSE AN ABILITY" header, the rarity tier styling
+  ladder, and the modal/button restyle helpers the swap dialog and reroll button use.
 
 Runtime targeting/sequence effects derive from `AbilitySessionBase` when they own a temporary
 mode (Fission, Overdraw, Zap, Magma melt, Extract — all five sessions use it; none hand-roll the
