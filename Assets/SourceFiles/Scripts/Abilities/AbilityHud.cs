@@ -2,9 +2,13 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// The two consumable slots: circular right-side buttons, built in code like the rest of
-/// the runtime UI. A gesture exclusion rect is registered over the visible buttons so
-/// activating a consumable never steers or rotates the piece.
+/// The two consumable slots: right-side buttons, built in code like the rest of the
+/// runtime UI. The authored ability icon IS the button - drawn full bleed (its opaque
+/// near-black ground is the body), corners clipped to the card chrome's rounded geometry
+/// by a stencil mask, with the neon ring as a border sitting right on the icon's edge
+/// (bloom overhangs outward). A dark slab backing shows only for icon-less abilities.
+/// A gesture exclusion rect is registered over the visible buttons so activating a
+/// consumable never steers or rotates the piece.
 /// Buttons dim whenever the blanket gates refuse activation (paused, game over, win
 /// verification) or a slot's own CanActivate says no - same affordance language as the
 /// nudge pills' lockout dim.
@@ -12,9 +16,17 @@ using UnityEngine.UI;
 public class AbilityHud : MonoBehaviour
 {
     private const float DefaultSlotSize = 124f; // initial rect size; the real size comes from HudLayout
-    private const float IconInset = 24f;
+    // The chrome sprites carry their neon bloom on a padded canvas; overhang them past the
+    // slot rect by that pad so the ring's bright line sits exactly ON the rect edge and the
+    // icon fills the full HudLayout size - no container band eating into the art.
+    private const float ChromePad = RuntimeSprites.CardSpritePad;
     private const float DimAlpha = 0.35f;
-    private static readonly Color BubbleColor = new Color(0.92f, 0.97f, 1f, 0.9f);
+    // Backing behind the icon (visible only for icon-less abilities and under the icon's
+    // clipped corners): the icon set's near-black ground (#0B0E13) and darker.
+    private static readonly Color SlabTop = new Color(0.055f, 0.065f, 0.085f, 0.98f);
+    private static readonly Color SlabBottom = new Color(0.033f, 0.04f, 0.055f, 0.98f);
+    private static readonly Color RingColor = new Color(0.7f, 0.82f, 1f, 0.5f);
+    private static readonly Color PunchRingColor = new Color(1f, 1f, 1f, 0.95f);
 
     private AbilityRuntime _runtime;
     private GameObject _root;
@@ -22,6 +34,7 @@ public class AbilityHud : MonoBehaviour
     private RectTransform _slotsLayer; // safe-area container; slots anchor at normalized HudLayout points
     private readonly GameObject[] _slots = new GameObject[AbilityRuntime.ConsumableSlotCount];
     private readonly Image[] _slotFrames = new Image[AbilityRuntime.ConsumableSlotCount];
+    private readonly Image[] _slotRings = new Image[AbilityRuntime.ConsumableSlotCount];
     private readonly Image[] _slotIcons = new Image[AbilityRuntime.ConsumableSlotCount];
     private readonly Text[] _slotLabels = new Text[AbilityRuntime.ConsumableSlotCount];
     private readonly CanvasGroup[] _slotGroups = new CanvasGroup[AbilityRuntime.ConsumableSlotCount];
@@ -103,10 +116,32 @@ public class AbilityHud : MonoBehaviour
         rect.pivot = new Vector2(0.5f, 0.5f);
         // anchor + size are applied from HudLayout in ApplyLayout().
 
+        // The root Image is a pure touch target (and the layout/punch-scale rect); the
+        // visible chrome is the full-bleed icon behind a neon ring, per the card recipe.
         Image frame = slot.GetComponent<Image>();
-        frame.sprite = RuntimeSprites.Bubble();
-        frame.color = BubbleColor;
+        frame.color = Color.clear;
         _slotFrames[index] = frame;
+
+        Image body = RuntimeUiKit.CreateImage(slot.transform, "Body",
+            RuntimeSprites.CardGradient(SlabTop, SlabBottom), Color.white);
+        body.type = Image.Type.Sliced;
+        body.raycastTarget = false;
+        StretchPadded(body.rectTransform);
+
+        // The icon is a square opaque image but the border is a rounded rect, so the icon
+        // renders inside a stencil mask with the ring's exact rounded geometry (an all-white
+        // card body): border and icon edge stay aligned at any slot size, and the icon's
+        // square corners are clipped instead of poking past the rounded border.
+        GameObject maskObject = new GameObject("IconMask",
+            typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Mask));
+        RectTransform maskRect = (RectTransform)maskObject.transform;
+        maskRect.SetParent(slot.transform, false);
+        StretchPadded(maskRect);
+        Image maskImage = maskObject.GetComponent<Image>();
+        maskImage.sprite = RuntimeSprites.CardGradient(Color.white, Color.white);
+        maskImage.type = Image.Type.Sliced;
+        maskImage.raycastTarget = false;
+        maskObject.GetComponent<Mask>().showMaskGraphic = false;
 
         Button button = slot.AddComponent<Button>();
         button.targetGraphic = frame;
@@ -120,15 +155,25 @@ public class AbilityHud : MonoBehaviour
 
         GameObject iconObject = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         RectTransform iconRect = (RectTransform)iconObject.transform;
-        iconRect.SetParent(slot.transform, false);
+        iconRect.SetParent(maskRect, false);
         iconRect.anchorMin = Vector2.zero;
         iconRect.anchorMax = Vector2.one;
-        iconRect.offsetMin = new Vector2(IconInset, IconInset);
-        iconRect.offsetMax = new Vector2(-IconInset, -IconInset);
+        // Back out the mask's overhang: the icon's visible rect is exactly the slot rect,
+        // full bleed to the ring line.
+        iconRect.offsetMin = new Vector2(ChromePad, ChromePad);
+        iconRect.offsetMax = new Vector2(-ChromePad, -ChromePad);
         Image icon = iconObject.GetComponent<Image>();
         icon.preserveAspect = true;
         icon.raycastTarget = false;
         _slotIcons[index] = icon;
+
+        // Ring last among the chrome so its bright line draws over the icon's clipped edge.
+        Image ring = RuntimeUiKit.CreateImage(slot.transform, "Ring",
+            RuntimeSprites.CardNeonRing(), RingColor);
+        ring.type = Image.Type.Sliced;
+        ring.raycastTarget = false;
+        StretchPadded(ring.rectTransform);
+        _slotRings[index] = ring;
 
         Text label = RuntimeUiKit.CreateLabel(slot.transform, string.Empty, 16, DefaultSlotSize,
             FontStyle.Bold, RuntimeUiKit.TitleColor);
@@ -156,7 +201,7 @@ public class AbilityHud : MonoBehaviour
 
             bool filled = source != null;
             _slots[i].SetActive(filled);
-            _slotFrames[i].color = BubbleColor;
+            _slotRings[i].color = RingColor;
 
             bool hasIcon = source != null && source.Icon != null;
             if (_slotIcons[i] != null)
@@ -195,13 +240,13 @@ public class AbilityHud : MonoBehaviour
                 {
                     _punchAge[i] = -1f;
                     _slotFrames[i].rectTransform.localScale = Vector3.one;
-                    _slotFrames[i].color = BubbleColor;
+                    _slotRings[i].color = RingColor;
                 }
                 else
                 {
                     float scale = FxKit.Elastic(t, amplitude: 0.28f, damping: 6f, frequency: 18f);
                     _slotFrames[i].rectTransform.localScale = new Vector3(scale, scale, 1f);
-                    _slotFrames[i].color = Color.Lerp(new Color(1f, 1f, 1f, 0.96f), BubbleColor, t / 0.45f);
+                    _slotRings[i].color = Color.Lerp(PunchRingColor, RingColor, t / 0.45f);
                 }
             }
 
@@ -231,6 +276,16 @@ public class AbilityHud : MonoBehaviour
             rect.anchoredPosition = Vector2.zero;
             rect.sizeDelta = new Vector2(s.size, s.size);
         }
+    }
+
+    // Chrome pieces overhang the slot rect by the sprites' padded bloom margin, so the neon
+    // line lands exactly on the rect edge (see ChromePad).
+    private static void StretchPadded(RectTransform rect)
+    {
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = new Vector2(-ChromePad, -ChromePad);
+        rect.offsetMax = new Vector2(ChromePad, ChromePad);
     }
 
     private static Rect Union(Rect a, Rect b)
