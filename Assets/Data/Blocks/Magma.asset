@@ -23,6 +23,11 @@ MonoBehaviour:
   materialOverride: {fileID: 0}
   countsAsPlacedBlock: 0
   costsLifeWhenLost: 1
+  isHazard: 0
+  behaviourSummary: Melts on landing and fills the hollows beneath it
+  vaultDescription: A Magma brick doesn't stack - it settles. On landing it melts,
+    pouring into every pocket and seam below before cooling into solid stone. Ugly
+    gaps become level ground.
   stoneCell: {fileID: 11400000, guid: 33fd63a3dc394755935440d6f6849a70, type: 2}
   solidifyEffect: {fileID: 0}
   solidifyEffectScale: 0.6

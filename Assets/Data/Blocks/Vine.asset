@@ -21,6 +21,13 @@ MonoBehaviour:
   colorTint: {r: 1, g: 1, b: 1, a: 1}
   spriteOverride: {fileID: 0}
   materialOverride: {fileID: 0}
+  countsAsPlacedBlock: 1
+  costsLifeWhenLost: 1
+  isHazard: 0
+  behaviourSummary: Welds itself to every brick it touches
+  vaultDescription: Vines creep onto everything a Vine brick rests against, lashing
+    the pieces into one. Bridge a gap and the whole cluster moves as a single block.
+    Clustered bricks are strong bricks.
   attachDelaySeconds: 0
   breakForce: 150
   touchRange: 0.22

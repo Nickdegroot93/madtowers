@@ -373,6 +373,142 @@ public static class AbilityCardView
         }
     }
 
+    /// <summary>
+    /// The Vault's collection card: the same authored frame/gem/icon dressing as an offer card,
+    /// minus the offer-only chrome (no pick handler, no DETAILS sub-button, no Owned overlay).
+    /// Grid cards drop the description (unreadable at grid size - the whole card opens the detail
+    /// view instead); <paramref name="large"/> re-adds it for the detail modal. An undiscovered
+    /// ability renders as a SILHOUETTE tease: darkened frame, near-black icon shadow, "???" - the
+    /// name and rarity colour stay part of the reward. Returns the card root (sized by an
+    /// AspectRatioFitter against its parent; give the parent the cell rect).
+    /// </summary>
+    public static GameObject CreateCollectionCard(Transform parent, AbilityDefinition definition,
+        bool discovered, bool large)
+    {
+        Color rarityColor = AbilityRarityInfo.GetColor(definition.Rarity);
+        Color frameTint = discovered ? rarityColor : new Color(0.16f, 0.16f, 0.18f, 1f);
+
+        GameObject cardObject = new GameObject(definition.name,
+            typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        cardObject.transform.SetParent(parent, false);
+
+        Image frame = cardObject.GetComponent<Image>();
+        frame.sprite = FrameSprite;
+        frame.type = Image.Type.Simple;
+        frame.raycastTarget = false;
+
+        if (FrameSprite != null)
+        {
+            frame.color = frameTint;
+            AspectRatioFitter fitter = cardObject.AddComponent<AspectRatioFitter>();
+            fitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            fitter.aspectRatio = FrameAspectWidthOverHeight;
+        }
+        else
+        {
+            // No authored frame in this project state: a plain plate so the Vault never renders blank.
+            frame.sprite = RuntimeSprites.CardPlate();
+            frame.type = Image.Type.Sliced;
+            frame.color = discovered ? CardPlateColor : new Color(0.05f, 0.05f, 0.06f, 0.96f);
+            RuntimeUiKit.Stretch((RectTransform)cardObject.transform);
+            RuntimeUiKit.AddOutline(cardObject.transform,
+                new Color(frameTint.r, frameTint.g, frameTint.b, discovered ? 0.8f : 0.3f));
+        }
+
+        if (discovered && GemSprite != null && FrameSprite != null)
+        {
+            FullRectOverlay(cardObject.transform, "Gem", GemSprite, Color.Lerp(rarityColor, Color.white, 0.5f));
+        }
+
+        // Title: the name is part of the discovery reward - locked cards say ??? instead.
+        RectTransform titleRect = FrameSlotRect(cardObject.transform, "Title",
+            FrameSprite != null ? TitleSlot : Rect.MinMaxRect(0.08f, 0.05f, 0.92f, 0.16f));
+        Text title = titleRect.gameObject.AddComponent<Text>();
+        title.font = RuntimeUiKit.TitleFont;
+        title.text = discovered ? definition.DisplayName.ToUpperInvariant() : "???";
+        title.fontStyle = FontStyle.Bold;
+        title.alignment = TextAnchor.MiddleCenter;
+        title.color = discovered ? RuntimeUiKit.TitleColor : new Color(0.5f, 0.5f, 0.52f, 1f);
+        title.verticalOverflow = VerticalWrapMode.Truncate;
+        title.resizeTextForBestFit = true;
+        title.resizeTextMinSize = 10;
+        title.resizeTextMaxSize = large ? 34 : 23;
+        title.raycastTarget = false;
+
+        // Type badge, or a lock glyph in the same pill for undiscovered entries.
+        RectTransform badgeRect = FrameSlotRect(cardObject.transform, "Badge",
+            FrameSprite != null ? BadgeSlot : Rect.MinMaxRect(0.3f, 0.18f, 0.7f, 0.24f));
+        if (discovered)
+        {
+            Text badge = badgeRect.gameObject.AddComponent<Text>();
+            badge.font = RuntimeUiKit.TitleFont;
+            badge.text = AbilityTypeInfo.GetLabel(definition.Type);
+            badge.fontStyle = FontStyle.Bold;
+            badge.alignment = TextAnchor.MiddleCenter;
+            badge.color = Color.Lerp(rarityColor, Color.white, 0.65f);
+            badge.resizeTextForBestFit = true;
+            badge.resizeTextMinSize = 8;
+            badge.resizeTextMaxSize = large ? 24 : 18;
+            badge.raycastTarget = false;
+        }
+        else
+        {
+            Image lockIcon = RuntimeUiKit.CreateImage(badgeRect, "Lock",
+                MenuSprites.Lock(new Color(0.45f, 0.45f, 0.48f, 1f)), Color.white);
+            lockIcon.preserveAspect = true;
+            RuntimeUiKit.Stretch(lockIcon.rectTransform);
+            lockIcon.raycastTarget = false;
+        }
+
+        if (discovered && IconBackingSprite != null && FrameSprite != null)
+        {
+            FullRectOverlay(cardObject.transform, "IconBacking", IconBackingSprite, Color.white);
+        }
+
+        // Icon glyph: full colour when discovered; a true black silhouette tease when locked.
+        RectTransform iconRect = FrameSlotRect(cardObject.transform, "Icon",
+            FrameSprite != null ? IconSlot : Rect.MinMaxRect(0.2f, 0.3f, 0.8f, 0.62f));
+        Image glyph = RuntimeUiKit.CreateImage(iconRect, "Glyph",
+            definition.Icon != null ? definition.Icon : RuntimeSprites.AbilityGlyph(),
+            discovered
+                ? (definition.Icon != null ? Color.white : Color.Lerp(rarityColor, Color.white, 0.3f))
+                : new Color(0.04f, 0.04f, 0.05f, 0.85f));
+        glyph.preserveAspect = true;
+        glyph.raycastTarget = false;
+        RectTransform gr = glyph.rectTransform;
+        gr.anchorMin = Vector2.zero; gr.anchorMax = Vector2.one;
+        float inset = large ? 34f : 18f;
+        gr.offsetMin = new Vector2(inset, inset); gr.offsetMax = new Vector2(-inset, -inset);
+
+        if (large && discovered)
+        {
+            RectTransform descRect = FrameSlotRect(cardObject.transform, "Description",
+                FrameSprite != null ? DescSlot : Rect.MinMaxRect(0.1f, 0.66f, 0.9f, 0.9f));
+            Text desc = descRect.gameObject.AddComponent<Text>();
+            desc.font = RuntimeUiKit.DefaultFont;
+            desc.text = definition.ShortDescriptionFor(0);
+            desc.fontStyle = FontStyle.Bold;
+            desc.alignment = TextAnchor.MiddleCenter;
+            desc.color = new Color(0.92f, 0.95f, 1f, 1f);
+            desc.verticalOverflow = VerticalWrapMode.Truncate;
+            desc.resizeTextForBestFit = true;
+            desc.resizeTextMinSize = 10;
+            desc.resizeTextMaxSize = 30;
+            desc.raycastTarget = false;
+        }
+
+        if (discovered && definition.Rarity == AbilityRarity.Legendary && FrameSprite != null)
+        {
+            GameObject shineClip = new GameObject("ShineClip", typeof(RectTransform));
+            shineClip.transform.SetParent(cardObject.transform, false);
+            RuntimeUiKit.Stretch((RectTransform)shineClip.transform);
+            shineClip.AddComponent<RectMask2D>();
+            shineClip.AddComponent<AbilityCardShine>();
+        }
+
+        return cardObject;
+    }
+
     public static void Create(Transform parent, AbilityDefinition definition, AbilityRuntime runtime, Action<AbilityDefinition> onPick, Action<AbilityDefinition> onDetails)
     {
         if (FrameSprite != null)

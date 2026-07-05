@@ -43,6 +43,12 @@ public class BlockData : ScriptableObject
              "so they pick up a new hostile brick automatically. Leave false for normal/helpful variants.")]
     [SerializeField] private bool isHazard;
 
+    [Header("Vault")]
+    [Tooltip("One line for the Vault card, e.g. 'Detonates after landing, dropping its neighbours'.")]
+    [SerializeField] private string behaviourSummary = "";
+    [Tooltip("The Vault detail / debut-modal copy: 2-4 sentences on what the brick does and how to play it.")]
+    [SerializeField, TextArea(2, 5)] private string vaultDescription = "";
+
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public bool CountsAsPlacedBlock => countsAsPlacedBlock;
     public bool CostsLifeWhenLost => costsLifeWhenLost;
@@ -57,6 +63,10 @@ public class BlockData : ScriptableObject
     public Color ColorTint => colorTint;
     public Sprite SpriteOverride => spriteOverride;
     public Material MaterialOverride => materialOverride;
+    /// <summary>One-line Vault card blurb; empty when unauthored (the UI hides the line).</summary>
+    public string BehaviourSummary => behaviourSummary ?? "";
+    /// <summary>The Vault/debut description; empty when unauthored (callers fall back or hide).</summary>
+    public string VaultDescription => vaultDescription ?? "";
 
     // Whether a live block costs a life when it falls off, resolved via its BlockIdentity.
     // A block with no variant data is a normal block (costs a life). The counting side is

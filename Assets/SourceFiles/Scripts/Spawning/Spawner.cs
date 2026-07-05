@@ -561,6 +561,10 @@ public class Spawner : MonoBehaviour
             {
                 identity.Assign(identity.Definition, variant);
             }
+
+            // This direct-apply path bypasses RaiseBlockSpawned, so a consumable transmuting the
+            // in-air piece into a never-seen variant still gets its one-time debut modal.
+            BlockDiscoveryController.NotifyVariantApplied(_currentBlock, variant);
             return;
         }
 

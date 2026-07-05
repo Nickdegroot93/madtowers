@@ -12,12 +12,16 @@ written by **`ProgressStore`** (`Scripts/Core/ProgressStore.cs`) to
 
 ```jsonc
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "completedLevelIds": ["Level_TW1_Foundations", "Level_TW2_UnderPressure"],
   "bests": [
     { "levelId": "Level_Classic", "bestScore": 84, "bestHeightMeters": 14.2,
       "achievedAtUnixUtc": 1781290000 }
-  ]
+  ],
+  "tutorialCompleted": true,                       // v2: one-shot, monotonic false->true
+  "discoveredBlocks": ["Maw", "Vine"],             // v3: variant asset names seen in play (Vault + debut gating)
+  "abilitiesSeen": ["Zap", "DragChute"],           // v3: every ability ever SHOWN in an offer
+  "vaultInspected": ["Maw"]                        // v3: Vault entries opened (clears the NEW badge)
 }
 ```
 

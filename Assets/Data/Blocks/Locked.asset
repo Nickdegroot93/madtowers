@@ -17,8 +17,13 @@ MonoBehaviour:
   physicsMaterial: {fileID: 0}
   gravityScaleMultiplier: 1
   canRotate: 0
-  isHazard: 1
   invertHorizontalControls: 0
   colorTint: {r: 1, g: 1, b: 1, a: 1}
   spriteOverride: {fileID: 0}
   materialOverride: {fileID: 0}
+  countsAsPlacedBlock: 1
+  costsLifeWhenLost: 1
+  isHazard: 1
+  behaviourSummary: Chained shut - it cannot rotate
+  vaultDescription: 'The gear strains and the chain holds: a Locked brick never rotates.
+    The shape it spawns in is the shape you must place. Plan the slot before it arrives.'

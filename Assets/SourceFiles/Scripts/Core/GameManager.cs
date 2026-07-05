@@ -171,9 +171,10 @@ public class GameManager : MonoBehaviour
     {
         switch (phase)
         {
-            case GamePhase.GameOver: return 6;
-            case GamePhase.Completed: return 5;
-            case GamePhase.Paused: return 4;
+            case GamePhase.GameOver: return 7;
+            case GamePhase.Completed: return 6;
+            case GamePhase.Paused: return 5;   // a system pause must outrank a debut modal
+            case GamePhase.Discovery: return 4;
             case GamePhase.AbilityChoice: return 3;
             case GamePhase.WinVerifying: return 2;
             case GamePhase.Intro: return 1;

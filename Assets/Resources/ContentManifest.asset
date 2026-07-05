@@ -90,4 +90,5 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 81a65b6c5a984a16bd7f62744c4ea49e, type: 2}
   - {fileID: 11400000, guid: 1f06221198e4489db356e674ea2e6438, type: 2}
   - {fileID: 11400000, guid: f407db141c344b22a57fef07160d72bd, type: 2}
+  normalVariant: {fileID: 11400000, guid: d47f69c0549f64a78b7a3dde80d0f06a, type: 2}
   equalRarityProfile: {fileID: 11400000, guid: a410a0e2074743419c9a585135c3cfc8, type: 2}

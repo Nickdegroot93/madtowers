@@ -23,6 +23,7 @@ public static class GameSystemsInstaller
         Ensure<AbilityHud>(host);
         Ensure<HoldButton>(host);
         Ensure<AbilityChoiceController>(host);
+        Ensure<BlockDiscoveryController>(host); // brick debut modals + Vault discovery marking
         Ensure<PauseMenuController>(host);
         Ensure<LevelRuntimeController>(host);
     }

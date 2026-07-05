@@ -345,7 +345,13 @@ public sealed class ExtractTargetingSession : AbilitySessionBase
 
         // Convert into the Anchor variant first so it adopts the shared anchor look
         // (ApplyData re-tints the existing skin), then freeze it as a Static body.
-        if (_anchorVariant != null) _selected.Block.ApplyData(_anchorVariant);
+        // Discovery is marked SILENTLY (no debut modal): the block is landed - there is nothing
+        // to hover - and the player just chose this ability deliberately. The Vault still unlocks.
+        if (_anchorVariant != null)
+        {
+            _selected.Block.ApplyData(_anchorVariant);
+            ProgressStore.MarkBlockDiscovered(_anchorVariant);
+        }
         _selected.Block.FreezeInPlace();
         SfxPlayer.Play("suspension_lock", 0.75f, 0.04f);
     }

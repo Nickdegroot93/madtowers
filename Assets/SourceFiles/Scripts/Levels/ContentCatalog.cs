@@ -133,4 +133,21 @@ public static class ContentCatalog
 #endif
         return list;
     }
+
+    /// <summary>The plain Normal brick's BlockData (excluded from <see cref="AllVariants"/>) - the
+    /// Vault shows it as the always-unlocked first entry. Null if the asset is missing.</summary>
+    public static BlockData NormalVariant()
+    {
+#if UNITY_EDITOR
+        foreach (string guid in AssetDatabase.FindAssets("t:BlockData"))
+        {
+            var variant = AssetDatabase.LoadAssetAtPath<BlockData>(AssetDatabase.GUIDToAssetPath(guid));
+            if (variant != null && string.Equals(variant.DisplayName, "Normal", StringComparison.Ordinal))
+                return variant;
+        }
+        return null;
+#else
+        return Manifest != null ? Manifest.NormalVariant : null;
+#endif
+    }
 }

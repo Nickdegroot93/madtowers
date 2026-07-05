@@ -24,5 +24,9 @@ MonoBehaviour:
   countsAsPlacedBlock: 1
   costsLifeWhenLost: 1
   isHazard: 1
+  behaviourSummary: Devours bricks placed on it - each meal costs a life
+  vaultDescription: It falls dormant, then wakes up hungry. Any brick that lands
+    on a Maw is devoured - gone - and every meal costs you a life. Maws stacked on
+    maws fuse together and eat nothing. Build around the mouth, never on it.
   eatEffect: {fileID: 8208446473332612282, guid: a1f8fe32cde8d114a93e6501d0ad1d20, type: 3}
   eatEffectScale: 0.7

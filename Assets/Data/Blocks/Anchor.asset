@@ -16,6 +16,15 @@ MonoBehaviour:
   mass: 1
   physicsMaterial: {fileID: 0}
   gravityScaleMultiplier: 1
+  canRotate: 1
+  invertHorizontalControls: 0
   colorTint: {r: 1, g: 1, b: 1, a: 1}
   spriteOverride: {fileID: 0}
   materialOverride: {fileID: 0}
+  countsAsPlacedBlock: 1
+  costsLifeWhenLost: 1
+  isHazard: 0
+  behaviourSummary: Freezes solid where it lands - instant ground
+  vaultDescription: The moment an Anchor touches down it bolts itself to the world,
+    even hanging over an edge. It never moves again - build on it like bedrock. Placed
+    well, one Anchor turns a wobbling tower into architecture.

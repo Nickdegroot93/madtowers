@@ -21,3 +21,10 @@ MonoBehaviour:
   colorTint: {r: 0.98, g: 0.95, b: 0.72, a: 1}
   spriteOverride: {fileID: 0}
   materialOverride: {fileID: 0}
+  countsAsPlacedBlock: 1
+  costsLifeWhenLost: 1
+  isHazard: 0
+  behaviourSummary: Featherweight - easily shoved out of place
+  vaultDescription: A quarter of a normal brick's weight. The Feather drifts down
+    softly, then anything landing nearby can bump, shove, or launch it. Pin it down
+    early or it will wander.

@@ -153,6 +153,7 @@ public static partial class MainMenuRuntime
         _chapterIndexInitialized = false;
         _activeTab = MenuTab.Home;
         _activeSettingsTab = SettingsTab.Sound;
+        _activeVaultTab = VaultTab.Bricks;
         ReleaseVideoTexture();
     }
 
@@ -234,6 +235,7 @@ public static partial class MainMenuRuntime
         Transform contentRoot = RecreateSection(ref _contentRoot, _contentLayer, "ContentRoot");
         if (_activeTab == MenuTab.Home) BuildPlayScreen(contentRoot, chapter);
         else if (_activeTab == MenuTab.Settings) BuildSettingsScreen(contentRoot, chapter);
+        else if (_activeTab == MenuTab.Vault) BuildVaultScreen(contentRoot, chapter);
         else BuildDummyScreen(contentRoot, _activeTab);
 
         Transform navRoot = RecreateSection(ref _navRoot, _navLayer, "BottomNavRoot");
@@ -280,6 +282,7 @@ public static partial class MainMenuRuntime
         _backgroundChapter = null;
         _pager = null;
         ReleaseVideoTexture();
+        VaultPosterService.ReleaseAll(); // the Vault's cached brick posters (VRAM)
     }
 
     private static void EnsureRoot()

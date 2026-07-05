@@ -24,8 +24,13 @@ MonoBehaviour:
   countsAsPlacedBlock: 1
   costsLifeWhenLost: 1
   isHazard: 1
+  behaviourSummary: Shakes the whole tower when it lands
+  vaultDescription: A Tremor discharges on impact, rattling every brick you've placed.
+    Clean, square placements ride it out; anything balanced on an edge topples. Tidy
+    builders barely notice.
   shakeStrength: 2
   shakeDuration: 0.5
   shakeRadius: 8
+  quakeDelaySeconds: 1
   quakeDustEffect: {fileID: 3432958286849152088, guid: 87ee7299dd44ed747af24dbb91bcd33b, type: 3}
   dustScale: 1.2

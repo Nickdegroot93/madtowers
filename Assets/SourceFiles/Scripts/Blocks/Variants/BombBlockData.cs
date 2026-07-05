@@ -28,6 +28,11 @@ public class BombBlockData : BlockData
 
     // Build the fixed iron casing as soon as the variant is applied (runs after the chapter skin).
     // Get-or-add so a re-apply can't add a second skin. (Base OnApplied is empty; see BLOCKVARIANTS.md.)
+    /// <summary>The authored blast VFX, exposed so the Vault's demo diorama can play the exact
+    /// same explosion the real detonation does (BLOCKPREVIEWS.md).</summary>
+    public GameObject ExplosionEffect => explosionEffect;
+    public float ExplosionScale => explosionScale;
+
     public override void OnApplied(BlockController block)
     {
         if (block == null) return;

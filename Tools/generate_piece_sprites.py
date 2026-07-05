@@ -97,6 +97,26 @@ THEME_PRESETS = {
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
         "preview_bg": (70, 120, 85),
     },
+    # The Vault's studio brick: ONE neutral warm-stone tone for every shape. Not a playable
+    # chapter skin - it's the "goes with everything" brick the collection thumbnails pose in
+    # front of a dark neutral backdrop (BLOCKPREVIEWS.md), so variant overlays (vines, frost,
+    # gears) read on a calm base instead of a chapter colour.
+    "Vault": {
+        "colors": {
+            "I": (198, 189, 173),
+            "O": (198, 189, 173),
+            "T": (198, 189, 173),
+            "S": (198, 189, 173),
+            "Z": (198, 189, 173),
+            "J": (198, 189, 173),
+            "L": (198, 189, 173),
+            "Pip": (198, 189, 173),
+            "Domino": (198, 189, 173),
+        },
+        "outline": 0.24,
+        "edgeShine": {"Pip": 0.15, "Domino": 0.15},
+        "preview_bg": (34, 36, 42),
+    },
     # Sakura Ridge: muted ukiyo-e / washi tones. These belong to the background's
     # sakura, Fuji, temple indigo, and coral highlights; readability comes from the
     # outline/shape language rather than neon opposite colors.

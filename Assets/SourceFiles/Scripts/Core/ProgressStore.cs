@@ -18,7 +18,7 @@ using UnityEngine;
 /// </summary>
 public static class ProgressStore
 {
-    private const int CurrentSchemaVersion = 2;
+    private const int CurrentSchemaVersion = 3;
 
     [Serializable]
     public class PlayerProgress
@@ -30,6 +30,14 @@ public static class ProgressStore
         // false->true, so merging two devices is just an OR. v1 saves lack the field and default
         // to false - correct, since those players never saw the new tutorial.
         public bool tutorialCompleted;
+        // The Vault's discovery sets (v3, BACKEND.md §7): which brick variants the player has SEEN
+        // drop in play, which abilities have ever APPEARED in a 3-card offer (picked or not), and
+        // which Vault entries have been opened at least once (clears the "NEW" badge). All three
+        // are monotonic string sets keyed by asset name - merge = union, so they cloud-sync for
+        // free. v2 saves lack the fields and default to empty - correct: nothing discovered yet.
+        public List<string> discoveredBlocks = new List<string>();
+        public List<string> abilitiesSeen = new List<string>();
+        public List<string> vaultInspected = new List<string>();
     }
 
     [Serializable]
@@ -81,6 +89,74 @@ public static class ProgressStore
     {
         if (!Data.tutorialCompleted) return;
         Data.tutorialCompleted = false;
+        Save();
+    }
+
+    // ---- discovery (the Vault's data; see BLOCKPREVIEWS.md + BACKEND.md §7) -----------------
+
+    /// <summary>Stable identity of a brick variant. A null variant is the plain chapter brick,
+    /// which shares one campaign-wide identity ("Normal" - also the Normal.asset's name, so the
+    /// null-variant and explicit-asset spawn paths converge on the same id).</summary>
+    public static string BlockId(BlockData variant) => variant != null ? variant.name : "Normal";
+
+    /// <summary>Has this brick variant ever visibly dropped for this player?</summary>
+    public static bool HasDiscoveredBlock(BlockData variant) =>
+        Data.discoveredBlocks.Contains(BlockId(variant));
+
+    /// <summary>Record that the player has now seen this brick variant in play. Idempotent;
+    /// unlocks the Vault entry and permanently retires the variant's debut modal.</summary>
+    public static void MarkBlockDiscovered(BlockData variant)
+    {
+        string id = BlockId(variant);
+        if (Data.discoveredBlocks.Contains(id)) return;
+        Data.discoveredBlocks.Add(id);
+        Save();
+    }
+
+    /// <summary>Has this ability ever been shown to the player in an offer?</summary>
+    public static bool HasSeenAbility(AbilityDefinition ability) =>
+        ability != null && Data.abilitiesSeen.Contains(ability.name);
+
+    /// <summary>Record every ability the player was just shown (an offer counts for all of its
+    /// cards, picked or not). One save for the whole batch; idempotent.</summary>
+    public static void MarkAbilitiesSeen(IReadOnlyList<AbilityDefinition> abilities)
+    {
+        if (abilities == null) return;
+
+        bool changed = false;
+        for (int i = 0; i < abilities.Count; i++)
+        {
+            if (abilities[i] == null) continue;
+            string id = abilities[i].name;
+            if (Data.abilitiesSeen.Contains(id)) continue;
+            Data.abilitiesSeen.Add(id);
+            changed = true;
+        }
+        if (changed) Save();
+    }
+
+    /// <summary>Has this Vault entry (block or ability id) been opened at least once? Drives the
+    /// "NEW" badge on freshly discovered entries.</summary>
+    public static bool HasInspectedInVault(string entryId) =>
+        entryId != null && Data.vaultInspected.Contains(entryId);
+
+    /// <summary>The player opened this entry's Vault detail view; retire its "NEW" badge.</summary>
+    public static void MarkInspectedInVault(string entryId)
+    {
+        if (entryId == null || Data.vaultInspected.Contains(entryId)) return;
+        Data.vaultInspected.Add(entryId);
+        Save();
+    }
+
+    /// <summary>Clear the discovery sets so every debut modal and Vault unlock happens again
+    /// (debug / testing). Leaves completions, bests and the tutorial flag untouched.</summary>
+    public static void ResetDiscoveries()
+    {
+        if (Data.discoveredBlocks.Count == 0 && Data.abilitiesSeen.Count == 0 &&
+            Data.vaultInspected.Count == 0) return;
+        Data.discoveredBlocks.Clear();
+        Data.abilitiesSeen.Clear();
+        Data.vaultInspected.Clear();
         Save();
     }
 

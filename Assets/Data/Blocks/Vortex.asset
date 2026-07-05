@@ -17,8 +17,14 @@ MonoBehaviour:
   physicsMaterial: {fileID: 0}
   gravityScaleMultiplier: 1
   canRotate: 1
-  isHazard: 1
   invertHorizontalControls: 1
   colorTint: {r: 1, g: 1, b: 1, a: 1}
   spriteOverride: {fileID: 0}
   materialOverride: {fileID: 0}
+  countsAsPlacedBlock: 1
+  costsLifeWhenLost: 1
+  isHazard: 1
+  behaviourSummary: Reverses your steering while it falls
+  vaultDescription: 'The whirlpool in each cell churns your controls backwards: press
+    left and the brick drifts right. Watch the swirl, steer in reverse, and don''t
+    trust your thumbs.'

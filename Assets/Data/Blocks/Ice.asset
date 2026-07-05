@@ -17,8 +17,14 @@ MonoBehaviour:
   physicsMaterial: {fileID: 6200000, guid: 43a35e4abf884bf4849031375a28c360, type: 2}
   gravityScaleMultiplier: 1
   canRotate: 1
-  isHazard: 1
   invertHorizontalControls: 0
   colorTint: {r: 0.68, g: 0.9, b: 1, a: 1}
   spriteOverride: {fileID: 0}
   materialOverride: {fileID: 0}
+  countsAsPlacedBlock: 1
+  costsLifeWhenLost: 1
+  isHazard: 1
+  behaviourSummary: Frozen slick - slides off anything uneven
+  vaultDescription: Ice keeps no grip at all. On a level seat it behaves; on a slope
+    or an edge it glides until something stops it - or nothing does. Place it flat,
+    or lose it over the side.

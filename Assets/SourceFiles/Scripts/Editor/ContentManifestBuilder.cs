@@ -38,6 +38,7 @@ public class ContentManifestBuilder : IPreprocessBuildWithReport
             ContentCatalog.AllAbilities().ToArray(),
             ContentCatalog.AllBlocks().ToArray(),
             ContentCatalog.AllVariants().ToArray(),
+            ContentCatalog.NormalVariant(),
             ContentCatalog.EqualRarityProfile());
 
         EditorUtility.SetDirty(manifest);

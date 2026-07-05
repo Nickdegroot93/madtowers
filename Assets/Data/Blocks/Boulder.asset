@@ -21,3 +21,10 @@ MonoBehaviour:
   colorTint: {r: 0.45, g: 0.36, b: 0.28, a: 1}
   spriteOverride: {fileID: 0}
   materialOverride: {fileID: 0}
+  countsAsPlacedBlock: 1
+  costsLifeWhenLost: 1
+  isHazard: 0
+  behaviourSummary: Four times heavier - lands hard and strains the tower
+  vaultDescription: 'Granite through and through. A Boulder weighs four times a normal
+    brick: it drops fast, slams hard, and every brick beneath it feels the load.
+    Give it a solid seat, or watch the floor of your tower buckle.'

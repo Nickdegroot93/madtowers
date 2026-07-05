@@ -102,9 +102,14 @@ Replace-mode skins draw the whole brick; overlay-mode (Vine) draws sparse and al
    - **Targeted**: `Spawner.ApplyVariantToNextBlock` / `BlockController.ApplyData` (how Suspension turns a
      chosen landed block into an Anchor).
 
+5. **Demo + Vault** (see [BLOCKPREVIEWS.md](BLOCKPREVIEWS.md) §5). Author a scenario loop in
+   `BlockDemoScenarios` + a `BlockDemoCatalog` entry (this gates the one-time debut modal), and fill
+   the asset's `behaviourSummary` / `vaultDescription` fields. Without a catalog entry the brick
+   debuts silently: first spawn marks it discovered and unlocks its Vault entry, no modal.
+
 **Remove from play:** delete the ambient entry / drop the ability from the mode (or ban it via
 `LevelDefinition.bannedAbilities`). **Delete a variant entirely:** remove its asset + code + shader, then
-grep the asset GUID and clear any ambient/ability references.
+grep the asset GUID and clear any ambient/ability references (and its BlockDemoCatalog/Scenarios entries).
 
 ---
 

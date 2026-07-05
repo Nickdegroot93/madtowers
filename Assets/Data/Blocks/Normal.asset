@@ -14,8 +14,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BlockData
   displayName: Normal
   mass: 1
-  physMaterial: {fileID: 0}
+  physicsMaterial: {fileID: 0}
   gravityScaleMultiplier: 1
+  canRotate: 1
+  invertHorizontalControls: 0
   colorTint: {r: 1, g: 1, b: 1, a: 1}
   spriteOverride: {fileID: 0}
   materialOverride: {fileID: 0}
+  countsAsPlacedBlock: 1
+  costsLifeWhenLost: 1
+  isHazard: 0
+  behaviourSummary: The dependable standard brick
+  vaultDescription: The everyday brick, wearing the colours of whatever chapter you
+    build it in. No tricks, no temper - just an honest block that goes where you
+    put it.

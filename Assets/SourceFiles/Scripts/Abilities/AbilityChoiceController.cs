@@ -164,6 +164,10 @@ public class AbilityChoiceController : MonoBehaviour
 
     private void BuildChoicePanel()
     {
+        // Showing an offer IS seeing its abilities: all three cards unlock in the Vault whether
+        // or not they get picked (rerolls pass through here again, so their cards count too).
+        ProgressStore.MarkAbilitiesSeen(_rollBuffer);
+
         _panelRoot = RuntimeUiKit.CreateModal("Ability Choice", 6000);
 
         GameObject panel = RuntimeUiKit.CreateCenteredPanel(
