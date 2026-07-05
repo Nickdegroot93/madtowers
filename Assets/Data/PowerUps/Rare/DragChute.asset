@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: DragChute
   m_EditorClassIdentifier: Assembly-CSharp::FallSpeedReductionPowerUp
   displayName: Drag Chute
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 7018d1944bdd4fd196727386ff9a3de1, type: 3}
   shortDescription: Reduces overall block falling speed.
   ownedShortDescription: Slows the fall speed even further.
-  description: 'Leans hard on the brake: future pieces fall noticeably slower and the
-    relentless speed-up takes much longer to bite, so the late game stays in reach.
-    Stronger than Air Brake, and stacks.'
+  description: 'Leans hard on the brake: future pieces fall noticeably slower and
+    the relentless speed-up takes much longer to bite, so the late game stays in
+    reach. Stronger than Air Brake, and stacks.'
   rarity: 1
   unique: 0
   maxStacks: 2

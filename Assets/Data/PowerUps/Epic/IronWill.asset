@@ -13,8 +13,13 @@ MonoBehaviour:
   m_Name: IronWill
   m_EditorClassIdentifier: Assembly-CSharp::ExtraLifePowerUp
   displayName: Iron Will
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 9888da1ff7ec42e8a9d1a98b9300e5ed, type: 3}
   shortDescription: Gain 3 extra lives at once.
+  ownedShortDescription: 
   description: A surge of resolve - immediately grants three extra lives.
   rarity: 2
+  unique: 0
+  maxStacks: 0
+  requiresVariantsInLevel: []
+  minChapterNumber: 0
   lives: 3

@@ -13,16 +13,18 @@ MonoBehaviour:
   m_Name: Liquefy
   m_EditorClassIdentifier: Assembly-CSharp::ApplyVariantConsumable
   displayName: Liquefy
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: ffb87e1e55f140d19eb7e96879a7df27, type: 3}
   shortDescription: Tap to melt the falling brick into the gaps below.
-  ownedShortDescription:
-  description: 'Tap to make the brick you are dropping molten. When it lands it pours like lava into the empty gaps beneath it, then cools into solid stone - one piece fills holes and flattens your tower.'
+  ownedShortDescription: 
+  description: Tap to make the brick you are dropping molten. When it lands it pours
+    like lava into the empty gaps beneath it, then cools into solid stone - one piece
+    fills holes and flattens your tower.
   rarity: 1
   unique: 0
   maxStacks: 0
   requiresVariantsInLevel: []
   minChapterNumber: 7
   variant: {fileID: 11400000, guid: 3aece4d0ef2e4260b4dfea7fdd74084a, type: 2}
+  count: 1
   transformEffect: {fileID: 0}
   transformScale: 0.6
-  count: 1

@@ -13,12 +13,13 @@ MonoBehaviour:
   m_Name: Reroll
   m_EditorClassIdentifier: Assembly-CSharp::RerollPowerUp
   displayName: Reroll
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: a20d86e44f27495cbb1dab68e5983146, type: 3}
   shortDescription: Banks 3 rerolls for future ability offers.
-  ownedShortDescription:
-  description: 'Banks three rerolls. Whenever ability choices appear, a Reroll button sits
-    under the cards - tap it to redraw all three. The rerolls are saved across offers, so
-    you can spend one now and keep the rest for a later, more important choice.'
+  ownedShortDescription: 
+  description: Banks three rerolls. Whenever ability choices appear, a Reroll button
+    sits under the cards - tap it to redraw all three. The rerolls are saved across
+    offers, so you can spend one now and keep the rest for a later, more important
+    choice.
   rarity: 1
   unique: 1
   maxStacks: 0

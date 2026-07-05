@@ -13,13 +13,13 @@ MonoBehaviour:
   m_Name: MagmaSpawn
   m_EditorClassIdentifier: Assembly-CSharp::BlockVariantChancePowerUp
   displayName: Magma
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: f75f6fa6230b4bfc9cb5faf4057ef63c, type: 3}
   shortDescription: Molten bricks start dropping now and then.
   ownedShortDescription: Drops molten blocks more often.
-  description: 'Every so often an incoming piece arrives molten. When it lands it pours
-    like lava into the empty gaps directly beneath it, then cools and hardens into solid
-    stone - each cell a counting block, so one piece fills holes, flattens your tower,
-    and scores several at once.'
+  description: Every so often an incoming piece arrives molten. When it lands it
+    pours like lava into the empty gaps directly beneath it, then cools and hardens
+    into solid stone - each cell a counting block, so one piece fills holes, flattens
+    your tower, and scores several at once.
   rarity: 2
   unique: 0
   maxStacks: 2

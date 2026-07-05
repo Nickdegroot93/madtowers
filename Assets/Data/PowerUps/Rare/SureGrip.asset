@@ -13,14 +13,16 @@ MonoBehaviour:
   m_Name: SureGrip
   m_EditorClassIdentifier: Assembly-CSharp::BlockFrictionPowerUp
   displayName: Sure Grip
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 5a706131ccd7442180cec0b3012798fd, type: 3}
   shortDescription: Blocks grip much harder, sliding far less on uneven layers.
   ownedShortDescription: Blocks grip even harder.
-  description: 'Standard blocks gain a strong grip boost, so pieces landing on angled or uneven layers slide much less. Stronger than Air Brake-grade friction.'
+  description: Standard blocks gain a strong grip boost, so pieces landing on angled
+    or uneven layers slide much less. Stronger than Air Brake-grade friction.
   rarity: 1
   unique: 0
   maxStacks: 2
   requiresVariantsInLevel: []
+  minChapterNumber: 0
   charges: 0
   firstStackIncrease: 0.5
   additionalStackIncrease: 0.15

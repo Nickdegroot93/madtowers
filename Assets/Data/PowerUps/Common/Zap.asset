@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Zap
   m_EditorClassIdentifier: Assembly-CSharp::ZapAbility
   displayName: Zap
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 2dbacd3d67e64c58af757d50a3b7d6d4, type: 3}
   shortDescription: Vaporize a block with a charging laser.
   ownedShortDescription: 
   description: Your active block vanishes and a laser locks onto the column below
@@ -23,6 +23,7 @@ MonoBehaviour:
   unique: 0
   maxStacks: 0
   requiresVariantsInLevel: []
+  minChapterNumber: 0
   beamColor: {r: 0.3, g: 0.7, b: 1, a: 1}
   accentColor: {r: 0.55, g: 0.95, b: 1, a: 1}
   detonateEffect: {fileID: 7092443021930943629, guid: 55de9a831b2bdcf418919b56c7495346, type: 3}

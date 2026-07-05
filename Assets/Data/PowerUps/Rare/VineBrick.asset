@@ -13,19 +13,19 @@ MonoBehaviour:
   m_Name: VineBrick
   m_EditorClassIdentifier: Assembly-CSharp::ApplyVariantConsumable
   displayName: Vine Bricks
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 354223acb0fd454ea958a7b1fb194520, type: 3}
   shortDescription: Tap to make the next two bricks sticky vines.
-  ownedShortDescription:
-  description: 'Tap to transform the brick you''re dropping into a vine brick, and
+  ownedShortDescription: 
+  description: Tap to transform the brick you're dropping into a vine brick, and
     the next brick that falls becomes one too. A vine brick welds itself to every
-    block it touches on landing, gluing loose stacks together - two of them in a row
-    can lock down a wobbling tower.'
+    block it touches on landing, gluing loose stacks together - two of them in a
+    row can lock down a wobbling tower.
   rarity: 1
   unique: 0
   maxStacks: 0
   requiresVariantsInLevel: []
   minChapterNumber: 0
   variant: {fileID: 11400000, guid: 1f06221198e4489db356e674ea2e6438, type: 2}
+  count: 2
   transformEffect: {fileID: 0}
   transformScale: 0.6
-  count: 2

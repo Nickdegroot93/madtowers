@@ -13,10 +13,12 @@ MonoBehaviour:
   m_Name: Overgrowth
   m_EditorClassIdentifier: Assembly-CSharp::BlockVariantChancePowerUp
   displayName: Overgrowth
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: c5e7530c48714734b4c9d366f7f5f015, type: 3}
   shortDescription: Vine bricks start dropping now and then.
   ownedShortDescription: Drops vine bricks more often.
-  description: 'Mixes vine bricks into the falling pieces. A vine brick welds itself to every block it touches on landing, gluing loose stacks into one solid mass. Stack this to see them more often.'
+  description: Mixes vine bricks into the falling pieces. A vine brick welds itself
+    to every block it touches on landing, gluing loose stacks into one solid mass.
+    Stack this to see them more often.
   rarity: 2
   unique: 0
   maxStacks: 2

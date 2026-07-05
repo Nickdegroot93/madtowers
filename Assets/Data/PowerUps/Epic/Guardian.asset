@@ -13,13 +13,17 @@ MonoBehaviour:
   m_Name: Guardian
   m_EditorClassIdentifier: Assembly-CSharp::ReboundAbility
   displayName: Guardian
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: fe138d91ada84f5297e4c875f37054a2, type: 3}
   shortDescription: 50% chance a fallen block returns to the queue.
-  description: 'When a placed block topples off the screen, there is a 50% chance it teleports back to the top of your queue instead of costing a life. Only the shape returns; it will not save a piece you deliberately drop off the edge.'
+  ownedShortDescription: 
+  description: When a placed block topples off the screen, there is a 50% chance
+    it teleports back to the top of your queue instead of costing a life. Only the
+    shape returns; it will not save a piece you deliberately drop off the edge.
   rarity: 2
   unique: 1
   maxStacks: 0
   requiresVariantsInLevel: []
+  minChapterNumber: 0
   charges: 0
   saveChance: 0.5
   cellBurstEffect: {fileID: 3618318350582324276, guid: 8a828aab65104924d91f2a3a6cf90efd, type: 3}

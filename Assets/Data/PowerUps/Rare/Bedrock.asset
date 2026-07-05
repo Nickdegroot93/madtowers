@@ -13,10 +13,12 @@ MonoBehaviour:
   m_Name: Bedrock
   m_EditorClassIdentifier: Assembly-CSharp::BlockVariantChancePowerUp
   displayName: Bedrock
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: c8ae56ebcf924516b422f30c8c530c9a, type: 3}
   shortDescription: Heavy boulder bricks start dropping.
   ownedShortDescription: Drops boulder bricks more often.
-  description: 'Mixes heavy boulder bricks into the falling pieces - dense blocks that drop hard and weigh a stack down into place. Stack this to see them more often.'
+  description: Mixes heavy boulder bricks into the falling pieces - dense blocks
+    that drop hard and weigh a stack down into place. Stack this to see them more
+    often.
   rarity: 1
   unique: 0
   maxStacks: 2

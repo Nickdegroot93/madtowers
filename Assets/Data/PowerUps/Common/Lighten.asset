@@ -13,16 +13,18 @@ MonoBehaviour:
   m_Name: Lighten
   m_EditorClassIdentifier: Assembly-CSharp::ApplyVariantConsumable
   displayName: Lighten
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: fbcf6b93119e4631bfed711ac8a0eea2, type: 3}
   shortDescription: Tap to make the falling brick feather-light.
-  ownedShortDescription:
-  description: 'Tap to turn the brick you are dropping into a feather block - feather-light and slow to fall, so you can thread it into a tight gap without bulldozing the stack.'
+  ownedShortDescription: 
+  description: Tap to turn the brick you are dropping into a feather block - feather-light
+    and slow to fall, so you can thread it into a tight gap without bulldozing the
+    stack.
   rarity: 0
   unique: 0
   maxStacks: 0
   requiresVariantsInLevel: []
   minChapterNumber: 0
   variant: {fileID: 11400000, guid: ae824ff3bd9041c8a2c556d36a82b60a, type: 2}
+  count: 1
   transformEffect: {fileID: 0}
   transformScale: 0.6
-  count: 1

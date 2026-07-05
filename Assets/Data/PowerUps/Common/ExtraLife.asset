@@ -13,7 +13,13 @@ MonoBehaviour:
   m_Name: ExtraLife
   m_EditorClassIdentifier: Assembly-CSharp::ExtraLifePowerUp
   displayName: Extra Life
+  icon: {fileID: 21300000, guid: cbd04f0a89d04700affc92321db20b9d, type: 3}
+  shortDescription: 
+  ownedShortDescription: 
   description: Gain one extra life.
   rarity: 0
-  category: 0
+  unique: 0
+  maxStacks: 0
+  requiresVariantsInLevel: []
+  minChapterNumber: 0
   lives: 1

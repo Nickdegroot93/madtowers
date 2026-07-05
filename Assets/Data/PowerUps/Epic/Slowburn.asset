@@ -13,12 +13,13 @@ MonoBehaviour:
   m_Name: Slowburn
   m_EditorClassIdentifier: Assembly-CSharp::SlowburnPowerUp
   displayName: Slowburn
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 0c29893fd90648418341c700a7e6bce4, type: 3}
   shortDescription: New pieces fall slowly at first.
-  ownedShortDescription:
-  description: 'Every new piece drifts down slowly for its first moment - time to read the
-    board and line up your placement - then resumes full speed. A breather on every single
-    piece, no matter how fast the level has ramped. Fast-drop still works if you''re ready.'
+  ownedShortDescription: 
+  description: Every new piece drifts down slowly for its first moment - time to
+    read the board and line up your placement - then resumes full speed. A breather
+    on every single piece, no matter how fast the level has ramped. Fast-drop still
+    works if you're ready.
   rarity: 2
   unique: 1
   maxStacks: 0

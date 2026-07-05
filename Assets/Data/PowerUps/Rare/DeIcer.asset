@@ -13,15 +13,17 @@ MonoBehaviour:
   m_Name: DeIcer
   m_EditorClassIdentifier: Assembly-CSharp::BlockVariantChanceReductionPowerUp
   displayName: De-Icer
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 84cdff9874304e27a135c93f2aecb002, type: 3}
   shortDescription: Ice bricks show up less often.
   ownedShortDescription: Ice bricks show up far less often.
-  description: Salts the queue - Ice bricks arrive less often for the rest of the run. Stack it to make them rarer still.
+  description: Salts the queue - Ice bricks arrive less often for the rest of the
+    run. Stack it to make them rarer still.
   rarity: 1
   unique: 0
   maxStacks: 2
   requiresVariantsInLevel:
   - {fileID: 11400000, guid: 07271310580a44288615f8cb89bef7c6, type: 2}
+  minChapterNumber: 0
   charges: 0
   variant: {fileID: 11400000, guid: 07271310580a44288615f8cb89bef7c6, type: 2}
   reductionPerStack: 0.5

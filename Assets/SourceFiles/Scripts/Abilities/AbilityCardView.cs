@@ -206,8 +206,9 @@ public static class AbilityCardView
         RuntimeUiKit.AutoSize(label, 9f, 14f * scale);
     }
 
-    // The icon on a light rounded tile lifted by a soft accent glow (authored glyphs are drawn
-    // against white). Locked entries flip to a near-black silhouette tease.
+    // The icon on a dark rounded tile lifted by a soft accent glow (authored icons are neon-glow
+    // slabs on a matching near-black ground, so the tile reads as their frame). Locked entries
+    // flip to a near-black silhouette tease.
     private static RectTransform AddIconTile(Transform root, Sprite icon, Color accent, float top,
         float size, bool discovered, float glowAlpha)
     {
@@ -228,7 +229,7 @@ public static class AbilityCardView
         }
 
         Image tile = RuntimeUiKit.CreateImage(holder, "IconTile", RuntimeSprites.RoundedPanel(),
-            discovered ? new Color(0.97f, 0.97f, 0.98f, 1f) : new Color(0.03f, 0.03f, 0.035f, 1f));
+            discovered ? new Color(0.043f, 0.055f, 0.075f, 1f) : new Color(0.03f, 0.03f, 0.035f, 1f));
         tile.type = Image.Type.Sliced;
         RuntimeUiKit.Stretch(tile.rectTransform);
 
@@ -244,7 +245,7 @@ public static class AbilityCardView
         RectTransform glyphRect = glyph.rectTransform;
         glyphRect.anchorMin = Vector2.zero;
         glyphRect.anchorMax = Vector2.one;
-        float inset = size * 0.11f;
+        float inset = size * 0.04f;
         glyphRect.offsetMin = new Vector2(inset, inset);
         glyphRect.offsetMax = new Vector2(-inset, -inset);
         return holder;

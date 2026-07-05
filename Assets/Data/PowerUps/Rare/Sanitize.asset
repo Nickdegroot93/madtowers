@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: Sanitize
   m_EditorClassIdentifier: Assembly-CSharp::SanitizeConsumable
   displayName: Sanitize
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 532b04cd5f19468186db08d16e821d2f, type: 3}
   shortDescription: Tap to defuse the falling hazard brick.
-  ownedShortDescription:
-  description: 'Tap while a hazard or special brick is falling (a Maw, Vortex, and the like)
-    to neutralise it - it becomes a fresh, plain brick of the same shape, harmless to stack.
-    Only usable when the current piece actually is a special brick.'
+  ownedShortDescription: 
+  description: Tap while a hazard or special brick is falling (a Maw, Vortex, and
+    the like) to neutralise it - it becomes a fresh, plain brick of the same shape,
+    harmless to stack. Only usable when the current piece actually is a special brick.
   rarity: 1
   unique: 0
   maxStacks: 0

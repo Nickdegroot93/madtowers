@@ -1,0 +1,55 @@
+AirBrake|Air Brake|Common|Assets/Art/Abilities/icon_air_brake.png|Assets/Data/PowerUps/Common/AirBrake.asset
+CubeSupply|Cube Supply|Common|Assets/Art/Abilities/icon_cube_supply.png|Assets/Data/PowerUps/Common/CubeSupply.asset
+Domino|Domino|Common|Assets/Art/Abilities/icon_domino.png|Assets/Data/PowerUps/Common/Domino.asset
+EdgePortal|Edge Portal|Common|Assets/Art/Abilities/icon_edge_portal.png|Assets/Data/PowerUps/Common/EdgePortal.asset
+ExtraLife|Extra Life|Common|NONE|Assets/Data/PowerUps/Common/ExtraLife.asset
+Flip|Flip|Common|Assets/Art/Abilities/icon_flip.png|Assets/Data/PowerUps/Common/Flip.asset
+Foresight|Foresight|Common|Assets/Art/Abilities/icon_foresight.png|Assets/Data/PowerUps/Common/Foresight.asset
+HighFriction|High Friction|Common|Assets/Art/Abilities/icon_high_friction.png|Assets/Data/PowerUps/Common/HighFriction.asset
+Lighten|Lighten|Common|NONE|Assets/Data/PowerUps/Common/Lighten.asset
+Pip|Pip|Common|Assets/Art/Abilities/icon_pip.png|Assets/Data/PowerUps/Common/Pip.asset
+RecoveryWindow|Recovery|Common|Assets/Art/Abilities/icon_recovery.png|Assets/Data/PowerUps/Common/RecoveryWindow.asset
+Shrink|Shrink|Common|Assets/Art/Abilities/icon_shrink.png|Assets/Data/PowerUps/Common/Shrink.asset
+SloMo|Slo-Mo|Common|Assets/Art/Abilities/icon_slomo.png|Assets/Data/PowerUps/Common/SloMo.asset
+SlowTime|Slow Time|Common|Assets/Art/Abilities/icon_slow_time.png|Assets/Data/PowerUps/Common/SlowTime.asset
+SpikeSupply|Spike Supply|Common|Assets/Art/Abilities/icon_spike_supply.png|Assets/Data/PowerUps/Common/SpikeSupply.asset
+VectorGuide|Vector Guide|Common|Assets/Art/Abilities/icon_vector_guide.png|Assets/Data/PowerUps/Common/VectorGuide.asset
+Ward|Ward|Common|NONE|Assets/Data/PowerUps/Common/Ward.asset
+Zap|Zap|Common|NONE|Assets/Data/PowerUps/Common/Zap.asset
+AnchorBrick|Anchor Brick|Rare|Assets/Art/Abilities/icon_anchor_brick.png|Assets/Data/PowerUps/Rare/AnchorBrick.asset
+AnchorSpawn|Anchor Drops|Rare|NONE|Assets/Data/PowerUps/Rare/AnchorSpawn.asset
+Ballast|Ballast|Rare|NONE|Assets/Data/PowerUps/Rare/Ballast.asset
+Bedrock|Bedrock|Rare|NONE|Assets/Data/PowerUps/Rare/Bedrock.asset
+BombSquad|Bomb Squad|Rare|NONE|Assets/Data/PowerUps/Rare/BombSquad.asset
+Dampener|Dampener|Rare|NONE|Assets/Data/PowerUps/Rare/Dampener.asset
+DeIcer|De-Icer|Rare|NONE|Assets/Data/PowerUps/Rare/DeIcer.asset
+DragChute|Drag Chute|Rare|NONE|Assets/Data/PowerUps/Rare/DragChute.asset
+LastStand|Last Stand|Rare|Assets/Art/Abilities/icon_last_stand.png|Assets/Data/PowerUps/Rare/LastStand.asset
+Liquefy|Liquefy|Rare|NONE|Assets/Data/PowerUps/Rare/Liquefy.asset
+Locksmith|Locksmith|Rare|NONE|Assets/Data/PowerUps/Rare/Locksmith.asset
+Muzzle|Muzzle|Rare|NONE|Assets/Data/PowerUps/Rare/Muzzle.asset
+Overdraw|Overdraw|Rare|Assets/Art/Abilities/icon_overdraw.png|Assets/Data/PowerUps/Rare/Overdraw.asset
+PocketCache|Pocket Cache|Rare|Assets/Art/Abilities/icon_pocket_cache.png|Assets/Data/PowerUps/Rare/PocketCache.asset
+Rebound|Rebound|Rare|Assets/Art/Abilities/icon_rebound.png|Assets/Data/PowerUps/Rare/Rebound.asset
+Reinforce|Reinforce|Rare|NONE|Assets/Data/PowerUps/Rare/Reinforce.asset
+Reroll|Reroll|Rare|NONE|Assets/Data/PowerUps/Rare/Reroll.asset
+Sacrifice|Sacrifice|Rare|Assets/Art/Abilities/icon_sacrifice.png|Assets/Data/PowerUps/Rare/Sacrifice.asset
+Sanitize|Sanitize|Rare|NONE|Assets/Data/PowerUps/Rare/Sanitize.asset
+Scrap|Scrap|Rare|Assets/Art/Abilities/icon_scrap.png|Assets/Data/PowerUps/Rare/Scrap.asset
+SteadyHands|Steady Hands|Rare|NONE|Assets/Data/PowerUps/Rare/SteadyHands.asset
+SureGrip|Sure Grip|Rare|NONE|Assets/Data/PowerUps/Rare/SureGrip.asset
+Suspension|Suspension|Rare|Assets/Art/Abilities/icon_suspension.png|Assets/Data/PowerUps/Rare/Suspension.asset
+VineBrick|Vine Bricks|Rare|NONE|Assets/Data/PowerUps/Rare/VineBrick.asset
+Brace|Brace|Epic|Assets/Art/Abilities/icon_brace.png|Assets/Data/PowerUps/Epic/Brace.asset
+Extract|Extract|Epic|Assets/Art/Abilities/icon_extract.png|Assets/Data/PowerUps/Epic/Extract.asset
+Fission|Fission|Epic|Assets/Art/Abilities/icon_fission.png|Assets/Data/PowerUps/Epic/Fission.asset
+Freeze|Freeze|Epic|Assets/Art/Abilities/icon_freeze.png|Assets/Data/PowerUps/Epic/Freeze.asset
+Guardian|Guardian|Epic|NONE|Assets/Data/PowerUps/Epic/Guardian.asset
+Hardline|Hardline|Epic|Assets/Art/Abilities/icon_hardline.png|Assets/Data/PowerUps/Epic/Hardline.asset
+IronWill|Iron Will|Epic|NONE|Assets/Data/PowerUps/Epic/IronWill.asset
+MagmaSpawn|Magma|Epic|NONE|Assets/Data/PowerUps/Epic/MagmaSpawn.asset
+Overgrowth|Overgrowth|Epic|NONE|Assets/Data/PowerUps/Epic/Overgrowth.asset
+Purifier|Purifier|Epic|NONE|Assets/Data/PowerUps/Epic/Purifier.asset
+Slowburn|Slowburn|Epic|NONE|Assets/Data/PowerUps/Epic/Slowburn.asset
+Titan|Titan|Epic|NONE|Assets/Data/PowerUps/Epic/Titan.asset
+Updraft|Updraft|Epic|NONE|Assets/Data/PowerUps/Epic/Updraft.asset

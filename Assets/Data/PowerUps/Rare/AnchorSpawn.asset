@@ -13,17 +13,18 @@ MonoBehaviour:
   m_Name: AnchorSpawn
   m_EditorClassIdentifier: Assembly-CSharp::BlockVariantChancePowerUp
   displayName: Anchor Drops
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: af562cb1c73a484cafa21732833e2d1c, type: 3}
   shortDescription: Anchor bricks start dropping now and then.
   ownedShortDescription: Drops anchor bricks more often.
-  description: 'Mixes anchor bricks into the falling pieces. An anchor brick freezes
+  description: Mixes anchor bricks into the falling pieces. An anchor brick freezes
     solid the instant it lands, becoming permanent terrain that holds even when the
     blocks beneath it vanish - a free foothold to build from. Stack this to see them
-    more often.'
+    more often.
   rarity: 1
   unique: 0
   maxStacks: 2
   requiresVariantsInLevel: []
   minChapterNumber: 0
+  charges: 0
   variant: {fileID: 11400000, guid: c4613f6d44bf411baf2a43b963f291ce, type: 2}
   chancePerBlock: 0.05

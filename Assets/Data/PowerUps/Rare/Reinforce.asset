@@ -13,16 +13,17 @@ MonoBehaviour:
   m_Name: Reinforce
   m_EditorClassIdentifier: Assembly-CSharp::ApplyVariantConsumable
   displayName: Reinforce
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 9427b17e9b124c2d87709fb547a83589, type: 3}
   shortDescription: Tap to turn the falling brick into a heavy boulder.
-  ownedShortDescription:
-  description: 'Tap to transform the brick you are dropping into a boulder - a heavy, dense block that drops hard and anchors a wobbling stack.'
+  ownedShortDescription: 
+  description: Tap to transform the brick you are dropping into a boulder - a heavy,
+    dense block that drops hard and anchors a wobbling stack.
   rarity: 1
   unique: 0
   maxStacks: 0
   requiresVariantsInLevel: []
   minChapterNumber: 0
   variant: {fileID: 11400000, guid: e0a392c17aea4f80abe9498f0bf69678, type: 2}
+  count: 1
   transformEffect: {fileID: 0}
   transformScale: 0.6
-  count: 1

@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: Titan
   m_EditorClassIdentifier: Assembly-CSharp::TitanPowerUp
   displayName: Titan
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: b75d9ce038404aa1ba37e358d9de84a5, type: 3}
   shortDescription: Future blocks are heavy and grip hard.
-  ownedShortDescription:
-  description: 'From now on your blocks are heavy and grip hard: they plant firmly, resist
-    sliding and shoves, and shrug off Tremor. The trade - they land with more force, so a
-    careless drop disturbs the stack more. Built for a rock-solid base.'
+  ownedShortDescription: 
+  description: 'From now on your blocks are heavy and grip hard: they plant firmly,
+    resist sliding and shoves, and shrug off Tremor. The trade - they land with more
+    force, so a careless drop disturbs the stack more. Built for a rock-solid base.'
   rarity: 2
   unique: 1
   maxStacks: 0

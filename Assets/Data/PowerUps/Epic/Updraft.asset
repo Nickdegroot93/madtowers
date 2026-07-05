@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: Updraft
   m_EditorClassIdentifier: Assembly-CSharp::FallSpeedReductionPowerUp
   displayName: Updraft
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 098cc25cd4914c64a9f171bcaa85d835, type: 3}
   shortDescription: Drastically slows all falling blocks.
-  ownedShortDescription:
-  description: 'A constant updraft drags on every falling block - they descend far
+  ownedShortDescription: 
+  description: A constant updraft drags on every falling block - they descend far
     more slowly and the top speed stays well below normal for the whole run. One
-    pick, run-defining.'
+    pick, run-defining.
   rarity: 2
   unique: 1
   maxStacks: 0

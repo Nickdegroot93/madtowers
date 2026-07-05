@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: Purifier
   m_EditorClassIdentifier: Assembly-CSharp::PurifierPowerUp
   displayName: Purifier
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: c87942d0742c479a82d757c849833123, type: 3}
   shortDescription: Hazard bricks of every kind show up far less often.
-  ownedShortDescription:
-  description: 'Cleanses the bag: every kind of hazard brick - Maw, Vortex, Bomb, Tremor,
-    Ice, Locked - drops far less often for the rest of the run. Offered only on levels
-    that throw at least three different hazards at you.'
+  ownedShortDescription: 
+  description: 'Cleanses the bag: every kind of hazard brick - Maw, Vortex, Bomb,
+    Tremor, Ice, Locked - drops far less often for the rest of the run. Offered only
+    on levels that throw at least three different hazards at you.'
   rarity: 2
   unique: 1
   maxStacks: 0
