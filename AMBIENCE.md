@@ -139,6 +139,10 @@ Where things go, so the system stays uniform:
    sit at −60, scenery-level effects pick their spot among the layers deliberately.
 7. **Document it**: add the effect to the toolkit table here, and to BACKDROPS.md only if
    it's a per-layer field.
+8. **Lint it**: if the effect has an easy authoring mistake (a field combination the
+   renderer ignores or renders wrong), add a rule to `ChapterContentValidator.ValidateBackdrop`
+   so `Validate Chapter Content` catches it — presets are authored as raw data, often by
+   editing YAML directly, and the validator is the safety net for that workflow.
 
 ## Current per-chapter settings (v1, tuned July 2026)
 

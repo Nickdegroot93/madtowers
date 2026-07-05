@@ -241,6 +241,11 @@ public partial class LevelPresentationController
                 }
                 sr.transform.localScale = new Vector3(scale, scale, 1f);
                 sr.transform.position = new Vector3(anchorX + offsetX, y, 0f);
+                // Alpha applied per frame like the fill layers, so preset edits show up live.
+                if (!Mathf.Approximately(sr.color.a, layer.Alpha))
+                {
+                    sr.color = new Color(1f, 1f, 1f, layer.Alpha);
+                }
             }
 
             UpdateLayerApron(i, cam, y - scaledHeight * 0.5f);

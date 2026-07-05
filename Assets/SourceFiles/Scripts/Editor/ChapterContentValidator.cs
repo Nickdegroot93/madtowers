@@ -20,10 +20,14 @@ public static class ChapterContentValidator
         Validate(logSuccess: true);
     }
 
+    // Presets can be shared between chapters; validate each one once per run.
+    private static readonly HashSet<BackdropPreset> _validatedBackdrops = new HashSet<BackdropPreset>();
+
     public static bool Validate(bool logSuccess)
     {
         int errors = 0;
         int warnings = 0;
+        _validatedBackdrops.Clear();
 
         List<ChapterDefinition> chapters = LoadAssets<ChapterDefinition>(ChaptersFolder);
         chapters.Sort(CompareChapters);
@@ -96,6 +100,10 @@ public static class ChapterContentValidator
         {
             Warning($"Chapter '{chapter.name}' has no BackdropPreset; gameplay will use the classic fallback.", chapter, ref warnings);
         }
+        else if (_validatedBackdrops.Add(chapter.Backdrop))
+        {
+            ValidateBackdrop(chapter.Backdrop, ref errors, ref warnings);
+        }
 
         IReadOnlyList<AudioClip> playlist = chapter.MusicPlaylist;
         if (playlist == null || playlist.Count == 0)
@@ -127,6 +135,61 @@ public static class ChapterContentValidator
         if (!AssetDatabase.IsValidFolder(skinPath))
         {
             Error($"Chapter '{chapter.name}' skinFolder points at missing Resources folder: {skinFolder}.", chapter, ref errors);
+        }
+    }
+
+    // Layer lint for imported backdrop packs: presets are authored as raw data (often by
+    // editing YAML), so catch the classic layer mistakes at validation time instead of
+    // eyeball time. Rules mirror the renderer's assumptions (see BACKDROPS.md / AMBIENCE.md).
+    private static void ValidateBackdrop(BackdropPreset preset, ref int errors, ref int warnings)
+    {
+        IReadOnlyList<BackdropPreset.SpriteBackdropLayer> layers = preset.SpriteBackdropLayers;
+        int fillLayers = 0;
+        for (int i = 0; layers != null && i < layers.Count; i++)
+        {
+            BackdropPreset.SpriteBackdropLayer layer = layers[i];
+            if (layer == null || layer.Sprite == null)
+            {
+                Error($"Backdrop '{preset.name}' layer {i} has no sprite.", preset, ref errors);
+                continue;
+            }
+
+            if (layer.FillView)
+            {
+                fillLayers++;
+                if (i != 0)
+                {
+                    Warning($"Backdrop '{preset.name}' layer {i} ('{layer.Sprite.name}') is fillView but not the first layer; it will cover every layer behind it.", preset, ref warnings);
+                }
+                if (layer.DriftSpeedX != 0f)
+                {
+                    Warning($"Backdrop '{preset.name}' layer {i} ('{layer.Sprite.name}') sets driftSpeedX on a fillView layer; drift is ignored for fill layers.", preset, ref warnings);
+                }
+            }
+            else if (layer.DriftSpeedX != 0f && layer.HorizontalTileRadius < 1)
+            {
+                Warning($"Backdrop '{preset.name}' layer {i} ('{layer.Sprite.name}') drifts with horizontalTileRadius 0; a single tile visibly pops when it wraps. Use radius >= 1.", preset, ref warnings);
+            }
+
+            if (layer.Alpha <= 0f)
+            {
+                Warning($"Backdrop '{preset.name}' layer {i} ('{layer.Sprite.name}') has alpha 0; the layer is invisible.", preset, ref warnings);
+            }
+        }
+
+        if (fillLayers > 1)
+        {
+            Warning($"Backdrop '{preset.name}' has {fillLayers} fillView layers; only the front-most is ever visible.", preset, ref warnings);
+        }
+
+        if (preset.ParticleCount > 0 && preset.ParticleColor.a <= 0f)
+        {
+            Warning($"Backdrop '{preset.name}' has {preset.ParticleCount} ambient particles with a fully transparent color.", preset, ref warnings);
+        }
+
+        if (preset.FlybyFlockSize > 0 && preset.FlybyIntervalSeconds.x > preset.FlybyIntervalSeconds.y)
+        {
+            Warning($"Backdrop '{preset.name}' flyby interval min ({preset.FlybyIntervalSeconds.x}) exceeds max ({preset.FlybyIntervalSeconds.y}).", preset, ref warnings);
         }
     }
 

@@ -105,6 +105,11 @@ chapter's palette (jungle spores green, sakura petals pink, desert dust sand).
 The full "make it feel alive" pass for a new pack — drift, particles, flybys, heat haze,
 per-theme recipes — lives in **AMBIENCE.md**. Run its curation checklist after every import.
 
+`Tools > MadTowers > Validate Chapter Content` lint-checks every chapter's backdrop layers
+(missing sprite, drift without tiling, misplaced fillView, invisible alpha, particle/flyby
+misconfig) — run it after authoring or editing a preset, especially when editing the
+`.asset` YAML directly.
+
 Imported sprite layers are deterministic. The same preset values produce the same
 composition every run, so phone/editor tuning does not drift between sessions.
 
