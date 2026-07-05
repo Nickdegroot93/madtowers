@@ -93,7 +93,17 @@ Each imported sprite layer on a `BackdropPreset` has these key fields:
 | `horizontalTileRadius` | How many duplicate tiles render on each side. `2` means five copies total. `0` draws one sprite only. |
 | `horizontalTileOverlap` | Small overlap between tiles to hide transparent/cropped seams. |
 | `verticalParallax` | `0` drops with the floor quickly; `1` stays with the camera. |
+| `driftSpeedX` | Constant sideways scroll in world units/sec — the "this layer is clouds" switch. The tile row wraps around itself so the loop is endless and seamless. Positive = rightward. Keep it subtle (`0.1`–`0.15`); needs `horizontalTileRadius >= 1`. `0` = static (default). Ignored for a fill layer. |
 | `alpha` | Layer opacity. Prefer moving/scaling first; low alpha can reveal every overlapped silhouette. |
+
+When importing a new pack, find its cloud / mist / fog-bank layer and give it a small
+`driftSpeedX`. Vertical games barely move sideways, so one endlessly drifting layer is
+what stops the backdrop reading as a static image. Ambient particles (the preset's
+`particleCount`/`particleColor` block) are the second half of that: tint them to the
+chapter's palette (jungle spores green, sakura petals pink, desert dust sand).
+
+The full "make it feel alive" pass for a new pack — drift, particles, flybys, heat haze,
+per-theme recipes — lives in **AMBIENCE.md**. Run its curation checklist after every import.
 
 Imported sprite layers are deterministic. The same preset values produce the same
 composition every run, so phone/editor tuning does not drift between sessions.

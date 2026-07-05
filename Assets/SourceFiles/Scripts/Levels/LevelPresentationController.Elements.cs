@@ -165,6 +165,8 @@ public partial class LevelPresentationController
             _particles[i] = particle.transform;
             _particlePhases[i] = Random.Range(0f, Mathf.PI * 2f);
         }
+
+        CreateAmbienceElements();
     }
 
     private float CameraHalfHeight => targetCamera.orthographicSize;
@@ -221,14 +223,24 @@ public partial class LevelPresentationController
             float anchorX = _panBaseX + panX * layer.HorizontalParallax + layer.WorldOffsetX;
             float y = floorY + layer.FloorOffsetY + scaledHeight * 0.5f + climbed * layer.VerticalParallax;
             int center = tiles.Length / 2;
+            // Endless sideways drift (clouds, mist): each tile's offset wraps within the row's
+            // total width, so a tile leaving one end reappears at the other and coverage around
+            // the anchor never thins out however long the scroll runs.
+            float drift = layer.DriftSpeedX * Time.time;
+            float rowWidth = tiles.Length * tileSpacing;
 
             for (int tile = 0; tile < tiles.Length; tile++)
             {
                 SpriteRenderer sr = tiles[tile];
                 if (sr == null) continue;
 
+                float offsetX = (tile - center) * tileSpacing;
+                if (layer.DriftSpeedX != 0f)
+                {
+                    offsetX = Mathf.Repeat(offsetX + drift + rowWidth * 0.5f, rowWidth) - rowWidth * 0.5f;
+                }
                 sr.transform.localScale = new Vector3(scale, scale, 1f);
-                sr.transform.position = new Vector3(anchorX + (tile - center) * tileSpacing, y, 0f);
+                sr.transform.position = new Vector3(anchorX + offsetX, y, 0f);
             }
 
             UpdateLayerApron(i, cam, y - scaledHeight * 0.5f);

@@ -33,6 +33,8 @@ public class BackdropPreset : ScriptableObject
         [Tooltip("How much this layer follows the camera as it pans sideways (building wide / opening pan). 1 = glued to the camera (no sideways parallax, the old behaviour); lower = the layer lags, reading as depth; 0 = fixed in the world (maximum parallax). Near layers want low values, far layers high.")]
         [Range(0f, 1f)]
         [SerializeField] private float horizontalParallax = 1f;
+        [Tooltip("Constant sideways scroll in world units/sec (clouds, mist, fog banks). The tile row wraps around itself, so the motion loops forever. Positive = rightward. Keep it subtle (~0.1). Needs horizontalTileRadius >= 1 so wrapped tiles cover the view. 0 = static. Ignored for a fill layer.")]
+        [SerializeField] private float driftSpeedX = 0f;
         [Tooltip("Treat this layer as a full-screen panorama (the back-most sky/atmosphere). It is always scaled to blanket the whole camera view like the sky, so its edges can never enter the frame - it never cuts off at the top however high the tower climbs. Parallax/tiling/offset are ignored for a fill layer.")]
         [SerializeField] private bool fillView = false;
         [Tooltip("If alpha > 0, a solid apron of this colour fills the area below this layer down past the screen bottom, so an opaque ground layer never shows a seam or a plain gap beneath it. Set it to the layer's solid ground colour. Ignored for a fill layer.")]
@@ -48,6 +50,7 @@ public class BackdropPreset : ScriptableObject
         public float HorizontalTileOverlap => Mathf.Max(0f, horizontalTileOverlap);
         public float VerticalParallax => verticalParallax;
         public float HorizontalParallax => horizontalParallax;
+        public float DriftSpeedX => driftSpeedX;
         public bool FillView => fillView;
         public Color GroundFillColor => groundFillColor;
         public float Alpha => alpha;
@@ -119,6 +122,23 @@ public class BackdropPreset : ScriptableObject
     [SerializeField] private float particleFallSpeed = 0.8f;
     [SerializeField] private float particleSwayAmount = 0.6f;
 
+    [Header("Heat haze (0 = off; hot-air shimmer that arrives in gusts, never constant)")]
+    [Tooltip("Peak shimmer strength for a hot chapter. A slow gust envelope drives it between zero and this value, and it fades out entirely as the tower climbs away from the ground.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float heatHazeAmount = 0f;
+
+    [Header("Flybys (0 = off; rare bird silhouettes crossing the sky)")]
+    [Tooltip("Birds per crossing. Small quick flock = songbirds; 1 big slow dark one = a vulture; a few pale slow ones = cranes.")]
+    [Min(0)]
+    [SerializeField] private int flybyFlockSize = 0;
+    [SerializeField] private Color flybyColor = new Color(0.08f, 0.08f, 0.12f, 0.85f);
+    [Tooltip("Seconds between crossings (min..max, re-rolled each time). Keep flybys RARE - intermittent motion reads as alive, constant motion reads as wallpaper.")]
+    [SerializeField] private Vector2 flybyIntervalSeconds = new Vector2(25f, 55f);
+    [Tooltip("Horizontal speed in world units/sec.")]
+    [SerializeField] private float flybySpeed = 2.2f;
+    [Tooltip("Bird size multiplier. 1 = small songbird; 1.3-1.8 = crane / vulture. Bigger birds automatically flap slower.")]
+    [SerializeField] private float flybyScale = 1f;
+
     public Color SkyTopLow => skyTopLow;
     public Color SkyBottomLow => skyBottomLow;
     public Color SkyTopHigh => skyTopHigh;
@@ -150,6 +170,12 @@ public class BackdropPreset : ScriptableObject
     public float ParticleSize => particleSize;
     public float ParticleFallSpeed => particleFallSpeed;
     public float ParticleSwayAmount => particleSwayAmount;
+    public float HeatHazeAmount => heatHazeAmount;
+    public int FlybyFlockSize => flybyFlockSize;
+    public Color FlybyColor => flybyColor;
+    public Vector2 FlybyIntervalSeconds => flybyIntervalSeconds;
+    public float FlybySpeed => flybySpeed;
+    public float FlybyScale => flybyScale;
 
     // The classic dark sky used by any chapter without an authored preset.
     private static BackdropPreset _defaults;

@@ -75,6 +75,8 @@ public partial class LevelPresentationController : MonoBehaviour
         UpdateSun();
         UpdateProps();
         UpdateParticles();
+        UpdateHeatHaze();
+        UpdateFlybys();
     }
 
     private void ResolveReferences()
@@ -151,6 +153,7 @@ public partial class LevelPresentationController : MonoBehaviour
         _propOffsets = null;
         _particles = null;
         _particlePhases = null;
+        ResetAmbienceElements();
     }
 
     // ---- sky -----------------------------------------------------------------------------

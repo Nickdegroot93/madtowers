@@ -246,6 +246,54 @@ public static partial class RuntimeSprites
         return _cacti[index] = Finish(tex, 32f); // 2 x 3 world units at scale 1
     }
 
+    // Bird silhouette for backdrop flybys: a small body with two bent wings, three flap
+    // frames (0 = wings up, 1 = level, 2 = down; ping-pong 0-1-2-1 to animate). One shape
+    // serves every theme - flock size, scale, speed and tint do the differentiation
+    // (small quick flock = songbirds, one big slow dark one = a vulture, few pale slow
+    // ones = cranes). White; tint via renderer color.
+    private static readonly Sprite[] _birds = new Sprite[3];
+    private static readonly float[] BirdWingTipY = { 26f, 15f, 6f }; // per frame, in pixels
+
+    public static Sprite Bird(int frame)
+    {
+        int index = Mathf.Abs(frame) % _birds.Length;
+        if (_birds[index] != null) return _birds[index];
+
+        const int W = 56, H = 32;
+        float tipY = BirdWingTipY[index];
+        float midY = 14f + (tipY - 14f) * 0.5f + 2.5f; // slight upward arch in the wing
+
+        Texture2D tex = NewTexture(W, H);
+        for (int y = 0; y < H; y++)
+        {
+            for (int x = 0; x < W; x++)
+            {
+                float px = x + 0.5f, py = y + 0.5f;
+                // Body: small horizontal ellipse.
+                float bx = (px - 28f) / 5f, by = (py - 13f) / 2.8f;
+                float alpha = Mathf.Clamp01((1f - Mathf.Sqrt(bx * bx + by * by)) * 3f);
+                // Wings: two tapered segments each (shoulder -> mid -> tip), mirrored.
+                alpha = Mathf.Max(alpha, WingSegment(px, py, 24f, 14f, 16f, midY, 2.6f, 1.8f));
+                alpha = Mathf.Max(alpha, WingSegment(px, py, 16f, midY, 6f, tipY, 1.8f, 1.0f));
+                alpha = Mathf.Max(alpha, WingSegment(px, py, 32f, 14f, 40f, midY, 2.6f, 1.8f));
+                alpha = Mathf.Max(alpha, WingSegment(px, py, 40f, midY, 50f, tipY, 1.8f, 1.0f));
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+            }
+        }
+        return _birds[index] = Finish(tex, 32f); // 1.75 x 1 world units at scale 1
+    }
+
+    // Soft-edged distance to a tapered line segment (widths in pixels at each end).
+    private static float WingSegment(float px, float py, float ax, float ay, float bx, float by,
+        float widthA, float widthB)
+    {
+        float abx = bx - ax, aby = by - ay;
+        float t = Mathf.Clamp01(((px - ax) * abx + (py - ay) * aby) / (abx * abx + aby * aby));
+        float dx = px - (ax + abx * t), dy = py - (ay + aby * t);
+        float width = Mathf.Lerp(widthA, widthB, t);
+        return Mathf.Clamp01(width - Mathf.Sqrt(dx * dx + dy * dy) + 0.6f);
+    }
+
     private static Sprite _softDot;
 
     public static Sprite SoftDot()

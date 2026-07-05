@@ -51,6 +51,7 @@ MonoBehaviour:
     worldOffsetX: 0
     verticalParallax: 0.8
     horizontalParallax: 0.7
+    driftSpeedX: 0.12
     alpha: 0.7
   - sprite: {fileID: 21300000, guid: fc40f905a0ee49f4b909e4d2b7eb2aa5, type: 3}
     worldHeight: 15
@@ -114,3 +115,8 @@ MonoBehaviour:
   particleSize: 0.08
   particleFallSpeed: 0.45
   particleSwayAmount: 1.05
+  flybyFlockSize: 5
+  flybyColor: {r: 0.05, g: 0.1, b: 0.07, a: 0.9}
+  flybyIntervalSeconds: {x: 22, y: 48}
+  flybySpeed: 2.6
+  flybyScale: 0.85

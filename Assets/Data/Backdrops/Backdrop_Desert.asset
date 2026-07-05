@@ -51,6 +51,7 @@ MonoBehaviour:
     worldOffsetX: 0
     verticalParallax: 0.8
     horizontalParallax: 0.7
+    driftSpeedX: 0.15
     alpha: 0.65
   - sprite: {fileID: 21300000, guid: 038d28f89962f6349b31a8a187cff218, type: 3}
     worldHeight: 16
@@ -88,8 +89,14 @@ MonoBehaviour:
     horizontalParallax: 0.04
     groundFillColor: {r: 0.24, g: 0.16, b: 0.16, a: 1}
     alpha: 1
-  particleCount: 0
-  particleColor: {r: 1, g: 1, b: 1, a: 1}
-  particleSize: 0.12
-  particleFallSpeed: 0.8
-  particleSwayAmount: 0.6
+  particleCount: 26
+  particleColor: {r: 1, g: 0.93, b: 0.74, a: 0.6}
+  particleSize: 0.11
+  particleFallSpeed: 0.25
+  particleSwayAmount: 1.5
+  heatHazeAmount: 0.65
+  flybyFlockSize: 1
+  flybyColor: {r: 0.13, g: 0.09, b: 0.08, a: 0.85}
+  flybyIntervalSeconds: {x: 35, y: 70}
+  flybySpeed: 1.3
+  flybyScale: 1.7
