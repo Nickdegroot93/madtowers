@@ -188,7 +188,7 @@ Each chapter's `skinFolder` drives all generated art (blocks/ground/laser) via
 ### Current level inventory
 
 **Chapter: Sakura Ridge (sortOrder 10)** — imported Japan Landscape menu art, layered Japan
-gameplay backdrop, Japan skin folder, music pending
+gameplay backdrop, Japan skin folder, sakura-ridge A/B music
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
 | Morning Gate | GameMode_Classic | Place 100 | Stacking endurance, Japan dressing. |

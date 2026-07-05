@@ -117,6 +117,7 @@ then a fixed A→B→A rotation. Survives scene loads, ignores pause, stops on g
 | Training Wheels | training_wheels_a/b.ogg | `MusicPlayer.PlayForChapter` ([GameManager.cs:78](Assets/SourceFiles/Scripts/Core/GameManager.cs#L78)) |
 | Desert | desert_a/b.ogg | same |
 | Jungle Depths | jungle-depths-a/b.ogg | same |
+| Sakura Ridge | sakura-ridge-a/b.ogg | same |
 
 Entering a level swaps menu → chapter music; returning to the menu swaps back.
 
