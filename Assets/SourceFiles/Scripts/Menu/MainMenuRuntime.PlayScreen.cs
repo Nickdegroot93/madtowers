@@ -109,8 +109,9 @@ public static partial class MainMenuRuntime
             BuildLevelList(parent, chapter, currentIndex);
         }
 
-        // Built last so it renders on top of the level list and stays tappable in its
-        // bottom-right home (the list's scroll viewport would otherwise sit over it).
+        // Built last so they render on top of the level list and stay tappable in their
+        // bottom corners (the list's scroll viewport would otherwise sit over them).
+        BuildPreviousChapterCard(parent, chapterIndex);
         BuildNextChapterCard(parent, chapter, chapterIndex);
     }
 
@@ -235,6 +236,60 @@ public static partial class MainMenuRuntime
         // Keep the card fully opaque in every state. Without this, a locked (non-interactable)
         // card falls back to Unity's default disabledColor (alpha 0.5), which the ColorTint
         // transition applies over the fill and makes the card look see-through.
+        ColorBlock colors = button.colors;
+        colors.normalColor = cardFill;
+        colors.highlightedColor = WithAlpha(Color.Lerp(cardFill, TextPrimary, 0.08f), 1f);
+        colors.pressedColor = WithAlpha(Color.Lerp(cardFill, Color.black, 0.12f), 1f);
+        colors.disabledColor = cardFill;
+        button.colors = colors;
+    }
+
+    // The next-chapter card's bottom-LEFT mirror: the way back. Chapter 1 has nowhere to go
+    // back to, so it carries no card; going back is always allowed (reaching this chapter
+    // unlocked the previous one), matching the swipe rule in ResolveSwipeTarget.
+    private static void BuildPreviousChapterCard(Transform parent, int chapterIndex)
+    {
+        if (chapterIndex <= 0) return;
+
+        int prevIndex = chapterIndex - 1;
+        ChapterDefinition prev = _chapters[prevIndex];
+
+        RectTransform card = CreateRect(parent, "PreviousChapterCard",
+            new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f),
+            new Vector2(60f, 232f), new Vector2(300f, 160f));
+        Color cardFill = new Color(0.05f, 0.06f, 0.065f, 1f);
+        Image cardImage = card.gameObject.AddComponent<Image>();
+        cardImage.sprite = RuntimeSprites.RoundedPanel();
+        cardImage.type = Image.Type.Sliced;
+        cardImage.color = cardFill;
+        RuntimeUiKit.AddOutline(card, GoldOutline(0.24f));
+
+        if (prev.MenuBackgroundImage != null)
+        {
+            CreateCoverImage(card, "Preview", prev.MenuBackgroundImage, new Color(1f, 1f, 1f, 0.42f),
+                Vector2.zero, new Vector2(300f, 160f), new Vector2(0.5f, 0.5f));
+        }
+
+        // Mirrored layout: texts hug the RIGHT edge, the (flipped) chevron sits bottom-left.
+        CreateTmp(card, "PrevLabel", "PREVIOUS", 15, TextMuted, TextAnchor.MiddleRight,
+            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(-28f, -22f), new Vector2(180f, 26f), new Vector2(1f, 1f));
+        CreateTmp(card, "PrevTitle", prev.DisplayName.ToUpperInvariant(), 21, TextPrimary, TextAnchor.MiddleRight,
+            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(-28f, -50f), new Vector2(206f, 34f), new Vector2(1f, 1f));
+
+        Image prevArrow = CreateImage(card, "PrevArrow", MenuSprites.Chevron(TextPrimary), Color.white);
+        prevArrow.preserveAspect = true;
+        SetCentered(prevArrow.rectTransform, new Vector2(42f, -75f), new Vector2(40f, 40f));
+        prevArrow.rectTransform.localEulerAngles = new Vector3(0f, 0f, 180f);
+
+        Button button = card.gameObject.AddComponent<Button>();
+        button.targetGraphic = cardImage;
+        button.onClick.AddListener(() =>
+        {
+            // Slide back to the previous chapter (entering from the left) through the same
+            // transition a swipe uses, so the card and the gesture feel identical.
+            if (_pager != null) _pager.AnimateToChapter(prevIndex, -1);
+        });
+
         ColorBlock colors = button.colors;
         colors.normalColor = cardFill;
         colors.highlightedColor = WithAlpha(Color.Lerp(cardFill, TextPrimary, 0.08f), 1f);

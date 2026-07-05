@@ -236,6 +236,7 @@ public static partial class MainMenuRuntime
         if (_activeTab == MenuTab.Home) BuildPlayScreen(contentRoot, chapter);
         else if (_activeTab == MenuTab.Settings) BuildSettingsScreen(contentRoot, chapter);
         else if (_activeTab == MenuTab.Vault) BuildVaultScreen(contentRoot, chapter);
+        else if (_activeTab == MenuTab.Chapters) BuildChaptersScreen(contentRoot, chapter);
         else BuildDummyScreen(contentRoot, _activeTab);
 
         Transform navRoot = RecreateSection(ref _navRoot, _navLayer, "BottomNavRoot");
