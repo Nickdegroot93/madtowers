@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 050fdd043454c8545ad492cd134d8875
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2655988077585873504
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 296077
+  packageName: Chinese City
+  packageVersion: 1.0
+  assetPath: Assets/Chinese City/Presets/Material.preset
+  uploadId: 696026

@@ -313,3 +313,12 @@ if __name__ == "__main__":
     render_ground_fill("Winter", (86, 98, 128))
     render_ground_cap("Winter", (236, 242, 252), fleck=(190, 205, 235), fleck_chance=0.010)
     remove_legacy("Winter")
+
+    # Fangkuai District: dusk aubergine stone with a lantern-rose cap - the floor picks
+    # up the pack's glowing-window pink without competing with the pieces.
+    render_plateau("Fangkuai", (84, 62, 90), line=(38, 26, 42),
+                   blocks=1, top=(206, 116, 138), top_h=24)
+    render_islands("Fangkuai", (84, 62, 90), line=(38, 26, 42))
+    render_ground_fill("Fangkuai", (92, 68, 98))
+    render_ground_cap("Fangkuai", (204, 118, 140), fleck=(236, 152, 170), fleck_chance=0.010)
+    remove_legacy("Fangkuai")

@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: dea6ba626d6c70c4fbf4c78e3a97f3e6
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 296077
+  packageName: Chinese City
+  packageVersion: 1.0
+  assetPath: Assets/Chinese City/Presets/ParticleSystem.preset
+  uploadId: 696026

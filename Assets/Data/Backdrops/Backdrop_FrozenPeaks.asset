@@ -132,7 +132,7 @@ MonoBehaviour:
     horizontalParallax: 0.04
     driftSpeedX: 0
     fillView: 0
-    groundFillColor: {r: 0.78, g: 0.8, b: 0.92, a: 1}
+    groundFillColor: {r: 0.761, g: 0.8, b: 0.937, a: 1}
     alpha: 1
   particleCount: 30
   particleColor: {r: 1, g: 1, b: 1, a: 0.75}

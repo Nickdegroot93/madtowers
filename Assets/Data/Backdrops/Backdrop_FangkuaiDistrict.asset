@@ -1,0 +1,135 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6a09387ee174200b39a756e32adb89b, type: 3}
+  m_Name: Backdrop_FangkuaiDistrict
+  m_EditorClassIdentifier: Assembly-CSharp::BackdropPreset
+  skyTopLow: {r: 0.42, g: 0.3, b: 0.42, a: 1}
+  skyBottomLow: {r: 0.72, g: 0.55, b: 0.63, a: 1}
+  skyTopHigh: {r: 0.26, g: 0.18, b: 0.32, a: 1}
+  skyBottomHigh: {r: 0.52, g: 0.38, b: 0.52, a: 1}
+  altitudeFadeMeters: 32
+  skyShimmerAmount: 0.2
+  skyShimmerPeriodMeters: 24
+  sunEnabled: 0
+  sunColor: {r: 1, g: 0.42, b: 0.5, a: 0.3}
+  sunSize: 3
+  sunScreenX: 0.35
+  sunHeightMeters: 26
+  propCount: 0
+  propColor: {r: 0.42, g: 0.55, b: 0.38, a: 1}
+  propScaleRange: {x: 1.4, y: 2.2}
+  cloudCount: 0
+  cloudStyle: 0
+  cloudColor: {r: 0.93, g: 0.79, b: 0.84, a: 0.5}
+  cloudDriftSpeed: 0.11
+  cloudScaleRange: {x: 2.5, y: 4.5}
+  hillsEnabled: 0
+  hillStyle: 0
+  hillFarColor: {r: 0.45, g: 0.32, b: 0.45, a: 1}
+  hillNearColor: {r: 0.32, g: 0.22, b: 0.32, a: 1}
+  groundFogColor: {r: 0, g: 0, b: 0, a: 0}
+  spriteBackdropLayers:
+  - sprite: {fileID: 21300000, guid: 23c2b0e513ac48d0bec5e4db789ea62f, type: 3}
+    worldHeight: 34
+    floorOffsetY: 0
+    worldOffsetX: 0
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.7
+    horizontalParallax: 1
+    driftSpeedX: 0
+    fillView: 1
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: 6e5957c204aa413db1fd67cbd75ba035, type: 3}
+    worldHeight: 5.5
+    floorOffsetY: 15
+    worldOffsetX: 0
+    horizontalTileRadius: 2
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.88
+    horizontalParallax: 0.78
+    driftSpeedX: 0.11
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 0.65
+  - sprite: {fileID: 21300000, guid: 5a25686791275a548aaf76c8f070c4ce, type: 3}
+    worldHeight: 13
+    floorOffsetY: 4
+    worldOffsetX: 0
+    horizontalTileRadius: 2
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.45
+    horizontalParallax: 0.4
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0.663, g: 0.392, b: 0.49, a: 1}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: 0b13d582d7b34c948962fe52a3e60441, type: 3}
+    worldHeight: 10
+    floorOffsetY: 0.5
+    worldOffsetX: 0
+    horizontalTileRadius: 2
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.22
+    horizontalParallax: 0.18
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0.514, g: 0.286, b: 0.38, a: 1}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: ae222d0259668804d8abce23a812471e, type: 3}
+    worldHeight: 11
+    floorOffsetY: -1.2
+    worldOffsetX: 0
+    horizontalTileRadius: 2
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.13
+    horizontalParallax: 0.1
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0.38, g: 0.231, b: 0.322, a: 1}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: cdc3b5fc5fd07d04398f7356f45a3602, type: 3}
+    worldHeight: 12
+    floorOffsetY: -4
+    worldOffsetX: 0
+    horizontalTileRadius: 2
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.04
+    horizontalParallax: 0.03
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0.192, g: 0.11, b: 0.184, a: 1}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: bd7bc6cd7267edc45892cd5a396111d3, type: 3}
+    worldHeight: 1.8
+    floorOffsetY: -4.2
+    worldOffsetX: 0
+    horizontalTileRadius: 3
+    horizontalTileOverlap: 0.5
+    verticalParallax: 0
+    horizontalParallax: 0.02
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0.184, g: 0.106, b: 0.169, a: 1}
+    alpha: 1
+  particleCount: 26
+  particleColor: {r: 1, g: 0.78, b: 0.5, a: 0.55}
+  particleSize: 0.13
+  particleFallSpeed: 0.3
+  particleSwayAmount: 1.3
+  heatHazeAmount: 0
+  flybyFlockSize: 2
+  flybyColor: {r: 0.14, g: 0.08, b: 0.14, a: 0.85}
+  flybyIntervalSeconds: {x: 25, y: 55}
+  flybySpeed: 2.2
+  flybyScale: 1

@@ -54,6 +54,9 @@ After the layer import itself (that part is BACKDROPS.md):
 
 1. **Find the drifting layer.** Almost every pack has clouds, mist, fog or smog as its own
    sprite. Give that layer `driftSpeedX` 0.10–0.15. Needs `horizontalTileRadius >= 1`.
+   Pack ships no cloud layer? Generate one in the packs' flat vector language:
+   `python3 Tools/generate_chapter_clouds.py "<r,g,b>" "<theme>-clouds" "Assets/Art/Chapters/<Id>/clouds_<x>.png"`
+   (tint slightly lighter than the sky behind it; Frozen Peaks and Fangkuai District use this).
 2. **Tint the particles to the palette.** Pick the mood: what would float in this air?
    Tune alpha for contrast with the background — bright-on-dark needs ~0.3, tone-on-tone
    (dust on sand, petals on pink) needs 0.55–0.7 and a bigger size. The dot sprite has soft
@@ -152,3 +155,4 @@ Where things go, so the system stays uniform:
 | Barren Lands | `clouds 2 dsrt` 0.15 | 26 sand dust, a 0.6 | 1 vulture, slow, every 35–70s | 0.65 |
 | Sakura Ridge | `cloud1` 0.10 | 30 pink petals, a 0.7 | 3 cranes, stately, every 30–60s | — |
 | Frozen Peaks | `clouds_winter` 0.12 (generated strip — the pack ships no cloud layer) | 30 white snow, a 0.75, size 0.18 | 2 crows, every 30–60s | — |
+| Fangkuai District | `clouds_dusk` 0.11 (generated strip) | 26 warm ember motes, a 0.55 | 2 small dark birds, every 25–55s | — |

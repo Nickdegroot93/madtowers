@@ -136,6 +136,24 @@ THEME_PRESETS = {
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
         "preview_bg": (186, 196, 222),
     },
+    # Fangkuai District: dusk-market tones under a mauve sunset sky. Every hue leans
+    # warm and lantern-lit; the pack's neon-pink window glow lives in Pip/Domino.
+    "Fangkuai": {
+        "colors": {
+            "I": (110, 190, 200),   # patinated teal
+            "O": (230, 190, 105),   # lantern gold
+            "T": (176, 112, 200),   # orchid
+            "S": (118, 168, 112),   # garden green
+            "Z": (225, 92, 110),    # crimson lantern
+            "J": (104, 118, 205),   # indigo dusk
+            "L": (226, 140, 85),    # amber glow
+            "Pip": (232, 110, 160),     # neon pink window
+            "Domino": (170, 92, 168),   # magenta violet
+        },
+        "outline": 0.21,
+        "edgeShine": {"Pip": 0.15, "Domino": 0.15},
+        "preview_bg": (96, 72, 96),
+    },
     # Sakura Ridge: muted ukiyo-e / washi tones. These belong to the background's
     # sakura, Fuji, temple indigo, and coral highlights; readability comes from the
     # outline/shape language rather than neon opposite colors.

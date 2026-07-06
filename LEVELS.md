@@ -220,6 +220,15 @@ menu art, frozen-peaks A/B music
 | Whiteout Pass | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
 | Summit Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
 
+**Chapter: Fangkuai District (sortOrder 50)** — imported Chinese City gameplay backdrop
+(feathered `bg_dusk` plate + generated `clouds_dusk` drift strip), Fangkuai skin folder,
+fangkuai-district menu art, fangkuai-district A/B music
+| Level | Mode | Goal | Notes |
+|---|---|---|---|
+| The Night Market | GameMode_Classic | Place 100 | Stacking endurance, dusk-city dressing. |
+| Firecracker Alley | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
+| Pagoda Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+
 | Path | Contents |
 |---|---|
 | `Assets/Resources/Chapters/` | ChapterDefinition assets. **Must stay here** (loaded by path at runtime). |
