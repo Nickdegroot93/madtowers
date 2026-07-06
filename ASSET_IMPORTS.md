@@ -16,6 +16,7 @@ Current packs:
 - `Assets/Art/ChapterPacks/Winter Mountain Landscape`
 - `Assets/Art/ChapterPacks/Chinese City`
 - `Assets/Art/ChapterPacks/Sovietwave Panel Buildings`
+- `Assets/Art/ChapterPacks/Glowing City 2D Landscape`
 
 Game-authored chapter presentation stays separate:
 

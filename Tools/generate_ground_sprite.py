@@ -408,6 +408,40 @@ def render_ground_fill_cobble(theme, base, joint_factor=0.35, tone_var=0.12, joi
     _write_fill(theme, px)
 
 
+def render_ground_fill_wetpave(theme, base, glows=((80, 220, 240), (240, 100, 180)),
+                               seam_factor=0.55, tone_var=0.05, glow_strength=0.3):
+    """Wet night pavement: large dark 0.5 u tiles with faintly lit seams (wet edges
+    catch the light) and soft vertical neon reflection streaks per tile — the color
+    of the city above, strongest at the tile top and fading down. Seamless both axes."""
+    S, PANEL, SEAM = 128, 64, 2
+    px = bytearray(S * S * 4)
+    seam_col = tuple(min(255, c / seam_factor) for c in base)  # lighter, not darker: wet edge
+    sd = _seed(theme)
+    for y in range(S):
+        py_i, yy = y // PANEL, y % PANEL
+        for x in range(S):
+            px_i, xx = x // PANEL, x % PANEL
+            if yy < SEAM or xx < SEAM:
+                f = grain(x, y)
+                r, g, b = (seam_col[0] * f, seam_col[1] * f, seam_col[2] * f)
+            else:
+                f = 1.0 + (_hash01(sd, py_i, px_i) - 0.5) * 2 * tone_var
+                f *= grain(x, y)
+                r, g, b = (base[0] * f, base[1] * f, base[2] * f)
+                # neon reflections: 2 soft streaks per tile, random glow color, fading down
+                for k in range(2):
+                    cx = int(6 + _hash01(sd, py_i, px_i, k) * (PANEL - 12))
+                    half_w = 2 + int(_hash01(sd, py_i, px_i, k + 5) * 3)
+                    if abs(xx - cx) <= half_w:
+                        glow = glows[int(_hash01(sd, py_i, px_i, k + 9) * len(glows)) % len(glows)]
+                        w = glow_strength * (1.0 - yy / PANEL) * (1.0 - abs(xx - cx) / (half_w + 1))
+                        r = r * (1 - w) + glow[0] * w
+                        g = g * (1 - w) + glow[1] * w
+                        b = b * (1 - w) + glow[2] * w
+            _put(px, S, x, y, r, g, b)
+    _write_fill(theme, px)
+
+
 def render_ground_cap(theme, cap, fleck=None, fleck_chance=0.0):
     """Walkable cap band (256x64 = 2 x 0.5 u, horizontally seamless) FloorTerrain lays along
     every floor-run top: a near-black baked outline at the very top (the landable line), a
@@ -516,3 +550,11 @@ if __name__ == "__main__":
     render_ground_fill_panels("Kvartal", (100, 106, 100), stain_strength=0.18)
     render_ground_cap("Kvartal", (92, 114, 76), fleck=(130, 148, 108), fleck_chance=0.008)
     remove_legacy("Kvartal")
+
+    # Neon Nightfall: wet night promenade - large dark violet tiles catching cyan/pink
+    # reflections from the glowing city, fairy-light glints along the walkable cap.
+    render_plateau("Neon", (54, 48, 76), line=(24, 20, 38), blocks=1)
+    render_islands("Neon", (54, 48, 76), line=(24, 20, 38))
+    render_ground_fill_wetpave("Neon", (44, 38, 62))
+    render_ground_cap("Neon", (58, 52, 82), fleck=(120, 230, 250), fleck_chance=0.014)
+    remove_legacy("Neon")

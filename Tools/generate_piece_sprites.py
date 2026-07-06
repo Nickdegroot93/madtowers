@@ -173,6 +173,25 @@ THEME_PRESETS = {
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
         "preview_bg": (32, 40, 36),
     },
+    # Neon Nightfall: saturated neon against the dark violet glowing-city sky. The one
+    # chapter that goes full arcade — every hue at high chroma, near-black outlines so
+    # the glow-colors pop like signage.
+    "Neon": {
+        "colors": {
+            "I": (72, 214, 232),    # electric cyan
+            "O": (240, 210, 80),    # neon yellow
+            "T": (196, 96, 224),    # hot violet
+            "S": (108, 210, 96),    # neon green
+            "Z": (238, 82, 120),    # hot pink-red
+            "J": (92, 122, 235),    # electric blue
+            "L": (240, 140, 70),    # neon orange
+            "Pip": (244, 96, 180),      # hot pink
+            "Domino": (168, 88, 200),   # purple glow
+        },
+        "outline": 0.18,
+        "edgeShine": {"Pip": 0.15, "Domino": 0.15},
+        "preview_bg": (40, 34, 60),
+    },
     # Sakura Ridge: muted ukiyo-e / washi tones. These belong to the background's
     # sakura, Fuji, temple indigo, and coral highlights; readability comes from the
     # outline/shape language rather than neon opposite colors.

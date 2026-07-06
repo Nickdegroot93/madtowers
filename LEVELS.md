@@ -239,6 +239,16 @@ kvartal-4 A/B music
 | Curfew Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
 | Antenna Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
 
+**Chapter: Neon Nightfall (sortOrder 70)** — imported Glowing City pack as a waterfront
+skyline (three hand-placed building bands + far strip, generated `water_neon` band, two
+drifting boat strips, fairy-light promenade + vine-fence foreground), Neon skin folder
+with the wet-pavement floor, neon-nightfall menu art, neon-nightfall A/B music
+| Level | Mode | Goal | Notes |
+|---|---|---|---|
+| The Waterfront | GameMode_Classic | Place 100 | Stacking endurance, glowing-city dressing. |
+| Voltage Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
+| Penthouse Run | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+
 | Path | Contents |
 |---|---|
 | `Assets/Resources/Chapters/` | ChapterDefinition assets. **Must stay here** (loaded by path at runtime). |

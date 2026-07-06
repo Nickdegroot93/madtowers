@@ -103,6 +103,7 @@ render_ground_cap("<Theme>", (r, g, b),                   # cap band colour
   | `render_ground_fill_strata` | sedimentary layers + cracks; cool palette + pale flecks = glacier ice | Desert, Winter |
   | `render_ground_fill_cobble` | packed irregular rounded stones, mossy joints | Jungle |
   | `render_ground_fill_panels` | 0.5 u slabs; `stain_strength>0` = weeping concrete prefab panels, 0 = courtyard flagstones | Kvartal, Fangkuai |
+  | `render_ground_fill_wetpave` | wet night pavement: dark 0.5 u tiles, light-catching seams, neon reflection streaks (`glows` colors) | Neon |
 
 - `ground_cap.png` — 256×64 = **2×0.5 u, horizontally seamless**. Baked near-black top
   outline (THE landable line), top-lit band, scalloped shadowed lower edge, flecks.
