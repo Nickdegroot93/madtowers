@@ -9,6 +9,7 @@ Current packs:
 - `Assets/Art/ChapterPacks/Jungle Landscape`
 - `Assets/Art/ChapterPacks/Desert Vibe`
 - `Assets/Art/ChapterPacks/Japan Landscape`
+- `Assets/Art/ChapterPacks/Winter Mountain Landscape`
 
 Game-authored chapter presentation stays separate:
 

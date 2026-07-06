@@ -199,7 +199,7 @@ def render_ground_fill(theme, base, mortar_factor=0.32, tone_var=0.10):
             if in_mortar:
                 r, g, b = mortar_col
             else:
-                tone = 1.0 + (_hash01(hash(theme) & 0xffff, course, brick_col_idx) - 0.5) * 2 * tone_var
+                tone = 1.0 + (_hash01(zlib.crc32(theme.encode()) & 0xffff, course, brick_col_idx) - 0.5) * 2 * tone_var
                 f = tone
                 # Top-lit bevel inside the brick face (light from straight above, STYLE.md).
                 if yy < MORTAR + 5:
@@ -211,7 +211,7 @@ def render_ground_fill(theme, base, mortar_factor=0.32, tone_var=0.10):
                 elif xx >= BRICK - 3:
                     f *= 0.94
                 # Sparse pits for wear.
-                if _hash01(hash(theme) & 0xffff, x * 7, y * 13) > 0.985:
+                if _hash01(zlib.crc32(theme.encode()) & 0xffff, x * 7, y * 13) > 0.985:
                     f *= 0.72
                 f *= grain(x, y)
                 r, g, b = (base[0] * f, base[1] * f, base[2] * f)
@@ -237,7 +237,7 @@ def render_ground_cap(theme, cap, fleck=None, fleck_chance=0.0):
     outline_col = tuple(c * 0.22 for c in cap)
     for x in range(W):
         scallop = x // 32
-        jitter = (_hash01(hash(theme) & 0xffff, scallop) - 0.5) * 10
+        jitter = (_hash01(zlib.crc32(theme.encode()) & 0xffff, scallop) - 0.5) * 10
         import math as _m
         edge = 40 + 8 * _m.sin(x * _m.tau / 32.0) + jitter
         for y in range(H):
@@ -246,13 +246,13 @@ def render_ground_cap(theme, cap, fleck=None, fleck_chance=0.0):
                 r, g, b, a = (*outline_col, 255)
             elif y < edge:
                 f = 1.14 - 0.30 * ((y - OUTLINE) / max(1.0, edge - OUTLINE))
-                f *= 1.0 + (_hash01(hash(theme) & 0xffff, x // 16, 3) - 0.5) * 0.10
+                f *= 1.0 + (_hash01(zlib.crc32(theme.encode()) & 0xffff, x // 16, 3) - 0.5) * 0.10
                 f *= grain(x, y)
                 r, g, b = (cap[0] * f, cap[1] * f, cap[2] * f)
                 # Shadow lip along the scalloped edge.
                 if y > edge - 4:
                     r, g, b = (r * 0.62, g * 0.62, b * 0.62)
-                if fleck is not None and _hash01(hash(theme) & 0xffff, x * 3, y * 5) > 1.0 - fleck_chance:
+                if fleck is not None and _hash01(zlib.crc32(theme.encode()) & 0xffff, x * 3, y * 5) > 1.0 - fleck_chance:
                     r, g, b = fleck
                 a = 255
             else:
@@ -303,3 +303,13 @@ if __name__ == "__main__":
     render_ground_fill("Jungle", (82, 104, 80))
     render_ground_cap("Jungle", (96, 158, 74), fleck=(140, 196, 96), fleck_chance=0.012)
     remove_legacy("Jungle")
+
+    # Frozen Peaks: cold steel-blue stone under a deep snow cap - dark enough to hold
+    # its edge against the pale winter backdrop, capped in the same near-white as the
+    # imported snowfields so the floor belongs to the mountain.
+    render_plateau("Winter", (78, 92, 120), line=(36, 44, 62),
+                   blocks=1, top=(238, 243, 252), top_h=26)
+    render_islands("Winter", (78, 92, 120), line=(36, 44, 62))
+    render_ground_fill("Winter", (86, 98, 128))
+    render_ground_cap("Winter", (236, 242, 252), fleck=(190, 205, 235), fleck_chance=0.010)
+    remove_legacy("Winter")

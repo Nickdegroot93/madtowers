@@ -117,6 +117,25 @@ THEME_PRESETS = {
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
         "preview_bg": (34, 36, 42),
     },
+    # Frozen Peaks: frost-pulled hues under a pale alpine sky. Cool cast everywhere,
+    # but the warm identities (O/Z/L) survive as winter sun, rowan berry, and lantern
+    # amber so the 7 shapes stay tellable against the snow.
+    "Winter": {
+        "colors": {
+            "I": (126, 200, 216),   # glacial cyan
+            "O": (224, 198, 126),   # pale winter sun
+            "T": (162, 118, 192),   # frost lilac
+            "S": (108, 164, 128),   # frosted pine
+            "Z": (204, 96, 104),    # rowan berry
+            "J": (98, 124, 198),    # deep ice blue
+            "L": (216, 142, 92),    # lantern amber
+            "Pip": (208, 122, 178),     # cold pink
+            "Domino": (152, 102, 172),  # frozen violet
+        },
+        "outline": 0.24,
+        "edgeShine": {"Pip": 0.15, "Domino": 0.15},
+        "preview_bg": (186, 196, 222),
+    },
     # Sakura Ridge: muted ukiyo-e / washi tones. These belong to the background's
     # sakura, Fuji, temple indigo, and coral highlights; readability comes from the
     # outline/shape language rather than neon opposite colors.

@@ -211,6 +211,15 @@ jungle gameplay backdrop, jungle skin folder, jungle A/B music
 | Canopy Trial | GameMode_JungleLaserLimit | Place 65 | Height-limit waves with larger waves and fewer lives. |
 | Vine Ascent | GameMode_JungleNarrow3 | Reach 60m | Faster 3-column climb with denser side islands and stricter camera framing. |
 
+**Chapter: Frozen Peaks (sortOrder 40)** — imported Winter Mountain Landscape gameplay
+backdrop (+ generated `clouds_winter` drift strip), Winter skin folder, frozen-peaks
+menu art, frozen-peaks A/B music
+| Level | Mode | Goal | Notes |
+|---|---|---|---|
+| The Snowline | GameMode_Classic | Place 100 | Stacking endurance, winter dressing. |
+| Whiteout Pass | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
+| Summit Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+
 | Path | Contents |
 |---|---|
 | `Assets/Resources/Chapters/` | ChapterDefinition assets. **Must stay here** (loaded by path at runtime). |

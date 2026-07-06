@@ -151,3 +151,4 @@ Where things go, so the system stays uniform:
 | Jungle Depths | `clouds jn` 0.12 | 28 green spores, a 0.34 | 5 small dark birds, fast, every 22–48s | — |
 | Barren Lands | `clouds 2 dsrt` 0.15 | 26 sand dust, a 0.6 | 1 vulture, slow, every 35–70s | 0.65 |
 | Sakura Ridge | `cloud1` 0.10 | 30 pink petals, a 0.7 | 3 cranes, stately, every 30–60s | — |
+| Frozen Peaks | `clouds_winter` 0.12 (generated strip — the pack ships no cloud layer) | 30 white snow, a 0.75, size 0.18 | 2 crows, every 30–60s | — |
