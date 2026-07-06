@@ -88,27 +88,37 @@ generated — never painted — by `Tools/generate_ground_sprite.py`. Two calls 
 its `__main__` block:
 
 ```python
-render_ground_fill("<Theme>", (r, g, b))                  # masonry base colour
+render_ground_fill_<style>("<Theme>", (r, g, b), ...)     # column material (see styles)
 render_ground_cap("<Theme>", (r, g, b),                   # cap band colour
                   fleck=(r, g, b), fleck_chance=0.012)    # optional flecks (petals, grains)
 ```
 
-- `ground_fill.png` — 128×128 = **1×1 world unit, seamless both axes**. Running-bond
-  0.5×0.25 u bricks: dark mortar (`mortar_factor`, default 0.32), per-brick tone spread
-  (`tone_var`, default 0.10), top-lit bevel, grain, sparse pits.
+- `ground_fill.png` — 128×128 = **1×1 world unit, seamless both axes**. One fill *style*
+  per theme — the material is a design choice, not always bricks:
+
+  | Style function | Reads as | Used by |
+  |---|---|---|
+  | `render_ground_fill` | running-bond bricks (0.5×0.25 u, mortar, bevel) | Classic |
+  | `render_ground_fill_ashlar` | giant staggered castle-wall stones (ishigaki) | Japan |
+  | `render_ground_fill_strata` | sedimentary layers + cracks; cool palette + pale flecks = glacier ice | Desert, Winter |
+  | `render_ground_fill_cobble` | packed irregular rounded stones, mossy joints | Jungle |
+  | `render_ground_fill_panels` | 0.5 u slabs; `stain_strength>0` = weeping concrete prefab panels, 0 = courtyard flagstones | Kvartal, Fangkuai |
+
 - `ground_cap.png` — 256×64 = **2×0.5 u, horizontally seamless**. Baked near-black top
   outline (THE landable line), top-lit band, scalloped shadowed lower edge, flecks.
 - Rerun `python3 Tools/generate_ground_sprite.py`. Import settings auto-apply to any
   `ground_*` file under `Assets/Resources/Skins/<Theme>/`. A theme without its own set
-  falls back to Classic. **New chapter look = two lines + rerun.**
+  falls back to Classic. **New chapter look = two lines + rerun.** All styles work with
+  every terrain shape (pillars, pockets, steps) — the runtime only needs the sizes and
+  seamlessness; outlines, depth shading and fog are added on top.
 
-**Want something that isn't bricks?** Two sanctioned paths:
+**Want yet another material?** Two sanctioned paths:
 
 1. **Hand-drop override**: place ANY seamless 128×128 PNG named `ground_fill.png` (and a
-   256×64 `ground_cap.png`) in the theme folder — smooth earth, wood planks, ice, circuit
+   256×64 `ground_cap.png`) in the theme folder — smooth earth, wood planks, circuit
    board, whatever. Import settings apply automatically; the runtime doesn't care what the
    pixels are, only the sizes. Follow STYLE.md's lighting language to keep it cohesive.
-2. **New render function** in `generate_ground_sprite.py` (e.g. `render_ground_fill_planks`)
+2. **New render function** in `generate_ground_sprite.py` (like the five above)
    writing the same file name/size — keeps the "everything is regenerable" property. Never
    fork the pipeline; add a function + preset parameters.
 

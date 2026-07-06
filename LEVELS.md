@@ -229,6 +229,16 @@ fangkuai-district menu art, fangkuai-district A/B music
 | Firecracker Alley | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
 | Pagoda Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
 
+**Chapter: Kvartal 4 (sortOrder 60)** — imported Sovietwave Panel Buildings pack as a
+hand-placed night skyline (individual panelka sprites + treeline/fence strips + pack moon,
+generated `clouds_night` drift strip), Kvartal skin folder, kvartal-4 menu art,
+kvartal-4 A/B music
+| Level | Mode | Goal | Notes |
+|---|---|---|---|
+| Panelka Row | GameMode_Classic | Place 100 | Stacking endurance, sovietwave night dressing. |
+| Curfew Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
+| Antenna Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+
 | Path | Contents |
 |---|---|
 | `Assets/Resources/Chapters/` | ChapterDefinition assets. **Must stay here** (loaded by path at runtime). |
@@ -238,8 +248,8 @@ fangkuai-district menu art, fangkuai-district A/B music
 | `Assets/Data/LegacyLevels/` | Retired LevelDefinition assets kept for reference; not loaded by runtime menus. |
 | `Assets/Data/Modifiers/` | Shared or chapter-specific LevelModifier assets. |
 | `Assets/Art/Chapters/` | Chapter menu background images, referenced directly by ChapterDefinition. |
-| `Assets/Audio/Music/` | Chapter music clips, referenced directly by ChapterDefinition. |
-| `Assets/Audio/Source~/` | Ignored source audio exports, such as pre-conversion WAVs. |
+| `Assets/Data/Audio/Music/` | Chapter music clips, referenced directly by ChapterDefinition. |
+| `Assets/Data/Audio/Source~/` | Ignored source audio exports, such as pre-conversion WAVs. |
 | `Assets/Resources/Audio/Music/` | Menu music only, loaded by path. |
 | `Assets/Resources/Skins/<Theme>/` | Runtime-loaded chapter skin sprites (`piece_*`, `plateau`, `island_*`, optional `laser`). |
 | `Assets/SourceFiles/Scripts/Levels/Modifiers/` | LevelModifier behaviour classes (code). |
@@ -395,7 +405,7 @@ a chapter's `levels` array at the position it should play. The menu groups by ch
    `generate_ground_sprite.py`) writing to `Resources/Skins/<Chapter>/`; set the chapter's
    `skinFolder`. Missing files fall back to Classic file-by-file, so a ground-only skin
    is fine.
-4. Music: 1–2 tracks in `Assets/Audio/Music/`, dragged onto `musicPlaylist`
+4. Music: 1–2 tracks in `Assets/Data/Audio/Music/`, dragged onto `musicPlaylist`
    (random opener, then rotating; survives level restarts, stops on game over).
    Specs in ART.md.
 5. Levels: per the "New level" recipe, each with a one-sentence `instruction`.

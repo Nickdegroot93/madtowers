@@ -156,3 +156,4 @@ Where things go, so the system stays uniform:
 | Sakura Ridge | `cloud1` 0.10 | 30 pink petals, a 0.7 | 3 cranes, stately, every 30–60s | — |
 | Frozen Peaks | `clouds_winter` 0.12 (generated strip — the pack ships no cloud layer) | 30 white snow, a 0.75, size 0.18 | 2 crows, every 30–60s | — |
 | Fangkuai District | `clouds_dusk` 0.11 (generated strip) | 26 warm ember motes, a 0.55 | 2 small dark birds, every 25–55s | — |
+| Kvartal 4 | `clouds_night` 0.10 (generated strip) | 18 sparse snow, a 0.5 | 3 grey pigeons, every 28–60s | — (warm glow overlays: generated `glow_moon`/`glow_city`/`glow_lantern` alpha-gradient rebuilds of the pack's additive lights, plus a `glow_wash` full-screen fillView tint (170,100,45 @ a 0.08) as the LAST layer — the nostalgic warm grade over the whole backdrop; see ASSET_IMPORTS.md) |

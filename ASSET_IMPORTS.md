@@ -15,6 +15,7 @@ Current packs:
 - `Assets/Art/ChapterPacks/Japan Landscape`
 - `Assets/Art/ChapterPacks/Winter Mountain Landscape`
 - `Assets/Art/ChapterPacks/Chinese City`
+- `Assets/Art/ChapterPacks/Sovietwave Panel Buildings`
 
 Game-authored chapter presentation stays separate:
 
@@ -64,7 +65,8 @@ strip**, and using the wrong kind causes most visual bugs:
 | Horizon/scenery strip | very wide (ratio ≥ ~2.5:1), solid opaque **bottom row**, silhouette top | Parallax layers, far → near |
 | Hand-placed mass | straight **vertical** edges, content doesn't reach the sides | **Don't tile it** — skip, or place once with `worldOffsetX`, tileRadius 0 |
 | Reflection variant | mirrored ghost copy below the scenery | Skip (made for the pack's lake demo) |
-| Overlays (light/shadow/halftone/sun sheets) | screen-sized gradients, particle sheets, animation frames | Skip — our ambience system covers this |
+| Overlays (light/shadow/halftone/sun sheets) | screen-sized gradients, particle sheets, animation frames | Usually skip — but see below when the pack's LOOK depends on them |
+| Glow lights (moon halo, lanterns, city glow) | **opaque** color fills with no alpha falloff — built for the pack's additive shader | Don't use directly (they render as solid blocks). Rebuild as alpha-gradient sprites: `Tools/generate_glow_sprite.py radial\|band\|wash "<r,g,b>" <peak_alpha> <out.png>`, layer at the light source's position. For a whole-scene color grade (nostalgic warm cast), add a `wash` sprite as the LAST layer with `fillView: 1` and a low layer `alpha` (~0.08) — Kvartal 4 is the reference for all of these. Author glows BIG with LOW peaks; dense saturated discs read as spotlights |
 
 Also check the plate for a **baked horizontal seam** (a hard tone step below its horizon —
 common in these packs). It will be exposed mid-climb when the scenery strips sink. Fix: write a

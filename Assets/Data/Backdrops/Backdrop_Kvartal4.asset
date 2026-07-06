@@ -1,0 +1,351 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6a09387ee174200b39a756e32adb89b, type: 3}
+  m_Name: Backdrop_Kvartal4
+  m_EditorClassIdentifier: Assembly-CSharp::BackdropPreset
+  skyTopLow: {r: 0.05, g: 0.08, b: 0.06, a: 1}
+  skyBottomLow: {r: 0.1, g: 0.15, b: 0.11, a: 1}
+  skyTopHigh: {r: 0.03, g: 0.05, b: 0.04, a: 1}
+  skyBottomHigh: {r: 0.07, g: 0.11, b: 0.08, a: 1}
+  altitudeFadeMeters: 30
+  skyShimmerAmount: 0.12
+  skyShimmerPeriodMeters: 20
+  sunEnabled: 0
+  sunColor: {r: 0.85, g: 0.8, b: 0.55, a: 0.3}
+  sunSize: 3
+  sunScreenX: 0.3
+  sunHeightMeters: 26
+  propCount: 0
+  propColor: {r: 0.42, g: 0.55, b: 0.38, a: 1}
+  propScaleRange: {x: 1.4, y: 2.2}
+  cloudCount: 0
+  cloudStyle: 0
+  cloudColor: {r: 0.23, g: 0.27, b: 0.24, a: 0.5}
+  cloudDriftSpeed: 0.1
+  cloudScaleRange: {x: 2.5, y: 4.5}
+  hillsEnabled: 0
+  hillStyle: 0
+  hillFarColor: {r: 0.14, g: 0.11, b: 0.08, a: 1}
+  hillNearColor: {r: 0.1, g: 0.08, b: 0.06, a: 1}
+  groundFogColor: {r: 0, g: 0, b: 0, a: 0}
+  spriteBackdropLayers:
+  - sprite: {fileID: 21300000, guid: 55c04e091d4824b738a17765c7f35fe8, type: 3}
+    worldHeight: 34
+    floorOffsetY: 0
+    worldOffsetX: 0
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.7
+    horizontalParallax: 1
+    driftSpeedX: 0
+    fillView: 1
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: ee4544b531924330a4e0a46e1a284cb9, type: 3}
+    worldHeight: 5
+    floorOffsetY: 14
+    worldOffsetX: 0
+    horizontalTileRadius: 2
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.88
+    horizontalParallax: 0.78
+    driftSpeedX: 0.1
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 0.55
+  - sprite: {fileID: 21300000, guid: 8803bcde25a24e45a8e966a57cd27585, type: 3}
+    worldHeight: 19
+    floorOffsetY: 12.8
+    worldOffsetX: -5.5
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.92
+    horizontalParallax: 0.9
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: ae07fc92096fb2d498df4fb3502d081d, type: 3}
+    worldHeight: 2.6
+    floorOffsetY: 21
+    worldOffsetX: -5.5
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.92
+    horizontalParallax: 0.9
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: 9c4d1dc244cb2429e8c62682d8403eb4, type: 3}
+    worldHeight: 7.5
+    floorOffsetY: 3
+    worldOffsetX: -7.5
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.42
+    horizontalParallax: 0.44
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: d2cdfb14c1f7c9040892c264006ff047, type: 3}
+    worldHeight: 7
+    floorOffsetY: 3.2
+    worldOffsetX: -4
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.42
+    horizontalParallax: 0.43
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: a1ef4747aa39d324aa516106f172338d, type: 3}
+    worldHeight: 5
+    floorOffsetY: 3
+    worldOffsetX: 0.2
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.42
+    horizontalParallax: 0.42
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: a26c3f51e27194ed8a9ed65eb93f16a8, type: 3}
+    worldHeight: 6
+    floorOffsetY: 3.1
+    worldOffsetX: 3.8
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.42
+    horizontalParallax: 0.41
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: 9ddf465e87db84d30a8603810c7046dc, type: 3}
+    worldHeight: 4.5
+    floorOffsetY: 3
+    worldOffsetX: 7.6
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.42
+    horizontalParallax: 0.4
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: 813d32e2795a44e2a64acc0559abbc26, type: 3}
+    worldHeight: 6.5
+    floorOffsetY: 1.4
+    worldOffsetX: 0
+    horizontalTileRadius: 2
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.35
+    horizontalParallax: 0.3
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: d4d9d9c99e5c24845a1beda18b1c1814, type: 3}
+    worldHeight: 4.2
+    floorOffsetY: 2.2
+    worldOffsetX: 0
+    horizontalTileRadius: 2
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.3
+    horizontalParallax: 0.28
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0.059, g: 0.059, b: 0.059, a: 1}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: 4fb758f456d6f407ab453a41c1c7af9a, type: 3}
+    worldHeight: 9
+    floorOffsetY: 0.6
+    worldOffsetX: -6.5
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.2
+    horizontalParallax: 0.19
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: 0c9368e0ae8788e43be9ea07dfdd9f81, type: 3}
+    worldHeight: 9.5
+    floorOffsetY: 0.5
+    worldOffsetX: -1.5
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.2
+    horizontalParallax: 0.185
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: 2113cc15526564a6990e1ff2970e47e9, type: 3}
+    worldHeight: 8
+    floorOffsetY: 0.6
+    worldOffsetX: 3.2
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.2
+    horizontalParallax: 0.18
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: f291a312a27ff4ac9a75c6d12b4f9c92, type: 3}
+    worldHeight: 8.5
+    floorOffsetY: 0.5
+    worldOffsetX: 8
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.2
+    horizontalParallax: 0.175
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: ec11468d2e0a4f846accfff5503d3797, type: 3}
+    worldHeight: 4.5
+    floorOffsetY: 0.3
+    worldOffsetX: 0
+    horizontalTileRadius: 2
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.14
+    horizontalParallax: 0.12
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: dfd7abe9c40aa654f9f6e9f2db5b7141, type: 3}
+    worldHeight: 3.2
+    floorOffsetY: -0.6
+    worldOffsetX: 0
+    horizontalTileRadius: 2
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.1
+    horizontalParallax: 0.08
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0.063, g: 0.082, b: 0.075, a: 1}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: f936eb87aced145af82b81a197118f28, type: 3}
+    worldHeight: 10
+    floorOffsetY: -2.5
+    worldOffsetX: -7
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.06
+    horizontalParallax: 0.05
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: ef2af42bd35269345a7a7e10ae0b8da5, type: 3}
+    worldHeight: 9.5
+    floorOffsetY: -2.5
+    worldOffsetX: 2.5
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.06
+    horizontalParallax: 0.048
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: 7b50315bdb25d468f83fb7cc613a56f0, type: 3}
+    worldHeight: 7
+    floorOffsetY: -2.3
+    worldOffsetX: 8.5
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.06
+    horizontalParallax: 0.046
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: 1e691788c992fd84385e5bf910236a1b, type: 3}
+    worldHeight: 4
+    floorOffsetY: -3
+    worldOffsetX: 0
+    horizontalTileRadius: 2
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.02
+    horizontalParallax: 0.03
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0.059, g: 0.059, b: 0.059, a: 1}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: b9e69c4a38ed6b24db21cb4dae3f6c28, type: 3}
+    worldHeight: 1.5
+    floorOffsetY: -3.8
+    worldOffsetX: 0
+    horizontalTileRadius: 2
+    horizontalTileOverlap: 0.3
+    verticalParallax: 0
+    horizontalParallax: 0.02
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0.059, g: 0.059, b: 0.059, a: 1}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: f5d8c6bc29c954648827f162ddc700dd, type: 3}
+    worldHeight: 2.7
+    floorOffsetY: -3.75
+    worldOffsetX: 4.6
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0
+    horizontalParallax: 0.02
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: 5d80428c567940d98364fdb3850548b4, type: 3}
+    worldHeight: 5.5
+    floorOffsetY: -4.3
+    worldOffsetX: 4.6
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0
+    horizontalParallax: 0.02
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
+  - sprite: {fileID: 21300000, guid: 27ac8c4e2cbd4c0f99c2969c1bbb0fb6, type: 3}
+    worldHeight: 0
+    floorOffsetY: 0
+    worldOffsetX: 0
+    horizontalTileRadius: 0
+    horizontalTileOverlap: 0.08
+    verticalParallax: 1
+    horizontalParallax: 1
+    driftSpeedX: 0
+    fillView: 1
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 0.08
+  particleCount: 18
+  particleColor: {r: 1, g: 1, b: 1, a: 0.5}
+  particleSize: 0.14
+  particleFallSpeed: 0.5
+  particleSwayAmount: 0.7
+  heatHazeAmount: 0
+  flybyFlockSize: 3
+  flybyColor: {r: 0.55, g: 0.57, b: 0.55, a: 0.8}
+  flybyIntervalSeconds: {x: 28, y: 60}
+  flybySpeed: 2.4
+  flybyScale: 0.9

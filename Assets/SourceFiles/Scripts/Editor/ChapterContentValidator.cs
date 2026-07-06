@@ -156,8 +156,13 @@ public static class ChapterContentValidator
 
             if (layer.FillView)
             {
-                fillLayers++;
-                if (i != 0)
+                // A translucent LAST layer with fillView is a full-screen tint overlay —
+                // the deliberate color-grade pattern (e.g. Kvartal 4's glow_wash), which
+                // hides nothing. A translucent fillView layer anywhere else in the stack
+                // is still almost certainly an authoring mistake, so it keeps the warning.
+                bool isTintOverlay = layer.Alpha < 0.5f && i == layers.Count - 1;
+                if (!isTintOverlay) fillLayers++;
+                if (i != 0 && !isTintOverlay)
                 {
                     Warning($"Backdrop '{preset.name}' layer {i} ('{layer.Sprite.name}') is fillView but not the first layer; it will cover every layer behind it.", preset, ref warnings);
                 }

@@ -154,6 +154,25 @@ THEME_PRESETS = {
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
         "preview_bg": (96, 72, 96),
     },
+    # Kvartal 4: sovietwave night — cold desaturated concrete-district tones with
+    # sodium-lamp and neon accents. Hue identities survive in muted form against the
+    # near-black green sky.
+    "Kvartal": {
+        "colors": {
+            "I": (108, 182, 190),   # cold teal
+            "O": (216, 186, 110),   # sodium-lamp gold
+            "T": (158, 112, 186),   # violet neon
+            "S": (110, 160, 106),   # courtyard green
+            "Z": (198, 92, 96),     # brick red
+            "J": (96, 118, 190),    # night indigo
+            "L": (208, 138, 88),    # rust orange
+            "Pip": (212, 108, 156),     # neon pink
+            "Domino": (148, 96, 160),   # violet dusk
+        },
+        "outline": 0.24,
+        "edgeShine": {"Pip": 0.15, "Domino": 0.15},
+        "preview_bg": (32, 40, 36),
+    },
     # Sakura Ridge: muted ukiyo-e / washi tones. These belong to the background's
     # sakura, Fuji, temple indigo, and coral highlights; readability comes from the
     # outline/shape language rather than neon opposite colors.

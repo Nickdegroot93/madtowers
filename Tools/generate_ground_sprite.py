@@ -187,6 +187,7 @@ def render_ground_fill(theme, base, mortar_factor=0.32, tone_var=0.10):
     S, COURSE, BRICK, MORTAR = 128, 32, 64, 4
     px = bytearray(S * S * 4)
     mortar_col = tuple(c * mortar_factor for c in base)
+    sd = _seed(theme)
     for y in range(S):
         course = y // COURSE
         yy = y % COURSE
@@ -199,7 +200,7 @@ def render_ground_fill(theme, base, mortar_factor=0.32, tone_var=0.10):
             if in_mortar:
                 r, g, b = mortar_col
             else:
-                tone = 1.0 + (_hash01(zlib.crc32(theme.encode()) & 0xffff, course, brick_col_idx) - 0.5) * 2 * tone_var
+                tone = 1.0 + (_hash01(sd, course, brick_col_idx) - 0.5) * 2 * tone_var
                 f = tone
                 # Top-lit bevel inside the brick face (light from straight above, STYLE.md).
                 if yy < MORTAR + 5:
@@ -211,19 +212,200 @@ def render_ground_fill(theme, base, mortar_factor=0.32, tone_var=0.10):
                 elif xx >= BRICK - 3:
                     f *= 0.94
                 # Sparse pits for wear.
-                if _hash01(zlib.crc32(theme.encode()) & 0xffff, x * 7, y * 13) > 0.985:
+                if _hash01(sd, x * 7, y * 13) > 0.985:
                     f *= 0.72
                 f *= grain(x, y)
                 r, g, b = (base[0] * f, base[1] * f, base[2] * f)
-            o = (y * S + x) * 4
-            px[o] = min(255, max(0, int(r)))
-            px[o + 1] = min(255, max(0, int(g)))
-            px[o + 2] = min(255, max(0, int(b)))
-            px[o + 3] = 255
+            _put(px, S, x, y, r, g, b)
+    _write_fill(theme, px)
+
+
+def _seed(theme):
+    return zlib.crc32(theme.encode()) & 0xffff
+
+
+def _write_fill(theme, px, S=128):
     out_dir = os.path.join(SKINS_DIR, theme)
+    os.makedirs(out_dir, exist_ok=True)
     out = os.path.abspath(os.path.join(out_dir, "ground_fill.png"))
     write_png(out, S, S, px)
     print(f"{out}  ({S}x{S})")
+
+
+def _put(px, S, x, y, r, g, b):
+    o = (y * S + x) * 4
+    px[o] = min(255, max(0, int(r)))
+    px[o + 1] = min(255, max(0, int(g)))
+    px[o + 2] = min(255, max(0, int(b)))
+    px[o + 3] = 255
+
+
+def render_ground_fill_panels(theme, base, seam_factor=0.35, tone_var=0.05, stain_strength=0.0):
+    """Large slab paving: 0.5x0.5 u panels (64 px) with thin seams — prefab concrete
+    (stain_strength > 0 adds weep streaks bleeding down from the seams: sovietwave
+    panelka) or, stains off, big courtyard flagstones. Seamless both axes."""
+    S, PANEL, SEAM = 128, 64, 3
+    px = bytearray(S * S * 4)
+    seam_col = tuple(c * seam_factor for c in base)
+    sd = _seed(theme)
+    for y in range(S):
+        py_i, yy = y // PANEL, y % PANEL
+        for x in range(S):
+            px_i, xx = x // PANEL, x % PANEL
+            if yy < SEAM or xx < SEAM:
+                r, g, b = seam_col
+            else:
+                f = 1.0 + (_hash01(sd, py_i, px_i) - 0.5) * 2 * tone_var
+                # panel bevel: lit top edge, shaded bottom/right (light from above)
+                if yy < SEAM + 3:
+                    f *= 1.10
+                elif yy >= PANEL - 3:
+                    f *= 0.90
+                if xx >= PANEL - 3:
+                    f *= 0.95
+                # weep stains: darker vertical streaks below the top seam, per panel
+                if stain_strength > 0:
+                    for k in range(2):
+                        sx = int(6 + _hash01(sd, py_i, px_i, k) * (PANEL - 12))
+                        ln = int(PANEL * (0.35 + 0.5 * _hash01(sd, py_i, px_i, k + 7)))
+                        if abs(xx - sx) <= 1 and yy < ln:
+                            f *= 1.0 - stain_strength * (1.0 - yy / max(1, ln))
+                if _hash01(sd, x * 7, y * 13) > 0.988:
+                    f *= 0.74
+                f *= grain(x, y)
+                r, g, b = (base[0] * f, base[1] * f, base[2] * f)
+            _put(px, S, x, y, r, g, b)
+    _write_fill(theme, px)
+
+
+def render_ground_fill_strata(theme, base, tone_var=0.08, line_factor=0.55,
+                              crack_chance=0.5, fleck=None, fleck_chance=0.0,
+                              bands=(24, 16, 32, 20, 36)):
+    """Sedimentary strata: horizontal bands of varying thickness, each with its own tone,
+    a darker parting line along every band top, occasional short vertical cracks —
+    desert sandstone, or (cool palette + pale flecks) packed glacier ice. Seamless."""
+    S = 128
+    BANDS = bands
+    assert sum(BANDS) == S, "strata bands must sum to 128 for vertical periodicity"
+    px = bytearray(S * S * 4)
+    sd = _seed(theme)
+    tops = []
+    t = 0
+    for h in BANDS:
+        tops.append(t)
+        t += h
+    for y in range(S):
+        band = 0
+        for i, top in enumerate(tops):
+            if y >= top:
+                band = i
+        yy = y - tops[band]
+        h = BANDS[band]
+        for x in range(S):
+            f = 1.0 + (_hash01(sd, band) - 0.5) * 2 * tone_var
+            if yy < 2:                      # parting line between layers
+                f *= line_factor
+            elif yy < 5:
+                f *= 1.08                   # lit top of the layer
+            elif yy >= h - 3:
+                f *= 0.90
+            # a few short vertical cracks per band, deterministic positions
+            for k in range(3):
+                if _hash01(sd, band, k) < crack_chance:
+                    cx = int(_hash01(sd, band, k + 11) * S)
+                    if (x - cx) % S <= 1 and 4 <= yy:
+                        f *= 0.72
+            if fleck is not None and _hash01(sd, x * 3, y * 5) > 1.0 - fleck_chance:
+                r, g, b = fleck
+                _put(px, S, x, y, r * grain(x, y), g * grain(x, y), b * grain(x, y))
+                continue
+            f *= grain(x, y)
+            _put(px, S, x, y, base[0] * f, base[1] * f, base[2] * f)
+    _write_fill(theme, px)
+
+
+def render_ground_fill_ashlar(theme, base, joint_factor=0.3, tone_var=0.07):
+    """Castle-wall ashlar: 0.25 u tall courses of LARGE blocks (whole- or half-tile wide,
+    per-course pattern and offset), thick dark joints, chiselled top-lit faces — Japanese
+    ishigaki foundation walls. Seamless both axes."""
+    S, COURSE, JOINT = 128, 64, 5
+    px = bytearray(S * S * 4)
+    joint_col = tuple(c * joint_factor for c in base)
+    sd = _seed(theme)
+    for y in range(S):
+        course, yy = y // COURSE, y % COURSE
+        # per-course: block width 64 or 128, plus an offset that preserves the 128 period
+        wide = _hash01(sd, course, 1) < 0.55
+        block_w = 128 if wide else 64
+        offset = int(_hash01(sd, course, 2) * 4) * 32
+        for x in range(S):
+            xs = (x + offset) % S
+            block_i, xx = xs // block_w, xs % block_w
+            if yy < JOINT or xx < JOINT:
+                r, g, b = joint_col
+            else:
+                f = 1.0 + (_hash01(sd, course, block_i, 3) - 0.5) * 2 * tone_var
+                if yy < JOINT + 6:
+                    f *= 1.14
+                elif yy >= COURSE - 4:
+                    f *= 0.88
+                if xx < JOINT + 3:
+                    f *= 1.04
+                elif xx >= block_w - 3:
+                    f *= 0.94
+                # chisel marks: faint striations; modulus must divide 128 so the
+                # lattice stays phase-aligned across tile seams
+                if (x * 3 + y * 5) % 8 == 0:
+                    f *= 0.968
+                f *= grain(x, y)
+                r, g, b = (base[0] * f, base[1] * f, base[2] * f)
+            _put(px, S, x, y, r, g, b)
+    _write_fill(theme, px)
+
+
+def render_ground_fill_cobble(theme, base, joint_factor=0.35, tone_var=0.12, joint=None):
+    """Irregular rounded cobbles: a jittered 0.25 u grid of stones, nearest-stone lookup
+    with toroidal wrapping (seamless both axes), mossy joints between them — jungle ruin
+    paving. Per-stone tone, edge-shaded rims."""
+    S, CELL = 128, 32
+    N = S // CELL
+    px = bytearray(S * S * 4)
+    sd = _seed(theme)
+    joint_col = joint if joint is not None else tuple(c * joint_factor for c in base)
+    centers = {}
+    for cy in range(N):
+        for cx in range(N):
+            jx = (_hash01(sd, cx, cy, 1) - 0.5) * 8
+            jy = (_hash01(sd, cx, cy, 2) - 0.5) * 8
+            centers[(cx, cy)] = (cx * CELL + CELL / 2 + jx, cy * CELL + CELL / 2 + jy,
+                                 16 + _hash01(sd, cx, cy, 3) * 5)
+    for y in range(S):
+        for x in range(S):
+            best, best_d = None, 1e9
+            for oy in (-1, 0, 1):
+                for ox in (-1, 0, 1):
+                    cx = (x // CELL + ox) % N
+                    cy = (y // CELL + oy) % N
+                    sx, sy, r0 = centers[(cx, cy)]
+                    # wrapped distance (torus) keeps the tile seamless
+                    dx = (x - sx + S * 1.5) % S - S * 0.5
+                    dy = (y - sy + S * 1.5) % S - S * 0.5
+                    d = (dx * dx + dy * dy) ** 0.5 - r0
+                    if d < best_d:
+                        best_d, best = d, (cx, cy, r0)
+            if best_d < -1.5:
+                f = 1.0 + (_hash01(sd, best[0], best[1], 4) - 0.5) * 2 * tone_var
+                f *= 1.0 + 0.12 * min(1.0, -best_d / 10.0)     # domed center
+                f *= grain(x, y)
+                r, g, b = (base[0] * f, base[1] * f, base[2] * f)
+            elif best_d < 0:
+                f = 0.72 * grain(x, y)                          # shaded rim
+                r, g, b = (base[0] * f, base[1] * f, base[2] * f)
+            else:
+                f = grain(x, y)
+                r, g, b = (joint_col[0] * f, joint_col[1] * f, joint_col[2] * f)
+            _put(px, S, x, y, r, g, b)
+    _write_fill(theme, px)
 
 
 def render_ground_cap(theme, cap, fleck=None, fleck_chance=0.0):
@@ -235,9 +417,10 @@ def render_ground_cap(theme, cap, fleck=None, fleck_chance=0.0):
     W, H, OUTLINE = 256, 64, 6
     px = bytearray(W * H * 4)
     outline_col = tuple(c * 0.22 for c in cap)
+    sd = _seed(theme)
     for x in range(W):
         scallop = x // 32
-        jitter = (_hash01(zlib.crc32(theme.encode()) & 0xffff, scallop) - 0.5) * 10
+        jitter = (_hash01(sd, scallop) - 0.5) * 10
         import math as _m
         edge = 40 + 8 * _m.sin(x * _m.tau / 32.0) + jitter
         for y in range(H):
@@ -246,13 +429,13 @@ def render_ground_cap(theme, cap, fleck=None, fleck_chance=0.0):
                 r, g, b, a = (*outline_col, 255)
             elif y < edge:
                 f = 1.14 - 0.30 * ((y - OUTLINE) / max(1.0, edge - OUTLINE))
-                f *= 1.0 + (_hash01(zlib.crc32(theme.encode()) & 0xffff, x // 16, 3) - 0.5) * 0.10
+                f *= 1.0 + (_hash01(sd, x // 16, 3) - 0.5) * 0.10
                 f *= grain(x, y)
                 r, g, b = (cap[0] * f, cap[1] * f, cap[2] * f)
                 # Shadow lip along the scalloped edge.
                 if y > edge - 4:
                     r, g, b = (r * 0.62, g * 0.62, b * 0.62)
-                if fleck is not None and _hash01(zlib.crc32(theme.encode()) & 0xffff, x * 3, y * 5) > 1.0 - fleck_chance:
+                if fleck is not None and _hash01(sd, x * 3, y * 5) > 1.0 - fleck_chance:
                     r, g, b = fleck
                 a = 255
             else:
@@ -282,7 +465,7 @@ if __name__ == "__main__":
     render_plateau("Japan", (74, 75, 116), line=(34, 34, 62),
                    blocks=1, top=(232, 145, 138), top_h=24)
     render_islands("Japan", (74, 75, 116), line=(34, 34, 62))
-    render_ground_fill("Japan", (88, 90, 128))
+    render_ground_fill_ashlar("Japan", (88, 90, 128))
     render_ground_cap("Japan", (150, 168, 128), fleck=(232, 145, 152), fleck_chance=0.010)
     remove_legacy("Japan")
 
@@ -291,7 +474,7 @@ if __name__ == "__main__":
     render_plateau("Desert", (206, 118, 82),
                    blocks=1, top=(243, 190, 132))
     render_islands("Desert", (206, 118, 82))
-    render_ground_fill("Desert", (182, 118, 78))
+    render_ground_fill_strata("Desert", (182, 118, 78))
     render_ground_cap("Desert", (238, 192, 124), fleck=(210, 158, 96), fleck_chance=0.012)
     remove_legacy("Desert")
 
@@ -300,7 +483,7 @@ if __name__ == "__main__":
     render_plateau("Jungle", (74, 103, 76), line=(35, 55, 43),
                    blocks=1, top=(83, 151, 79), top_h=30)
     render_islands("Jungle", (74, 103, 76), line=(35, 55, 43))
-    render_ground_fill("Jungle", (82, 104, 80))
+    render_ground_fill_cobble("Jungle", (86, 106, 84), joint=(38, 56, 40))
     render_ground_cap("Jungle", (96, 158, 74), fleck=(140, 196, 96), fleck_chance=0.012)
     remove_legacy("Jungle")
 
@@ -310,7 +493,9 @@ if __name__ == "__main__":
     render_plateau("Winter", (78, 92, 120), line=(36, 44, 62),
                    blocks=1, top=(238, 243, 252), top_h=26)
     render_islands("Winter", (78, 92, 120), line=(36, 44, 62))
-    render_ground_fill("Winter", (86, 98, 128))
+    render_ground_fill_strata("Winter", (96, 110, 142), tone_var=0.05, line_factor=0.62,
+                              crack_chance=0.35, fleck=(198, 214, 240), fleck_chance=0.004,
+                              bands=(36, 20, 28, 44))
     render_ground_cap("Winter", (236, 242, 252), fleck=(190, 205, 235), fleck_chance=0.010)
     remove_legacy("Winter")
 
@@ -319,6 +504,15 @@ if __name__ == "__main__":
     render_plateau("Fangkuai", (84, 62, 90), line=(38, 26, 42),
                    blocks=1, top=(206, 116, 138), top_h=24)
     render_islands("Fangkuai", (84, 62, 90), line=(38, 26, 42))
-    render_ground_fill("Fangkuai", (92, 68, 98))
+    render_ground_fill_panels("Fangkuai", (96, 72, 102), tone_var=0.11)
     render_ground_cap("Fangkuai", (204, 118, 140), fleck=(236, 152, 170), fleck_chance=0.010)
     remove_legacy("Fangkuai")
+
+    # Kvartal 4: sovietwave panel concrete - grey-green slabs under a worn courtyard-grass
+    # cap, dark enough to belong to the night district without vanishing into it.
+    render_plateau("Kvartal", (96, 104, 98), line=(44, 48, 45),
+                   blocks=2, bevel=0.10, tone_steps=(1.0, 0.94), top=(88, 108, 72), top_h=22)
+    render_islands("Kvartal", (96, 104, 98), line=(44, 48, 45))
+    render_ground_fill_panels("Kvartal", (100, 106, 100), stain_strength=0.18)
+    render_ground_cap("Kvartal", (92, 114, 76), fleck=(130, 148, 108), fleck_chance=0.008)
+    remove_legacy("Kvartal")
