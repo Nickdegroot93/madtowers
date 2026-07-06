@@ -7,7 +7,7 @@ public class HardlineAbility : PassiveAbility
     [Header("Presentation")]
     [SerializeField] private Color laserColor = new Color(0.78f, 0.28f, 1f, 1f);
     [SerializeField] private float laserYOffset = 0.34f;
-    [SerializeField] private int laserSortingOrder = -7;
+    [SerializeField] private int laserSortingOrder = -54; // just in front of Sacrifice's -55, still behind the ground fill (-50) with the +3 pulse offset
 
     [Header("Catch")]
     [SerializeField] private float settleSeconds = 0.2f;
@@ -28,6 +28,7 @@ public class HardlineAbility : PassiveAbility
 
     public override int LossInterceptPriority => HardlinePriority;
     public override float LossInterceptLineOffset => Mathf.Max(0f, laserYOffset);
+    public override bool ShowsLossInterceptLine => true;
 
     public override void OnAcquired(AbilityContext context, int stacks)
     {
@@ -48,7 +49,7 @@ public class HardlineAbility : PassiveAbility
         if (block == null) return false;
 
         Camera cam = Camera.main;
-        float catchY = LossZone.CurrentLossLineY(cam) + laserYOffset;
+        float catchY = LossZone.InterceptLineY(cam) + laserYOffset; // the visible laser, where the sweep triggered
         SacrificeLaserLine.FlashAtLossLine(laserColor, laserYOffset);
 
         if (TryPlanPlatform(block, catchY, out Vector3 targetPosition, out float targetAngle))
@@ -85,7 +86,20 @@ public class HardlineAbility : PassiveAbility
 
         targetAngle = ChooseBestPlatformAngle(block, cells);
         Bounds angledBounds = CalculateBounds(cells, targetPosition, targetAngle);
-        targetPosition.y += catchY + Mathf.Max(0f, platformLiftAboveLaser) - angledBounds.min.y;
+
+        // The caught block becomes a permanent build surface, so it must sit ON the grid: its
+        // bottom on the first ROW boundary (datum + n*grid) at/above the laser, its cells in
+        // real COLUMNS (centres at n*grid). Otherwise every stack grown on the platform is
+        // forever half-a-cell off against stacks grown from the floor.
+        float grid = Mathf.Max(0.01f, block.GridSpacing);
+        float datumY = GameManager.Instance != null ? GameManager.Instance.floorOriginY : 0f;
+        float minBottom = catchY + Mathf.Max(0f, platformLiftAboveLaser);
+        float snappedBottom = datumY + Mathf.Ceil((minBottom - datumY) / grid - 0.001f) * grid;
+        targetPosition.y += snappedBottom - angledBounds.min.y;
+
+        float bottomCellCenterX = angledBounds.min.x + grid * 0.5f;
+        targetPosition.x += Mathf.Round(bottomCellCenterX / grid) * grid - bottomCellCenterX;
+
         targetPosition = ResolveOverlapNudge(block, cells, targetPosition, targetAngle);
         return true;
     }
@@ -169,8 +183,9 @@ public class HardlineAbility : PassiveAbility
         if (bestScore <= 0f) return targetPosition;
 
         Vector3 bestPosition = targetPosition;
-        float step = Mathf.Max(0.05f, block.GridSpacing * 0.25f);
-        int maxSteps = Mathf.CeilToInt(Mathf.Max(0f, maxOverlapNudgeColumns) * 4f);
+        // Whole-column steps: the incoming position is column-snapped and the nudge must keep it so.
+        float step = Mathf.Max(0.05f, block.GridSpacing);
+        int maxSteps = Mathf.CeilToInt(Mathf.Max(0f, maxOverlapNudgeColumns));
         int awayDirection = targetPosition.x >= EstimateTowerCenterX(block) ? 1 : -1;
 
         for (int i = 1; i <= maxSteps; i++)

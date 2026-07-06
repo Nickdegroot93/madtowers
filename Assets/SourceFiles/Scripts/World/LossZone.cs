@@ -51,6 +51,39 @@ public class LossZone : MonoBehaviour
         return camera != null && camera.orthographic && worldPosition.y < CullY(camera);
     }
 
+    // While a beam-drawing loss interceptor (Sacrifice/Hardline) is armed, interception happens
+    // at InterceptLineY instead: the loss line raised to ALWAYS sit a readable margin above the
+    // screen bottom, so the player sees the laser and watches the block get saved BEFORE it
+    // leaves the view. (The charge line's datum - 4 clamp is off-screen at tight zoom - a laser
+    // drawn there was invisible for the whole ground game.)
+    private const float InterceptLineScreenHeightFraction = 0.08f;
+
+    // The raised line must never rob a legitimate landing: top-open notch pockets (depth 1) can
+    // rest a cell centre as low as datum - 0.5, so near the ground the line stays this far under
+    // the datum. At altitude this clamp is moot (the camera-relative charge line is higher).
+    private const float InterceptLineClearanceBelowDatum = 0.75f;
+
+    /// <summary>The line at which armed loss-intercepting beams (Sacrifice/Hardline) sit and
+    /// trigger: the charge line, but never below the visible bottom band of the screen - clamped
+    /// near the ground so it can't eat a legit notch landing. Laser visuals and the sweep's
+    /// landed-intercept trigger consult THIS, never CurrentLossLineY, so the beam and the save
+    /// always agree.</summary>
+    public static float InterceptLineY(Camera camera)
+    {
+        float line = CurrentLossLineY(camera);
+        if (camera == null || !camera.orthographic) return line;
+
+        float visibleLine = camera.transform.position.y - camera.orthographicSize
+                            + camera.orthographicSize * 2f * InterceptLineScreenHeightFraction;
+        GameManager gm = GameManager.Instance;
+        if (gm != null)
+        {
+            visibleLine = Mathf.Min(visibleLine, gm.floorOriginY - InterceptLineClearanceBelowDatum);
+        }
+
+        return Mathf.Max(line, visibleLine);
+    }
+
     /// <summary>
     /// The highest line that can currently charge a bottom-screen loss. Early in a run
     /// the fixed trigger is usually the visible "hit" line; once the camera climbs, the
@@ -142,6 +175,12 @@ public class LossZone : MonoBehaviour
         float landedInterceptCullY = cullY;
         if (_abilities != null)
         {
+            // A beam-drawing interceptor triggers at its visible laser (InterceptLineY), never at
+            // the possibly off-screen charge line - the save must happen where the player looks.
+            if (_abilities.HasLossInterceptLine)
+            {
+                landedInterceptCullY = Mathf.Max(landedInterceptCullY, InterceptLineY(_camera));
+            }
             landedInterceptCullY += Mathf.Max(0f, _abilities.LossInterceptLineOffset);
         }
 
@@ -209,6 +248,18 @@ public class LossZone : MonoBehaviour
         BlockController block = rb.GetComponent<BlockController>();
         if (block != null)
         {
+            // The backstop fires on the FIRST cell that touches it - but for the still-steered
+            // active piece that can be one overhanging cell mid-way into a legitimate deep-pocket
+            // entry (the trigger top sits at datum - 4, pockets reach ~3 cells below the datum).
+            // Defer to the same whole-piece-below test the cull sweep uses; a piece that really
+            // keeps falling is caught by the sweep (or re-judged here) moments later.
+            if (!block.HasLanded)
+            {
+                if (_camera == null || !_camera.isActiveAndEnabled) _camera = Camera.main;
+                if (_camera != null && _camera.orthographic && !block.IsLostBelow(CullY(_camera)))
+                    return;
+            }
+
             ResolveLostBlock(block); // same once-guarded path as the screen-bottom cull
             return;
         }

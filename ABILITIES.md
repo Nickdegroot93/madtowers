@@ -115,6 +115,15 @@ state across runs (documented bug class — don't reintroduce it).
   destroy beam, so it wins first). `LossInterceptLineOffset` can raise the sweep line
   while an upper catch beam is armed, keeping the visual trigger and gameplay trigger
   aligned.
+- **Beam-drawing interceptors trigger at `LossZone.InterceptLineY`**, never at the
+  charge line: the charge line's datum − 4 clamp (pocket protection) sits BELOW the
+  screen at tight zoom, so a beam drawn there is invisible for the whole ground game
+  (July 2026). While any armed passive reports `ShowsLossInterceptLine` (Sacrifice,
+  Hardline), the sweep intercepts landed blocks at the raised line — always ~8% of the
+  screen height above the bottom edge, clamped 0.75 under the datum so it can never eat
+  a legit top-open-notch landing — and the laser visuals + Hardline's catch height read
+  the same value. Invisible interceptors (Rebound) leave the flag false and keep the
+  deep charge line; a run with no interceptor armed is untouched.
 - **Notification hooks** (`OnLifeLost`, `OnBlockSpawned`, combo fan-out): EVERY
   subscriber runs, in acquisition order; a charge is consumed right after the owning
   handler returns. Handlers observe live state mutated by earlier handlers.
@@ -492,9 +501,8 @@ block that falls below the loss line is destroyed before it can charge a life, t
 current topmost other landed block is destroyed as the cost. Both blocks use the shared
 impact composition (`BurstFromEveryCell` with the authored `impactEffect`,
 `impact_shatter_01`, `ImpactPunch`) so it reads as a real detonation, not silent cleanup.
-While armed, a layered blue laser line follows `LossZone.CurrentLossLineY`: the fixed
-trigger top early in the run, or the camera-relative cull once that becomes higher.
-`charges = 1`, `unique = true`.
+While armed, a layered blue laser line follows `LossZone.InterceptLineY` (the always-
+on-screen raised line — see §4). `charges = 1`, `unique = true`.
 
 ### Hardline (Epic, one-shot passive, unique)
 `HardlineAbility` is the constructive sibling of Sacrifice. While armed, it renders a
@@ -502,7 +510,10 @@ purple laser line slightly above Sacrifice's blue line and has a higher
 `LossInterceptPriority`, so if both are owned the visible upper catch line gets first
 refusal. The first **landed** block lost below the screen is immediately neutralised
 as kinematic, eased into a platform pose, and left as a `Static` Rigidbody2D that
-remains in `BlockController.AllBlocks` as real stackable terrain.
+remains in `BlockController.AllBlocks` as real stackable terrain. The platform pose is
+**grid-snapped** (July 2026): its bottom sits on the first row boundary (datum + n·grid)
+at/above the laser and its cells sit in real columns, with whole-column overlap nudges —
+stacks grown on the platform line up exactly with stacks grown from the floor.
 
 The platform pose is computed from the block's cell colliders, not hardcoded per shape:
 it tests the four cardinal rotations, maximises horizontal width, then breaks ties by

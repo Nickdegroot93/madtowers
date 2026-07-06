@@ -265,6 +265,22 @@ public class AbilityRuntime : MonoBehaviour
         }
     }
 
+    /// <summary>True while any armed passive renders a visible loss-line beam - LossZone then
+    /// triggers landed-block interception at the on-screen InterceptLineY (see PassiveAbility.
+    /// ShowsLossInterceptLine).</summary>
+    public bool HasLossInterceptLine
+    {
+        get
+        {
+            for (int i = 0; i < _owned.Count; i++)
+            {
+                if (_owned[i].Instance is PassiveAbility passive && passive.ShowsLossInterceptLine) return true;
+            }
+
+            return false;
+        }
+    }
+
     /// <summary>Highest-priority armed ability gets first refusal; ties use acquisition order.</summary>
     public bool TryInterceptLoss(BlockController block)
     {

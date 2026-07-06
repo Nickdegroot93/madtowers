@@ -366,12 +366,20 @@ public partial class BlockController : MonoBehaviour
 
     public bool IsLostBelow(float cullY)
     {
-        // Use the block's CENTRE, not its top: the death line should read as what destroys the
-        // block, so it's charged as the line passes through its middle - not after the whole
+        if (!TryGetWorldBounds(out Bounds bounds)) return false;
+
+        // The ACTIVE piece is judged by its TOP edge: while the player is steering, a low cell
+        // dipping under the line can be a legitimate deep-pocket entry (pockets reach ~3 cells
+        // below the datum, the line sits at datum - 4 - one overhanging cell of an L crosses it
+        // during a valid tuck). Only a piece ENTIRELY below the line is beyond saving - nothing
+        // landable exists down there, so no still-placeable piece is ever charged.
+        if (!HasLanded) return bounds.max.y < cullY;
+
+        // Landed blocks use the CENTRE, not the top: the death line should read as what destroys
+        // the block, so it's charged as the line passes through its middle - not after the whole
         // block has dropped a full height below the line (which looked like it fell THROUGH the
         // beam before dying).
-        if (!TryGetWorldBounds(out Bounds bounds) || bounds.center.y >= cullY) return false;
-        if (!HasLanded) return true;
+        if (bounds.center.y >= cullY) return false;
         return _rb != null && _rb.bodyType == RigidbodyType2D.Dynamic &&
                !_rb.IsSleeping() && _rb.linearVelocity.y < LostFallingSpeed;
     }

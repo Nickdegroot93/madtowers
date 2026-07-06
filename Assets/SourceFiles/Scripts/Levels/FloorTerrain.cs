@@ -53,6 +53,12 @@ public sealed class FloorTerrain : MonoBehaviour
     private const float FadeBottomBelowDatum = 5f;
     private const float FogExtentMargin = 5f;
 
+    // Each fog band continues past its ramp as a SOLID run of the same colour/alpha, so a band's
+    // bottom edge can never show as a hard horizontal line and the masonry/backdrop below the
+    // fog is never exposed. Sized for the deepest screen bottom the camera can ever reach:
+    // MinimumCameraY (0 = the datum) minus MaximumCameraSize (24), with margin.
+    private const float FogSolidDepth = 40f;
+
     private static readonly Color OutlineColor = new Color(0.03f, 0.028f, 0.035f, 0.92f);
     private static readonly Color FillFallbackColor = new Color(0.30f, 0.27f, 0.24f);
 
@@ -62,7 +68,7 @@ public sealed class FloorTerrain : MonoBehaviour
 
     // Fog BANDS are atmosphere, not world objects: they follow the camera horizontally (like the
     // sky gradient) so a pan can never reveal their side edges as hard vertical lines.
-    private readonly List<Transform> _cameraBands = new List<Transform>();
+    private readonly List<SpriteRenderer> _cameraBands = new List<SpriteRenderer>();
     private Camera _fogCamera;
 
     private PhysicsMaterial2D _material;
@@ -434,7 +440,18 @@ public sealed class FloorTerrain : MonoBehaviour
         sr.sprite = RuntimeSprites.AlphaRamp();
         sr.color = new Color(fogColor.r, fogColor.g, fogColor.b, alpha);
         ScaleToRect(sr, 40f, topY - bottomY); // width refitted to the camera every frame
-        _cameraBands.Add(sr.transform);
+        _cameraBands.Add(sr);
+
+        // The ramp is fully opaque at its bottom row; the solid continues that exact colour/alpha
+        // downward past the deepest possible screen bottom, so zooming out never reveals the
+        // band's end as a hard line (or the raw backdrop under it).
+        float solidBottom = bottomY - FogSolidDepth;
+        SpriteRenderer solid = CreateChild(name + "Solid",
+            new Vector3(0f, (bottomY + solidBottom) * 0.5f, 0f), order);
+        solid.sprite = RuntimeSprites.Square();
+        solid.color = sr.color;
+        ScaleToRect(solid, 40f, bottomY - solidBottom);
+        _cameraBands.Add(solid);
     }
 
     // ---- plumbing ----------------------------------------------------------------------------
@@ -469,15 +486,15 @@ public sealed class FloorTerrain : MonoBehaviour
                 float camWidth = _fogCamera.orthographicSize * 2f * _fogCamera.aspect + 4f;
                 for (int i = 0; i < _cameraBands.Count; i++)
                 {
-                    Transform band = _cameraBands[i];
+                    SpriteRenderer band = _cameraBands[i];
                     if (band == null) continue;
-                    Vector3 p = band.position;
+                    Vector3 p = band.transform.position;
                     p.x = _fogCamera.transform.position.x;
-                    band.position = p;
-                    Vector3 s = band.localScale;
-                    float nativeWidth = 1f / 16f; // AlphaRamp native world width
-                    s.x = camWidth / nativeWidth;
-                    band.localScale = s;
+                    band.transform.position = p;
+                    Vector3 s = band.transform.localScale;
+                    float nativeWidth = band.sprite.bounds.size.x;
+                    s.x = camWidth / Mathf.Max(0.0001f, nativeWidth);
+                    band.transform.localScale = s;
                 }
             }
         }

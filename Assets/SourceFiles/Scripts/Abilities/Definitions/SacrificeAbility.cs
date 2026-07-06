@@ -19,6 +19,8 @@ public class SacrificeAbility : PassiveAbility
 
     private SacrificeLaserLine _laserLine;
 
+    public override bool ShowsLossInterceptLine => true;
+
     public override void OnAcquired(AbilityContext context, int stacks)
     {
         EnsureLaserLine();

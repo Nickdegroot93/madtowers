@@ -62,7 +62,9 @@ here changes, change it in every generator (and the C# constant it mirrors).
   reassign hues between shapes.
 
 **Composition (sorting orders)**
-- Background −100 · hills/scenery −86…−83 · placement beam −60 · ground fill −50 ·
+- Background −100 · hills/scenery −86…−83 · placement beam −60 · loss lasers −57…−51
+  (Sacrifice/Hardline warning lines: behind the ground and blocks, in front of the
+  backdrop) · ground fill −50 ·
   ground shade −49 · caps/outlines −48 · ground fade −45 · back fog −44/−43 ·
   blocks 0 · front fog 44/45 (pieces falling into gaps sink INTO it). Pockets are
   REAL holes in the fill geometry (backdrop shows through), outlined only on

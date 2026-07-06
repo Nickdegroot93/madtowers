@@ -120,7 +120,9 @@ exposed sides (split around pocket openings), the fade into fog. Sorting orders 
 ## 3. The fog
 
 Bottom of every floor dissolves into a fog bank: three **camera-following bands** (their
-side edges can never show, however the camera pans/zooms) + world-anchored drifting wisps,
+side edges can never show, however the camera pans/zooms, and each band continues below
+its gradient as a solid run of the same colour — so no band bottom, masonry cut-off or
+raw backdrop can ever show either, at any zoom-out) + world-anchored drifting wisps,
 behind the ground AND in front of the blocks — pieces falling into gaps sink into it.
 
 Colour: `BackdropPreset.groundFogColor` (per chapter). Leave alpha 0 to auto-derive a haze

@@ -56,6 +56,15 @@ public abstract class PassiveAbility : AbilityDefinition
     public virtual float LossInterceptLineOffset => 0f;
 
     /// <summary>
+    /// True while this passive renders a visible loss-line beam (Sacrifice/Hardline). While any
+    /// armed passive reports true, LossZone triggers landed-block interception at the raised,
+    /// always-on-screen LossZone.InterceptLineY instead of the (possibly off-screen) charge
+    /// line, so the save happens at the laser the player can see. Invisible interceptors
+    /// (e.g. Rebound) leave this false and keep the normal deep line.
+    /// </summary>
+    public virtual bool ShowsLossInterceptLine => false;
+
+    /// <summary>
     /// A LANDED block is about to be lost off the bottom of the screen. Return true to
     /// handle it instead of charging a life - the handler MUST leave the block non-lost
     /// (freeze it or destroy it), or the cull sweep re-fires within 100 ms.

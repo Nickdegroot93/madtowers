@@ -7,12 +7,13 @@ using UnityEngine;
 public sealed class SacrificeLaserLine : MonoBehaviour
 {
     private const float LineLength = 90f;
-    // Behind the tower (blocks render at sortingOrder 0) but in front of the ground/background
-    // (ground skin -50): the persistent warning line shows in the open field and to the sides of
-    // the stack, and the tower draws over it instead of the beam cutting across the stack. The
-    // layer offsets span -2..+2, so the base stays well under 0. The Sacrifice FLASH is separate
+    // Behind the WORLD - tower blocks (0) AND the ground fill (-50) - but in front of the
+    // backdrop (-100..-80) and the placement beam (-60): since the line moved up to the visible
+    // band (LossZone.InterceptLineY) it can cross the floor plateau, and a laser painted over
+    // the masonry read as a rendering glitch. The layer offsets span -2..+3 (pulses), so the
+    // base must stay <= -54 to remain under the ground fill. The Sacrifice FLASH is separate
     // and deliberately stays in front (a momentary destructive bang).
-    private const int DefaultSortingOrder = -10;
+    private const int DefaultSortingOrder = -55;
 
     // Four coherent layers breathing SLOWLY and in phase (one confident line, not six nervous
     // ones): a wide ambient glow, a soft body, a hot core and a bright needle. Life comes from
@@ -66,7 +67,7 @@ public sealed class SacrificeLaserLine : MonoBehaviour
 
         GameObject go = new GameObject("SacrificeLaserFlash");
         SacrificeLaserFlash flash = go.AddComponent<SacrificeLaserFlash>();
-        flash.Play(color, LossZone.CurrentLossLineY(cam) + verticalOffset, cam != null ? cam.transform.position.x : 0f);
+        flash.Play(color, LossZone.InterceptLineY(cam) + verticalOffset, cam != null ? cam.transform.position.x : 0f);
     }
 
     private void LateUpdate()
@@ -76,7 +77,7 @@ public sealed class SacrificeLaserLine : MonoBehaviour
 
         float t = Time.time + _phaseOffset;
         float breath = Mathf.Sin(t * 1.1f) * 0.008f; // one slow calm breath, no jitter
-        transform.position = new Vector3(cam.transform.position.x, LossZone.CurrentLossLineY(cam) + _verticalOffset + breath, 0f);
+        transform.position = new Vector3(cam.transform.position.x, LossZone.InterceptLineY(cam) + _verticalOffset + breath, 0f);
 
         for (int i = 0; i < _layers.Length; i++)
         {
