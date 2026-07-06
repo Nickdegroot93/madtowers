@@ -66,6 +66,10 @@ public static partial class MainMenuRuntime
     private static GameObject _topStatusRoot;
     private static GameObject _navRoot;
     private static ChapterDefinition _backgroundChapter;
+    // The LIVE background track. Never resolved by Find("BgTrack"): after a chapter change the
+    // old track is only destroyed at frame end, so a name lookup can return the dying one - the
+    // pager would then pan a dead track and the backdrop would sit frozen through every swipe.
+    private static RectTransform _backgroundTrack;
     private static MenuChapterPager _pager;
     private static ChapterDefinition[] _chapters = Array.Empty<ChapterDefinition>();
     private static int _chapterIndex;
@@ -148,6 +152,7 @@ public static partial class MainMenuRuntime
         _topStatusRoot = null;
         _navRoot = null;
         _backgroundChapter = null;
+        _backgroundTrack = null;
         _chapters = Array.Empty<ChapterDefinition>();
         _chapterIndex = 0;
         _chapterIndexInitialized = false;
@@ -281,6 +286,7 @@ public static partial class MainMenuRuntime
         _topStatusRoot = null;
         _navRoot = null;
         _backgroundChapter = null;
+        _backgroundTrack = null;
         _pager = null;
         ReleaseVideoTexture();
         VaultPosterService.ReleaseAll(); // the Vault's cached brick posters (VRAM)

@@ -17,6 +17,7 @@ public static partial class MainMenuRuntime
         // motion with the foreground. The dimming overlays below sit on the fixed layer so
         // the whole screen stays evenly dimmed no matter where the track is panned.
         RectTransform track = (RectTransform)CreateLayer(parent, "BgTrack");
+        _backgroundTrack = track;
 
         if (chapter.MenuBackgroundImage != null)
         {
@@ -54,8 +55,12 @@ public static partial class MainMenuRuntime
             player.prepareCompleted += source =>
             {
                 if (videoImage == null || source == null) return;
+                // Fade the video over the (identical first-frame) static image instead of
+                // popping in - after a chapter swipe the backdrop must not visibly "switch on".
                 videoImage.color = Color.white;
+                videoImage.canvasRenderer.SetAlpha(0f);
                 source.Play();
+                videoImage.CrossFadeAlpha(1f, 0.6f, true);
             };
             player.Prepare();
         }

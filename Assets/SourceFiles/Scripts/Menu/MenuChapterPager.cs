@@ -10,7 +10,8 @@ using UnityEngine.UI;
 /// parented into the same background track - slides in from the opposite side. The screen
 /// chrome (top bar, bottom nav, dimming overlay) stays put, so the chapter scene reads as a
 /// single page sliding underneath it. On release the gesture either completes the page turn
-/// or springs back, depending on how far it travelled.
+/// or springs back - decided by fling velocity first (a flick commits or cancels from anywhere),
+/// distance travelled otherwise - and the settle spring inherits the finger's release velocity.
 ///
 /// Note on parallax: with a distinct full-screen background per chapter a "slower" background
 /// layer cannot be done without the incoming image either peeking early or snapping at the
@@ -24,9 +25,20 @@ public class MenuChapterPager : MonoBehaviour
 {
     private const float CommitFraction = 0.22f;   // travel past this fraction of a screen = commit
     private const float ResistFactor = 0.18f;     // rubber-band stiffness when there is nowhere to go
-    private const float SettleDuration = 0.26f;   // page-turn / spring-back duration (seconds)
-    private const float ResistSettleDuration = 0.18f;
     private const float Deadzone = 4f;            // pixels of slack before a direction is chosen
+
+    // Settle physics: a critically damped spring (SmoothDamp) seeded with the finger's release
+    // velocity, so the page keeps the exact speed it had when the finger lifted - no visible
+    // velocity step at release, and a hard flick lands faster than a gentle push.
+    private const float FlickVelocity = 700f;      // canvas units/s that counts as a deliberate flick
+    private const float CommitSmoothTime = 0.09f;
+    private const float CancelSmoothTime = 0.11f;
+    private const float MaxSettleSeconds = 0.6f;   // failsafe so a bad frame can never strand the page
+    private const float MaxCarryVelocity = 9000f;
+    private const float VelocitySmoothing = 0.05f; // exp. time constant for the drag-velocity estimate
+    // A frame hitch (page build, GC) must slow the animation down, not fast-forward it: clamp the
+    // per-step dt so one long frame advances the spring by at most a 30fps step.
+    private const float MaxStepSeconds = 1f / 30f;
 
     // Context, refreshed by Configure on every BuildMenu.
     private RectTransform _content;
@@ -49,6 +61,12 @@ public class MenuChapterPager : MonoBehaviour
     private float _width;        // screen width in canvas units
     private RectTransform _neighbor;
     private RectTransform _neighborBg;
+
+    // Drag-velocity estimate (canvas units/s, sign = finger direction), smoothed over the last
+    // ~50ms of pointer samples so one noisy event can't decide a flick.
+    private float _velocity;
+    private float _lastDx;
+    private float _lastSampleTime;
 
     public bool Busy => _busy;
 
@@ -82,6 +100,9 @@ public class MenuChapterPager : MonoBehaviour
         _panning = true;
         _hasNeighbor = false;
         _chapterDelta = 0;
+        _velocity = 0f;
+        _lastDx = 0f;
+        _lastSampleTime = Time.unscaledTime;
         RefreshMetrics();
     }
 
@@ -90,6 +111,7 @@ public class MenuChapterPager : MonoBehaviour
         if (!_panning || _busy) return;
 
         float dx = pixelDx / _scaleFactor;
+        SampleVelocity(dx);
         int desiredDelta = dx < -Deadzone ? 1 : (dx > Deadzone ? -1 : 0);
 
         if (!_hasNeighbor)
@@ -126,10 +148,36 @@ public class MenuChapterPager : MonoBehaviour
         }
 
         float dx = pixelDx / _scaleFactor;
+        // A finger that paused before lifting has no fling, whatever it did earlier in the
+        // drag: the release sample spans the whole pause, so its near-zero instantaneous
+        // velocity blends the estimate down hard (long dt = heavy blend weight).
+        SampleVelocity(dx);
+
         float commitTarget = -_chapterDelta * _width;
         float t = Mathf.Clamp(dx, Mathf.Min(0f, commitTarget), Mathf.Max(0f, commitTarget));
-        bool commit = Mathf.Abs(t) / _width >= CommitFraction;
+
+        // Flick beats distance: a deliberate fling toward the neighbour commits from anywhere,
+        // a fling back cancels even past the distance threshold; otherwise distance decides.
+        float towardTarget = Mathf.Sign(commitTarget) * _velocity;
+        bool commit;
+        if (towardTarget > FlickVelocity) commit = true;
+        else if (towardTarget < -FlickVelocity) commit = false;
+        else commit = Mathf.Abs(t) / _width >= CommitFraction;
+
         StartCoroutine(Settle(commit ? commitTarget : 0f, commit));
+    }
+
+    private void SampleVelocity(float dx)
+    {
+        float now = Time.unscaledTime;
+        float dt = now - _lastSampleTime;
+        if (dt <= 0.0001f) return;
+
+        float instantaneous = (dx - _lastDx) / dt;
+        float blend = 1f - Mathf.Exp(-dt / VelocitySmoothing);
+        _velocity = Mathf.Lerp(_velocity, instantaneous, blend);
+        _lastDx = dx;
+        _lastSampleTime = now;
     }
 
     /// <summary>Programmatic transition (the Next Chapter card). Slides from rest to the
@@ -141,6 +189,9 @@ public class MenuChapterPager : MonoBehaviour
         RefreshMetrics();
         BuildNeighbor(chapterDelta, targetIndex);
         ApplyPan(0f);
+        // Seed the spring as if a flick had just released: the page leaves immediately and
+        // confidently instead of creeping out of the gate, then eases into place.
+        _velocity = -chapterDelta * _width / 0.30f;
         StartCoroutine(Settle(-chapterDelta * _width, true));
     }
 
@@ -223,12 +274,17 @@ public class MenuChapterPager : MonoBehaviour
     private IEnumerator SpringBackResist()
     {
         _busy = true;
-        float startX = _content != null ? _content.anchoredPosition.x : 0f;
+        float x = _content != null ? _content.anchoredPosition.x : 0f;
+        // The rubber-band moved at ResistFactor of the finger, so it springs back from the
+        // same fraction of the release velocity.
+        float vel = Mathf.Clamp(_velocity * ResistFactor, -MaxCarryVelocity, MaxCarryVelocity);
         float elapsed = 0f;
-        while (elapsed < ResistSettleDuration)
+        while (elapsed < MaxSettleSeconds)
         {
-            elapsed += Time.unscaledDeltaTime;
-            float x = Mathf.Lerp(startX, 0f, EaseOut(Mathf.Clamp01(elapsed / ResistSettleDuration)));
+            float dt = Mathf.Min(Time.unscaledDeltaTime, MaxStepSeconds);
+            elapsed += dt;
+            x = Mathf.SmoothDamp(x, 0f, ref vel, CancelSmoothTime, Mathf.Infinity, dt);
+            if (Mathf.Abs(x) < 0.5f) break;
             SetX(_content, x);
             SetX(_bgTrack, x);
             yield return null;
@@ -241,12 +297,19 @@ public class MenuChapterPager : MonoBehaviour
     private IEnumerator Settle(float targetT, bool commit)
     {
         _busy = true;
-        float startT = _content != null ? _content.anchoredPosition.x : 0f;
+        if (commit) SfxPlayer.Play("swoosh_01", 0.45f, 0.06f);
+
+        float x = _content != null ? _content.anchoredPosition.x : 0f;
+        float vel = Mathf.Clamp(_velocity, -MaxCarryVelocity, MaxCarryVelocity);
+        float smoothTime = commit ? CommitSmoothTime : CancelSmoothTime;
         float elapsed = 0f;
-        while (elapsed < SettleDuration)
+        while (elapsed < MaxSettleSeconds)
         {
-            elapsed += Time.unscaledDeltaTime;
-            ApplyPan(Mathf.Lerp(startT, targetT, EaseOut(Mathf.Clamp01(elapsed / SettleDuration))));
+            float dt = Mathf.Min(Time.unscaledDeltaTime, MaxStepSeconds);
+            elapsed += dt;
+            x = Mathf.SmoothDamp(x, targetT, ref vel, smoothTime, Mathf.Infinity, dt);
+            if (Mathf.Abs(targetT - x) < 0.5f) break;
+            ApplyPan(x);
             yield return null;
         }
         ApplyPan(targetT);
@@ -269,11 +332,5 @@ public class MenuChapterPager : MonoBehaviour
         _hasNeighbor = false;
         _busy = false;
         _commit?.Invoke(target);
-    }
-
-    private static float EaseOut(float x)
-    {
-        float inv = 1f - x;
-        return 1f - inv * inv * inv;
     }
 }

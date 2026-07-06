@@ -119,13 +119,9 @@ public static partial class MainMenuRuntime
     // built content root. Re-run on every BuildMenu so the pager never holds a stale root.
     private static void ConfigurePager(RectTransform contentRoot)
     {
-        RectTransform bgTrack = _backgroundLayer != null
-            ? _backgroundLayer.Find("BgTrack") as RectTransform
-            : null;
-
         _pager.Configure(
             contentRoot,
-            bgTrack,
+            _backgroundTrack,
             (RectTransform)_contentLayer,
             _chapters.Length,
             ResolveSwipeTarget,
@@ -133,7 +129,6 @@ public static partial class MainMenuRuntime
             index => BuildNeighborBackgroundImage(_chapters[index]),
             index =>
             {
-                SfxPlayer.Play("ui-button-click");
                 _chapterIndex = index;
                 _activeTab = MenuTab.Home;
                 BuildMenu();
@@ -158,9 +153,11 @@ public static partial class MainMenuRuntime
     // the fixed dimming overlays and so shares the same dimming as the current background.
     private static RectTransform BuildNeighborBackgroundImage(ChapterDefinition chapter)
     {
-        if (_backgroundLayer == null || chapter == null) return null;
+        if (chapter == null) return null;
 
-        Transform track = _backgroundLayer.Find("BgTrack");
+        // The stored live reference, not a Find: a name lookup can hit the previous, dying
+        // track for a frame after a chapter change (see _backgroundTrack).
+        RectTransform track = _backgroundTrack;
         if (track == null) return null;
 
         Sprite sprite = chapter.MenuBackgroundImage;
