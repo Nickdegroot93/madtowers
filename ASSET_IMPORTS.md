@@ -23,6 +23,8 @@ Current packs:
 - `Assets/Art/ChapterPacks/Cyber Egypt` (same drill: sprites landed in Jungle Landscape,
   light elements in Glowing City, scripts at `Assets/Cyber Egypt/`; overwrites of Chinese
   City / Desert Vibe / Glowing City reverted)
+- `Assets/Art/ChapterPacks/Lost City` (same drill: sprites in Desert Vibe + Jungle
+  Landscape, scripts at `Assets/Lost City/`; Desert Vibe overwrites reverted)
 
 Game-authored chapter presentation stays separate:
 

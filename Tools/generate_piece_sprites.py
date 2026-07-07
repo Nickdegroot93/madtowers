@@ -230,6 +230,25 @@ THEME_PRESETS = {
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
         "preview_bg": (150, 118, 108),
     },
+    # Lost City: alien-moon night in the pack's teal/orange complementary scheme.
+    # Cool identities lean oasis-teal and night-blue, warm shapes carry the moonlit
+    # gold and rust of the ruins, so the bag belongs to both halves of the palette.
+    "LostCity": {
+        "colors": {
+            "I": (94, 196, 190),    # oasis teal
+            "O": (232, 196, 100),   # moonlit gold
+            "T": (170, 110, 190),   # alien orchid
+            "S": (108, 176, 96),    # desert scrub
+            "Z": (218, 100, 82),    # rust red
+            "J": (96, 130, 200),    # night blue
+            "L": (230, 146, 76),    # amber ruin
+            "Pip": (226, 116, 156),     # moon rose
+            "Domino": (156, 100, 170),  # dusk violet
+        },
+        "outline": 0.21,
+        "edgeShine": {"Pip": 0.15, "Domino": 0.15},
+        "preview_bg": (36, 52, 58),
+    },
     # Sakura Ridge: muted ukiyo-e / washi tones. These belong to the background's
     # sakura, Fuji, temple indigo, and coral highlights; readability comes from the
     # outline/shape language rather than neon opposite colors.

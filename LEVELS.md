@@ -274,6 +274,18 @@ menu art and music still to come
 | Obelisk Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
 | Pyramid Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
 
+**Chapter: Lost City (sortOrder 100)** — imported Lost City / Distant Planet pack (giant-moon
+plate as a chapter-owned `bg_moon_lc` copy with the below-skyline half flattened to clean fog
+— the vendor plate's moon bottom + fog-band edges expose as tone rectangles mid-climb in
+portrait; eight-band teal/orange depth ladder LC1→LC8 used in full, pack streak-cloud strip
+drifting), LostCity skin folder with slate-teal cobble ruin floor, pale teal motes + 2 night
+birds, lost-city menu art, lost-city A/B music
+| Level | Mode | Goal | Notes |
+|---|---|---|---|
+| The Oasis Gate | GameMode_Classic | Place 100 | Stacking endurance, alien-moon dressing. |
+| Aqueduct Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
+| Monolith Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+
 | Path | Contents |
 |---|---|
 | `Assets/Resources/Chapters/` | ChapterDefinition assets. **Must stay here** (loaded by path at runtime). |

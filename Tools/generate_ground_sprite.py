@@ -623,6 +623,15 @@ if __name__ == "__main__":
     render_ground_cap("Egypt", (216, 162, 124), fleck=(240, 196, 120), fleck_chance=0.010)
     remove_legacy("Egypt")
 
+    # Lost City: weathered slate-teal ruin masonry - cobbles like the pack's fallen
+    # aqueduct stones, capped in pale oasis moss with moonlit flecks.
+    render_plateau("LostCity", (78, 104, 108), line=(36, 50, 54),
+                   blocks=1, top=(104, 158, 144), top_h=24)
+    render_islands("LostCity", (78, 104, 108), line=(36, 50, 54))
+    render_ground_fill_cobble("LostCity", (72, 106, 112), joint=(34, 52, 58))
+    render_ground_cap("LostCity", (100, 156, 142), fleck=(158, 214, 192), fleck_chance=0.010)
+    remove_legacy("LostCity")
+
     # Neon Nightfall: wet night promenade - large dark violet tiles catching cyan/pink
     # reflections from the glowing city, fairy-light glints along the walkable cap.
     render_plateau("Neon", (54, 48, 76), line=(24, 20, 38), blocks=1)
