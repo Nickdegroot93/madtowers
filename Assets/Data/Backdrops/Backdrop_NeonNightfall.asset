@@ -36,7 +36,7 @@ MonoBehaviour:
   hillStyle: 0
   hillFarColor: {r: 0.2, g: 0.08, b: 0.28, a: 1}
   hillNearColor: {r: 0.13, g: 0.05, b: 0.2, a: 1}
-  groundFogColor: {r: 0, g: 0, b: 0, a: 0}
+  groundFogColor: {r: 0.11, g: 0.06, b: 0.2, a: 1}
   spriteBackdropLayers:
   - sprite: {fileID: 21300000, guid: f7f5eca7a86244dacb8c6c21d457a552, type: 3}
     worldHeight: 34
@@ -266,9 +266,21 @@ MonoBehaviour:
     fillView: 0
     groundFillColor: {r: 0.035, g: 0, b: 0.224, a: 1}
     alpha: 1
+  - sprite: {fileID: 21300000, guid: 5a55704802a94b09aeb487c94b04bd83, type: 3}
+    worldHeight: 0.55
+    floorOffsetY: 0.4
+    worldOffsetX: 0
+    horizontalTileRadius: 1
+    horizontalTileOverlap: 0.08
+    verticalParallax: 0.12
+    horizontalParallax: 0.06
+    driftSpeedX: 0
+    fillView: 0
+    groundFillColor: {r: 0, g: 0, b: 0, a: 0}
+    alpha: 1
   - sprite: {fileID: 21300000, guid: 62b268f6c4924b26a267830b059322ca, type: 3}
-    worldHeight: 1.9
-    floorOffsetY: -1.6
+    worldHeight: 3.6
+    floorOffsetY: -3.3
     worldOffsetX: 0
     horizontalTileRadius: 2
     horizontalTileOverlap: 0.08
@@ -301,18 +313,6 @@ MonoBehaviour:
     driftSpeedX: 0.16
     fillView: 0
     groundFillColor: {r: 0, g: 0, b: 0, a: 0}
-    alpha: 1
-  - sprite: {fileID: 21300000, guid: 2a6b5c8758d37eb48b9d744e5b2cbcd5, type: 3}
-    worldHeight: 3.6
-    floorOffsetY: -5.15
-    worldOffsetX: 0
-    horizontalTileRadius: 1
-    horizontalTileOverlap: 0.3
-    verticalParallax: 0
-    horizontalParallax: 0.02
-    driftSpeedX: 0
-    fillView: 0
-    groundFillColor: {r: 0.106, g: 0, b: 0.204, a: 1}
     alpha: 1
   particleCount: 24
   particleColor: {r: 1, g: 0.62, b: 0.95, a: 0.5}
