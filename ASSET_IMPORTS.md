@@ -25,6 +25,11 @@ Current packs:
   City / Desert Vibe / Glowing City reverted)
 - `Assets/Art/ChapterPacks/Lost City` (same drill: sprites in Desert Vibe + Jungle
   Landscape, scripts at `Assets/Lost City/`; Desert Vibe overwrites reverted)
+- `Assets/Art/ChapterPacks/Secret Island` (worst drill yet: sprites scattered across Japan
+  Landscape / Jungle Landscape / Desert Vibe, and the pack SHIPS its own bg/q/w/boat sprites
+  at other packs' GUIDs+paths - the plate, layer1 mountains, layer2 buildings w1-w4 and the
+  boat had to be re-extracted from the .unitypackage with fresh GUIDs after reverting the
+  overwrites of Chinese City / Glowing City / Desert Vibe)
 
 Game-authored chapter presentation stays separate:
 

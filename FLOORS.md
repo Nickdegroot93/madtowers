@@ -101,7 +101,7 @@ render_ground_cap("<Theme>", (r, g, b),                   # cap band colour
   | `render_ground_fill` | running-bond bricks (0.5×0.25 u, mortar, bevel) | Classic |
   | `render_ground_fill_ashlar` | giant staggered castle-wall stones (ishigaki); sandstone palette = pharaonic masonry | Japan, Egypt |
   | `render_ground_fill_strata` | sedimentary layers + cracks; cool palette + pale flecks = glacier ice | Desert, Winter |
-  | `render_ground_fill_cobble` | packed irregular rounded stones, mossy joints | Jungle, LostCity (slate-teal ruin) |
+  | `render_ground_fill_cobble` | packed irregular rounded stones, mossy joints | Jungle, LostCity (slate-teal ruin), Island (mossy resort stone) |
   | `render_ground_fill_panels` | 0.5 u slabs; `stain_strength>0` = weeping concrete prefab panels, 0 = courtyard flagstones | Kvartal, Fangkuai |
   | `render_ground_fill_wetpave` | wet night pavement: dark 0.5 u tiles, light-catching seams, neon reflection streaks (`glows` colors) | Neon |
   | `render_ground_fill_basalt` | dark running-bond basalt panels, a few bedding joints glowing molten (guaranteed ≥ 1 per tile), ember specks | Volcano |

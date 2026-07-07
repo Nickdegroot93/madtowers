@@ -632,6 +632,15 @@ if __name__ == "__main__":
     render_ground_cap("LostCity", (100, 156, 142), fleck=(158, 214, 192), fleck_chance=0.010)
     remove_legacy("LostCity")
 
+    # Sector Isla: overgrown resort stone - green-grey cobbles with mossy joints,
+    # capped in tropical grass with pale palm-frond flecks.
+    render_plateau("Island", (90, 114, 98), line=(42, 56, 46),
+                   blocks=1, top=(96, 168, 104), top_h=26)
+    render_islands("Island", (90, 114, 98), line=(42, 56, 46))
+    render_ground_fill_cobble("Island", (86, 112, 96), joint=(44, 62, 48))
+    render_ground_cap("Island", (94, 164, 102), fleck=(170, 220, 140), fleck_chance=0.011)
+    remove_legacy("Island")
+
     # Neon Nightfall: wet night promenade - large dark violet tiles catching cyan/pink
     # reflections from the glowing city, fairy-light glints along the walkable cap.
     render_plateau("Neon", (54, 48, 76), line=(24, 20, 38), blocks=1)

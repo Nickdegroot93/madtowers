@@ -286,6 +286,19 @@ birds, lost-city menu art, lost-city A/B music
 | Aqueduct Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
 | Monolith Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
 
+**Chapter: Sector Isla (sortOrder 110)** — imported Secret Island pack (green-dusk lagoon:
+crescents sheet, pale far mountains, wheel-city masses over a tiled palm row, teal island
+bands incl. the two-figure accent, generated `water_isla` band + `boat_strip_isla` — the
+pack's speedboat on a wide mostly-empty drift strip at +1.6 u/s, so it crosses fast, leaves
+the screen entirely and returns ~once a minute; hanging-canopy fg sprites deliberately
+skipped in a vertical game), Island skin folder with mossy cobble floor, firefly motes +
+songbird flock, sector-isla menu art, one music track (b was a duplicate of a)
+| Level | Mode | Goal | Notes |
+|---|---|---|---|
+| The Lagoon | GameMode_Classic | Place 100 | Stacking endurance, lagoon dressing. |
+| Marina Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
+| Skywheel Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+
 | Path | Contents |
 |---|---|
 | `Assets/Resources/Chapters/` | ChapterDefinition assets. **Must stay here** (loaded by path at runtime). |

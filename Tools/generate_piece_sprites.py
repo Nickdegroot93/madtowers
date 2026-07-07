@@ -249,6 +249,25 @@ THEME_PRESETS = {
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
         "preview_bg": (36, 52, 58),
     },
+    # Sector Isla: green-dusk lagoon light. The whole scene is teal-green, so cool
+    # identities stay lagoon/jungle tones and the warm shapes (O/Z/L) carry the
+    # sunset-salmon accents from the plate's clouds.
+    "Island": {
+        "colors": {
+            "I": (98, 200, 180),    # lagoon teal
+            "O": (222, 196, 104),   # dusk gold
+            "T": (168, 116, 188),   # orchid
+            "S": (112, 182, 104),   # jungle green
+            "Z": (212, 98, 92),     # hibiscus red
+            "J": (100, 132, 196),   # deep water blue
+            "L": (226, 148, 84),    # sunset amber
+            "Pip": (222, 118, 158),     # tropical pink
+            "Domino": (152, 104, 168),  # dusk violet
+        },
+        "outline": 0.21,
+        "edgeShine": {"Pip": 0.15, "Domino": 0.15},
+        "preview_bg": (74, 110, 92),
+    },
     # Sakura Ridge: muted ukiyo-e / washi tones. These belong to the background's
     # sakura, Fuji, temple indigo, and coral highlights; readability comes from the
     # outline/shape language rather than neon opposite colors.
