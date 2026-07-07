@@ -17,6 +17,9 @@ Current packs:
 - `Assets/Art/ChapterPacks/Chinese City`
 - `Assets/Art/ChapterPacks/Sovietwave Panel Buildings`
 - `Assets/Art/ChapterPacks/Glowing City 2D Landscape`
+- `Assets/Art/ChapterPacks/Volcano Landscape` (import dropped its sprites inside Jungle
+  Landscape and strays inside Desert Vibe + `Assets/Volcano Landscape/Scripts/`; all
+  relocated here, Desert Vibe overwrites reverted — the Step 1 drill exactly)
 
 Game-authored chapter presentation stays separate:
 

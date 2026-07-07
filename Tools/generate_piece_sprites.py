@@ -192,6 +192,25 @@ THEME_PRESETS = {
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
         "preview_bg": (40, 34, 60),
     },
+    # Molten Caldera: basalt night under lava light. Cool identities survive as
+    # ash-cooled tones (I/J/S) while the warm shapes (O/Z/L) run hot — gold, lava,
+    # molten orange — so the whole bag reads lit-from-beneath without losing the 7 hues.
+    "Volcano": {
+        "colors": {
+            "I": (96, 186, 196),    # ash teal
+            "O": (238, 184, 78),    # magma gold
+            "T": (176, 102, 196),   # heat violet
+            "S": (124, 168, 88),    # scorched moss
+            "Z": (232, 84, 72),     # lava red
+            "J": (98, 114, 200),    # cooled basalt blue
+            "L": (242, 132, 60),    # molten orange
+            "Pip": (234, 102, 158),     # hot pink
+            "Domino": (168, 86, 170),   # ember violet
+        },
+        "outline": 0.20,
+        "edgeShine": {"Pip": 0.15, "Domino": 0.15},
+        "preview_bg": (66, 40, 52),
+    },
     # Sakura Ridge: muted ukiyo-e / washi tones. These belong to the background's
     # sakura, Fuji, temple indigo, and coral highlights; readability comes from the
     # outline/shape language rather than neon opposite colors.

@@ -249,6 +249,17 @@ with the wet-pavement floor, neon-nightfall menu art, neon-nightfall A/B music
 | Voltage Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
 | Penthouse Run | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
 
+**Chapter: Burning Steppes (sortOrder 80)** — imported 2D Volcano Landscape pack (erupting
+hero volcano centered via `worldOffsetX`, chapter-owned `cliffs_near` copy with a jagged-cut
+skyline replacing the vendor sprite's flat crop top, `light MF` lava-glow wash, generated
+`clouds_ash` drift strip), Volcano skin folder with the basalt/lava-joint floor, ember
+particles + heat haze + lone vulture, burning-steppes menu art, burning-steppes A/B music
+| Level | Mode | Goal | Notes |
+|---|---|---|---|
+| The Ashfall | GameMode_Classic | Place 100 | Stacking endurance, caldera dressing. |
+| Eruption Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
+| Crater Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+
 | Path | Contents |
 |---|---|
 | `Assets/Resources/Chapters/` | ChapterDefinition assets. **Must stay here** (loaded by path at runtime). |

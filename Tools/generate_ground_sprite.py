@@ -442,6 +442,60 @@ def render_ground_fill_wetpave(theme, base, glows=((80, 220, 240), (240, 100, 18
     _write_fill(theme, px)
 
 
+def render_ground_fill_basalt(theme, base, seam_factor=0.30, tone_var=0.08,
+                              lava=(255, 150, 54), lava_chance=0.30, lava_strength=0.8):
+    """Volcanic basalt blocks: 0.5 u dark panels laid running-bond with near-black
+    joints; a share of the horizontal joints glow molten orange (magma light bleeding
+    up through the cracks, hottest mid-joint and fading toward the panel ends), plus
+    sparse ember specks in the faces. Seamless both axes."""
+    S, PANEL, SEAM = 128, 64, 4
+    px = bytearray(S * S * 4)
+    seam_col = tuple(c * seam_factor for c in base)
+    sd = _seed(theme)
+    # Pick the glowing horizontal joints up front. The tile is only 2x2 panels, so a
+    # plain per-joint chance can select zero; always include the lowest-hash joint.
+    n = S // PANEL
+    joints = {(p, q): _hash01(sd, p, q, 21) for p in range(n) for q in range(n)}
+    glowing = {k for k, v in joints.items() if v < lava_chance}
+    if not glowing:
+        glowing = {min(joints, key=joints.get)}
+    for y in range(S):
+        py_i, yy = y // PANEL, y % PANEL
+        offset = (py_i % 2) * (PANEL // 2)
+        for x in range(S):
+            xs = (x + offset) % S
+            px_i, xx = xs // PANEL, xs % PANEL
+            if yy < SEAM or xx < SEAM:
+                r, g, b = seam_col
+                # molten joints: horizontal only (lava pools along the bedding cracks)
+                if yy < SEAM and xx >= SEAM and (py_i, px_i) in glowing:
+                    t = 1.0 - abs(yy - (SEAM - 1) / 2.0) / (SEAM / 2.0)
+                    w = lava_strength * max(0.0, t)
+                    w *= min(1.0, min(xx - SEAM, PANEL - 1 - xx) / 10.0)  # fade at ends
+                    if w > 0:
+                        r = r * (1 - w) + lava[0] * w
+                        g = g * (1 - w) + lava[1] * w
+                        b = b * (1 - w) + lava[2] * w
+                f = grain(x, y)
+                r, g, b = r * f, g * f, b * f
+            else:
+                f = 1.0 + (_hash01(sd, py_i, px_i) - 0.5) * 2 * tone_var
+                # matte basalt bevel: subtle top light, shaded base (light from above)
+                if yy < SEAM + 3:
+                    f *= 1.06
+                elif yy >= PANEL - 3:
+                    f *= 0.92
+                if xx >= PANEL - 3:
+                    f *= 0.95
+                f *= grain(x, y)
+                r, g, b = base[0] * f, base[1] * f, base[2] * f
+                # sparse ember specks glowing in the rock face
+                if _hash01(sd, x * 7, y * 13) > 0.996:
+                    r, g, b = lava[0] * 0.9, lava[1] * 0.9, lava[2] * 0.9
+            _put(px, S, x, y, r, g, b)
+    _write_fill(theme, px)
+
+
 def render_ground_cap(theme, cap, fleck=None, fleck_chance=0.0):
     """Walkable cap band (256x64 = 2 x 0.5 u, horizontally seamless) FloorTerrain lays along
     every floor-run top: a near-black baked outline at the very top (the landable line), a
@@ -550,6 +604,15 @@ if __name__ == "__main__":
     render_ground_fill_panels("Kvartal", (100, 106, 100), stain_strength=0.18)
     render_ground_cap("Kvartal", (92, 114, 76), fleck=(130, 148, 108), fleck_chance=0.008)
     remove_legacy("Kvartal")
+
+    # Molten Caldera: dark basalt blocks over live magma - near-black panels with a few
+    # glowing bedding joints and ember specks, capped in scorched crust with ember flecks.
+    render_plateau("Volcano", (76, 56, 62), line=(30, 20, 26),
+                   blocks=2, bevel=0.10, tone_steps=(1.0, 0.93))
+    render_islands("Volcano", (76, 56, 62), line=(30, 20, 26))
+    render_ground_fill_basalt("Volcano", (62, 46, 54))
+    render_ground_cap("Volcano", (126, 82, 74), fleck=(255, 156, 66), fleck_chance=0.012)
+    remove_legacy("Volcano")
 
     # Neon Nightfall: wet night promenade - large dark violet tiles catching cyan/pink
     # reflections from the glowing city, fairy-light glints along the walkable cap.
