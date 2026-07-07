@@ -222,6 +222,12 @@ public partial class LevelPresentationController
             // track the pan and far layers lag, reading as depth. factor 1 == glued (no parallax).
             float anchorX = _panBaseX + panX * layer.HorizontalParallax + layer.WorldOffsetX;
             float y = floorY + layer.FloorOffsetY + scaledHeight * 0.5f + climbed * layer.VerticalParallax;
+            // Hover bob (flying craft etc.): smooth sine, phase-offset per layer so
+            // multiple hovering layers never move in lockstep.
+            if (layer.HoverAmount > 0f)
+            {
+                y += Mathf.Sin(Time.time * (Mathf.PI * 2f / layer.HoverPeriodSeconds) + i * 1.7f) * layer.HoverAmount;
+            }
             int center = tiles.Length / 2;
             // Endless sideways drift (clouds, mist): each tile's offset wraps within the row's
             // total width, so a tile leaving one end reappears at the other and coverage around

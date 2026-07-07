@@ -20,6 +20,9 @@ Current packs:
 - `Assets/Art/ChapterPacks/Volcano Landscape` (import dropped its sprites inside Jungle
   Landscape and strays inside Desert Vibe + `Assets/Volcano Landscape/Scripts/`; all
   relocated here, Desert Vibe overwrites reverted — the Step 1 drill exactly)
+- `Assets/Art/ChapterPacks/Cyber Egypt` (same drill: sprites landed in Jungle Landscape,
+  light elements in Glowing City, scripts at `Assets/Cyber Egypt/`; overwrites of Chinese
+  City / Desert Vibe / Glowing City reverted)
 
 Game-authored chapter presentation stays separate:
 

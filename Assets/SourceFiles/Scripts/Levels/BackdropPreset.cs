@@ -35,6 +35,12 @@ public class BackdropPreset : ScriptableObject
         [SerializeField] private float horizontalParallax = 1f;
         [Tooltip("Constant sideways scroll in world units/sec (clouds, mist, fog banks). The tile row wraps around itself, so the motion loops forever. Positive = rightward. Keep it subtle (~0.1). Needs horizontalTileRadius >= 1 so wrapped tiles cover the view. 0 = static. Ignored for a fill layer.")]
         [SerializeField] private float driftSpeedX = 0f;
+        [Tooltip("Vertical bob amplitude in world units (0 = off). The layer floats up and down on a smooth sine - hovering craft, flying pyramids, drifting balloons. Ignored for a fill layer.")]
+        [Min(0f)]
+        [SerializeField] private float hoverAmount = 0f;
+        [Tooltip("Seconds per full up-down hover cycle.")]
+        [Min(0.5f)]
+        [SerializeField] private float hoverPeriodSeconds = 6f;
         [Tooltip("Treat this layer as a full-screen panorama (the back-most sky/atmosphere). It is always scaled to blanket the whole camera view like the sky, so its edges can never enter the frame - it never cuts off at the top however high the tower climbs. Parallax/tiling/offset are ignored for a fill layer.")]
         [SerializeField] private bool fillView = false;
         [Tooltip("If alpha > 0, a solid apron of this colour fills the area below this layer down past the screen bottom, so an opaque ground layer never shows a seam or a plain gap beneath it. Set it to the layer's solid ground colour. Ignored for a fill layer.")]
@@ -51,6 +57,8 @@ public class BackdropPreset : ScriptableObject
         public float VerticalParallax => verticalParallax;
         public float HorizontalParallax => horizontalParallax;
         public float DriftSpeedX => driftSpeedX;
+        public float HoverAmount => Mathf.Max(0f, hoverAmount);
+        public float HoverPeriodSeconds => Mathf.Max(0.5f, hoverPeriodSeconds);
         public bool FillView => fillView;
         public Color GroundFillColor => groundFillColor;
         public float Alpha => alpha;

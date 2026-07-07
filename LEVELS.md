@@ -260,6 +260,20 @@ particles + heat haze + lone vulture, burning-steppes menu art, burning-steppes 
 | Eruption Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
 | Crater Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
 
+**Chapter: Giza Dusk (sortOrder 90)** — imported Cyber Egypt pack (the pack's flying
+pyramids extracted from the plate into two hovering sky layers `pyramid_small` +
+`pyramid_big` (vP 0.8, desynced hover periods, sink slowly on the climb); chapter-owned `bg_dusk_ce` plate copy keeps the
+sun but drops the baked-in fleet so it can't crop at the portrait edge; four silhouette
+skyline bands + two hand-placed masses per side, pack `light under city` haze wash;
+clouds and heat haze deliberately omitted — the hovering fleet carries the motion),
+Egypt skin folder with sandstone ashlar floor, gold dust + heat haze + lone vulture;
+menu art and music still to come
+| Level | Mode | Goal | Notes |
+|---|---|---|---|
+| The Sphinx Road | GameMode_Classic | Place 100 | Stacking endurance, dusk-Giza dressing. |
+| Obelisk Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
+| Pyramid Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+
 | Path | Contents |
 |---|---|
 | `Assets/Resources/Chapters/` | ChapterDefinition assets. **Must stay here** (loaded by path at runtime). |

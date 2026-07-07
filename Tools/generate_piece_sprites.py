@@ -211,6 +211,25 @@ THEME_PRESETS = {
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
         "preview_bg": (66, 40, 52),
     },
+    # Giza Dusk: dusty-rose sunset over sandstone. Warm shapes go pharaoh gold /
+    # carnelian / amber; cool identities survive as oxidized teal and lapis so the
+    # bag stays readable against the pale dusk silhouettes.
+    "Egypt": {
+        "colors": {
+            "I": (140, 190, 186),   # oxidized teal
+            "O": (236, 190, 92),    # pharaoh gold
+            "T": (182, 112, 178),   # dusk orchid
+            "S": (138, 168, 96),    # nile reed
+            "Z": (222, 96, 84),     # carnelian
+            "J": (110, 122, 198),   # lapis
+            "L": (234, 142, 74),    # amber sunset
+            "Pip": (230, 118, 158),     # rose quartz
+            "Domino": (164, 96, 164),   # royal purple
+        },
+        "outline": 0.22,
+        "edgeShine": {"Pip": 0.15, "Domino": 0.15},
+        "preview_bg": (150, 118, 108),
+    },
     # Sakura Ridge: muted ukiyo-e / washi tones. These belong to the background's
     # sakura, Fuji, temple indigo, and coral highlights; readability comes from the
     # outline/shape language rather than neon opposite colors.

@@ -614,6 +614,15 @@ if __name__ == "__main__":
     render_ground_cap("Volcano", (126, 82, 74), fleck=(255, 156, 66), fleck_chance=0.012)
     remove_legacy("Volcano")
 
+    # Giza Dusk: monumental sandstone ashlar under a wind-blown rose-sand cap - the
+    # floor reads as pharaonic masonry against the dusty silhouettes.
+    render_plateau("Egypt", (172, 130, 98), line=(80, 58, 44),
+                   blocks=2, bevel=0.11, tone_steps=(1.0, 0.93))
+    render_islands("Egypt", (172, 130, 98), line=(80, 58, 44))
+    render_ground_fill_ashlar("Egypt", (138, 102, 76), joint_factor=0.5, tone_var=0.05)
+    render_ground_cap("Egypt", (216, 162, 124), fleck=(240, 196, 120), fleck_chance=0.010)
+    remove_legacy("Egypt")
+
     # Neon Nightfall: wet night promenade - large dark violet tiles catching cyan/pink
     # reflections from the glowing city, fairy-light glints along the walkable cap.
     render_plateau("Neon", (54, 48, 76), line=(24, 20, 38), blocks=1)

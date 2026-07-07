@@ -99,7 +99,7 @@ render_ground_cap("<Theme>", (r, g, b),                   # cap band colour
   | Style function | Reads as | Used by |
   |---|---|---|
   | `render_ground_fill` | running-bond bricks (0.5×0.25 u, mortar, bevel) | Classic |
-  | `render_ground_fill_ashlar` | giant staggered castle-wall stones (ishigaki) | Japan |
+  | `render_ground_fill_ashlar` | giant staggered castle-wall stones (ishigaki); sandstone palette = pharaonic masonry | Japan, Egypt |
   | `render_ground_fill_strata` | sedimentary layers + cracks; cool palette + pale flecks = glacier ice | Desert, Winter |
   | `render_ground_fill_cobble` | packed irregular rounded stones, mossy joints | Jungle |
   | `render_ground_fill_panels` | 0.5 u slabs; `stain_strength>0` = weeping concrete prefab panels, 0 = courtyard flagstones | Kvartal, Fangkuai |

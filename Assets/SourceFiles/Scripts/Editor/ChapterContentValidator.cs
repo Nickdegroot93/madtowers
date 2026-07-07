@@ -170,10 +170,19 @@ public static class ChapterContentValidator
                 {
                     Warning($"Backdrop '{preset.name}' layer {i} ('{layer.Sprite.name}') sets driftSpeedX on a fillView layer; drift is ignored for fill layers.", preset, ref warnings);
                 }
+                if (layer.HoverAmount > 0f)
+                {
+                    Warning($"Backdrop '{preset.name}' layer {i} ('{layer.Sprite.name}') sets hoverAmount on a fillView layer; hover is ignored for fill layers.", preset, ref warnings);
+                }
             }
             else if (layer.DriftSpeedX != 0f && layer.HorizontalTileRadius < 1)
             {
                 Warning($"Backdrop '{preset.name}' layer {i} ('{layer.Sprite.name}') drifts with horizontalTileRadius 0; a single tile visibly pops when it wraps. Use radius >= 1.", preset, ref warnings);
+            }
+
+            if (layer.HoverAmount > 0f && layer.GroundFillColor.a > 0f)
+            {
+                Warning($"Backdrop '{preset.name}' layer {i} ('{layer.Sprite.name}') hovers AND has a ground apron; the apron bobs with the layer. Hovering layers are flying objects - drop the apron.", preset, ref warnings);
             }
 
             if (layer.Alpha <= 0f)
