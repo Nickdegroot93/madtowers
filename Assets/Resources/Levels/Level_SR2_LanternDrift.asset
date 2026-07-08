@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_SR2_LanternDrift
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Lantern Drift
-  menuThumbnail: {fileID: 21300000, guid: b710baadac034e809a52f429bffc854b, type: 3}
+  menuThumbnail: {fileID: 21300000, guid: 839af4b8f120847a3a519e079b6729c3, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: bd1c62ac13cb4aafaf91929f5f3f4941, type: 2}
   targetType: 1

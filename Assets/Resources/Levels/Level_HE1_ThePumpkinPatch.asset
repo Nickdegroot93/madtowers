@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_HE1_ThePumpkinPatch
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: The Pumpkin Patch
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 7a74a4b8b41104fd3b0da3f3d25172ef, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: e7daa3104128405ba51018e33535bbb8, type: 2}
   targetType: 1

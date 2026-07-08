@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_LO2_AqueductLine
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Aqueduct Line
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: dcf95d7a125c14386a7716f01c9d8cc9, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: bd1c62ac13cb4aafaf91929f5f3f4941, type: 2}
   targetType: 1

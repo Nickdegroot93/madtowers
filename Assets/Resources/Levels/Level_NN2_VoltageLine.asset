@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_NN2_VoltageLine
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Voltage Line
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 2d1a128c289324d8a972359a816c6424, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: bd1c62ac13cb4aafaf91929f5f3f4941, type: 2}
   targetType: 1

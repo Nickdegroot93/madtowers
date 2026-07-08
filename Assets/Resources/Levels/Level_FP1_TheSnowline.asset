@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_FP1_TheSnowline
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: The Snowline
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: fa0b2e798faff4fd8893bd3c34f67402, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: e7daa3104128405ba51018e33535bbb8, type: 2}
   targetType: 1

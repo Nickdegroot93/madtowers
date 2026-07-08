@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_FP2_WhiteoutPass
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Whiteout Pass
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 26eafed4e5f324de4b13fa2695d5c61e, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: bd1c62ac13cb4aafaf91929f5f3f4941, type: 2}
   targetType: 1

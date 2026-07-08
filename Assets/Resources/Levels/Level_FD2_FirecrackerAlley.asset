@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_FD2_FirecrackerAlley
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Firecracker Alley
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 2a0731f1427554ad8b7d564a41c3ca07, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: bd1c62ac13cb4aafaf91929f5f3f4941, type: 2}
   targetType: 1

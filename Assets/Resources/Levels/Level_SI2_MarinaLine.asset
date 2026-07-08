@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_SI2_MarinaLine
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Marina Line
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 5b5d2a90ea21a4855ac16ef717e818c7, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: bd1c62ac13cb4aafaf91929f5f3f4941, type: 2}
   targetType: 1

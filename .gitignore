@@ -65,3 +65,7 @@ Assets/Tutorials/Media/
 # ---- Unity Performance Testing run artifacts (generated into Resources/, never project content) ----
 /[Aa]ssets/[Rr]esources/PerformanceTestRun*.json
 /[Aa]ssets/[Rr]esources/PerformanceTestRun*.json.meta
+
+# AI-generation staging (paid outputs stay local; installed copies live in Assets/)
+Tools/icon-gen/gen_raw/
+Tools/thumb-gen/gen_raw/

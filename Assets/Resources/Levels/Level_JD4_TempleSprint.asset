@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_JD4_TempleSprint
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Temple Sprint
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 69608b80612834c4bafe6a7709327fed, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: 8804eeb6f30c49cbaf911d16207b21ea, type: 2}
   targetType: 3

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_SI3_SkywheelClimb
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Skywheel Climb
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 2c90b889b4b4245f0a36ad8d56700760, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: c22636cd5cec49bbaa438ba699481dfc, type: 2}
   targetType: 2

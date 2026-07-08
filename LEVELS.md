@@ -320,6 +320,21 @@ lantern-amber cap, ember motes + bat flock, hallows-end menu art, hallows-end A/
 | Lantern Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
 | Blood Moon Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
 
+**Chapter: Amber Tide (sortOrder 130)** — imported Tropical Landscape pack (pink-amber
+tropical sunset composed at the demo scene's proportions: baked-sun sky plate with the
+`Glare TL` lens-flare bubbles as a companion layer (`sunEnabled` stays 0 — one sun rule),
+the pack's own 30u cloud sheet drifting 0.12, two pale far ridges + two coral mid rows
+with mirrored pan copies, magenta palm-jungle hills, darkest plum palm valleys sunk into
+a matching plum fog; vendor `light TL` glow blob and `shadow TL` vignette deliberately
+skipped — no pulse support yet / vendor-scene leftover), Tide skin folder with dusk-plum
+shore cobbles under a coral sunset cap, warm dusk motes + a busy songbird flock,
+amber-tide menu art (light top), amber-tide A/B music
+| Level | Mode | Goal | Notes |
+|---|---|---|---|
+| The Palm Coast | GameMode_Classic | Place 100 | Stacking endurance, palm-coast dressing. |
+| Tide Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
+| Sundown Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+
 | Path | Contents |
 |---|---|
 | `Assets/Resources/Chapters/` | ChapterDefinition assets. **Must stay here** (loaded by path at runtime). |

@@ -651,6 +651,15 @@ if __name__ == "__main__":
     render_ground_cap("Hallow", (222, 132, 70), fleck=(246, 172, 96), fleck_chance=0.012)
     remove_legacy("Hallow")
 
+    # Amber Tide: dusk-plum shore cobbles under a coral sunset cap - the landable
+    # line keeps the beauty shot's amber light while the body stays jungle-dark.
+    render_plateau("Tide", (100, 66, 92), line=(46, 26, 44),
+                   blocks=1, top=(226, 142, 110), top_h=24)
+    render_islands("Tide", (100, 66, 92), line=(46, 26, 44))
+    render_ground_fill_cobble("Tide", (108, 70, 96), joint=(52, 30, 48))
+    render_ground_cap("Tide", (226, 142, 110), fleck=(244, 182, 140), fleck_chance=0.012)
+    remove_legacy("Tide")
+
     # Neon Nightfall: wet night promenade - large dark violet tiles catching cyan/pink
     # reflections from the glowing city, fairy-light glints along the walkable cap.
     render_plateau("Neon", (54, 48, 76), line=(24, 20, 38), blocks=1)

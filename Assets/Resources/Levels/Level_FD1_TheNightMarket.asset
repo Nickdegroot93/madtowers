@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_FD1_TheNightMarket
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: The Night Market
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 4ee9ad82a43eb4648a08597768769d29, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: e7daa3104128405ba51018e33535bbb8, type: 2}
   targetType: 1

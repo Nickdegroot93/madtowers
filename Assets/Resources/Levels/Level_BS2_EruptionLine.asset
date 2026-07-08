@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_BS2_EruptionLine
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Eruption Line
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 28efa31c1113540109220f3e0f1082a6, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: bd1c62ac13cb4aafaf91929f5f3f4941, type: 2}
   targetType: 1

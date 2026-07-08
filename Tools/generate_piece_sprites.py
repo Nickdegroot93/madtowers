@@ -287,6 +287,25 @@ THEME_PRESETS = {
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
         "preview_bg": (52, 30, 44),
     },
+    # Amber Tide: tropical-sunset materials - shell pink, sun amber, bougainvillea,
+    # dusk palm, hibiscus coral, twilight plum, mango - everything the beauty shot's
+    # pink-amber dusk would tint.
+    "Tide": {
+        "colors": {
+            "I": (220, 188, 176),   # shell pink
+            "O": (232, 186, 96),    # sun amber
+            "T": (188, 104, 156),   # bougainvillea
+            "S": (132, 150, 96),    # dusk palm
+            "Z": (216, 96, 88),     # hibiscus coral
+            "J": (122, 108, 160),   # twilight plum
+            "L": (224, 138, 72),    # mango
+            "Pip": (218, 198, 176),     # pale sand
+            "Domino": (150, 112, 128),  # plum driftwood
+        },
+        "outline": 0.22,
+        "edgeShine": {"Pip": 0.15, "Domino": 0.15},
+        "preview_bg": (196, 128, 140),
+    },
     # Sakura Ridge: muted ukiyo-e / washi tones. These belong to the background's
     # sakura, Fuji, temple indigo, and coral highlights; readability comes from the
     # outline/shape language rather than neon opposite colors.

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_BS1_TheAshfall
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: The Ashfall
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 795da73dcb9f44f74b110900b6e278fc, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: e7daa3104128405ba51018e33535bbb8, type: 2}
   targetType: 1

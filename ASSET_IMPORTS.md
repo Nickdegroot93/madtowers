@@ -30,6 +30,10 @@ Current packs:
   at other packs' GUIDs+paths - the plate, layer1 mountains, layer2 buildings w1-w4 and the
   boat had to be re-extracted from the .unitypackage with fresh GUIDs after reverting the
   overwrites of Chinese City / Glowing City / Desert Vibe)
+- `Assets/Art/ChapterPacks/Tropical Landscape` (mild drill: all sprites landed inside Jungle
+  Landscape as NEW TL-suffixed files with their own GUIDs (no content overwrites for once),
+  scripts at `Assets/Tropical Landscape/`; relocated with vendor metas, Desert Vibe
+  importer-meta churn reverted)
 - `Assets/Art/ChapterPacks/Halloween` (same drill: sprites scattered across Japan Landscape /
   Jungle Landscape / Desert Vibe, scripts at `Assets/Halloween/`, and the pack ships its
   bg / layer1 d1-d3 / layer2 c1-c4 / layer3 b1-b3+pl / cart / bushes a1-a3 at Japan

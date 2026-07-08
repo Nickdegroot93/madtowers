@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_SI1_TheLagoon
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: The Lagoon
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 89e91f677c14d44628e13fc5d28db16b, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: e7daa3104128405ba51018e33535bbb8, type: 2}
   targetType: 1

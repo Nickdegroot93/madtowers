@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_FD3_PagodaClimb
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Pagoda Climb
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 1e61828378a42400cbbf3f79b2ce344b, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: c22636cd5cec49bbaa438ba699481dfc, type: 2}
   targetType: 2

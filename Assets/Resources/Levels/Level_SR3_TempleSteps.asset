@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_SR3_TempleSteps
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Temple Steps
-  menuThumbnail: {fileID: 21300000, guid: b710baadac034e809a52f429bffc854b, type: 3}
+  menuThumbnail: {fileID: 21300000, guid: 6b43e5367f8d74790bad08c3df1ad727, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: c22636cd5cec49bbaa438ba699481dfc, type: 2}
   targetType: 2

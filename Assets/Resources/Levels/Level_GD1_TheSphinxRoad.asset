@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_GD1_TheSphinxRoad
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: The Sphinx Road
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 08afd1fcdc959402c98d39232da6afba, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: e7daa3104128405ba51018e33535bbb8, type: 2}
   targetType: 1
