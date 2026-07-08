@@ -30,6 +30,11 @@ Current packs:
   at other packs' GUIDs+paths - the plate, layer1 mountains, layer2 buildings w1-w4 and the
   boat had to be re-extracted from the .unitypackage with fresh GUIDs after reverting the
   overwrites of Chinese City / Glowing City / Desert Vibe)
+- `Assets/Art/ChapterPacks/Halloween` (same drill: sprites scattered across Japan Landscape /
+  Jungle Landscape / Desert Vibe, scripts at `Assets/Halloween/`, and the pack ships its
+  bg / layer1 d1-d3 / layer2 c1-c4 / layer3 b1-b3+pl / cart / bushes a1-a3 at Japan
+  Landscape + Sovietwave GUIDs+paths — those 17 were copied out meta-less for fresh GUIDs
+  after reverting the Japan Landscape / Sovietwave / Desert Vibe overwrites)
 
 Game-authored chapter presentation stays separate:
 
