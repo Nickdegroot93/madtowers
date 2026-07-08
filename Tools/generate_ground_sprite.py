@@ -641,6 +641,16 @@ if __name__ == "__main__":
     render_ground_cap("Island", (94, 164, 102), fleck=(170, 220, 140), fleck_chance=0.011)
     remove_legacy("Island")
 
+    # Hallow's End: graveyard cobbles - near-black violet stones with shadowed
+    # joints, capped in lantern-lit amber so the landable line glows like the
+    # pumpkin rows behind it.
+    render_plateau("Hallow", (84, 62, 98), line=(36, 24, 46),
+                   blocks=1, top=(224, 134, 72), top_h=24)
+    render_islands("Hallow", (84, 62, 98), line=(36, 24, 46))
+    render_ground_fill_cobble("Hallow", (78, 58, 92), joint=(34, 22, 44))
+    render_ground_cap("Hallow", (222, 132, 70), fleck=(246, 172, 96), fleck_chance=0.012)
+    remove_legacy("Hallow")
+
     # Neon Nightfall: wet night promenade - large dark violet tiles catching cyan/pink
     # reflections from the glowing city, fairy-light glints along the walkable cap.
     render_plateau("Neon", (54, 48, 76), line=(24, 20, 38), blocks=1)

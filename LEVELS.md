@@ -299,6 +299,27 @@ songbird flock, sector-isla menu art, one music track (b was a duplicate of a)
 | Marina Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
 | Skywheel Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
 
+**Chapter: Hallow's End (sortOrder 120)** — imported Halloween pack (blood-dusk graveyard,
+composed at the demo scene's own proportions — sizes are scene px × scale, all rows share
+one ground line with bases sunk into the fog; a first hand-eyeballed pass read half-empty
+with apron seams. Ember sky plate, `light2` red horizon glow (soft-edged, single placement),
+eclipse ring + halo upper-right (`sunEnabled` stays 0 — one sun rule), tiled far-mountain
+band + masses, ruined church/farm/fence skyline ring, the three big `b1-b3` vine-canopy
+masses as the midground wall, three 12u gnarled trees on the flanks, telephone-pole wire
+strip (poles plant below the datum), graves-and-fence plate (its uniform fill colour ==
+apron == `groundFogColor`, so it dissolves seamlessly), `cart_strip_hallow` — the pack's
+pumpkin wagon rebuilt from car + 4 spoked wheels + glow at the demo scene's offsets,
+drifting −1.35 u/s hitch-first on a 6144px mostly-empty strip (~36s per crossing), wheels
+tucked behind the fence rows; chunky glowing jack-o'-lantern hedge capped at ~+0.8 so the
+tower base stays readable; hanging-canopy `fgrnd`, white `cloud4` and the additive pumpkin
+light sheets deliberately skipped), Hallow skin folder with graveyard cobble floor and
+lantern-amber cap, ember motes + bat flock, hallows-end menu art, hallows-end A/B music
+| Level | Mode | Goal | Notes |
+|---|---|---|---|
+| The Pumpkin Patch | GameMode_Classic | Place 100 | Stacking endurance, pumpkin-patch dressing. |
+| Lantern Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
+| Blood Moon Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+
 | Path | Contents |
 |---|---|
 | `Assets/Resources/Chapters/` | ChapterDefinition assets. **Must stay here** (loaded by path at runtime). |
