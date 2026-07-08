@@ -56,10 +56,14 @@ here changes, change it in every generator (and the C# constant it mirrors).
   cracks make no sense (Neon), the seam *placement* stays but its rendering
   flips (e.g. glowing lines) — the motif "pieces are assembled from cells"
   must stay readable.
-- The 7 shapes keep their **hue identities** in every theme: I cyan-family,
-  O yellow/gold, T purple, S green, Z red, J blue, L orange. A theme may
-  shift saturation/value (Haunted = desaturated, Ice = pale) but never
-  reassign hues between shapes.
+- Every theme's pieces are **materials of that chapter's world** (Desert is the
+  reference: bone, sand, clay-rose, sage, terracotta, slate, burnt orange — not
+  the Classic rainbow re-tinted). The 7 hue FAMILIES stay as loose anchors so a
+  returning player still reads I as coolest and L/Z as warmest, but each colour
+  is named for something in the scene, saturation sits well below Classic
+  (Neon exempt — neon reads as light, not pigment), and the whole set shares the
+  chapter's cast. Never reassign hues *between* shapes, and keep every shape
+  pair at RGB distance ≥ ~40 (Desert's proven floor — validate when authoring).
 
 **Composition (sorting orders)**
 - Background −100 · hills/scenery −86…−83 · placement beam −60 · loss lasers −57…−51

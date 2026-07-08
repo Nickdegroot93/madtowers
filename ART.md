@@ -30,8 +30,9 @@ variety comes from rotation and the 7 shapes/colors.
 all 7 (silhouette, outline, gradient, bevel, seam cracks) per entry in its
 `THEME_PRESETS` table into `Assets/Resources/Skins/<Chapter>/`. A chapter without
 an entry falls back to the Classic pieces automatically. **New block look for
-a chapter = one preset dict** (7 hue-identity-preserving colors + an outline
-factor) and a rerun — nothing else.
+a chapter = one preset dict** (7 chapter-material colors — see STYLE.md's
+palette rule; Desert is the reference look — plus an outline factor) and a
+rerun — nothing else.
 
 Hand-made art can still override any shape: export a transparent PNG at
 **256 px per cell + 32 px bleed** (exact canvases: I 1088×320, O 576×576,

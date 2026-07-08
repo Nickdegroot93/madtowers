@@ -19,8 +19,9 @@ Style per piece (the "carved stone toy" look, see STYLE.md):
 
 Deterministic per shape (seeded) so regeneration is stable and every theme keeps
 the same crack layout (only the palette changes chapter to chapter).
-Style rules: STYLE.md (the 7 shapes keep their hue identities in every theme -
-shift saturation/value only).
+Style rules: STYLE.md - every theme's pieces are materials of that chapter's
+world (Desert is the reference); hue families stay as loose anchors, shape
+pairs keep RGB distance >= ~40.
 
     python3 Tools/generate_piece_sprites.py [--preview <dir>]
 
@@ -39,8 +40,8 @@ BEVEL = 26        # bevel band thickness inside the outline (px)
 
 SKINS_DIR = os.path.join(os.path.dirname(__file__), "..", "Assets", "Resources", "Skins")
 
-# One entry per theme that wants its own block look. "colors" must keep the 7 hue
-# identities (STYLE.md); "outline" is the outline value factor (fraction of the
+# One entry per theme that wants its own block look. "colors" are chapter
+# materials (STYLE.md); "outline" is the outline value factor (fraction of the
 # base color's value the outline keeps - the outline is also mildly desaturated
 # so it reads near-black while never going flat black).
 THEME_PRESETS = {
@@ -79,19 +80,19 @@ THEME_PRESETS = {
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},  # faint extra top-edge highlight
         "preview_bg": (205, 185, 155),
     },
-    # Jungle Depths: saturated canopy light with dark organic outlines. Hue identities
-    # stay intact, but every piece is pulled into leaf, orchid, clay, and river tones.
+    # Jungle Depths: every piece a jungle material - lichen, fern, orchid, papaya,
+    # river stone - under dark organic outlines.
     "Jungle": {
         "colors": {
-            "I": (82, 205, 188),   # river teal
-            "O": (226, 198, 82),   # filtered sun
-            "T": (156, 96, 194),   # orchid
-            "S": (91, 177, 82),    # leaf green
-            "Z": (207, 88, 82),    # red bromeliad
-            "J": (78, 121, 210),   # deep blue flower
-            "L": (220, 136, 62),   # clay orange
-            "Pip": (214, 96, 172),     # bright jungle fruit
-            "Domino": (164, 80, 154),  # deeper fruit-vine
+            "I": (170, 190, 150),     # pale lichen
+            "O": (198, 186, 96),     # sun-dappled gold
+            "T": (170, 120, 158),     # wild orchid
+            "S": (118, 162, 84),     # fern
+            "Z": (188, 94, 70),     # heliconia red
+            "J": (86, 128, 118),     # leaf-shadow teal
+            "L": (198, 138, 72),     # ripe papaya
+            "Pip": (198, 190, 154),  # balsa
+            "Domino": (150, 132, 102),  # bark
         },
         "outline": 0.19,
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
@@ -122,15 +123,15 @@ THEME_PRESETS = {
     # amber so the 7 shapes stay tellable against the snow.
     "Winter": {
         "colors": {
-            "I": (126, 200, 216),   # glacial cyan
-            "O": (224, 198, 126),   # pale winter sun
-            "T": (162, 118, 192),   # frost lilac
-            "S": (108, 164, 128),   # frosted pine
-            "Z": (204, 96, 104),    # rowan berry
-            "J": (98, 124, 198),    # deep ice blue
-            "L": (216, 142, 92),    # lantern amber
-            "Pip": (208, 122, 178),     # cold pink
-            "Domino": (152, 102, 172),  # frozen violet
+            "I": (188, 214, 228),     # glacial ice
+            "O": (216, 196, 140),     # pale winter sun
+            "T": (168, 146, 186),     # frost heather
+            "S": (128, 160, 138),     # frosted pine
+            "Z": (188, 100, 104),     # cold berry
+            "J": (110, 140, 180),     # deep ice blue
+            "L": (208, 152, 108),     # alpenglow amber
+            "Pip": (214, 218, 224),  # fresh snow
+            "Domino": (160, 168, 180),  # granite
         },
         "outline": 0.24,
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
@@ -140,34 +141,33 @@ THEME_PRESETS = {
     # warm and lantern-lit; the pack's neon-pink window glow lives in Pip/Domino.
     "Fangkuai": {
         "colors": {
-            "I": (110, 190, 200),   # patinated teal
-            "O": (230, 190, 105),   # lantern gold
-            "T": (176, 112, 200),   # orchid
-            "S": (118, 168, 112),   # garden green
-            "Z": (225, 92, 110),    # crimson lantern
-            "J": (104, 118, 205),   # indigo dusk
-            "L": (226, 140, 85),    # amber glow
-            "Pip": (232, 110, 160),     # neon pink window
-            "Domino": (170, 92, 168),   # magenta violet
+            "I": (206, 198, 178),     # moon paper
+            "O": (224, 176, 96),     # lantern gold
+            "T": (170, 116, 158),     # plum dusk
+            "S": (110, 160, 118),     # jade
+            "Z": (200, 88, 74),     # cinnabar
+            "J": (110, 118, 168),     # indigo night
+            "L": (214, 136, 78),     # persimmon
+            "Pip": (196, 204, 180),  # pale celadon
+            "Domino": (152, 108, 96),  # rosewood
         },
         "outline": 0.21,
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
         "preview_bg": (96, 72, 96),
     },
-    # Kvartal 4: sovietwave night — cold desaturated concrete-district tones with
-    # sodium-lamp and neon accents. Hue identities survive in muted form against the
-    # near-black green sky.
+    # Kvartal 4: sovietwave night - courtyard materials: lamplit snow, sodium amber,
+    # panel concrete, faded brick, wet asphalt against the near-black green sky.
     "Kvartal": {
         "colors": {
-            "I": (108, 182, 190),   # cold teal
-            "O": (216, 186, 110),   # sodium-lamp gold
-            "T": (158, 112, 186),   # violet neon
-            "S": (110, 160, 106),   # courtyard green
-            "Z": (198, 92, 96),     # brick red
-            "J": (96, 118, 190),    # night indigo
-            "L": (208, 138, 88),    # rust orange
-            "Pip": (212, 108, 156),     # neon pink
-            "Domino": (148, 96, 160),   # violet dusk
+            "I": (196, 200, 190),     # lamplit snow
+            "O": (216, 174, 96),     # sodium amber
+            "T": (172, 138, 186),     # cold lilac
+            "S": (118, 148, 122),     # pine in snow
+            "Z": (180, 96, 84),     # faded brick
+            "J": (112, 132, 162),     # panel concrete
+            "L": (200, 132, 80),     # rust
+            "Pip": (202, 196, 178),  # worn plaster
+            "Domino": (128, 128, 136),  # wet asphalt
         },
         "outline": 0.24,
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
@@ -178,15 +178,15 @@ THEME_PRESETS = {
     # the glow-colors pop like signage.
     "Neon": {
         "colors": {
-            "I": (72, 214, 232),    # electric cyan
-            "O": (240, 210, 80),    # neon yellow
-            "T": (196, 96, 224),    # hot violet
-            "S": (108, 210, 96),    # neon green
-            "Z": (238, 82, 120),    # hot pink-red
-            "J": (92, 122, 235),    # electric blue
-            "L": (240, 140, 70),    # neon orange
-            "Pip": (244, 96, 180),      # hot pink
-            "Domino": (168, 88, 200),   # purple glow
+            "I": (72, 202, 224),     # electric cyan
+            "O": (232, 180, 70),     # amber signage
+            "T": (188, 96, 200),     # hot magenta
+            "S": (96, 200, 140),     # acid mint
+            "Z": (226, 84, 120),     # neon coral
+            "J": (96, 108, 216),     # ultraviolet
+            "L": (236, 130, 66),     # strip orange
+            "Pip": (188, 214, 222),  # pale hologram
+            "Domino": (134, 130, 168),  # night chrome
         },
         "outline": 0.18,
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
@@ -197,15 +197,15 @@ THEME_PRESETS = {
     # molten orange — so the whole bag reads lit-from-beneath without losing the 7 hues.
     "Volcano": {
         "colors": {
-            "I": (96, 186, 196),    # ash teal
-            "O": (238, 184, 78),    # magma gold
-            "T": (176, 102, 196),   # heat violet
-            "S": (124, 168, 88),    # scorched moss
-            "Z": (232, 84, 72),     # lava red
-            "J": (98, 114, 200),    # cooled basalt blue
-            "L": (242, 132, 60),    # molten orange
-            "Pip": (234, 102, 158),     # hot pink
-            "Domino": (168, 86, 170),   # ember violet
+            "I": (184, 168, 158),     # warm ash
+            "O": (222, 164, 84),     # ember gold
+            "T": (172, 118, 130),     # heat-haze mauve
+            "S": (150, 146, 92),     # scorched olive
+            "Z": (208, 84, 60),     # lava red
+            "J": (128, 122, 138),     # basalt
+            "L": (226, 126, 58),     # molten orange
+            "Pip": (198, 186, 172),  # pumice
+            "Domino": (140, 126, 118),  # dark basalt
         },
         "outline": 0.20,
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
@@ -216,15 +216,15 @@ THEME_PRESETS = {
     # bag stays readable against the pale dusk silhouettes.
     "Egypt": {
         "colors": {
-            "I": (140, 190, 186),   # oxidized teal
-            "O": (236, 190, 92),    # pharaoh gold
-            "T": (182, 112, 178),   # dusk orchid
-            "S": (138, 168, 96),    # nile reed
-            "Z": (222, 96, 84),     # carnelian
-            "J": (110, 122, 198),   # lapis
-            "L": (234, 142, 74),    # amber sunset
-            "Pip": (230, 118, 158),     # rose quartz
-            "Domino": (164, 96, 164),   # royal purple
+            "I": (206, 192, 160),     # limestone
+            "O": (232, 188, 96),     # pharaoh gold
+            "T": (168, 128, 170),     # amethyst
+            "S": (140, 162, 100),     # nile reed
+            "Z": (202, 96, 70),     # carnelian
+            "J": (96, 118, 186),     # lapis
+            "L": (212, 132, 62),     # desert amber
+            "Pip": (212, 200, 176),  # alabaster
+            "Domino": (164, 134, 96),  # aged bronze
         },
         "outline": 0.22,
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
@@ -235,15 +235,15 @@ THEME_PRESETS = {
     # gold and rust of the ruins, so the bag belongs to both halves of the palette.
     "LostCity": {
         "colors": {
-            "I": (94, 196, 190),    # oasis teal
-            "O": (232, 196, 100),   # moonlit gold
-            "T": (170, 110, 190),   # alien orchid
-            "S": (108, 176, 96),    # desert scrub
-            "Z": (218, 100, 82),    # rust red
-            "J": (96, 130, 200),    # night blue
-            "L": (230, 146, 76),    # amber ruin
-            "Pip": (226, 116, 156),     # moon rose
-            "Domino": (156, 100, 170),  # dusk violet
+            "I": (140, 196, 186),     # moonlit teal
+            "O": (224, 184, 100),     # moon gold
+            "T": (150, 118, 172),     # alien violet
+            "S": (104, 158, 128),     # ruin moss
+            "Z": (192, 92, 66),     # rust
+            "J": (84, 128, 148),     # deep dusk teal
+            "L": (214, 134, 70),     # ember
+            "Pip": (198, 200, 184),  # moonstone
+            "Domino": (124, 146, 142),  # slate-teal
         },
         "outline": 0.21,
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
@@ -254,34 +254,53 @@ THEME_PRESETS = {
     # sunset-salmon accents from the plate's clouds.
     "Island": {
         "colors": {
-            "I": (98, 200, 180),    # lagoon teal
-            "O": (222, 196, 104),   # dusk gold
-            "T": (168, 116, 188),   # orchid
-            "S": (112, 182, 104),   # jungle green
-            "Z": (212, 98, 92),     # hibiscus red
-            "J": (100, 132, 196),   # deep water blue
-            "L": (226, 148, 84),    # sunset amber
-            "Pip": (222, 118, 158),     # tropical pink
-            "Domino": (152, 104, 168),  # dusk violet
+            "I": (122, 196, 176),     # lagoon aqua
+            "O": (216, 184, 112),     # dusk sand
+            "T": (182, 120, 156),     # orchid pink
+            "S": (110, 168, 96),     # palm green
+            "Z": (204, 92, 84),     # hibiscus
+            "J": (88, 132, 150),     # deep water
+            "L": (216, 146, 74),     # mango
+            "Pip": (208, 196, 168),  # coral sand
+            "Domino": (156, 138, 114),  # driftwood
         },
         "outline": 0.21,
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
         "preview_bg": (74, 110, 92),
+    },
+    # Hallow's End: jack-o'-lantern light against a blood-dusk graveyard. Warm
+    # identities (O/L/Z) carry the pumpkin/ember glow, cool ones stay spectral —
+    # every hue lifted enough to read over the near-black silhouette world.
+    "Hallow": {
+        "colors": {
+            "I": (150, 186, 178),     # spectral teal
+            "O": (214, 168, 88),     # candlelight
+            "T": (156, 108, 170),     # witch violet
+            "S": (118, 152, 78),     # toxic moss
+            "Z": (178, 74, 64),     # dried blood
+            "J": (110, 104, 152),     # midnight plum
+            "L": (216, 122, 56),     # pumpkin
+            "Pip": (204, 194, 172),  # bone
+            "Domino": (134, 106, 96),  # coffin wood
+        },
+        "outline": 0.21,
+        "edgeShine": {"Pip": 0.15, "Domino": 0.15},
+        "preview_bg": (52, 30, 44),
     },
     # Sakura Ridge: muted ukiyo-e / washi tones. These belong to the background's
     # sakura, Fuji, temple indigo, and coral highlights; readability comes from the
     # outline/shape language rather than neon opposite colors.
     "Japan": {
         "colors": {
-            "I": (83, 171, 172),    # patinated teal
-            "O": (222, 201, 130),   # washi gold
-            "T": (158, 96, 157),    # muted plum
-            "S": (120, 154, 120),   # soft moss jade
-            "Z": (215, 104, 108),   # sakura vermilion
-            "J": (86, 106, 160),    # temple indigo
-            "L": (218, 133, 92),    # warm terracotta
-            "Pip": (220, 116, 150),     # sakura pink
-            "Domino": (128, 92, 150),   # wisteria purple
+            "I": (162, 190, 168),     # celadon
+            "O": (218, 196, 138),     # washi gold
+            "T": (158, 126, 168),     # wisteria
+            "S": (136, 162, 104),     # matcha
+            "Z": (202, 88, 70),     # torii vermilion
+            "J": (92, 108, 156),     # temple indigo
+            "L": (210, 140, 92),     # persimmon
+            "Pip": (216, 186, 188),  # sakura pink
+            "Domino": (140, 138, 146),  # ink stone
         },
         "outline": 0.20,
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
