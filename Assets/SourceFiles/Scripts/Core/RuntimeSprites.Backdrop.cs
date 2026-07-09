@@ -294,6 +294,33 @@ public static partial class RuntimeSprites
         return Mathf.Clamp01(width - Mathf.Sqrt(dx * dx + dy * dy) + 0.6f);
     }
 
+    private static Sprite _streak;
+
+    /// <summary>
+    /// Thin vertical soft-edged line in a 1x1-unit canvas - the rain/driving-snow particle.
+    /// Same scale semantics as SoftDot: localScale.x = width, localScale.y = streak length.
+    /// </summary>
+    public static Sprite Streak()
+    {
+        if (_streak != null) return _streak;
+
+        const int S = 64;
+        Texture2D tex = NewTexture(S, S);
+        for (int y = 0; y < S; y++)
+        {
+            // fade in/out along the streak so both ends taper
+            float v = (y + 0.5f) / S;
+            float endFade = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(Mathf.Min(v, 1f - v) * 4f));
+            for (int x = 0; x < S; x++)
+            {
+                float dx = Mathf.Abs((x + 0.5f) / S * 2f - 1f);          // 0 centre .. 1 edge
+                float core = Mathf.SmoothStep(1f, 0f, Mathf.Clamp01(dx * 4f)); // ~quarter-width core
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, core * endFade));
+            }
+        }
+        return _streak = Finish(tex, S);
+    }
+
     private static Sprite _softDot;
 
     public static Sprite SoftDot()

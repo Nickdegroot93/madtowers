@@ -156,11 +156,22 @@ public partial class LevelPresentationController
             GameObject particle = new GameObject($"Ambient{i}");
             particle.transform.SetParent(_worldRoot, false);
             SpriteRenderer sr = particle.AddComponent<SpriteRenderer>();
-            sr.sprite = RuntimeSprites.SoftDot();
+            bool streak = _preset.ParticleStreakLength > 0f;
+            sr.sprite = streak ? RuntimeSprites.Streak() : RuntimeSprites.SoftDot();
             sr.color = _preset.ParticleColor;
-            sr.sortingOrder = ParticleSortingOrder;
+            // weather (rain) renders over every imported layer; ambient motes sit among them
+            sr.sortingOrder = _preset.ParticlesInFront ? FrontParticleSortingOrder : ParticleSortingOrder;
             float size = _preset.ParticleSize * Random.Range(0.7f, 1.3f);
-            particle.transform.localScale = new Vector3(size, size, 1f);
+            particle.transform.localScale = streak
+                ? new Vector3(size, _preset.ParticleStreakLength * Random.Range(0.85f, 1.15f), 1f)
+                : new Vector3(size, size, 1f);
+            if (streak)
+            {
+                // long axis follows the fall velocity so wind visibly slants the rain
+                float slant = Mathf.Atan2(_preset.ParticleWindX,
+                    Mathf.Max(0.01f, _preset.ParticleFallSpeed)) * Mathf.Rad2Deg;
+                particle.transform.rotation = Quaternion.Euler(0f, 0f, slant);
+            }
             particle.transform.position = RandomParticlePosition(anywhere: true);
             _particles[i] = particle.transform;
             _particlePhases[i] = Random.Range(0f, Mathf.PI * 2f);
@@ -414,6 +425,11 @@ public partial class LevelPresentationController
         float y = anywhere
             ? cam.y + Random.Range(-CameraHalfHeight, CameraHalfHeight)
             : cam.y + CameraHalfHeight * Random.Range(1.05f, 1.3f);
+        // spawn upwind by half the expected drift so wind-blown particles still cover the view
+        if (_preset.ParticleWindX != 0f && _preset.ParticleFallSpeed > 0.01f)
+        {
+            x -= _preset.ParticleWindX * (CameraHalfHeight * 2.3f / _preset.ParticleFallSpeed) * 0.5f;
+        }
         return new Vector3(x, y, 0f);
     }
 
@@ -427,7 +443,8 @@ public partial class LevelPresentationController
             Transform particle = _particles[i];
             Vector3 pos = particle.position;
             pos.y -= _preset.ParticleFallSpeed * Time.deltaTime;
-            pos.x += Mathf.Sin(Time.time * 1.3f + _particlePhases[i]) * _preset.ParticleSwayAmount * Time.deltaTime;
+            pos.x += Mathf.Sin(Time.time * 1.3f + _particlePhases[i]) * _preset.ParticleSwayAmount * Time.deltaTime
+                     + _preset.ParticleWindX * Time.deltaTime;
 
             if (pos.y < cam.y - CameraHalfHeight * 1.15f)
             {

@@ -201,6 +201,16 @@ public static class ChapterContentValidator
             Warning($"Backdrop '{preset.name}' has {preset.ParticleCount} ambient particles with a fully transparent color.", preset, ref warnings);
         }
 
+        if (preset.ParticleStreakLength > 0f && preset.ParticleFallSpeed < 1f)
+        {
+            Warning($"Backdrop '{preset.name}' uses particle streaks with fallSpeed {preset.ParticleFallSpeed}; slow streaks read as static scratches. Rain wants fallSpeed >= ~5.", preset, ref warnings);
+        }
+
+        if (preset.ParticleWindX != 0f && preset.ParticleCount == 0)
+        {
+            Warning($"Backdrop '{preset.name}' sets particleWindX with zero particles; the wind does nothing.", preset, ref warnings);
+        }
+
         if (preset.FlybyFlockSize > 0 && preset.FlybyIntervalSeconds.x > preset.FlybyIntervalSeconds.y)
         {
             Warning($"Backdrop '{preset.name}' flyby interval min ({preset.FlybyIntervalSeconds.x}) exceeds max ({preset.FlybyIntervalSeconds.y}).", preset, ref warnings);

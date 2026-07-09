@@ -129,6 +129,12 @@ public class BackdropPreset : ScriptableObject
     [SerializeField] private float particleSize = 0.12f;
     [SerializeField] private float particleFallSpeed = 0.8f;
     [SerializeField] private float particleSwayAmount = 0.6f;
+    [Tooltip("0 = round mote. > 0 = each particle is a streak this many world units long, angled along its fall direction - rain, driving snow.")]
+    [SerializeField] private float particleStreakLength = 0f;
+    [Tooltip("Constant horizontal wind (world units/s) on every particle - slants rain and snow. 0 = none.")]
+    [SerializeField] private float particleWindX = 0f;
+    [Tooltip("Render particles in front of ALL imported backdrop layers (still behind gameplay). Weather like rain wants this; ambient motes usually sit among the layers.")]
+    [SerializeField] private bool particlesInFront = false;
 
     [Header("Heat haze (0 = off; hot-air shimmer that arrives in gusts, never constant)")]
     [Tooltip("Peak shimmer strength for a hot chapter. A slow gust envelope drives it between zero and this value, and it fades out entirely as the tower climbs away from the ground.")]
@@ -178,6 +184,9 @@ public class BackdropPreset : ScriptableObject
     public float ParticleSize => particleSize;
     public float ParticleFallSpeed => particleFallSpeed;
     public float ParticleSwayAmount => particleSwayAmount;
+    public float ParticleStreakLength => particleStreakLength;
+    public float ParticleWindX => particleWindX;
+    public bool ParticlesInFront => particlesInFront;
     public float HeatHazeAmount => heatHazeAmount;
     public int FlybyFlockSize => flybyFlockSize;
     public Color FlybyColor => flybyColor;

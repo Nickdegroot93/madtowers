@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccb180f7c3a343d394214cd43034c5c1, type: 3}
+  m_Name: Chapter_MonsoonSector
+  m_EditorClassIdentifier: Assembly-CSharp::ChapterDefinition
+  displayName: Monsoon Sector
+  chapterNumber: 14
+  sortOrder: 140
+  levels:
+  - {fileID: 11400000, guid: 9f0d966aee354706b885138a5ecb4469, type: 2}
+  - {fileID: 11400000, guid: 837c194a6ba84e6e9360105507b0f3ac, type: 2}
+  - {fileID: 11400000, guid: a69f40c8efe14eac904181c5828cb49b, type: 2}
+  menuBackgroundVideo: {fileID: 0}
+  menuBackgroundImage: {fileID: 21300000, guid: 6d7e1f7352bc04c8aa7e10df7f5210ab, type: 3}
+  nextChapterPreviewImage: {fileID: 0}
+  menuTopIsLight: 1
+  menuAccentColor: {r: 0.45, g: 0.95, b: 0.6, a: 1}
+  menuAccentSecondaryColor: {r: 0.4, g: 0.8, b: 0.85, a: 1}
+  menuPanelColor: {r: 0.04, g: 0.1, b: 0.08, a: 0.78}
+  playButtonTopColor: {r: 0.3, g: 0.78, b: 0.5, a: 1}
+  playButtonBottomColor: {r: 0.1, g: 0.36, b: 0.24, a: 1}
+  backdrop: {fileID: 11400000, guid: aa3ee95cabab48e4be1d2d243fc7b33e, type: 2}
+  musicPlaylist:
+  - {fileID: 8300000, guid: 43e97ed1999c84f099e6999791b70334, type: 3}
+  - {fileID: 8300000, guid: eb0e23cf809a04ef383c945386c667d0, type: 3}
+  skinFolder: Skins/Techno
+  alwaysUnlocked: 0
+  featuredUnlocks: []

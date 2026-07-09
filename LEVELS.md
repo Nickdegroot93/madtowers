@@ -335,6 +335,33 @@ amber-tide menu art (light top), amber-tide A/B music
 | Tide Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
 | Sundown Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
 
+**Chapter: Monsoon Sector (sortOrder 140)** — imported TechnoCity Rain Mode pack (rainy
+green cyber-city, composed by the deterministic method: each vendor layer folder shares
+one ground line (far `d` −12.87, mid `c` −8.25, dark `b` −9.10, foreground −10.2), mapped
+to our floor by a single constant so floorOffsetY = vendor_bottom + 9.4. Three building
+rows placed DENSE and OVERLAPPING (cycling the folder's sprites at ~2.9u/3.9u steps with
+x-jitter) so silhouettes merge into a continuous jagged skyline instead of isolated towers
+with sharp vertical gaps; two stacked aprons make the depth gradient — a medium-green mist
+apron on the mid row (top +1.15) and a darker apron on the near-dark row (top +0.3) that
+takes over below the building bases, so the lower city fades light→dark→fog with no flat
+light-green band. Giant foreground palms, tiled powerline strip, the pack's `road`
+bridge/railing at the play-area base, palm-bush clusters straddling the rail line,
+dissolving into a deep wet-teal fog. Layer count held to 35 — backdrop sorts `−89+i` and
+the floor fill is −50, so ≤~36 layers or near ones render over the floor. Vendor `bg city2`
+(a solid green RECTANGLE, not a skyline — its straight top was a persistent horizontal-line
+artifact), the neon-car drive-by (built then cut, didn't fit — Nick's call), `f1-f4`
+strips and `shadow` vignette all deliberately dropped. FIRST RAIN CHAPTER: the generic
+particle-streak rain (`particleStreakLength` 0.75, `particleWindX` −1.3, fall 7.5, 90
+streaks, `particlesInFront` so it falls over the scenery — see AMBIENCE.md toolkit) ships
+with this chapter; vendor rain prefab kept for reference only. No flybys — rain carries the
+motion, a flock in a downpour read wrong), Techno skin folder with wet neon pavement floor,
+monsoon-sector menu art, monsoon-sector A/B music
+| Level | Mode | Goal | Notes |
+|---|---|---|---|
+| The Palm Road | GameMode_Classic | Place 100 | Stacking endurance, rain-slick dressing. |
+| Wire Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
+| Skyline Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+
 | Path | Contents |
 |---|---|
 | `Assets/Resources/Chapters/` | ChapterDefinition assets. **Must stay here** (loaded by path at runtime). |

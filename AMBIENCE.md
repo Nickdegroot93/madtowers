@@ -32,7 +32,7 @@ on its `BackdropPreset`:
 | Hills / mesas / props | `hillsEnabled`, `hillStyle`, `hill*Color`, `propCount`, ... | Ground-level silhouettes when the pack lacks a floor line | `.Elements.cs` |
 | Imported layer **drift** | `spriteBackdropLayers[i].driftSpeedX` | THE "this layer is clouds" switch: endless seamless sideways scroll of any pack layer | `.Elements.cs` |
 | Imported layer **hover** | `spriteBackdropLayers[i].hoverAmount` (world units) + `hoverPeriodSeconds` | Smooth sine bob for flying craft — hovering pyramids, airships, balloons. Phase-offset per layer; ignored on fillView layers (validator lints this) | `.Elements.cs` |
-| Ambient particles | `particleCount`, `particleColor`, `particleSize`, `particleFallSpeed`, `particleSwayAmount` | Spores / petals / dust / snow / embers — color + motion is all a mood needs | `.Elements.cs` |
+| Ambient particles | `particleCount`, `particleColor`, `particleSize`, `particleFallSpeed`, `particleSwayAmount`, `particleStreakLength`, `particleWindX` | Spores / petals / dust / snow / embers — color + motion is all a mood needs. `streakLength > 0` stretches each particle into a fall-angled streak and `windX` slants the whole field: that's **rain** (length ~0.75, fall ≥ 5, wind ±1, sway 0, `particlesInFront: 1` so it falls over the scenery, not behind it) or driving snow. Validator lints slow streaks | `.Elements.cs` |
 | Heat haze | `heatHazeAmount` | Gusting hot-air shimmer (2x-multiply ripple overlay). Comes and goes on a slow gust envelope — never constant — and fades out as the tower climbs off the hot ground | `.Ambience.cs` + `Assets/Resources/HeatHaze.shader` |
 | Flybys | `flybyFlockSize`, `flybyColor`, `flybyIntervalSeconds`, `flybySpeed`, `flybyScale` | Rare bird silhouettes crossing the sky. One procedural bird serves all themes — data does the casting (see below) | `.Ambience.cs` + `RuntimeSprites.Backdrop.cs` |
 
@@ -107,10 +107,10 @@ Roughly in priority order. Each one must follow the architecture rules below.
 - **Multi-emitter particles**: promote the particle block to an array so one chapter can
   stack moods (near dust + far haze; rising embers + falling ash). Needs a `direction`/
   `riseSpeed` field — rising particles unlock fireflies, embers, bubbles.
-- **Weather (rain / snow / storm)**: evaluate Nick's Cartoon FX pack. Design decision to
-  make first: weather likely wants to be its own preset section (or per-level override),
-  not baked into chapter identity — "Sakura Ridge but raining" should be possible. Revisit
-  when we do difficulty/variety modifiers.
+- **Weather (rain / snow / storm)**: basic rain shipped July 2026 as particle streaks
+  (`particleStreakLength` + `particleWindX`, Monsoon Sector). The full system — weather as
+  its own preset section / per-level override so "Sakura Ridge but raining" is possible,
+  splash effects, thunder — still wants the design pass with difficulty/variety modifiers.
 - **Lightning flash**: rare full-screen brightness pop + silhouette punch-through. Pairs
   with rain; trivially data-driven (`flashIntervalSeconds`, `flashColor`).
 - **God rays**: 2–3 soft diagonal light shafts, slow alpha breathing. Overlay quad like
@@ -163,5 +163,6 @@ Where things go, so the system stays uniform:
 | Lost City | pack `clouds LC` streak strip 0.12 | 22 pale teal motes (0.7, 0.95, 0.85), a 0.4, near-still fall | 2 small night birds, every 30–60s | — (moon baked into the plate — `sunEnabled` stays 0) |
 | Sector Isla | boat strip drifts the lagoon (+1.6 u/s, bow-first, on a 6144px mostly-empty canvas with an alpha-feathered water top - a FAST crossing that fully exits and returns ~1x/min; canopy + cloud puff skipped) | 20 fireflies (0.85, 1, 0.6), a 0.4, near-still | 4 songbirds, fast, every 25-50s | - (crescents baked in the pack's moons sheet) |
 | Giza Dusk | — (clouds tried and cut — Nick's call; the two flying pyramids hover instead, split into `pyramid_small`/`pyramid_big` layers with different periods (0.26/5.7s vs 0.35/7.3s) so they never bob in sync) | 26 gold dust (1, 0.82, 0.5), a 0.6, slow fall + high sway | 1 vulture, slow, every 35–70s | — (heat haze tried and cut too; pack `light under city` white haze band stays, alpha 0.28; sun baked into the plate, so `sunEnabled` stays 0 — one sun rule) |
+| Monsoon Sector | — (rain carries the motion; a neon-car drive-by was built then cut — didn't fit) | **rain**: 90 streaks (0.85, 1, 0.93), a 0.6, `streakLength` 0.75, fall 7.5, `windX` −1.3, sway 0, `particlesInFront` 1 | — (a flock in a downpour read wrong) | — |
 | Amber Tide | pack `clouds TL` sheet 0.12 (tiled, 30u — the pack ships real clouds for once) | 22 warm dusk motes (1, 0.82, 0.62), a 0.45, slow fall + soft sway | 5 songbirds, fast and busy, every 22–48s | — (sun + glare baked as layers, `sunEnabled` stays 0 — one sun rule) |
 | Hallow's End | pumpkin wagon drifts the graveyard road (−1.35 u/s hitch-first on a 6144px mostly-empty `cart_strip_hallow`, crossing ~every 36s, wheels behind the fence rows; white `cloud4` skipped — wrong mood) | 24 ember motes (1, 0.62, 0.32), a 0.5, slow fall + high sway | 3 bats — small near-black flock, fast flaps, every 25–55s | — (eclipse ring + halo are layers upper-right; `sunEnabled` stays 0 — one sun rule; `light2` soft red horizon glow behind the skyline, alpha 0.75) |

@@ -651,6 +651,15 @@ if __name__ == "__main__":
     render_ground_cap("Hallow", (222, 132, 70), fleck=(246, 172, 96), fleck_chance=0.012)
     remove_legacy("Hallow")
 
+    # Monsoon Sector: rain-slick night pavement - dark teal tiles catching neon-green
+    # and cyan reflections, wet asphalt cap with neon flecks along the landable line.
+    render_plateau("Techno", (46, 60, 58), line=(20, 28, 26),
+                   blocks=1, top=(96, 168, 130), top_h=24)
+    render_islands("Techno", (46, 60, 58), line=(20, 28, 26))
+    render_ground_fill_wetpave("Techno", (34, 46, 46), glows=((110, 240, 160), (70, 200, 210)))
+    render_ground_cap("Techno", (56, 76, 68), fleck=(130, 240, 170), fleck_chance=0.014)
+    remove_legacy("Techno")
+
     # Amber Tide: dusk-plum shore cobbles under a coral sunset cap - the landable
     # line keeps the beauty shot's amber light while the body stays jungle-dark.
     render_plateau("Tide", (100, 66, 92), line=(46, 26, 44),

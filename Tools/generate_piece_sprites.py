@@ -287,6 +287,25 @@ THEME_PRESETS = {
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
         "preview_bg": (52, 30, 44),
     },
+    # Monsoon Sector: rain-washed neon-city materials - everything wet and lit by the
+    # pack's signature green: mint rain-wash, streetlight amber, neon orchid, brake-light
+    # red, sodium orange, deep rain blue.
+    "Techno": {
+        "colors": {
+            "I": (150, 200, 180),   # rain-washed mint
+            "O": (210, 180, 90),    # streetlight amber
+            "T": (160, 110, 180),   # neon orchid
+            "S": (110, 200, 120),   # signal green
+            "Z": (200, 80, 80),     # brake-light red
+            "J": (90, 120, 170),    # deep rain blue
+            "L": (210, 130, 70),    # sodium orange
+            "Pip": (190, 200, 192),     # wet concrete
+            "Domino": (110, 130, 126),  # dark asphalt teal
+        },
+        "outline": 0.20,
+        "edgeShine": {"Pip": 0.15, "Domino": 0.15},
+        "preview_bg": (36, 72, 58),
+    },
     # Amber Tide: tropical-sunset materials - shell pink, sun amber, bougainvillea,
     # dusk palm, hibiscus coral, twilight plum, mango - everything the beauty shot's
     # pink-amber dusk would tint.

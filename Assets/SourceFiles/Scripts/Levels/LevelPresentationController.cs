@@ -30,6 +30,8 @@ public partial class LevelPresentationController : MonoBehaviour
     private const int HillFarSortingOrder = -85; // three hill layers: -85, -84, -83
     private const int PropSortingOrder = -82;
     private const int ParticleSortingOrder = -80;
+    // in front of every imported backdrop layer (they stack up from -89), behind gameplay
+    private const int FrontParticleSortingOrder = -45;
 
     private BackdropPreset _preset;
     private LevelDefinition _presetLevel;

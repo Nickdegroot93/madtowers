@@ -30,6 +30,16 @@ Current packs:
   at other packs' GUIDs+paths - the plate, layer1 mountains, layer2 buildings w1-w4 and the
   boat had to be re-extracted from the .unitypackage with fresh GUIDs after reverting the
   overwrites of Chinese City / Glowing City / Desert Vibe)
+- `Assets/Art/ChapterPacks/TechnoCity` (worst-tier drill: overwrote Japan Landscape
+  bg/d1-3/c1-5/b1-3, Sovietwave car/wheels/powerlines/road/d4-6/c6-7/b4-5/a1-4,
+  Halloween's cart glow AND Desert Vibe's RetroSun.prefab at shared GUIDs; new
+  subfolders landed in Japan Backgrounds/ + Sovietwave Foreground/, scripts at
+  `Assets/TechnoCity Rain Mode/`, and the pack's rain-system prefab+presets landed in
+  Desert Vibe/Prefabs. All relocated; overwrites reverted. NOTE: the 11 Japan-hosted
+  city rows had to be re-extracted from the Asset Store .unitypackage cache
+  (`~/Library/Unity/Asset Store-5.x/DenielHast/...`) — copy clobbered content OUT and
+  verify it landed BEFORE running `git checkout`; a wrong source path in the copy step
+  otherwise destroys the only local copy)
 - `Assets/Art/ChapterPacks/Tropical Landscape` (mild drill: all sprites landed inside Jungle
   Landscape as NEW TL-suffixed files with their own GUIDs (no content overwrites for once),
   scripts at `Assets/Tropical Landscape/`; relocated with vendor metas, Desert Vibe
