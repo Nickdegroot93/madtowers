@@ -1,3 +1,5 @@
+using UnityEngine;
+
 /// <summary>
 /// Everything the win system needs to read about the live run. Extend this (not the method
 /// signatures) when a new win condition needs more of the game - the AbilityContext pattern.
@@ -16,6 +18,43 @@ public readonly struct WinContext
     /// <summary>Height (m) of the blocks STANDING right now (not the monotonic record). Lazily
     /// computed, so a condition that doesn't care (PlaceBlocks) never pays for the per-block walk.</summary>
     public float LiveTowerHeight => _liveTowerHeight != null ? _liveTowerHeight() : 0f;
+}
+
+/// <summary>
+/// The single stat an end-of-run screen leads with: the run's value and the stored personal
+/// best in the SAME unit, plus how to print them. Produced by the level's WinCondition - or by
+/// a modifier that owns the level's progress presentation (puzzle waves), via
+/// <see cref="ILevelMenuProgressProvider"/> - so the results card never switches on the goal enum.
+/// </summary>
+public readonly struct ResultMetric
+{
+    public ResultMetric(string label, float value, float previousBest, bool isMeters, string targetText)
+    {
+        Label = label;
+        Value = value;
+        PreviousBest = previousBest;
+        IsMeters = isMeters;
+        TargetText = targetText;
+    }
+
+    /// <summary>Uppercase metric name for the card ("BLOCKS", "HEIGHT", "WAVES CLEARED").</summary>
+    public string Label { get; }
+    /// <summary>The run's result in the metric's own unit.</summary>
+    public float Value { get; }
+    /// <summary>The stored personal best in the same unit; 0 when none is recorded yet.</summary>
+    public float PreviousBest { get; }
+    /// <summary>Format values as meters ("12.4m") instead of a whole number.</summary>
+    public bool IsMeters { get; }
+    /// <summary>The goal in display form ("100", "12M", "4 WAVES"); null when there is no goal.</summary>
+    public string TargetText { get; }
+
+    public string Format(float value) => IsMeters ? $"{value:F1}m" : Mathf.RoundToInt(value).ToString();
+
+    /// <summary>Did this run beat a GENUINE stored best? A first attempt (no previous best) is
+    /// not a record - there was nothing to beat, and gold on every first run would cheapen it.
+    /// Meters carry a small epsilon so a run that merely re-renders the same displayed height
+    /// never claims a record.</summary>
+    public bool IsNewRecord => PreviousBest > 0f && Value > PreviousBest + (IsMeters ? 0.049f : 0f);
 }
 
 /// <summary>
@@ -56,6 +95,11 @@ public abstract class WinCondition
     /// <summary>0..1 progress toward the goal, read live for ability rarity escalation (offers near the
     /// goal are spicier than offers at the start).</summary>
     public abstract float RunProgress01(GameManager gameManager);
+
+    /// <summary>The ONE stat the end-of-run card leads with, in this goal's own unit - the run's
+    /// value plus the stored best for the record comparison. Callers must resolve this BEFORE
+    /// reporting the run to ProgressStore (reporting overwrites the best being compared against).</summary>
+    public abstract ResultMetric EndOfRunMetric(RunResult result, ProgressStore.LevelBest best);
 
     // ---- Menu presentation (no live run; reads the saved best) -------------------------------------
 

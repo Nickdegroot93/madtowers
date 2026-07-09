@@ -135,12 +135,18 @@ public class CoinHud : MonoBehaviour
         TickPulse();
     }
 
+    // Scaled time normally - coins freeze WITH the world during the HitStop impact frames,
+    // like everything else. But a full pause (completion card, pause menu) must not strand a
+    // coin mid-flight on top of whatever screen just opened, so at timeScale 0 the flight
+    // switches to real time, finishes, and deposits.
+    private static float FlightDeltaTime => Time.timeScale > 0f ? Time.deltaTime : Time.unscaledDeltaTime;
+
     private void TickCoins()
     {
         if (_active.Count == 0) return;
 
         Vector2 target = _pill.anchoredPosition + new Vector2(PillWidth * 0.22f, -PillHeight * 0.5f);
-        float dt = Time.deltaTime;
+        float dt = FlightDeltaTime;
 
         for (int i = _active.Count - 1; i >= 0; i--)
         {
@@ -203,7 +209,7 @@ public class CoinHud : MonoBehaviour
     {
         if (float.IsPositiveInfinity(_pulseTime)) return;
 
-        _pulseTime += Time.deltaTime;
+        _pulseTime += FlightDeltaTime;
         if (_pulseTime > 0.5f)
         {
             _pill.localScale = Vector3.one;

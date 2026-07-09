@@ -25,6 +25,9 @@ public sealed class TimedWinCondition : WinCondition
     public override bool IsStillHeld(in WinContext ctx) => _inner.IsStillHeld(in ctx);
     public override float RunProgress01(GameManager gameManager) => _inner.RunProgress01(gameManager);
 
+    public override ResultMetric EndOfRunMetric(RunResult result, ProgressStore.LevelBest best)
+        => _inner.EndOfRunMetric(result, best);
+
     public override string MenuChallengeLabel
     {
         get

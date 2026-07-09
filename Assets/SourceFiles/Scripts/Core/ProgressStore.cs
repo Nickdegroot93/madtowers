@@ -53,8 +53,12 @@ public static class ProgressStore
 
     private static string FilePath => Path.Combine(Application.persistentDataPath, "progress.json");
 
-    /// <summary>Stable identity of a level across sessions, saves and (later) the cloud.</summary>
-    public static string LevelId(LevelDefinition level) => level != null ? level.name : null;
+    /// <summary>Stable identity of a level across sessions, saves and (later) the cloud. Runtime
+    /// levels (Custom Game) have an empty asset name and therefore NO identity - returning null
+    /// makes every store operation a no-op for them, so one custom run can never mark all future
+    /// custom games completed or leak a shared "best" between unrelated configurations.</summary>
+    public static string LevelId(LevelDefinition level) =>
+        level != null && !string.IsNullOrEmpty(level.name) ? level.name : null;
 
     public static bool IsLevelCompleted(LevelDefinition level)
     {

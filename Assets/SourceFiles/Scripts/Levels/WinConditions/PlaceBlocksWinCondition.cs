@@ -15,6 +15,12 @@ public sealed class PlaceBlocksWinCondition : WinCondition
     public override float RunProgress01(GameManager gameManager)
         => gameManager != null ? Mathf.Clamp01(gameManager.score / _target) : 0f;
 
+    // "Blocks we've had": the cumulative placement score, matching what the menu shows as the
+    // level's best - not the live standing count, which a collapse rewinds right before the end.
+    public override ResultMetric EndOfRunMetric(RunResult result, ProgressStore.LevelBest best)
+        => new ResultMetric("BLOCKS", result.Score, best != null ? best.bestScore : 0f,
+            isMeters: false, targetText: Mathf.RoundToInt(_target).ToString());
+
     public override string MenuChallengeLabel => "BLOCK COUNT";
 
     public override (string primary, string suffix) MenuProgress(ProgressStore.LevelBest best, bool completed)

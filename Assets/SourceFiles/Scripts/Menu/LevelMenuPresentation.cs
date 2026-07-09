@@ -95,7 +95,9 @@ public static class LevelMenuPresentation
         return new ProgressParts(trimmed.Substring(0, split), trimmed.Substring(split + 1).Trim());
     }
 
-    private static ILevelMenuProgressProvider FindProgressProvider(LevelDefinition level)
+    /// <summary>The modifier that owns this level's progress presentation, if any. Shared by the
+    /// menu card and the end-of-run results card so both resolve the level's metric identically.</summary>
+    public static ILevelMenuProgressProvider FindProgressProvider(LevelDefinition level)
     {
         IReadOnlyList<LevelModifier> modifiers = level != null ? level.Modifiers : null;
         if (modifiers == null) return null;

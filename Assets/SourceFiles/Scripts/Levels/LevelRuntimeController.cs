@@ -1,11 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
 /// Runs the selected level's meta layer: drives its LevelModifiers, tracks the win target,
-/// and shows the completion screen with next-level progression inside the level's chapter.
+/// and owns both end-of-run screens (game over and level complete) via RunResultsScreen.
 /// Added to the GameManager's object at runtime.
 /// </summary>
 public class LevelRuntimeController : MonoBehaviour
@@ -26,10 +25,16 @@ public class LevelRuntimeController : MonoBehaviour
     private LevelDefinition _level;
     private WinCondition _winCondition;        // the level's victory rule (polymorphic); cached for the run
     private System.Func<float> _liveHeightFunc; // cached delegate so BuildWinContext never allocates
-    private GameObject _panelRoot;
     private bool _completed;
     private bool _completionPendingWhilePaused;
-    private bool _targetReachedOnce;
+    private bool _victoryShown;
+    // Completed in a PREVIOUS run: the whole win flow (countdown, verification, completion
+    // screen) stays dormant - the target passes silently and the run continues for a best.
+    private bool _alreadyCompleted;
+    // The goal was met at least once THIS run (even if the tower later fell, and even on an
+    // already-completed level where nothing arms). Drives the game-over card's "level made" line.
+    private bool _targetMetThisRun;
+    private RunResultsScreen.Content _victoryContent; // built at CompleteLevel; shown possibly later (paused)
     private float _verificationRemaining;
     private GameObject _countdownRoot;
     private Text _countdownLabel;
@@ -47,6 +52,7 @@ public class LevelRuntimeController : MonoBehaviour
     {
         _level = LevelSelectionState.SelectedLevel;
         _winCondition = _level != null ? _level.WinCondition : null;
+        _alreadyCompleted = _level != null && ProgressStore.IsLevelCompleted(_level);
         _liveHeightFunc = LiveTowerHeight;
         _modifierContext = new LevelModifierContext
         {
@@ -151,11 +157,49 @@ public class LevelRuntimeController : MonoBehaviour
     // Personal bests are recorded at every end-of-run (monotonic - only improvements stick).
     private void HandleGameOver(int finalScore, float maxHeightMeters)
     {
-        if (_level != null) ProgressStore.ReportResult(_level, finalScore, maxHeightMeters);
-
         // A run can die mid-verification (the dropped blocks took the last life).
         if (_countdownRoot != null) DestroyCountdownUi();
         DestroyTimerUi();
+
+        // Screen BEFORE ReportResult: the card compares this run against the best as it
+        // stood before the run banked - otherwise a new best could never be detected.
+        ShowGameOverScreen();
+        if (_level != null) ProgressStore.ReportResult(_level, finalScore, maxHeightMeters);
+    }
+
+    private void ShowGameOverScreen()
+    {
+        RunResult result = GameManager.Instance != null ? GameManager.Instance.CurrentRunResult : default;
+        bool endless = _winCondition == null || !_winCondition.HasGoal;
+        RunResultsScreen.Show(new RunResultsScreen.Content
+        {
+            Victory = false,
+            Metric = ResolveEndOfRunMetric(result),
+            // "You made the level": only when it is genuinely complete AND this run actually
+            // reached the goal - a replay that never got close doesn't get the line.
+            GoalReached = _targetMetThisRun && (_completed || _alreadyCompleted),
+            EndlessHeight = endless ? result.MaxHeight : 0f,
+            // A run that already completed showed (and banked) its coins on the victory card,
+            // and the ledger blocks further earning - re-advertising them here would read as
+            // a second payout that never happens.
+            Coins = _completed ? 0 : result.CoinsEarned,
+            PrimaryLabel = "Try Again",
+            OnPrimary = () => { if (GameManager.Instance != null) GameManager.Instance.RestartGame(); },
+        });
+    }
+
+    // The goal's own idea of "the score that matters" - a presentation-owning modifier wins
+    // (waves, not raw blocks), otherwise the win condition's metric. Same precedence the menu
+    // uses; the provider lookup is shared so the two can never disagree.
+    private ResultMetric ResolveEndOfRunMetric(RunResult result)
+    {
+        ProgressStore.LevelBest best = _level != null ? ProgressStore.GetBest(_level) : null;
+
+        ILevelMenuProgressProvider provider = LevelMenuPresentation.FindProgressProvider(_level);
+        if (provider != null) return provider.EndOfRunMetric(_level, result, best);
+
+        WinCondition condition = _winCondition ?? new EndlessWinCondition();
+        return condition.EndOfRunMetric(result, best);
     }
 
     private void Update()
@@ -215,7 +259,7 @@ public class LevelRuntimeController : MonoBehaviour
         // height record only rises) can never re-fire for the same peak - re-arm from the live
         // tower instead. Polled at 5 Hz, not per frame: LiveTowerHeight walks every landed block's
         // cells, and this watch can stay on for minutes while the player rebuilds a tall tower.
-        if (_targetReachedOnce && _winCondition != null && _winCondition.ReArmsByPolling)
+        if (_targetMetThisRun && !_alreadyCompleted && _winCondition != null && _winCondition.ReArmsByPolling)
         {
             _rearmPollTimer -= Time.deltaTime;
             if (_rearmPollTimer > 0f) return;
@@ -228,16 +272,24 @@ public class LevelRuntimeController : MonoBehaviour
     private const float RearmPollInterval = 0.2f;
     private float _rearmPollTimer;
 
-    private void TryBeginVerification()
+    // Returns whether verification actually armed. Every arming precondition lives HERE, so
+    // callers must branch on the outcome, never re-derive the conditions - a timed goal that
+    // assumes arming succeeded would freeze its clock forever (the bug this shape prevents).
+    private bool TryBeginVerification()
     {
-        if (_completed || IsVerifyingWin) return;
-        if (GameManager.Instance == null || GameManager.Instance.isGameOver) return;
+        if (_completed || IsVerifyingWin) return false;
+        if (GameManager.Instance == null || GameManager.Instance.isGameOver) return false;
 
-        _targetReachedOnce = true;
+        _targetMetThisRun = true;
+        // A level beaten in an earlier run never re-enters the win flow: no countdown, no
+        // completion screen - the target passes silently and the player plays on for a best.
+        if (_alreadyCompleted) return false;
+
         GameManager.Instance.RequestPhase(this, GamePhase.WinVerifying);
         _verificationRemaining = WinVerificationSeconds;
         BuildCountdownUi();
         UpdateCountdownLabel();
+        return true;
     }
 
     private void AbortVerification()
@@ -374,9 +426,11 @@ public class LevelRuntimeController : MonoBehaviour
             return;
         }
 
-        if (_winCondition != null && _winCondition.IsMet(BuildWinContext()))
+        // Freeze the clock only when verification ACTUALLY armed. On an already-completed
+        // level the target passes without arming, so the branch falls through and the replay
+        // stays an honest best-score chase against the full timer.
+        if (GoalMetNow() && TryBeginVerification())
         {
-            TryBeginVerification();
             UpdateTimerLabel();
             return;
         }
@@ -385,11 +439,7 @@ public class LevelRuntimeController : MonoBehaviour
         UpdateTimerLabel();
         if (_timeRemaining > 0f) return;
 
-        if (_winCondition != null && _winCondition.IsMet(BuildWinContext()))
-        {
-            TryBeginVerification();
-            return;
-        }
+        if (GoalMetNow() && TryBeginVerification()) return;
 
         _hasTimeLimit = false;
         GameManager.Instance.EndRunNow("Time ran out");
@@ -524,9 +574,11 @@ public class LevelRuntimeController : MonoBehaviour
     private void HandleStandingBlocksChanged(int placedBlocks) => TryArmFromProgress();
     private void HandleHeightChanged(float height) => TryArmFromProgress();
 
+    private bool GoalMetNow() => _winCondition != null && _winCondition.IsMet(BuildWinContext());
+
     private void TryArmFromProgress()
     {
-        if (_winCondition != null && _winCondition.IsMet(BuildWinContext())) TryBeginVerification();
+        if (GoalMetNow()) TryBeginVerification();
     }
 
     private void CompleteLevel()
@@ -536,13 +588,15 @@ public class LevelRuntimeController : MonoBehaviour
         _completed = true;
         DestroyTimerUi();
         GameManager.Instance.RequestPhase(this, GamePhase.Completed);
+
+        // Card content BEFORE the stores update: the record comparison needs the best as it
+        // stood when the run started, and ReportResult mutates that very LevelBest instance.
+        RunResult result = GameManager.Instance.CurrentRunResult;
+        _victoryContent = BuildVictoryContent(result);
+
         ProgressStore.MarkLevelCompleted(_level);
-        if (GameManager.Instance != null)
-        {
-            RunResult result = GameManager.Instance.CurrentRunResult;
-            ProgressStore.ReportResult(_level, result.Score, result.MaxHeight);
-            GameEvents.RaiseLevelCompleted(_level, result);
-        }
+        ProgressStore.ReportResult(_level, result.Score, result.MaxHeight);
+        GameEvents.RaiseLevelCompleted(_level, result);
 
         if (GameManager.Instance.IsGamePaused)
         {
@@ -553,56 +607,39 @@ public class LevelRuntimeController : MonoBehaviour
         ShowCompletionPanel();
     }
 
+    private RunResultsScreen.Content BuildVictoryContent(RunResult result)
+    {
+        return new RunResultsScreen.Content
+        {
+            Victory = true,
+            Metric = ResolveEndOfRunMetric(result),
+            GoalReached = true,
+            // The banked total: the run's skill coins plus the once-per-run win bonus
+            // (CoinLedger adds the bonus when LevelCompleted is raised below).
+            Coins = result.CoinsEarned + CoinLedger.WinBonusCoins,
+            PrimaryLabel = "Keep Playing",
+            VictorySentence = "Your tower still stands - keep stacking to push your best score even higher.",
+            OnPrimary = ContinuePlaying,
+        };
+    }
+
     private void ShowCompletionPanel()
     {
-        if (_panelRoot != null || GameManager.Instance == null) return;
+        // Once per run: a second entry would double-PushPause with only one PopPause in
+        // ContinuePlaying, leaving the game frozen after "Keep Playing".
+        if (_victoryShown || GameManager.Instance == null) return;
 
+        _victoryShown = true;
         GameManager.Instance.PushPause(this);
-        RuntimeUiKit.EnsureEventSystem();
-        BuildCompletionPanel();
-    }
-
-    private LevelDefinition FindNextLevelInChapter()
-    {
-        ChapterDefinition chapter = Campaign.FindChapterOf(_level);
-        return chapter != null ? chapter.GetNextLevel(_level) : null;
-    }
-
-    private void LoadLevel(LevelDefinition level)
-    {
-        LevelSelectionState.SelectLevel(level);
-        Time.timeScale = 1f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        RunResultsScreen.Show(_victoryContent);
     }
 
     private void ContinuePlaying()
     {
-        Destroy(_panelRoot);
-        _panelRoot = null;
         if (GameManager.Instance != null)
         {
             GameManager.Instance.PopPause(this);
             GameManager.Instance.ReleasePhase(this);
         }
-    }
-
-    // ---- Runtime UI ---------------------------------------------------------------------------
-
-    private void BuildCompletionPanel()
-    {
-        _panelRoot = RuntimeUiKit.CreateOverlayCanvas("Level Complete", 6500);
-        GameObject panel = RuntimeUiKit.CreateCenteredPanel(_panelRoot.transform, new Vector2(640f, 480f));
-
-        RuntimeUiKit.CreateLabel(panel.transform, "Level Complete!", 52, 82f, FontStyle.Bold,
-            new Color(0.55f, 0.95f, 0.6f, 1f));
-
-        LevelDefinition next = FindNextLevelInChapter();
-        if (next != null)
-        {
-            RuntimeUiKit.CreateButton(panel.transform, $"Next: {next.DisplayName}", 88f, () => LoadLevel(next));
-        }
-
-        RuntimeUiKit.CreateButton(panel.transform, "Keep Building", 88f, ContinuePlaying);
-        RuntimeUiKit.CreateButton(panel.transform, "Replay", 88f, () => LoadLevel(_level));
     }
 }

@@ -99,6 +99,15 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
         return $"{reached} / {waveCount} Waves";
     }
 
+    // The results card talks in waves, like the menu does: waves derive from the same
+    // cumulative block score the bests store, so the run/record comparison stays one metric.
+    public ResultMetric EndOfRunMetric(LevelDefinition level, RunResult result, ProgressStore.LevelBest best)
+    {
+        int bestWaves = CompletedWavesForBlockCount(best != null ? best.bestScore : 0);
+        return new ResultMetric("WAVES CLEARED", CompletedWavesForBlockCount(result.Score), bestWaves,
+            isMeters: false, targetText: $"{WaveCount} WAVES");
+    }
+
     public int CompletedWavesForBlockCount(int placedBlocks)
     {
         if (waves == null || waves.Length == 0) return 0;

@@ -13,12 +13,10 @@ public class UIManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI nextBlockText; // legacy; hidden, replaced by the ghost preview
 
     [Header("Game Over UI")]
-    [SerializeField] private GameObject gameOverPanel;
-    [SerializeField] private TextMeshProUGUI finalScoreText;
+    [SerializeField] private GameObject gameOverPanel; // legacy scene panel; force-hidden (RunResultsScreen owns game over)
 
     // Style values are code-owned (not serialized) so tweaks always take effect —
     // serialized defaults go stale in Unity's import caches (see memory/PHYSICS.md §2).
-    private static readonly Color HudTextColor = new Color(0.95f, 0.98f, 1f, 1f);
     private static readonly Color HeartColor = new Color(0.93f, 0.29f, 0.34f, 1f);
     private static readonly Color NextPreviewTint = new Color(1f, 1f, 1f, 0.6f);
     private static readonly Color NextSecondaryTint = new Color(1f, 1f, 1f, 0.32f); // dimmer next-next slot
@@ -114,7 +112,6 @@ public class UIManager : MonoBehaviour
         GameEvents.HeightChanged += HandleHeightChanged;
         GameEvents.LivesChanged += HandleLivesChanged;
         GameEvents.NextBlockChanged += HandleNextBlockChanged;
-        GameEvents.GameOver += HandleGameOver;
         SettingsService.Changed += ApplyNudgeHintColors; // live nudge-guide opacity
     }
 
@@ -124,7 +121,6 @@ public class UIManager : MonoBehaviour
         GameEvents.HeightChanged -= HandleHeightChanged;
         GameEvents.LivesChanged -= HandleLivesChanged;
         GameEvents.NextBlockChanged -= HandleNextBlockChanged;
-        GameEvents.GameOver -= HandleGameOver;
         SettingsService.Changed -= ApplyNudgeHintColors;
     }
 
@@ -318,47 +314,6 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    private void HandleGameOver(int finalScore, float maxHeight)
-    {
-        ShowGameOver(finalScore, maxHeight);
-    }
-
-    private GameObject _gameOverOverlay;
-
-    // The legacy scene gameOverPanel is retired: the overlay is runtime-built in the chapter's
-    // menu palette (GameMenuStyle), with an entrance pop and the game-over sting.
-    private void ShowGameOver(int finalScore, float maxHeight)
-    {
-        if (gameOverPanel != null) gameOverPanel.SetActive(false);
-        if (_gameOverOverlay != null) return;
-
-        SfxPlayer.Play("game_over", 0.85f, 0f);
-
-        _gameOverOverlay = RuntimeUiKit.CreateOverlayCanvas("Game Over", 7100);
-        RuntimeUiKit.CreateBackdrop(_gameOverOverlay.transform, GameMenuStyle.BackdropColor);
-
-        GameObject panel = RuntimeUiKit.CreateCenteredPanel(_gameOverOverlay.transform, new Vector2(560f, 640f));
-        GameMenuStyle.StylePanel(panel);
-        RuntimeUiKit.CreateLabel(panel.transform, "GAME OVER", 56, 92f, FontStyle.Bold, GameMenuStyle.Accent);
-        RuntimeUiKit.CreateLabel(panel.transform, $"Final Score  {finalScore}", 32, 56f, FontStyle.Bold, GameMenuStyle.BodyText);
-        RuntimeUiKit.CreateLabel(panel.transform, $"Max Height  {maxHeight:F1}m", 32, 56f, FontStyle.Normal, GameMenuStyle.BodyText);
-        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Try Again", 92f, RestartGame), primary: true);
-        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Back to Menu", 92f, () =>
-        {
-            SfxPlayer.Play("ui-leave-game");
-            MainMenuRuntime.ReturnToMenu();
-        }), primary: false);
-        UiEntranceFx.Play(panel, 0.15f); // a breath after the sting starts
-    }
-
-    public void RestartGame()
-    {
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.RestartGame();
-        }
-    }
-
     private void ConfigureHudStyle()
     {
         // No opt-out: the bar carries the game's ONLY pause entry point and the next
@@ -369,7 +324,6 @@ public class UIManager : MonoBehaviour
         if (nextBlockText != null) nextBlockText.gameObject.SetActive(false);
 
         EnsureNudgeButtons();
-        StyleGameOverText();
     }
 
     // ---- Top bar -------------------------------------------------------------------------
@@ -913,13 +867,4 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    private void StyleGameOverText()
-    {
-        if (finalScoreText == null) return;
-
-        finalScoreText.color = HudTextColor;
-        finalScoreText.enableAutoSizing = true;
-        finalScoreText.fontSizeMin = 22f;
-        finalScoreText.fontSizeMax = 38f;
-    }
 }

@@ -21,6 +21,10 @@ public sealed class ReachHeightWinCondition : WinCondition
     public override float RunProgress01(GameManager gameManager)
         => gameManager != null ? Mathf.Clamp01(gameManager.towerHeight / _target) : 0f;
 
+    public override ResultMetric EndOfRunMetric(RunResult result, ProgressStore.LevelBest best)
+        => new ResultMetric("HEIGHT", result.MaxHeight, best != null ? best.bestHeightMeters : 0f,
+            isMeters: true, targetText: $"{Mathf.RoundToInt(_target)}M");
+
     public override string MenuChallengeLabel => "HEIGHT CHALLENGE";
 
     public override (string primary, string suffix) MenuProgress(ProgressStore.LevelBest best, bool completed)

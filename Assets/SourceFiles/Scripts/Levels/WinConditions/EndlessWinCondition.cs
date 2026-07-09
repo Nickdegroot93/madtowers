@@ -5,6 +5,12 @@ public sealed class EndlessWinCondition : WinCondition
     public override bool IsMet(in WinContext ctx) => false;
     public override float RunProgress01(GameManager gameManager) => 0f;
 
+    // Free play has no goal, so the card leads with the cumulative blocks placed (the score),
+    // with the run's height shown separately as the endless-only secondary line.
+    public override ResultMetric EndOfRunMetric(RunResult result, ProgressStore.LevelBest best)
+        => new ResultMetric("BLOCKS", result.Score, best != null ? best.bestScore : 0f,
+            isMeters: false, targetText: null);
+
     public override string MenuChallengeLabel => "ENDLESS";
 
     public override (string primary, string suffix) MenuProgress(ProgressStore.LevelBest best, bool completed)
