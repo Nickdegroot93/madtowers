@@ -26,6 +26,10 @@ public static class GameSystemsInstaller
         Ensure<BlockDiscoveryController>(host); // brick debut modals + Vault discovery marking
         Ensure<PauseMenuController>(host);
         Ensure<LevelRuntimeController>(host);
+        Ensure<CoinLedger>(host);         // JUICE.md Phase 3: run-coin accounting + banking
+        Ensure<PlacementScout>(host);     // silent perfect-stack/golden detector (mints coins)
+        Ensure<GoldenBlockDirector>(host);// the scheduled golden brick (economy metronome)
+        Ensure<CoinHud>(host);            // the coin flight + counter pill (the ONLY celebration)
     }
 
     // == null (not ??) on purpose: the editor's fake-null wrapper passes a reference-null check and

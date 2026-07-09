@@ -152,6 +152,13 @@ SOUNDS = {
                               body_amp=0.7, noise_amp=0.85, noise_cutoff=2600,
                               body_tau=0.03, noise_tau=0.035, click_amp=0.35,
                               drive=1.6, attack=0.001, warmth=0.1, peak_level=0.8),
+    # coin arriving at the run counter (JUICE.md Phase 3): a tiny MUTED plip - short, soft,
+    # deliberately un-chime-like (bright/musical reward sounds were rejected in playtest).
+    # Played once per coin BATCH at low volume; it should sit under the music, barely felt.
+    "coin_settle_01": dict(seed="coinsettle1", duration=0.07, f_start=540, f_end=390,
+                           body_amp=0.9, noise_amp=0.06, noise_cutoff=900,
+                           body_tau=0.022, noise_tau=0.012, attack=0.002,
+                           warmth=0.1, peak_level=0.32),
     # failed nudge: a dry knuckle-on-wood KNOCK - higher and shorter than the landing
     # thumps so the ear learns "that was a refusal", with a hard click for the sting
     "nudge_thud_01": dict(seed="nudgethud1", duration=0.13, f_start=210, f_end=80,

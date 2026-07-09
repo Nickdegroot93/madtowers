@@ -1,182 +1,129 @@
-# JUICE.md — Game Feel, Placement Rewards & In-Run Coins
+# JUICE.md — Game Feel & The Coin Economy
 
-Status: **DRAFT — design agreed in principle, not yet implemented.** Once implementation
-starts, this document is binding for all game-feel / placement-reward / coin work, same as
-PHYSICS.md and BLOCKS.md. Read PHYSICS.md §1 before touching anything here — every effect
-in this file must respect its invariants.
+Status: **BINDING, as-built (July 2026).** This documents what exists and — just as
+important — what was tried and rejected. Read PHYSICS.md §1 before touching anything here;
+every effect must respect its invariants.
 
 ---
 
-## 1. Principles (non-negotiable)
+## 1. Principles (non-negotiable, playtest-hardened)
 
-1. **Attribution** — every effect traces 1:1 to a specific player action and scales with the
-   quality of that action. If a celebration can fire without the player having done something
-   readable to cause it, cut it. (CHI 2024 finding: indiscriminate juice destroys the
-   competence signal.)
-2. **Deterministic core, variable magnitude** — whether feedback fires is deterministic and
-   skill-readable. Randomness lives only in celebration *size* (golden blocks, bonus rolls),
-   never in whether a good placement is acknowledged.
-3. **Tiered ceiling** — feedback intensity is a strict ladder (Tier 0 → 3). A tier may only
-   use the effects listed for it. Over-juicing a common event is as bad as silence.
-4. **Clean landings are the default, not an achievement** — the baseline placement gets
-   *physical* feedback only (sound/dust/haptic). No coins, no chimes, no praise. Coins and
-   musical feedback start where skill starts (Tier 1+).
-5. **Physics is sacred** — all block-side visual effects animate the **sprite/visual child**,
-   never the rigidbody transform (PHYSICS.md I1: "towers shimmer" = someone scaled/nudged a
-   landed body). Camera, particles, post-fx, audio, haptics are always safe; block squash,
-   flash, shine are visual-child-only.
+1. **Physical, simulation-grounded feedback fits this game; gamified fanfare does not.**
+   A full celebration layer (chimes, pitch ladders, white flashes, hit-stops, punch-zooms,
+   shock rings for judged placements) was built, playtested, and rejected wholesale —
+   "over the top, didn't fit the game." Never reintroduce it without Nick.
+2. **Clean landings are the default, not an achievement** — they get physical feedback only
+   (sound/dust/squash/shake/haptic). No coins, no praise.
+3. **The earn RATE is scheduled, not geometry-emergent.** Target: a roughly consistent coin
+   total per 100 bricks. Geometry-emergent earners (rows, gap fills, pair interlocks) paid
+   wildly with tower shape (rows alone: every ~5 bricks on a wide tower) and were cut.
+   The golden-brick scheduler is the metronome.
+4. **The coin flight IS the celebration.** Coins bursting from the brick and flying to the
+   counter, plus one reward sheen, plus ONE soft muted clink per batch. Nothing else fires.
+5. **Attribution** — every effect traces 1:1 to a specific player action. The reward sheen
+   exists to answer "why did I get gold?" wordlessly.
+6. **Physics is sacred** — block-side visuals animate only the collider-less **PieceSkin
+   child**, never the rigidbody transform (PHYSICS.md I1). Camera, particles, audio,
+   haptics are always safe.
 
-## 2. PlacementJudge — event detection
+## 2. Tier 0 — every landing (shipped, commit 39b4627)
 
-New system listening to `GameEvents.BlockLanded` (the same hook `BlockLedger` scores from),
-classifying each placement after the settle window (reuse `ComboDetector`'s
-revalidate-after-settle pattern so toppled placements never reward).
+Fires for ALL landings, scaled by descent speed at touchdown (`ComputeLandingHardness01`:
+normal steer ≈ 0, held fast-drop ≈ 0.5, flick = 1), orchestrated by `Core/LandingFx`:
 
-| Event | Detection rule | Tier |
+- Velocity-scaled impact sound (layered `land_*` clips once generated; `impact_heavy`
+  fallback until then) — volume and pitch ride hardness.
+- `LandingDustFx` — pooled dust puffs squirting from the bottom edge.
+- `LandingSquashFx` — squash-&-stretch on the PieceSkin only, bottom edge pinned.
+- Trauma camera (`TowerCameraController.AddTrauma`, amplitude = trauma², Perlin offsets +
+  slight roll, unscaled-time decay; legacy `Impact(amplitude)` maps to the same peak).
+- `Haptics` transient (Android VibrationEffect; iOS no-op until Nice Vibrations import),
+  gated by `SettingsService.HapticsEnabled`.
+
+## 3. The coin economy (shipped)
+
+### Earning — the complete table (`CoinLedger` constants)
+
+| Event | Coins | Rate control |
 |---|---|---|
-| **Clean landing** | Settled within normal settle time, no knife-edge defer, final overhang < ~0.25 cell. | 0 |
-| **Sloppy landing** | Large overhang, long wobble, knife-edge defer engaged, or triggers a block loss. **Resets the combo ladder.** No negative feedback beyond the physics itself. | — |
-| **Flush placement** | Both vertical edges align with support below (grid columns match, no overhang). | 1 |
-| **Perfect stack** | Same shape, same orientation, directly stacked — reuse `ComboDetector.FindMatch/Matches` logic, generalized out of the ability gate. | 1 |
-| **Speed chain** | Locked within `SpeedChainWindow` (default 3.0 s) of the previous lock. Stacks with other events. | 1 |
-| **Gap fill** | Placed block has filled-cell contact on **both** left and right sides at its row (closed a pocket/hole between existing blocks/terrain). | 2 |
-| **Perfect fit** | Gap fill **and** the block's top surface ends flush with both neighbors — the 1×4-into-a-1×4-slot moment. | 2 |
-| **Close call** | Block displaced significantly after landing (slid/teetered, knife-edge grace consumed) but survived and settled. Near-miss marking — small "phew" beat. | 1 |
-| **Row complete** | See §3. | 3 |
-| **Record height** | `MaxHeight` exceeds the profile's previous best for this level. Once per run. | 3 |
+| Perfect stack — same shape, same orientation, exactly on its twin | +5 | skill-rare (~4–8 per 100 bricks) |
+| Golden brick landed upright (drift ≤ 0.6 cell, tilt ≤ 8°) | +10 | scheduled |
+| Golden brick landed as a perfect stack | +40 (replaces, not adds) | scheduled × skill |
+| Level completion (win bonus) | +25 | once per run |
 
-**Combo ladder**: Tier 1+ events advance the ladder by 1 (multiple qualities on one placement
-still advance it by 1, but pay each event's coins). Clean landings neither advance nor reset.
-Sloppy landings and block losses reset to 0. The ladder drives the pitch ladder (§5) and the
-coin multiplier (§6).
+Expected total: **~70–95 coins per 100 bricks**, a tight band by design.
 
-**Occupancy**: judge computes row/side occupancy at judge time via physics overlap queries per
-cell column (robust to real settled positions), not a bookkept grid — blocks move after landing.
+**Cut earners (do not re-add without Nick):** perfect fit (+10), pair interlock (+8),
+row complete / multi-row (15+). All were geometry-emergent and violated principle 3.
+An even earlier speed-chain reward paid the default way of playing. Git history has the
+detection code (PlacementJudge, row walks, rectangle-merge) if ever needed.
 
-## 3. Row Complete — definition
+### The golden brick (`GoldenBlockDirector`)
 
-There are no predefined rows (this isn't Tetris): the player decides tower width. A **row** is
-a *contiguous* horizontal run of filled cells at one cell-Y, spanning **≥ `RowMinColumns`**
-(default **8** — calibrated to the 9-column classic flat floor and the twin-pillar bridge span;
-per-level override allowed for narrow levels).
+- Spawns every **25–40 locked bricks** (uniform roll inside the window): fixed rate,
+  unpredictable moment — the variable-ratio element, quarantined to timing.
+- Only plain bricks goldify; special variants (behaviour subclasses, custom looks, hazards,
+  non-counting) are skipped and the director waits for the next plain spawn. NOTE: ordinary
+  spawns carry the base `BlockData` named "Normal", NOT null — test for specialness, not null.
+- Look: a **gold overlay renderer** cloning the skin sprite (a tint fails: gold × green art
+  stays green) + a gold reward sheen glinting across it every 0.9 s while it falls. A landed
+  golden brick keeps its overlay — trophies stay visible in the tower.
+- One chance: judged once; toppled = pays nothing; destroyed mid-fall = scheduler re-arms.
 
-- **Fires when a run at some Y first reaches `RowMinColumns`**, checked only at rows the
-  just-placed block occupies.
-- **Once per run**: the run's cells are marked consumed; extending a celebrated row further
-  never re-fires. A second, disjoint run at the same Y can fire independently.
-- **Bridge bonus ×2**: if the completing placement was a *gap closure* (filled-cell contact both
-  sides at that row — the "fill the hole in the middle" moment), the row pays double. Closing a
-  gap to complete a row is the game's line-clear; merely growing a row outward to 8 still counts,
-  but the bridge is the moment we celebrate hardest.
-- Reward scales with run length: `RowCoins × (length − RowMinColumns + 1)` before the bridge
-  multiplier — superlinear celebration for wide, solid construction.
+### Detection (`PlacementScout`)
 
-## 4. Feedback tiers
+Silent. Runs on `BlockLocked` with ComboDetector's revalidate-after-settle pattern
+(PHYSICS.md I5): drift/tilt between lock pose and settled pose gate every reward
+(stack needs ≤ 0.35 cell / ≤ 3° / column-true; golden needs ≤ 0.6 cell / ≤ 8°).
 
-Upgrades to shared systems first:
-- **Trauma camera** — convert `TowerCameraController` to a trauma model: events add trauma
-  (0–1), shake amplitude = trauma², Perlin-noise-driven offsets + slight rotation, linear decay.
-  Landing trauma scales with block mass × impact velocity. Honors `SettingsService.ScreenShake`.
-- **Haptics** — integrate open-source Nice Vibrations (github.com/Lofelt/NiceVibrations); wire
-  to the existing "SOUND & HAPTICS" settings label. Transient haptic on the same frame as the
-  sound transient.
-- **Permanence** — faint dust scuff decals where blocks land, persistent for the run.
+### Feedback (`RewardSheenFx` + `CoinHud`)
 
-| Tier | Events | Feedback stack (cumulative with lower tiers) |
+- **Reward sheen**: one soft reflection band (ability-card sheen family) sweeping
+  lower-left → upper-right across every brick that earned, clipped to the brick sprites via
+  temporary SpriteMasks (custom sorting range so nothing else clips). White for stacks,
+  gold for golden. Single-brick sweeps follow the brick (falling golden glints).
+- **Coin flight**: 3–7 small coins (menu `coin` art) burst from the brick, hang a beat,
+  curve on staggered arcs into the counter pill; the pill (hidden until the first earn,
+  under the top bar's left card) ticks up per arrival with a ~10% elastic pulse and ONE
+  soft `coin_settle_01` clink per batch (synthesized, deliberately un-chime-like).
+- First-earn origin bug to remember: the HUD canvas must be built at scene start — a canvas
+  created mid-frame has no layout yet and world→canvas math lands at screen centre.
+
+### Accounting (`CoinLedger`, `PlayerProfileStore`)
+
+- `CoinLedger` (per-run, on the GameManager host): run total banks exactly once — on
+  LevelCompleted (+ win bonus), on GameOver, or on teardown (mid-run quit keeps earnings).
+- `PlayerProfileStore.Coins` is PlayerPrefs-backed (`profile.coins`), persisted on every
+  change; the menu top bar shows the real balance. `RunResult.CoinsEarned` carries the run's
+  skill coins (excludes win bonus). Cloud sync arrives with BACKEND.md's Supabase phase.
+
+## 4. Tuning knobs
+
+| Knob | Where | Default |
 |---|---|---|
-| **0** | every landing | Velocity-scaled layered impact sound (§5) · dust puff at contact edge (pooled `LandingDustFx`, house style of `NudgeImpactFx`) · squash-&-stretch pop on **visual child** · trauma bump · light transient haptic. **Fires for ALL landings** — removes the current `_autoDrop`-only gate (`BlockController.Landing.cs:31-37`). |
-| **1** | flush · stack · speed chain · close call | Block flash white 1–2 frames (visual child) · musical "snick" note at current pitch-ladder degree · small coin drip → HUD flight · medium haptic. |
-| **2** | gap fill · perfect fit | Hit-stop 6–8 frames (`HitStop.Trigger`) · camera punch-zoom 2–3% eased back ~0.3 s · radial shine/shockwave particle on block · ascending arpeggio stinger · coin fountain × combo multiplier · strong haptic. |
-| **3** | row complete · record height | Time-scale ramp 0.4× for ~0.4 s · bloom/chromatic pulse via `PostFxController`, decay < 0.5 s · light wave traveling up the tower · chord/cadence stinger in chapter key · large coin burst. Keep rare. |
+| Earn amounts | `CoinLedger` consts | 5 / 10 / 40 / 25 |
+| Golden window | `GoldenBlockDirector` | 25–40 bricks |
+| Golden look | `GoldenBlockDirector.GoldTint`, overlay alpha | (1, .84, .35), 0.8 |
+| Glint interval | `GoldenBlockDirector` | 0.9 s |
+| Sheen speed / brightness / band width | `RewardSheenFx` | 0.4 s / 0.6 / 0.55 u |
+| Stack / golden exactness gates | `PlacementScout` | see §3 |
+| Coin flight timing, coin count | `CoinHud` | hang 0.26 s, fly 0.38 s, 3–7 coins |
+| Clink volume | `CoinHud.Arrive` | 0.22 |
+| Landing feel (Tier 0) | `LandingFx`, `LandingDustFx`, `LandingSquashFx`, shake consts in `TowerCameraController` | — |
 
-Golden block (§6) celebration = Tier 2 stack regardless of placement quality achieved, on top
-of whatever the placement itself earned.
+## 5. Open items
 
-## 5. Sound
+- ElevenLabs layered landing clips (`land_body/transient/tail` in
+  `Tools/generate_elevenlabs_sfx.py`) — blocked on `ELEVENLABS_API_KEY`.
+- Nice Vibrations (open-source) import for iOS haptics.
+- End-of-run coin tally + the store that gives coins meaning (goal-gradient display).
+- Haptics settings-screen toggle (service key exists: `SettingsService.HapticsEnabled`).
 
-Current SFX are synthesized (`Tools/generate_sfx.py`); new placement audio is generated with
-the **ElevenLabs SFX API** and converted per the WAV→OGG recipe (chunked SoundFile writes,
-compression_level 0.4 — no ffmpeg on this Mac).
+## 6. Pitfalls checklist (before touching this system)
 
-**Layered impact (Tier 0)** — three independently mixed layers, 4–5 round-robins each, played
-through `SfxPlayer` with existing pitch jitter:
-- *Transient* — tight click/snap; volume scales with placement precision.
-- *Body* — deep thud, more bass than realistic; volume/pitch scale with impact velocity.
-- *Tail* — dust settle / creak sweetener; quiet, drops out entirely on hard slams.
-
-**Pitch ladder (Tier 1)** — the Peggle system: each chapter's soundtrack gets a declared key;
-combo ladder degree *n* plays the *n*-th note of a **pentatonic scale** in that key, via pitch
-transposition of 1–2 base chime samples (`pitch = 2^(semitones/12)` in `SfxPlayer` — Peggle
-Blast ran its entire system off 5 WAVs). Ladder resets → pitch resets.
-
-**Stingers** — perfect-fit arpeggio · row-complete cadence · close-call "phew" · coin tick
-(rising pitch per coin arriving at counter) · level-win jingle (fills the existing
-`MusicPlayer.HandleGameOver` gap).
-
-No coin sound on Tier 0. Ever.
-
-## 6. Coins (in-run economy)
-
-`PlayerProfileStore.Coins` is currently a hardcoded placeholder — this makes it real
-(persistence + setter). `RunResult` gains a `CoinsEarned` field. Backend sync stays deferred
-to Phase E (BACKEND.md).
-
-**Earning — skill only, no participation drip:**
-
-| Source | Coins (defaults, all tunable) |
-|---|---|
-| Clean landing | **0** — physical feedback only |
-| Tier 1 event | +2 |
-| Tier 2 event | +8 × combo multiplier |
-| Row complete | +25 × length scaling (§3) × 2 if bridge |
-| Record height | +25 |
-| Golden block placed | ×3–5 on that placement's total (variable roll — the only randomness) |
-| Level completion payout | Sized so a skilled run totals ~1.5–2× a scraped-through run |
-
-Combo multiplier = `1 + ladder/4` (capped, tune in playtest).
-
-**Golden block** — occasional queue piece with a golden skin. Fixed-look rule applies
-(chapter-independent material, like Magma). Spawn chance low and variable-ratio; this is the
-designed slot-machine element, quarantined to magnitude only.
-
-**The flight** — coins burst outward with slight physics → hang a beat → accelerate along
-*staggered curved (bezier) arcs* to the HUD coin counter → counter pulses (`FxKit.Elastic`)
-with a rising-pitch tick per arrival. Many small coins > one big icon. End-of-level tally
-screen counts the run's coins up a second time (second pass over the same dopamine).
-
-## 7. Tooling decision
-
-**Feel asset: rejected** (July 2026). Inspector/prefab-centric workflow clashes with this
-code-first project, and we already own its primitives (`HitStop`, `TowerCameraController`,
-`ImpactFx`, `FxKit`, pooled procedural FX, `SfxPlayer` pitch variants). Instead:
-- Haptics: **Nice Vibrations open-source** (the thing Feel bundles).
-- Tweening (if needed beyond `FxKit`): **PrimeTween** (free, zero per-frame allocations).
-- Everything else: extend the existing in-house kit.
-
-## 8. Implementation phases
-
-1. **Foundation** — Tier 0 for all landings (remove `_autoDrop` gate, velocity-scaled layered
-   sound, `LandingDustFx`, visual-child squash, trauma camera, haptics). Ship/playtest first;
-   biggest ROI, no new mechanics.
-2. **PlacementJudge** — detection system, combo ladder, ElevenLabs sound set, pitch ladder,
-   Tier 1–2 stacks.
-3. **Coins** — real `PlayerProfileStore`, earning table, coin flight, HUD counter,
-   end-of-level tally.
-4. **Big moments** — row complete, record height, golden blocks, Tier 3 stack, win jingle.
-
-## 9. Tuning defaults
-
-| Knob | Default |
-|---|---|
-| `RowMinColumns` | 8 (per-level override) |
-| `SpeedChainWindow` | 3.0 s |
-| Hit-stop (Tier 2) | 6–8 frames (~100–130 ms) |
-| Punch-zoom | 2–3 %, ease back 0.3 s |
-| Slow-mo (Tier 3) | 0.4× for 0.4 s |
-| Pitch jitter (impacts) | ±10 % (≈ ±2 semitones) |
-| Trauma exponent | shake = trauma² |
-| Sloppy overhang threshold | ≥ 0.25 cell (tune) |
-
-Pitfalls to re-read before coding: PHYSICS.md I1–I3 (visual child only; don't keep bodies
-awake), `HitStop` refuses when `timeScale ≠ 1` (fine — never stack slow-mo + hit-stop),
-`SettingsService` gates (ScreenShake / VisualEffects / EffectiveSfx) must gate every new effect.
+- PHYSICS.md I1–I3: visual-child only; don't keep bodies awake.
+- `SettingsService` gates every effect: ScreenShake / VisualEffects / EffectiveSfx / HapticsEnabled.
+- Editor testing: gates + pause traps in the play-mode memory; the editor auto-pauses on
+  pre-existing missing-script errors — check `EditorApplication.isPaused` when a run freezes.
+- Spawner raises `BlockSpawned` for the NEXT piece inside the current piece's `BlockLocked`
+  dispatch — scheduler-style systems may see events one piece "late"; design for it.

@@ -355,6 +355,19 @@ public partial class BlockController : MonoBehaviour
         return _cellGeometry.TryGetWorldBounds(out bounds);
     }
 
+    /// <summary>Copies the current world-space cell centres into <paramref name="results"/>
+    /// (cleared first). Fresh each call - PlacementScout reads SETTLED positions, not where
+    /// the cells were at lock.</summary>
+    public void GetWorldCellCenters(List<Vector2> results)
+    {
+        results.Clear();
+        _cellGeometry.Refresh();
+        for (int i = 0; i < _cellGeometry.CellCenters.Count; i++)
+        {
+            results.Add(_cellGeometry.CellCenters[i]);
+        }
+    }
+
     // ---- Off-screen loss (driven by LossZone's camera-relative cull) -----------------------
 
     // "Falling" for the cull test. An unlocked piece can't be judged by velocity (steering

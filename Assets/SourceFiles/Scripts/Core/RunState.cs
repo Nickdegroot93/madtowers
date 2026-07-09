@@ -56,5 +56,6 @@ public sealed class RunState
     }
 
     public RunResult ToResult() =>
-        new RunResult(_score, _lives, _standingBlocks, _totalPlacedBlocks, TowerHeight);
+        new RunResult(_score, _lives, _standingBlocks, _totalPlacedBlocks, TowerHeight,
+            CoinLedger.RunCoins);
 }

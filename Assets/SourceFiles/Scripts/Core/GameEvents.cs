@@ -29,6 +29,9 @@ public static class GameEvents
     /// <summary>The active piece just locked into the tower (one per piece-turn). Distinct from
     /// BlockSpawned because mid-turn transmutes/banks raise a spawn without a preceding lock.</summary>
     public static event Action<BlockController> BlockLocked;
+    /// <summary>Skill coins were minted this run (JUICE.md Phase 3): amount, the world position
+    /// they burst from (the placed block), and the run total after this earn.</summary>
+    public static event Action<int, Vector3, int> CoinsEarned;
     public static event Action<LevelDefinition, RunResult> LevelCompleted;
     public static event Action<GamePhase, GamePhase> PhaseChanged;
     public static event Action<bool> SpawnAvailabilityChanged;
@@ -56,6 +59,7 @@ public static class GameEvents
         BlockLanded = null;
         BlockDestroyed = null;
         BlockLocked = null;
+        CoinsEarned = null;
         LevelCompleted = null;
         PhaseChanged = null;
         SpawnAvailabilityChanged = null;
@@ -95,6 +99,8 @@ public static class GameEvents
         }
     }
 
+    public static void RaiseCoinsEarned(int amount, Vector3 worldPosition, int runTotal) =>
+        CoinsEarned?.Invoke(amount, worldPosition, runTotal);
     public static void RaiseLevelCompleted(LevelDefinition level, RunResult result) => LevelCompleted?.Invoke(level, result);
     public static void RaisePhaseChanged(GamePhase previous, GamePhase current) => PhaseChanged?.Invoke(previous, current);
     public static void RaiseSpawnAvailabilityChanged(bool canSpawn) => SpawnAvailabilityChanged?.Invoke(canSpawn);
