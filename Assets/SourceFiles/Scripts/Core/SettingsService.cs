@@ -25,6 +25,7 @@ public static class SettingsService
     private const string FrameRateKey = "settings.graphics.frameRate";
     private const string VisualEffectsKey = "settings.graphics.visualEffects";
     private const string ScreenShakeKey = "settings.graphics.screenShake";
+    private const string HapticsKey = "settings.haptics.enabled";
     private const string HudLayoutKey = "settings.controls.hudLayout";
 
     private const int DefaultFrameRate = 60;
@@ -35,6 +36,7 @@ public static class SettingsService
     private static int _frameRate;
     private static bool _visualEffects;
     private static bool _screenShake;
+    private static bool _haptics;
     private static HudLayout _hud;
     private static bool _loaded;
 
@@ -47,6 +49,7 @@ public static class SettingsService
         _frameRate = PlayerPrefs.GetInt(FrameRateKey, DefaultFrameRate);
         _visualEffects = PlayerPrefs.GetInt(VisualEffectsKey, 1) != 0;
         _screenShake = PlayerPrefs.GetInt(ScreenShakeKey, 1) != 0;
+        _haptics = PlayerPrefs.GetInt(HapticsKey, 1) != 0;
         _hud = HudLayout.FromJsonOrDefault(PlayerPrefs.GetString(HudLayoutKey, string.Empty));
         _loaded = true;
     }
@@ -138,6 +141,20 @@ public static class SettingsService
             if (_screenShake == value) return;
             _screenShake = value;
             PlayerPrefs.SetInt(ScreenShakeKey, value ? 1 : 0);
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>Vibration feedback on impacts on/off (enforced in Haptics, the single wrapper).</summary>
+    public static bool HapticsEnabled
+    {
+        get { EnsureLoaded(); return _haptics; }
+        set
+        {
+            EnsureLoaded();
+            if (_haptics == value) return;
+            _haptics = value;
+            PlayerPrefs.SetInt(HapticsKey, value ? 1 : 0);
             Changed?.Invoke();
         }
     }

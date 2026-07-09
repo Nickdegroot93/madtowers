@@ -84,6 +84,26 @@ SOUNDS = {
         "dark heavy and somber, very low frequency, absolutely no melodic or high tones.", 1.6, 0.6),
     "status_engage": (STYLE + "A protective wind aura whooshing around: full circular gust "
         "swirl, breathy and energetic.", 0.9, 0.5),
+
+    # ---- Tier-0 landing layers (JUICE.md §5): every landing mixes transient + body (+ tail
+    # on gentle placements), so each layer must be a SINGLE clean hit with no extra events.
+    # Round-robins: same prompt, separate generations = natural variation.
+    "land_body_01": (STYLE + "A toy stone brick landing flat on a stone tower: one single "
+        "deep dry compact THUD with warm low body, very short, no debris, no bounce.", 0.6, 0.55),
+    "land_body_02": (STYLE + "A toy stone brick landing flat on a stone tower: one single "
+        "deep dry compact THUD with warm low body, very short, no debris, no bounce.", 0.6, 0.55),
+    "land_body_03": (STYLE + "A toy stone brick landing flat on a stone tower: one single "
+        "deep dry compact THUD with warm low body, very short, no debris, no bounce.", 0.6, 0.55),
+    "land_transient_01": (STYLE + "One ultra-short crisp tick of a small stone block seating "
+        "precisely into place: clean close-mic'd tap, instant, no reverb, no tail.", 0.4, 0.55),
+    "land_transient_02": (STYLE + "One ultra-short crisp tick of a small stone block seating "
+        "precisely into place: clean close-mic'd tap, instant, no reverb, no tail.", 0.4, 0.55),
+    "land_transient_03": (STYLE + "One ultra-short crisp tick of a small stone block seating "
+        "precisely into place: clean close-mic'd tap, instant, no reverb, no tail.", 0.4, 0.55),
+    "land_tail_01": (STYLE + "Fine sand and grit settling briefly after a block lands: one "
+        "soft short airy shf of dust, very quiet, gentle, no impact sound.", 0.7, 0.5),
+    "land_tail_02": (STYLE + "Fine sand and grit settling briefly after a block lands: one "
+        "soft short airy shf of dust, very quiet, gentle, no impact sound.", 0.7, 0.5),
 }
 
 

@@ -18,8 +18,9 @@ public static class SfxPlayer
     private static int _next;
     private static readonly Dictionary<string, AudioClip> _clips = new Dictionary<string, AudioClip>();
 
-    /// <summary>Play one-shot by name (file in Resources/Audio/Sfx, no extension).</summary>
-    public static void Play(string name, float volume = 1f, float pitchJitter = 0f)
+    /// <summary>Play one-shot by name (file in Resources/Audio/Sfx, no extension).
+    /// basePitch transposes the clip (heavier/harder = lower); jitter randomizes around it.</summary>
+    public static void Play(string name, float volume = 1f, float pitchJitter = 0f, float basePitch = 1f)
     {
         AudioClip clip = LoadClip(name);
         if (clip == null) return;
@@ -28,17 +29,22 @@ public static class SfxPlayer
         AudioSource source = _pool[_next];
         _next = (_next + 1) % _pool.Length;
 
-        source.pitch = 1f + (pitchJitter > 0f ? Random.Range(-pitchJitter, pitchJitter) : 0f);
+        source.pitch = basePitch * (1f + (pitchJitter > 0f ? Random.Range(-pitchJitter, pitchJitter) : 0f));
         // Per-call volume scaled by the user's master SFX level (0 while muted).
         source.PlayOneShot(clip, Mathf.Clamp01(volume) * SettingsService.EffectiveSfx);
     }
 
     /// <summary>Play a random numbered variant: name_01 .. name_NN.</summary>
-    public static void PlayVariant(string baseName, int variantCount, float volume = 1f, float pitchJitter = 0f)
+    public static void PlayVariant(string baseName, int variantCount, float volume = 1f, float pitchJitter = 0f,
+        float basePitch = 1f)
     {
         int pick = Random.Range(1, Mathf.Max(1, variantCount) + 1);
-        Play($"{baseName}_{pick:00}", volume, pitchJitter);
+        Play($"{baseName}_{pick:00}", volume, pitchJitter, basePitch);
     }
+
+    /// <summary>True when a clip exists (loads and caches it). Lets layered effects fall back
+    /// gracefully while some of their clips are not generated yet.</summary>
+    public static bool HasClip(string name) => LoadClip(name) != null;
 
     /// <summary>Start a sustained, looping clip on a dedicated source. Call <see cref="StopLoop"/>
     /// to end it (e.g. a level-finish countdown that runs while the timer counts down). Idempotent:

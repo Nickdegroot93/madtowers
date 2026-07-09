@@ -55,9 +55,17 @@ public class TowerCameraController : MonoBehaviour
     private bool _introStarted;
     private float _introElapsed;
     private float _introStartX;
-    private float _shakeTime;
-    private float _shakeDuration;
-    private float _shakeAmplitude;
+    // Trauma-based shake (JUICE.md): events ADD trauma [0,1]; amplitude = trauma² so small
+    // knocks stay subtle while stacked/hard impacts compound naturally. Perlin noise drives
+    // the offset (smooth, directionally unbiased); trauma decays linearly. Unscaled time so
+    // hit-stop/pause never freezes the camera mid-offset.
+    private const float TraumaDecayPerSecond = 1.4f;
+    private const float ShakeMaxOffset = 0.45f;     // world units at trauma 1
+    private const float ShakeMaxRollDegrees = 1.1f; // camera roll at trauma 1
+    private const float ShakeNoiseFrequency = 20f;  // Perlin sample rate: ~20 direction changes/sec
+
+    private float _trauma;
+    private float _shakeNoiseTime;
 
     private void Awake()
     {
@@ -89,18 +97,25 @@ public class TowerCameraController : MonoBehaviour
         if (_introActive) CameraIntroGate.End(); // never leak the hold if torn down mid-pan
     }
 
-    // Purely visual impact shake (e.g. a flick-dropped piece landing). The shake is a
-    // render-only offset added on top of the smoothed base position - the smoothing state
-    // itself never sees it, and physics never reads the camera, so the tower is unaffected.
-    public static void Impact(float amplitude = 0.16f, float duration = 0.22f)
+    // Purely visual impact shake. The shake is a render-only offset/roll added on top of the
+    // smoothed base position - the smoothing state itself never sees it, and physics never
+    // reads the camera, so the tower is unaffected.
+    /// <summary>Add shake energy [0,1]. Peak world-unit offset ≈ trauma² × 0.45.</summary>
+    public static void AddTrauma(float amount)
     {
-        if (_instance == null) return;
+        if (_instance == null || amount <= 0f) return;
         // Every screen shake in the game routes through here, so honouring the Screen Shake
         // setting at this one point disables them all (current and future). See GRAPHICS.md.
         if (!SettingsService.ScreenShake) return;
-        _instance._shakeAmplitude = amplitude;
-        _instance._shakeDuration = duration;
-        _instance._shakeTime = duration;
+        _instance._trauma = Mathf.Clamp01(_instance._trauma + amount);
+    }
+
+    /// <summary>Legacy entry point: amplitude is the desired peak offset in world units.
+    /// trauma = √(a/max) makes the trauma curve reproduce exactly that peak, so old call
+    /// sites keep their tuned strength. Duration is now owned by the fixed trauma decay.</summary>
+    public static void Impact(float amplitude = 0.16f, float duration = 0.22f)
+    {
+        AddTrauma(Mathf.Sqrt(Mathf.Max(0f, amplitude) / ShakeMaxOffset));
     }
 
     private void LateUpdate()
@@ -142,21 +157,27 @@ public class TowerCameraController : MonoBehaviour
             }
         }
 
-        SetCameraPosition(_baseX, _baseY + GetShakeOffset());
+        TickShake(out Vector2 shakeOffset, out float shakeRoll);
+        SetCameraPosition(_baseX + shakeOffset.x, _baseY + shakeOffset.y);
+        transform.rotation = Quaternion.Euler(0f, 0f, shakeRoll);
         UpdateSpawnPoint();
         UpdateVerticalFollowers();
     }
 
-    // Damped vertical thump: a quick oscillation whose envelope falls off quadratically.
-    private float GetShakeOffset()
+    private void TickShake(out Vector2 offset, out float roll)
     {
-        if (_shakeTime <= 0f) return 0f;
+        offset = Vector2.zero;
+        roll = 0f;
+        if (_trauma <= 0f) return;
 
-        _shakeTime -= Time.deltaTime;
-        if (_shakeTime <= 0f) return 0f;
+        _shakeNoiseTime += Time.unscaledDeltaTime * ShakeNoiseFrequency;
+        _trauma = Mathf.Max(0f, _trauma - TraumaDecayPerSecond * Time.unscaledDeltaTime);
 
-        float remaining = _shakeTime / Mathf.Max(0.0001f, _shakeDuration); // 1 -> 0
-        return Mathf.Sin((1f - remaining) * 30f) * _shakeAmplitude * remaining * remaining;
+        float amplitude = _trauma * _trauma;
+        offset = new Vector2(
+            (Mathf.PerlinNoise(_shakeNoiseTime, 0.3f) * 2f - 1f) * ShakeMaxOffset * amplitude,
+            (Mathf.PerlinNoise(_shakeNoiseTime, 7.9f) * 2f - 1f) * ShakeMaxOffset * amplitude);
+        roll = (Mathf.PerlinNoise(_shakeNoiseTime, 21.4f) * 2f - 1f) * ShakeMaxRollDegrees * amplitude;
     }
 
     // Opening reveal: hold the gameplay zoom, start offset to the LEFT of the framing center and

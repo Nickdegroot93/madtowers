@@ -26,15 +26,24 @@ public partial class BlockController
 
         _rb.linearVelocity = new Vector2(0f, -GetLandingImpactSpeed());
 
-        // Flick-dropped pieces thump: camera shake + impact sound. Both purely cosmetic
-        // (physics never reads the camera, and the landing velocity above is already capped).
-        if (_autoDrop)
-        {
-            TowerCameraController.Impact();
-            SfxPlayer.PlayVariant("impact_heavy", 2, 0.6f, 0.07f);
-        }
+        // EVERY landing thumps now (JUICE.md Tier 0): sound, dust, squash, trauma and haptic
+        // all scale with how fast the piece actually came in - a steered touch whispers, a
+        // flick slams. Purely cosmetic (physics never reads the camera, the squash animates
+        // only the collider-less skin child, and the landing velocity above is already capped).
+        LandingFx.Play(this, ComputeLandingHardness01());
 
         LockBlock();
+    }
+
+    // How hard this landing reads, 0..1: the controlled descent speed at touchdown mapped
+    // between the piece's normal fall speed and the flick plunge (fastDrop × AutoDropBoost).
+    // Ability-slowed descents clamp to 0 (softer than normal is still "soft").
+    private float ComputeLandingHardness01()
+    {
+        float baseSpeed = Mathf.Max(0.01f, fallSpeed);
+        float flickSpeed = baseSpeed * Mathf.Max(1.01f, fastDropMultiplier * AutoDropBoost);
+        float speed = _lastControlledFallSpeed > 0f ? _lastControlledFallSpeed : GetActiveFallSpeed();
+        return Mathf.Clamp01(Mathf.InverseLerp(baseSpeed, flickSpeed, speed));
     }
 
     // Slides the piece straight down until its colliders are flush against the support beneath it,

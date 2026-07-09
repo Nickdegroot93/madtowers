@@ -47,7 +47,17 @@ public partial class BlockController
         skinRenderer.sprite = pieceSprite;
         skinRenderer.sortingLayerID = cellRenderers[0].sortingLayerID;
         skinRenderer.sortingOrder = cellRenderers[0].sortingOrder;
+        _pieceSkinTransform = skinGo.transform;
     }
+
+    // The skin child is the ONLY safe squash-and-stretch target: it has no collider, so
+    // scaling it is purely visual (PHYSICS.md I1 - never touch a landed body's transform).
+    private Transform _pieceSkinTransform;
+    public Transform PieceSkinTransform => _pieceSkinTransform;
+
+    /// <summary>True when the piece sits at a quarter turn, i.e. its LOCAL X axis maps to
+    /// world Y - the landing squash uses this to squash world-vertically regardless of rotation.</summary>
+    public bool IsAtQuarterTurn() => IsQuarterTurnRotation();
 
     public void ApplyData(BlockData data)
     {

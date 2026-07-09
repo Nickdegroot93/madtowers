@@ -244,6 +244,31 @@ public static partial class RuntimeSprites
         return _windStreak = Finish(tex, W);
     }
 
+    // ---- soft round puff (landing dust etc.; tint via color) ------------------------------
+    // Radial falloff with a dense core: reads as a dust cloudlet, not a glow. 1 world unit
+    // in diameter at scale 1.
+    private static Sprite _softPuff;
+
+    public static Sprite SoftPuff()
+    {
+        if (_softPuff != null) return _softPuff;
+
+        const int S = 48;
+        Texture2D tex = NewTexture(S, S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                float u = (x + 0.5f) / S * 2f - 1f;
+                float v = (y + 0.5f) / S * 2f - 1f;
+                float d = Mathf.Sqrt(u * u + v * v);
+                float a = Mathf.Clamp01(1f - d);
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a * a * (0.4f + 0.6f * a)));
+            }
+        }
+        return _softPuff = Finish(tex, S);
+    }
+
     // ---- plain white square (shard particles etc.; tint via color) ------------------------
     private static Sprite _square;
 
