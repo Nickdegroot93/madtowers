@@ -189,6 +189,32 @@ public static class ChapterContentValidator
             {
                 Warning($"Backdrop '{preset.name}' layer {i} ('{layer.Sprite.name}') has alpha 0; the layer is invisible.", preset, ref warnings);
             }
+
+            bool hasFrames = layer.AnimationFrames != null && layer.AnimationFrames.Count > 0;
+            if (layer.AnimationFps > 0f && !hasFrames)
+            {
+                Warning($"Backdrop '{preset.name}' layer {i} ('{layer.Sprite.name}') sets animationFps with no animationFrames; the layer stays static.", preset, ref warnings);
+            }
+            if (hasFrames && layer.AnimationFps <= 0f)
+            {
+                Warning($"Backdrop '{preset.name}' layer {i} ('{layer.Sprite.name}') has animationFrames but animationFps 0; the animation never plays.", preset, ref warnings);
+            }
+            if (hasFrames)
+            {
+                Vector2 baseSize = layer.Sprite.bounds.size;
+                for (int f = 0; f < layer.AnimationFrames.Count; f++)
+                {
+                    Sprite frame = layer.AnimationFrames[f];
+                    if (frame == null)
+                    {
+                        Error($"Backdrop '{preset.name}' layer {i} ('{layer.Sprite.name}') has a null animation frame at index {f}.", preset, ref errors);
+                    }
+                    else if (((Vector2)frame.bounds.size - baseSize).sqrMagnitude > 0.001f)
+                    {
+                        Warning($"Backdrop '{preset.name}' layer {i} ('{layer.Sprite.name}') animation frame {f} ('{frame.name}') differs in size from the base sprite; the layer will jump between frames.", preset, ref warnings);
+                    }
+                }
+            }
         }
 
         if (fillLayers > 1)

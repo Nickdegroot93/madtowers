@@ -676,3 +676,11 @@ if __name__ == "__main__":
     render_ground_fill_wetpave("Neon", (44, 38, 62))
     render_ground_cap("Neon", (58, 52, 82), fleck=(120, 230, 250), fleck_chance=0.014)
     remove_legacy("Neon")
+
+    # Crimson Core: rain-dark boulevard under the red sun - near-black warm tiles
+    # catching crimson and pale-rose sign reflections, ember glints along the cap.
+    render_plateau("Crimson", (56, 40, 44), line=(24, 14, 16), blocks=1)
+    render_islands("Crimson", (56, 40, 44), line=(24, 14, 16))
+    render_ground_fill_wetpave("Crimson", (40, 28, 32), glows=((240, 90, 90), (235, 205, 210)))
+    render_ground_cap("Crimson", (62, 44, 50), fleck=(245, 120, 110), fleck_chance=0.014)
+    remove_legacy("Crimson")

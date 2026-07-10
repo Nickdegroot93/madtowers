@@ -344,6 +344,25 @@ THEME_PRESETS = {
         "edgeShine": {"Pip": 0.15, "Domino": 0.15},
         "preview_bg": (205, 175, 185),
     },
+    # Crimson Core: darkwave signage against the near-black red-lit city. Claims the
+    # Neon high-chroma exemption - these read as lit tubes, not pigment - but every
+    # hue carries the chapter's warm red-night cast.
+    "Crimson": {
+        "colors": {
+            "I": (96, 160, 200),    # cold signal blue
+            "O": (232, 168, 88),    # sodium amber
+            "T": (196, 88, 170),    # magenta sign
+            "S": (110, 190, 130),   # exit-sign jade
+            "Z": (232, 72, 84),     # crimson neon
+            "J": (120, 100, 210),   # ultraviolet
+            "L": (240, 130, 70),    # ember orange
+            "Pip": (230, 200, 205),     # pale rose hologram
+            "Domino": (140, 118, 126),  # smog chrome
+        },
+        "outline": 0.18,
+        "edgeShine": {"Pip": 0.15, "Domino": 0.15},
+        "preview_bg": (38, 24, 30),
+    },
 }
 
 SHAPES = {  # (col,row), row 0 = top of canvas, matches prefab spawn orientation

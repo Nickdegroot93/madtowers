@@ -95,6 +95,7 @@ Each imported sprite layer on a `BackdropPreset` has these key fields:
 | `verticalParallax` | `0` drops with the floor quickly; `1` stays with the camera. |
 | `driftSpeedX` | Constant sideways scroll in world units/sec — the "this layer is clouds" switch. The tile row wraps around itself so the loop is endless and seamless. Positive = rightward. Keep it subtle (`0.1`–`0.15`); needs `horizontalTileRadius >= 1`. `0` = static (default). Ignored for a fill layer. |
 | `hoverAmount` / `hoverPeriodSeconds` | Smooth sine bob in world units — flying craft (Giza Dusk's pyramids: `0.26`/`5.7` and `0.35`/`7.3` — split one vendor cutout into two sprites so periods differ). `0` = off (default). Phase-offset per layer index so stacked hovering layers desync. Ignored for a fill layer (validator lints this). |
+| `animationFrames` / `animationFps` | Optional flipbook loop for vendor sprite animations (Crimson Core's retro sun: 20 frames of scrolling bands at `12` fps, tinted chapter-owned copies of Chinese City's `RetroSunWhite`). The `sprite` field stays the fallback/first frame and defines layout; frames must share its size (validator lints size mismatches, null frames, and fps/frames set without the other). `animationFps: 0` = off (default). Driven by wall-clock time — no per-layer state, tiles stay in sync. |
 | `alpha` | Layer opacity. Prefer moving/scaling first; low alpha can reveal every overlapped silhouette. |
 
 When importing a new pack, find its cloud / mist / fog-bank layer and give it a small

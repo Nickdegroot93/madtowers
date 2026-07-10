@@ -49,6 +49,13 @@ Current packs:
   bg / layer1 d1-d3 / layer2 c1-c4 / layer3 b1-b3+pl / cart / bushes a1-a3 at Japan
   Landscape + Sovietwave GUIDs+paths — those 17 were copied out meta-less for fresh GUIDs
   after reverting the Japan Landscape / Sovietwave / Desert Vibe overwrites)
+- `Assets/Art/ChapterPacks/Darkwave City` (same drill: WR/XX/CT sprites landed inside Chinese
+  City, S/Y sprites + the demo scene inside Jungle Landscape, scripts at
+  `Assets/Darkwave city/`; the pack ships its own bg plate at Chinese City's `bg/bg.png`
+  GUID+path — copied out meta-less for a fresh GUID before reverting the Chinese City /
+  Desert Vibe / Hovl overwrites. Reuses Chinese City's RetroSunWhite (tinted dark red in the
+  demo scene) and `bg/shadow.png` as a front vignette overlay — both left in Chinese City;
+  Crimson Core uses a chapter-owned pre-tinted sun copy and skips the vignette)
 
 Game-authored chapter presentation stays separate:
 
@@ -169,7 +176,7 @@ chapter so far:
 | Thin **horizontal** line near the floor, lighter or darker than its surroundings | A scenery layer's bottom edge is exposed through a gap in nearer layers; the line color = that sprite's bottom-row color | Find which strip's bottom row matches the line color, set that layer's `groundFillColor` to the exact sampled color |
 | **Horizontal** tone step across the sky, appears while climbing | Baked seam in the vendor background plate | Feathered chapter-owned copy (Step 2) |
 | Full-height **vertical** band(s), crisp edges | A hand-placed "mass" sprite is being tiled — its straight vertical art edges show | Remove that layer or place it once (`horizontalTileRadius: 0`) |
-| Faint full-height **vertical** column that *moves with the falling piece* | The placement beam (landing preview) — more visible on dark backdrops | Not a bug. Leave it; alphas live in `BlockController.PlacementBeam.cs` if it ever needs a per-theme pass |
+| Faint full-height **vertical** column that *moves with the falling piece* | The placement beam (landing preview) — more visible on dark backdrops | Not a bug. Leave it; alphas live in `BlockController.PlacementBeam.cs` if it ever needs a per-theme pass. It sorts at −52: in front of every backdrop layer (hence the ≤ ~36-layer cap), cut only by the floor (−50) and bricks (0) |
 | Repeating silhouettes look obviously cloned | Tile width too small on screen | Larger `worldHeight` (wider tiles), or accept — distant repeats read fine |
 | Scenery visibly slides sideways relative to neighbors during pans | `horizontalParallax` out of order | Must decrease monotonically far → near (1.0 plate → ~0.02 foreground) |
 | Layer pops in/out or unveils gaps while climbing | `verticalParallax` out of order, or a near layer offset too high | Nearer = lower `verticalParallax`; sink near layers with negative `floorOffsetY` |

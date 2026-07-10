@@ -216,6 +216,17 @@ public partial class LevelPresentationController
             SpriteRenderer sample = tiles[0];
             if (sample == null || sample.sprite == null) continue;
 
+            // Flipbook layers (vendor sprite animations - a retro sun's scrolling bands):
+            // swap the frame on every tile before layout, so tiling and fillView both animate.
+            Sprite frame = ResolveAnimationFrame(layer, sample.sprite);
+            if (frame != sample.sprite)
+            {
+                for (int tile = 0; tile < tiles.Length; tile++)
+                {
+                    if (tiles[tile] != null) tiles[tile].sprite = frame;
+                }
+            }
+
             Vector2 size = sample.sprite.bounds.size;
             if (size.x <= 0f || size.y <= 0f) continue;
 
@@ -267,6 +278,18 @@ public partial class LevelPresentationController
 
             UpdateLayerApron(i, cam, y - scaledHeight * 0.5f);
         }
+    }
+
+    // Endless flipbook loop driven by wall-clock time: no per-layer state, so it stays in
+    // sync across tiles and survives preset live-edits. Null/empty frames = static layer.
+    private static Sprite ResolveAnimationFrame(BackdropPreset.SpriteBackdropLayer layer, Sprite fallback)
+    {
+        IReadOnlyList<Sprite> frames = layer.AnimationFrames;
+        if (layer.AnimationFps <= 0f || frames == null || frames.Count == 0) return fallback;
+
+        int index = (int)(Time.time * layer.AnimationFps) % frames.Count;
+        Sprite frame = frames[index];
+        return frame != null ? frame : fallback;
     }
 
     // A full-screen panorama (the back-most sky/atmosphere). Scaled UNIFORMLY to cover the camera

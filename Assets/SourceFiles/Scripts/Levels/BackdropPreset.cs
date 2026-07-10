@@ -41,6 +41,11 @@ public class BackdropPreset : ScriptableObject
         [Tooltip("Seconds per full up-down hover cycle.")]
         [Min(0.5f)]
         [SerializeField] private float hoverPeriodSeconds = 6f;
+        [Tooltip("Optional flipbook frames for this layer (vendor sprite animations - a retro sun's scrolling bands, a blinking sign). Plays as an endless loop at animationFps; the layer's `sprite` field stays the fallback/first frame and defines the layout. Frames must share the base sprite's size. Empty = static layer.")]
+        [SerializeField] private Sprite[] animationFrames;
+        [Tooltip("Flipbook frames per second. 0 = animation off, even if frames are assigned.")]
+        [Min(0f)]
+        [SerializeField] private float animationFps = 0f;
         [Tooltip("Treat this layer as a full-screen panorama (the back-most sky/atmosphere). It is always scaled to blanket the whole camera view like the sky, so its edges can never enter the frame - it never cuts off at the top however high the tower climbs. Parallax/tiling/offset are ignored for a fill layer.")]
         [SerializeField] private bool fillView = false;
         [Tooltip("If alpha > 0, a solid apron of this colour fills the area below this layer down past the screen bottom, so an opaque ground layer never shows a seam or a plain gap beneath it. Set it to the layer's solid ground colour. Ignored for a fill layer.")]
@@ -59,6 +64,8 @@ public class BackdropPreset : ScriptableObject
         public float DriftSpeedX => driftSpeedX;
         public float HoverAmount => Mathf.Max(0f, hoverAmount);
         public float HoverPeriodSeconds => Mathf.Max(0.5f, hoverPeriodSeconds);
+        public IReadOnlyList<Sprite> AnimationFrames => animationFrames;
+        public float AnimationFps => Mathf.Max(0f, animationFps);
         public bool FillView => fillView;
         public Color GroundFillColor => groundFillColor;
         public float Alpha => alpha;

@@ -64,10 +64,11 @@ public partial class BlockController : MonoBehaviour
     [Header("Placement Beam")]
     [SerializeField] private bool showPlacementBeam = true;
 
-    // Behind the ground skin (-50) and all bricks (0), in front of the background (-100):
-    // the beam reads as part of the backdrop and visually stops at whatever it passes
-    // behind. Code-owned (not serialized) so it can't go stale in prefab import caches.
-    private const int PlacementBeamSortingOrder = -60;
+    // Behind the ground skin (-50) and all bricks (0), in front of EVERY backdrop layer:
+    // imported layers stack up from -89 and are capped at ~36 per preset (max -53), so -52
+    // clears them all - the beam only stops at the floor and the tower, never at scenery.
+    // Code-owned (not serialized) so it can't go stale in prefab import caches.
+    private const int PlacementBeamSortingOrder = -52;
     private const int VectorGuideGhostSortingOrder = -5;
     // Run-local ability toggles (Vector Guide, Edge Portal, ...). One bitfield instead of a named
     // static per ability - see BlockFeature. Reset with the rest of the static state below.
