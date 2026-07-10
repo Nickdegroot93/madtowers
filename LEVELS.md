@@ -128,6 +128,7 @@ touch engine code.
 | **Classic stacking** | any mode, no modifiers — the base game | `Endless` (free play), `ReachHeight` (climb to X m), or `PlaceBlocks` (stack N) — three sub-flavours for free |
 | **Height-Limit Waves** ("Laser Limit" — Tricky Towers' puzzle mode) | `HeightLimitWavesModifier` asset on the level | `PlaceBlocks` = sum of wave counts |
 | **Scheduled theme pressure** (snowstorms, sandstorms, neon sync, rain...) | `ScheduledStatusModifier` applying one or more `StatusEffectDefinition` assets | any standard goal |
+| **Airtight** (no sealed hollows) | `AirPocketModifier` asset on the level | any standard goal (typically `PlaceBlocks`) |
 | *future: rising water, timed rush, wind gauntlet…* | one modifier subclass each, same recipe | standard goals |
 
 > **Win conditions are polymorphic.** A level still authors `targetType` + `targetValue`, but the
@@ -170,6 +171,36 @@ touch engine code.
   `Resources/Skins/<Chapter>/` (see ART.md) and every laser level in that chapter uses it;
   no file = the code-built bar. Zapped blocks burst via the reusable `BlockShatterFx`
   (shards tinted to the laser color) plus a subtle camera impact.
+
+#### Airtight details
+
+- Build without sealing empty space: open gaps (reachable from the sky or the flanks) are
+  legal; the placement that closes an empty region's LAST opening arms an **air pocket** —
+  dark pressure-smoke fills it (shared `Resources/AirPocketSmoke.shader`, theme-independent
+  fixed look like Magma), and a full pocket **detonates and costs a life** through the
+  normal hazard flow (`LoseLifeToHazard` — immunity abilities apply). One connected sealed
+  region = one pocket = one life, any size.
+- The fuse is the **rescue window**: destroying any sealing block (Zap, Extract, a topple)
+  reconnects the region to open air and the smoke **vents** harmlessly — no charge, and the
+  cells can seal again later. A detonated pocket's cells go **inert** (spent): the stack
+  above is untouched and spent space can never charge a second life, so one mistake is one
+  life, ever.
+- Detection: the settled stack is rasterized onto the placement grid (landed block cells +
+  floor terrain incl. carved pockets + islands; the active piece and falling debris are
+  never solid) and open air is flood-filled from outside — 4-connectivity, so a diagonal
+  crack is not an opening. Rescans run on lock/destroy events plus a 0.5 s cadence for
+  settle drift.
+- Tuning knobs on the asset (`Data/Modifiers/AirPocket_Standard`): `fuseSeconds` (5, the
+  1-cell rescue window), `extraSecondsPerCell` (1 — bigger pockets hold more air and fill
+  slower), optional per-cell `popEffect` prefab + scale (null-safe; the code-built flash,
+  shockwave ring and camera impact always play).
+- The blast also **rocks the tower**, scaled by pocket size: a Tremor-style kick burst
+  (`TremorBlockBehaviour`, velocity-only, frozen blocks immune) from the pocket's centre at
+  `shakeStrengthPerCell` (0.45) × cells, capped at `shakeCellCap` (6) — a 1-cell pop is a
+  shiver well under the Tremor brick's 1.5, a 4-cell blunder is ~4× that plus a bigger
+  camera impact. `shakeDurationSeconds` (0.4) and `shakeRadius` (7) tune the burst.
+- SFX contract: `pocket_seal` / `pocket_vent` / `pocket_pop` (defined in
+  `Tools/generate_elevenlabs_sfx.py`, safe no-ops until generated).
 
 ### Campaign structure & progression
 
@@ -238,6 +269,7 @@ kvartal-4 A/B music
 | Panelka Row | GameMode_Classic | Place 100 | Stacking endurance, sovietwave night dressing. |
 | Curfew Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
 | Antenna Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+| Airtight | GameMode_Classic | Place 100 | Airtight mode (AirPocket_Standard): sealed hollows detonate — see "Airtight details". |
 
 **Chapter: Neon Nightfall (sortOrder 70)** — imported Glowing City pack as a waterfront
 skyline (three hand-placed building bands + far strip, generated `water_neon` band, two

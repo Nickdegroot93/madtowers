@@ -106,6 +106,17 @@ teardown. Played via `SfxPlayer.PlayLoop("countdown")` / `StopLoop()` (dedicated
 Present in `Resources/Audio/Sfx/` but not triggered anywhere yet. Earmarked for the **laser
 line clear** gap below.
 
+### `pocket_seal`, `pocket_vent`, `pocket_pop` — Airtight air pockets · *WIRED, not generated yet*
+Airtight mode's sealed-hollow hazard (LEVELS.md "Airtight details"). All three calls are
+safe no-ops until the clips exist; prompts live in `Tools/generate_elevenlabs_sfx.py`
+(`--only pocket_seal pocket_vent pocket_pop`, needs `ELEVENLABS_API_KEY`).
+- `pocket_seal` — a placement seals an empty region and the fuse arms ([AirPocketModifier.cs ReconcilePockets](Assets/SourceFiles/Scripts/Levels/Modifiers/AirPocketModifier.cs)).
+- `pocket_vent` — the rescue: a sealing block is destroyed and the smoke escapes ([AirPocketModifier.cs Vent](Assets/SourceFiles/Scripts/Levels/Modifiers/AirPocketModifier.cs)).
+- `pocket_pop` — detonation, alongside the size-scaled Tremor quake + camera impact ([AirPocketModifier.cs Detonate](Assets/SourceFiles/Scripts/Levels/Modifiers/AirPocketModifier.cs)).
+
+**Should be:** a deep muffled airless *whump* (seal); a sharp relieving steam-hiss (vent);
+a fat muffled underground *boom* (pop).
+
 ## Music
 
 Played by [MusicPlayer.cs](Assets/SourceFiles/Scripts/Core/MusicPlayer.cs): a random opener,

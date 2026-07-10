@@ -104,6 +104,13 @@ SOUNDS = {
         "soft short airy shf of dust, very quiet, gentle, no impact sound.", 0.7, 0.5),
     "land_tail_02": (STYLE + "Fine sand and grit settling briefly after a block lands: one "
         "soft short airy shf of dust, very quiet, gentle, no impact sound.", 0.7, 0.5),
+    # Airtight mode - the air-pocket hazard (seal -> fill -> vent or pop).
+    "pocket_seal": (STYLE + "Air suddenly trapped in a sealed stone chamber: one deep muffled "
+        "pressure WHUMP with a claustrophobic airless quality, low sub-bass, short, ominous.", 0.9, 0.55),
+    "pocket_vent": (STYLE + "Pressurized air escaping a stone chamber through a fresh opening: "
+        "one sharp satisfying steam-hiss decompression falling to silence, relief, short.", 1.0, 0.55),
+    "pocket_pop": (STYLE + "A sealed pocket of pressure detonating inside stonework: one fat "
+        "muffled underground BOOM with a stone chamber burst and brief debris, deep and heavy.", 1.3, 0.5),
 }
 
 

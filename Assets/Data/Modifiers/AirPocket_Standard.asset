@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 24fc10a56cb46452e85a3cd0fd830540, type: 3}
+  m_Name: AirPocket_Standard
+  m_EditorClassIdentifier: Assembly-CSharp::AirPocketModifier
+  fuseSeconds: 5
+  extraSecondsPerCell: 1
+  popEffect: {fileID: 0}
+  popEffectScale: 1

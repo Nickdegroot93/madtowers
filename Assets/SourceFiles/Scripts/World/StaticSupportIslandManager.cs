@@ -85,6 +85,16 @@ public class StaticSupportIslandManager : MonoBehaviour
 
     private GameModeConfig ActiveGameModeConfig => LevelSelectionState.ResolveGameMode(gameModeConfig);
 
+    /// <summary>Copies the world centre of every spawned island cell into `results` (cleared
+    /// first). Each cell is one 1x1 grid solid. Consumers that rasterize the playfield
+    /// (Airtight's air-pocket scan) treat these exactly like landed block cells.</summary>
+    public static void GetWorldCellCenters(List<Vector2> results)
+    {
+        results.Clear();
+        if (_instance == null) return;
+        results.AddRange(_instance._islandCellCenters);
+    }
+
     /// <summary>The world X span covered by all spawned island cells (cell edges, not centres).
     /// False before any island exists. Islands are static and never despawn mid-round, so this
     /// is a monotonically growing union - cheap to maintain at spawn time.</summary>
