@@ -119,11 +119,24 @@ state across runs (documented bug class — don't reintroduce it).
   charge line: the charge line's datum − 4 clamp (pocket protection) sits BELOW the
   screen at tight zoom, so a beam drawn there is invisible for the whole ground game
   (July 2026). While any armed passive reports `ShowsLossInterceptLine` (Sacrifice,
-  Hardline), the sweep intercepts landed blocks at the raised line — always ~8% of the
-  screen height above the bottom edge, clamped 0.75 under the datum so it can never eat
-  a legit top-open-notch landing — and the laser visuals + Hardline's catch height read
-  the same value. Invisible interceptors (Rebound) leave the flag false and keep the
-  deep charge line; a run with no interceptor armed is untouched.
+  Hardline), the sweep intercepts landed blocks at the raised line — ~8% of the screen
+  height above the bottom edge at EVERY camera height, no datum cap — and the laser
+  visuals + Hardline's catch height read the same value. Pocket landings are protected
+  by a TRIGGER veto, not the line height: while the charge line is terrain-clamped
+  (floor still in play) a falling block whose centre is over the floor's X span is
+  never intercepted — the terrain catches everything above the charge line, so only
+  blocks beyond the floor edges can be condemned there (a depth-2/3 pocket settle used
+  to read as "lost" at the raised line and cost a Sacrifice + the tower top; and the
+  old datum cap left the beam under the screen for the whole mid-game band).
+  At altitude the charge line itself is camera-relative (screen bottom + 2; the datum
+  clamp releases once the floor is well out of play — LossZone.FloorRegimeCeiling), so
+  the intercept line rides it and stays on screen for the whole climb. The lasers render
+  at −40 (Sacrifice) / −39 (Hardline): the whole beam (layer offsets −2..+3) clears the
+  ENTIRE floor stack (fill −50 through wisps −43) and the front particles (−45), behind
+  bricks (0) — an armed line is a status light and must never hide behind or z-fight the
+  floor. Hardline's order is serialized on `Hardline.asset`; keep it in sync with the
+  script default. Invisible interceptors (Rebound) leave the flag false and keep the deep
+  charge line; a run with no interceptor armed is untouched.
 - **Notification hooks** (`OnLifeLost`, `OnBlockSpawned`, combo fan-out): EVERY
   subscriber runs, in acquisition order; a charge is consumed right after the owning
   handler returns. Handlers observe live state mutated by earlier handlers.

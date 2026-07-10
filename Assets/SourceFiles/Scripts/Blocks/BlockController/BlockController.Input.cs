@@ -205,7 +205,11 @@ public partial class BlockController
     // Fission hover: hold the piece at the spawn line (steering stays live) until the player
     // commits a drop. Any descent intent in SteerWhileFalling auto-clears this, so the normal
     // flick / fast-drop gesture is the commit with no extra input plumbing.
-    public void SetDescentSuspended(bool suspended) => _descentSuspended = suspended;
+    public void SetDescentSuspended(bool suspended)
+    {
+        if (suspended && !_descentSuspended) _suspendedElapsed = 0f; // fresh watchdog window per hover
+        _descentSuspended = suspended;
+    }
 
     // Shared left/right auto-repeat (DAS) timing. `step` is invoked once on initial press, then
     // repeatedly at `dasRate` after the initial `dasDelay` while the direction is held.

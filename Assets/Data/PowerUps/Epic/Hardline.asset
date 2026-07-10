@@ -25,7 +25,7 @@ MonoBehaviour:
   charges: 1
   laserColor: {r: 0.78, g: 0.28, b: 1, a: 1}
   laserYOffset: 0.34
-  laserSortingOrder: -54
+  laserSortingOrder: -39
   settleSeconds: 0.2
   platformLiftAboveLaser: 0.05
   overlapClearance: 0.04

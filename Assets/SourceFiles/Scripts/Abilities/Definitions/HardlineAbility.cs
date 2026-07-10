@@ -7,7 +7,7 @@ public class HardlineAbility : PassiveAbility
     [Header("Presentation")]
     [SerializeField] private Color laserColor = new Color(0.78f, 0.28f, 1f, 1f);
     [SerializeField] private float laserYOffset = 0.34f;
-    [SerializeField] private int laserSortingOrder = -54; // just in front of Sacrifice's -55, still behind the ground fill (-50) with the +3 pulse offset
+    [SerializeField] private int laserSortingOrder = -39; // just in front of Sacrifice's -40; the whole beam (-41..-36) clears every floor overlay (-50..-43). Serialized - keep the Hardline.asset value in sync.
 
     [Header("Catch")]
     [SerializeField] private float settleSeconds = 0.2f;

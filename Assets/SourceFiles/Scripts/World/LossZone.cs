@@ -24,20 +24,41 @@ public class LossZone : MonoBehaviour
 
     // The kill line must never eat a LEGITIMATE landing zone: the floor terrain carves pockets up
     // to ~3 cells below the datum (FLOORS.md), and pieces can hook a floor edge below the datum
-    // while still clearly on screen. Near the ground the line is therefore clamped this far under
-    // the datum (inside the fog, off-screen at start); once the camera climbs, the camera-relative
-    // line rises above this and the original altitude behaviour takes over unchanged.
+    // while still clearly on screen. While the floor is still in play (the screen-relative line
+    // within FloorRegimeCeiling of the datum) the line is therefore pinned this far under the
+    // datum; once the camera climbs past that band, the screen-relative line takes over.
+    // (An earlier unconditional Min here pinned the line under the terrain for the WHOLE game:
+    // at altitude a lost brick fell the full tower height off-screen before being charged, and
+    // the armed Sacrifice/Hardline lasers - derived from this line - could never rise into view.
+    // Fixed July 2026; keep the clamp conditional.)
     private const float TerrainClearanceBelowDatum = 4f;
+
+    // The screen-relative line must clear the floor by this much before it takes over from the
+    // terrain clamp: with the floor ~4 units below the screen bottom nothing can legally land
+    // off-screen, so "below the view = lost" becomes safe. Camera Y is ratcheted up-only, so the
+    // handover happens once per run; a later zoom-out can briefly dip the line back to the
+    // terrain clamp, which only ever makes it MORE lenient, never less.
+    private const float FloorRegimeCeiling = 6f;
 
     /// <summary>The world-space line below which a block counts as lost, for the given camera -
     /// the single definition the sweep, the death beam and abilities all consult (a doomed piece
     /// must not accept a consumable spent on it). Camera-relative at altitude; clamped safely
-    /// below the floor terrain near the ground.</summary>
-    public static float CullY(Camera camera)
+    /// below the floor terrain while the floor is still in play.</summary>
+    public static float CullY(Camera camera) => CullY(camera, out _);
+
+    /// <summary>As above; `terrainClamped` reports whether the ground-regime clamp decided the
+    /// line. The sweep's pocket veto keys off this same decision, so the veto's active window
+    /// and the clamp can never drift apart.</summary>
+    public static float CullY(Camera camera, out bool terrainClamped)
     {
         float line = camera.transform.position.y - camera.orthographicSize + LossLineAboveScreenBottom;
+        terrainClamped = false;
         GameManager gm = GameManager.Instance;
-        if (gm != null) line = Mathf.Min(line, gm.floorOriginY - TerrainClearanceBelowDatum);
+        if (gm != null && line < gm.floorOriginY + FloorRegimeCeiling)
+        {
+            line = Mathf.Min(line, gm.floorOriginY - TerrainClearanceBelowDatum);
+            terrainClamped = true;
+        }
         return line;
     }
 
@@ -58,14 +79,12 @@ public class LossZone : MonoBehaviour
     // drawn there was invisible for the whole ground game.)
     private const float InterceptLineScreenHeightFraction = 0.08f;
 
-    // The raised line must never rob a legitimate landing: top-open notch pockets (depth 1) can
-    // rest a cell centre as low as datum - 0.5, so near the ground the line stays this far under
-    // the datum. At altitude this clamp is moot (the camera-relative charge line is higher).
-    private const float InterceptLineClearanceBelowDatum = 0.75f;
-
     /// <summary>The line at which armed loss-intercepting beams (Sacrifice/Hardline) sit and
-    /// trigger: the charge line, but never below the visible bottom band of the screen - clamped
-    /// near the ground so it can't eat a legit notch landing. Laser visuals and the sweep's
+    /// trigger: the charge line, but never below the visible bottom band of the screen - the
+    /// armed laser is a status light and must be in view at EVERY camera height. Legitimate
+    /// landings below it (deep-pocket/notch settles) are protected by the sweep's floor-span
+    /// veto at trigger time, not by capping this line's height (a datum cap here left the beam
+    /// under the screen for the whole mid-game band, July 2026). Laser visuals and the sweep's
     /// landed-intercept trigger consult THIS, never CurrentLossLineY, so the beam and the save
     /// always agree.</summary>
     public static float InterceptLineY(Camera camera)
@@ -75,12 +94,6 @@ public class LossZone : MonoBehaviour
 
         float visibleLine = camera.transform.position.y - camera.orthographicSize
                             + camera.orthographicSize * 2f * InterceptLineScreenHeightFraction;
-        GameManager gm = GameManager.Instance;
-        if (gm != null)
-        {
-            visibleLine = Mathf.Min(visibleLine, gm.floorOriginY - InterceptLineClearanceBelowDatum);
-        }
-
         return Mathf.Max(line, visibleLine);
     }
 
@@ -137,6 +150,10 @@ public class LossZone : MonoBehaviour
     {
         // Keep the fixed backstop below every legit landing zone too (same clearance rule as
         // CullY) - a scene-authored trigger sitting higher would still eat terrain pockets.
+        // NOTE: the backstop's landed path does NOT run the sweep's floor-span pocket veto; it
+        // is safe only because this clamp keeps the trigger top at datum - 4 while pockets stop
+        // at ~datum - 3 (GameModeConfig caps depths at 3). If pocket depths or
+        // TerrainClearanceBelowDatum ever change, revisit both together.
         GameManager gm = GameManager.Instance;
         if (gm == null || _triggerCollider == null) return;
 
@@ -171,7 +188,7 @@ public class LossZone : MonoBehaviour
 
         EnsureAbilities();
 
-        float cullY = CullY(_camera);
+        float cullY = CullY(_camera, out bool groundRegime);
         float landedInterceptCullY = cullY;
         if (_abilities != null)
         {
@@ -184,6 +201,15 @@ public class LossZone : MonoBehaviour
             landedInterceptCullY += Mathf.Max(0f, _abilities.LossInterceptLineOffset);
         }
 
+        // While the floor is still in play (the charge line terrain-clamped), the raised intercept
+        // line sits above legitimate landings: deep pockets legally rest blocks at datum - 2.5 and
+        // a block still settling INTO one is dynamic and briefly fast enough to read as lost at
+        // the visible line. A falling block OVER the floor can never truly be lost there - the
+        // terrain catches everything above the charge line - so overlapping a floor segment
+        // vetoes the raised-line intercept. Once the charge line goes camera-relative (floor out
+        // of play, nothing can legally land off-screen) the veto ends - a catch must not be
+        // skipped at altitude.
+
         var blocks = BlockController.AllBlocks;
         for (int i = 0; i < blocks.Count; i++)
         {
@@ -192,6 +218,8 @@ public class LossZone : MonoBehaviour
 
             float blockCullY = block.HasLanded ? landedInterceptCullY : cullY;
             if (!block.IsLostBelow(blockCullY)) continue;
+            if (block.HasLanded && groundRegime && blockCullY > cullY &&
+                !block.IsLostBelow(cullY) && IsOverFloorSpan(block)) continue;
 
             ResolveLostBlock(block);
 
@@ -223,6 +251,48 @@ public class LossZone : MonoBehaviour
 
         EnsureAbilities();
         return _abilities != null && _abilities.TryInterceptLoss(block);
+    }
+
+    // Lazily cached world X spans of the floor terrain, one per segment (NOT their union - a
+    // block falling through a gap between segments is genuinely lost and must stay
+    // interceptable), for the ground-regime intercept veto. The config comes from GameManager's
+    // resolved ActiveConfig - the same source the floor itself is built from; resolving the
+    // selection directly (with a null fallback) silently disabled the veto in any run without a
+    // SelectedLevel. Segments are fixed for the run; the cache retries until a config exists
+    // (the first sweep can fire before initialization settles).
+    private readonly System.Collections.Generic.List<Vector2> _floorSegmentSpans = new();
+    private bool _floorSpansResolved;
+
+    private bool IsOverFloorSpan(BlockController block)
+    {
+        if (!_floorSpansResolved)
+        {
+            GameManager gm = GameManager.Instance;
+            GameModeConfig config = gm != null ? gm.ActiveConfig : null;
+            if (config == null) return false; // not resolvable yet - retry next sweep
+
+            _floorSpansResolved = true;
+            _floorSegmentSpans.Clear();
+            var segments = config.FloorSegments;
+            for (int i = 0; segments != null && i < segments.Count; i++)
+            {
+                FloorSegmentConfig segment = segments[i];
+                if (segment == null) continue;
+                _floorSegmentSpans.Add(new Vector2(
+                    (segment.LeftColumn - 0.5f) * config.GridSpacing,
+                    (segment.RightColumn + 0.5f) * config.GridSpacing));
+            }
+        }
+
+        if (!block.TryGetWorldBounds(out Bounds bounds)) return false;
+        for (int i = 0; i < _floorSegmentSpans.Count; i++)
+        {
+            // Any X overlap counts: a piece hooked on a floor edge (bounds straddling it) is a
+            // legitimate landing even though its centre may hang past the edge.
+            if (bounds.min.x <= _floorSegmentSpans[i].y && bounds.max.x >= _floorSegmentSpans[i].x)
+                return true;
+        }
+        return false;
     }
 
     // Lazily cache the AbilityRuntime. Both the sweep and the backstop trigger consult it, and

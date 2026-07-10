@@ -378,6 +378,20 @@ public partial class BlockController : MonoBehaviour
     // state at altitude and must never count as lost.
     private const float LostFallingSpeed = -1f;
 
+    // Sticky "clearly falling away" marker for the camera: once a landed block free-falls
+    // faster than any settle or landing transient can reach (the landing handoff velocity is
+    // capped at 2), it is debris - the camera stops framing it (genre convention: knocked-off
+    // bricks tumble off-screen untracked; the view holds on the stable tower) and the loss
+    // line charges it moments later. Latched only while the body is Dynamic: a block converted
+    // to Static (Freeze, Hardline's platform conversion - which sets bodyType directly, not via
+    // FreezeInPlace) is stationary terrain again and must be framed. SleepSettledBody clears
+    // the latch too: a knocked-loose block that came to rest and re-earned sleep is provably
+    // stable, not debris.
+    private const float FallingAwaySpeed = -2.5f;
+    private bool _fallingAway;
+    public bool IsFallingAway =>
+        _fallingAway && _rb != null && _rb.bodyType == RigidbodyType2D.Dynamic;
+
     public bool IsLostBelow(float cullY)
     {
         if (!TryGetWorldBounds(out Bounds bounds)) return false;

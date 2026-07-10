@@ -300,6 +300,11 @@ public class TowerCameraController : MonoBehaviour
         {
             BlockController block = blocks[i];
             if (block == null || !block.HasLanded) continue;
+            // Debris never drives the frame: a block that has clearly fallen away from the
+            // tower (sticky IsFallingAway) is on its way to the loss line - chasing it with a
+            // zoom-out reads as the camera abandoning the tower, and it dragged the armed
+            // ability lasers' world anchor down with the widened view (July 2026).
+            if (block.IsFallingAway) continue;
             if (!block.TryGetWorldBounds(out Bounds blockBounds)) continue;
             if (blockBounds.max.y < minY || blockBounds.min.y > maxY) continue;
             HorizontalBounds.Encapsulate(blockBounds.min.x, blockBounds.max.x, ref minX, ref maxX, ref hasBounds);

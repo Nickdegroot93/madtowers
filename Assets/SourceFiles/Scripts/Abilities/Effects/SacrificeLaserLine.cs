@@ -7,13 +7,16 @@ using UnityEngine;
 public sealed class SacrificeLaserLine : MonoBehaviour
 {
     private const float LineLength = 90f;
-    // Behind the WORLD - tower blocks (0) AND the ground fill (-50) - but in front of the
-    // backdrop (-100..-80) and the placement beam (-60): since the line moved up to the visible
-    // band (LossZone.InterceptLineY) it can cross the floor plateau, and a laser painted over
-    // the masonry read as a rendering glitch. The layer offsets span -2..+3 (pulses), so the
-    // base must stay <= -54 to remain under the ground fill. The Sacrifice FLASH is separate
-    // and deliberately stays in front (a momentary destructive bang).
-    private const int DefaultSortingOrder = -55;
+    // In front of the ENTIRE floor stack but behind tower blocks (0): the line is the armed
+    // ability's status light, so it must never hide behind the floor (it previously sat at -55,
+    // under the ground fill, invisible across the whole floor width at ground level - July 2026;
+    // the loss-trigger side protects pocket landings now, not the render order). The floor draws
+    // fill -50, shade -49, detail -48, fade -45, back fog -44 and wisps -43 (FloorTerrain), and
+    // front particles sit at -45 - the beam's layers (offsets -2..+3) must not collide with any
+    // of those or the draw order is undefined per frame. Base -40 puts the whole beam at
+    // -42..-37: above every floor layer, below bricks. The Sacrifice FLASH is separate and
+    // deliberately stays in front (a momentary destructive bang).
+    private const int DefaultSortingOrder = -40;
 
     // Four coherent layers breathing SLOWLY and in phase (one confident line, not six nervous
     // ones): a wide ambient glow, a soft body, a hot core and a bright needle. Life comes from

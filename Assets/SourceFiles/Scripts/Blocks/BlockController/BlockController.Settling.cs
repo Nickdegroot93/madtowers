@@ -21,6 +21,7 @@ public partial class BlockController
         _rb.linearVelocity = Vector2.zero;
         _rb.angularVelocity = 0f;
         _rb.Sleep();
+        _fallingAway = false; // re-earned sleep = provably stable again, not falling debris
     }
 
     // --- Knife-edge guard (bounded I3 refinement, see PHYSICS.md) -------------------------
@@ -74,6 +75,8 @@ public partial class BlockController
     {
         if (_rb == null) return;
         if (_rb.bodyType != RigidbodyType2D.Dynamic || _rb.IsSleeping()) return;
+
+        if (!_fallingAway && _rb.linearVelocity.y < FallingAwaySpeed) _fallingAway = true;
 
         InvalidatePlacementOccupancyIfMoved();
         if (!microAlignSettledBlocks && !sleepSettledBlocksOnLock) return;
@@ -228,6 +231,7 @@ public partial class BlockController
         _rb.linearVelocity = Vector2.zero;
         _rb.angularVelocity = 0f;
         _rb.bodyType = RigidbodyType2D.Static;
+        _fallingAway = false; // frozen = stationary terrain again; the camera may frame it
     }
 
     // The Freeze power-up's entry point: kick off the crawling-ice overlay NOW, but delay the

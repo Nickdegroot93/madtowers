@@ -6,6 +6,12 @@ using System.Collections.Generic;
 // vertical tuck, camera clamping, and the snap/position/rotation primitives that write them.
 public partial class BlockController
 {
+    // Watchdog for descent suspension (see HandleDynamicControl): generous enough that no
+    // real Fission aim or tutorial read ever meets it, small enough that a stranded hover
+    // can't hold the run hostage forever.
+    private const float SuspendedResumeSeconds = 90f;
+    private float _suspendedElapsed;
+
     // ---- Grid-first active control -----------------------------------------------------------
     // While a piece is active it behaves like Tetris: kinematic, grid-aligned, and deterministic.
     // Physics only takes over after the placement is locked, which prevents tiny contact-solver
@@ -15,8 +21,20 @@ public partial class BlockController
         InitDynamicControlBody();
         // The safety cap exists for pieces that never FIND a landing; a deliberately
         // suspended piece (Fission hover, a tutorial lesson) isn't stuck, it's waiting on
-        // the player - so hover time never counts toward the force-lock.
-        if (!_descentSuspended) _controlElapsed += Time.fixedDeltaTime;
+        // the player - so hover time never counts toward the force-lock. But a hover nobody
+        // ever resumes must not strand the run either (ActiveControlled gates all spawning
+        // and no other watchdog covers a suspended piece): after a generous idle window the
+        // descent simply resumes - the same thing the player's own commit gesture does - and
+        // the normal landing/loss flow takes it from there.
+        if (!_descentSuspended)
+        {
+            _controlElapsed += Time.fixedDeltaTime;
+        }
+        else
+        {
+            _suspendedElapsed += Time.fixedDeltaTime;
+            if (_suspendedElapsed >= SuspendedResumeSeconds) SetDescentSuspended(false);
+        }
 
         if (!_hasTouchedDown)
         {
