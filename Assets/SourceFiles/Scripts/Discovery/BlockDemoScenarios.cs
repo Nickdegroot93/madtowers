@@ -418,17 +418,13 @@ public static class BlockDemoScenarios
 
     public static IEnumerator Sandstone(BlockDemoStage stage)
     {
-        // The load scale, told like a real board: neighbouring structures flank an open bay,
-        // the sandstone lands there, and a deliberate tower goes up on it - a flush O, then a
-        // wide I laid as a bridge, and a final O. Each landing grows the crack network (the
-        // shim drives the skin's ratcheting read-out the way the real load reader does; the
-        // real crack SFX ticks per stage). The third brick is one too many: a shiver, then it
-        // bursts to sand and the whole tower it carried drops by real physics.
+        // The load scale: the sandstone lands on open ground and a deliberate tower goes up
+        // on it - a flush O, then a wide I laid as a bridge, and a final O. Each landing
+        // grows the crack network (the shim drives the skin's ratcheting read-out the way
+        // the real load reader does; the real crack SFX ticks per stage). The third brick is
+        // one too many: a shiver, then it bursts to sand and the whole tower it carried
+        // drops by real physics. No scenery - the tower IS the story (Nick's call).
         stage.SetView(4.2f, 3.0f);
-        stage.SpawnPhysical("O", null, new Vector2(-2.5f, 0.5f), asleep: true);      // cols -4..-2
-        stage.SpawnPhysical("Domino", null, new Vector2(-3.5f, 2.5f), asleep: true); // on its left half
-        stage.SpawnPhysical("Domino", null, new Vector2(3.5f, 0.5f), asleep: true);  // col 3
-        yield return stage.Settle(0.4f);
         yield return stage.Reveal();
         yield return stage.Hold(0.3f);
 
