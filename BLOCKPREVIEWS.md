@@ -78,9 +78,10 @@ author the demo when ready.
    drops on columns. Off-grid = the misaligned-pocket / mid-air-clip bugs, every time.
    **Real-board staging (Nick, July 2026):** props and weights are REAL piece shapes (O, I, T,
    L, Domino, ...) — never a stack of Pips (1×1s are special blocks and read wrong). Frame wide,
-   like a real board: defaults are ortho 3.4 / centre-y 2.4, scenarios run ~3.8–4.6; add a
-   flanking structure or two so the star piece sits in a scene, not a vacuum, and compose the
-   stack deliberately (a flush O, an I laid as a bridge) rather than piling random shapes.
+   like a real board: defaults are ortho 3.4 / centre-y 2.4, scenarios run ~3.8–4.6. Compose
+   the stack deliberately (a flush O, an I laid as a bridge) rather than piling random shapes —
+   and NO decorative clutter: every piece on stage must serve the story (Boulder's cantilever,
+   Vine's gap). Nick cut the Sandstone demo's flanking scenery: "the tower IS the story".
    **Shim menu** (each mirrors the real behaviour, no game-state writes): `FreezeSquare(piece)`
    (Anchor/settled Maw), `FixedJoint2D` + `GrowFrom` per `PiecesNear(...)` neighbour (Vine),
    fuse loop + `Shatter` victims in `PiecesNear` radius (Bomb), radial `linearVelocity` kicks
