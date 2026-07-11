@@ -196,7 +196,8 @@ public class LevelRuntimeController : MonoBehaviour
         ProgressStore.LevelBest best = _level != null ? ProgressStore.GetBest(_level) : null;
 
         ILevelMenuProgressProvider provider = LevelMenuPresentation.FindProgressProvider(_level);
-        if (provider != null) return provider.EndOfRunMetric(_level, result, best);
+        ResultMetric? overrideMetric = provider?.EndOfRunMetric(_level, result, best);
+        if (overrideMetric.HasValue) return overrideMetric.Value;
 
         WinCondition condition = _winCondition ?? new EndlessWinCondition();
         return condition.EndOfRunMetric(result, best);

@@ -129,6 +129,7 @@ touch engine code.
 | **Height-Limit Waves** ("Laser Limit" — Tricky Towers' puzzle mode) | `HeightLimitWavesModifier` asset on the level | `PlaceBlocks` = sum of wave counts |
 | **Scheduled theme pressure** (blackouts, snowstorms, sandstorms, wind...) | `ScheduledStatusModifier` applying one or more `StatusEffectDefinition` assets | any standard goal |
 | **Airtight** (no sealed hollows) | `AirPocketModifier` asset on the level | any standard goal (typically `PlaceBlocks`) |
+| **Void Zones** (forbidden sky rectangles) | `VoidZoneModifier` asset on the level | any standard goal (typically `PlaceBlocks`) |
 | *future: rising water, timed rush, wind gauntlet…* | one modifier subclass each, same recipe | standard goals |
 
 > **Win conditions are polymorphic.** A level still authors `targetType` + `targetValue`, but the
@@ -143,8 +144,14 @@ touch engine code.
    rule logic *and* its visuals (use `RuntimeSprites` for code-built shapes).
 2. Serialize every tunable (counts, heights, colors…) so per-level variants are pure assets.
 3. Express winning through the existing `targetType` — never invent a parallel win path.
-4. Validate wiring in `OnLevelStart` (warn loudly if the level's goal doesn't match).
-5. Document it here and add a catalog row.
+4. **Name the type**: implement `ILevelMenuProgressProvider` and return the type name from
+   `MenuChallengeLabel` ("AIRTIGHT", "VOID ZONES") — the menu and results card then show
+   the TYPE as the challenge, with the goal as the progress line. Label-only types return
+   null from `MenuProgressLabel`/`EndOfRunMetric` (the goal's defaults fall through);
+   bespoke-metric types (waves) implement all three. Resolution order: level's
+   `menuChallengeLabelOverride` > first providing modifier > the goal's default.
+5. Validate wiring in `OnLevelStart` (warn loudly if the level's goal doesn't match).
+6. Document it here and add a catalog row.
 
 #### Height-Limit Waves details
 
@@ -199,8 +206,38 @@ touch engine code.
   `shakeStrengthPerCell` (0.45) × cells, capped at `shakeCellCap` (6) — a 1-cell pop is a
   shiver well under the Tremor brick's 1.5, a 4-cell blunder is ~4× that plus a bigger
   camera impact. `shakeDurationSeconds` (0.4) and `shakeRadius` (7) tune the burst.
-- SFX contract: `pocket_seal` / `pocket_vent` / `pocket_pop` (defined in
-  `Tools/generate_elevenlabs_sfx.py`, safe no-ops until generated).
+- SFX: `pocket_seal` / `pocket_vent` / `pocket_pop` (generated via ElevenLabs;
+  prompts in `Tools/generate_elevenlabs_sfx.py`).
+
+#### Void Zones details
+
+- **Forbidden rectangles torn into the sky** (2×2 / 2×3, `VoidZone.shader` black-hole look:
+  dark eye, spiral arms, pulsing accretion rim — the visual fills the exact danger rect so
+  the kill boundary is honest). They spawn AHEAD of the tower peak like sky islands — you
+  always see them coming — and the falling piece steers straight through them (they render
+  behind bricks, order −3). A **LANDED block overlapping one is sucked in**: the legal
+  doomed-block animation (kinematic first, PHYSICS.md I1) spirals it into the eye over
+  ~0.45 s, then the standard destruction flow + `LoseLifeToHazard`.
+- **Absolute law, with three principled exemptions**: blocks pushed in later by a topple
+  or settle drift are devoured too (0.5 s sweep cadence on top of lock-driven checks), and
+  suck cascades may drain multiple lives. Exempt: a hair's-width graze (a cell must reach
+  `overlapInset` (0.15) into the rect), blocks already falling away (the loss line owns
+  them — no double jeopardy), and **maws** (the Extract precedent: maws never participate
+  in removal effects; their welds are unbreakable and dragging one member of a fused
+  cluster would haul the rest through the tower). A zone only becomes lethal AFTER its
+  0.7 s tear-open animation — the danger never outruns what the player can see.
+- **The route guarantee** (the fairness core, mirroring PHYSICS.md's reach guarantee): a
+  zone never spawns where it would wall off the sky — at least `WidestBlockColumns` (4)
+  clear reachable columns always remain past one side, computed with the island guardrail
+  math (max zoom-out anchored at floor centre). Zones also never materialize overlapping
+  islands, other zones (1-cell gap), the tower, or the falling piece.
+- Dials on `Data/Modifiers/VoidZones_Standard`: `firstZoneHeight` (10), `heightInterval`
+  (8), `spawnChance` (0.85), `spawnAheadHeight` (7), width 2–3 × height 2, lateral band
+  ±6 columns, `maxZonesPerRun` (0 = unlimited), `suckSeconds`, `overlapInset`. Per-level
+  variants = difficulty tiers.
+- Showcase: Hallow's End's 4th level **"Void Zones"** (Classic, place 100). Stacks freely
+  with other modifiers — voids under a Blackout are memorized hazards.
+- SFX: `void_open` / `void_suck` (generated via ElevenLabs; prompts in the tool).
 
 #### Blackout details (the first scheduled-pressure state)
 
@@ -232,8 +269,8 @@ touch engine code.
 - Playtest dials: `darkness` (1 - see above), `lanternRadius` (7), `lanternFlicker`, fade
   timings (fade-out must stay under StatusFieldController's 1.2 s teardown grace) on the
   prefab; the feather band (`0.45`/`1.35` × radius) in the shader.
-- SFX contract: `blackout_in` / `blackout_out` (prompts in the ElevenLabs tool, safe
-  no-ops until generated; the generic `status_engage` also fires on activation).
+- SFX: `blackout_in` / `blackout_out` (generated via ElevenLabs; the generic
+  `status_engage` also fires on activation).
 
 ### Campaign structure & progression
 
@@ -384,6 +421,7 @@ lantern-amber cap, ember motes + bat flock, hallows-end menu art, hallows-end A/
 | The Pumpkin Patch | GameMode_Classic | Place 100 | Stacking endurance, pumpkin-patch dressing. |
 | Lantern Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
 | Blood Moon Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+| Void Zones | GameMode_Classic | Place 100 | Void Zones mode (VoidZones_Standard): forbidden sky rectangles devour placed bricks — see "Void Zones details". |
 
 **Chapter: Amber Tide (sortOrder 130)** — imported Tropical Landscape pack (pink-amber
 tropical sunset composed at the demo scene's proportions: baked-sun sky plate with the

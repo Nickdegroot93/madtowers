@@ -104,18 +104,41 @@ SOUNDS = {
         "soft short airy shf of dust, very quiet, gentle, no impact sound.", 0.7, 0.5),
     "land_tail_02": (STYLE + "Fine sand and grit settling briefly after a block lands: one "
         "soft short airy shf of dust, very quiet, gentle, no impact sound.", 0.7, 0.5),
-    # Airtight mode - the air-pocket hazard (seal -> fill -> vent or pop).
-    "pocket_seal": (STYLE + "Air suddenly trapped in a sealed stone chamber: one deep muffled "
-        "pressure WHUMP with a claustrophobic airless quality, low sub-bass, short, ominous.", 0.9, 0.55),
-    "pocket_vent": (STYLE + "Pressurized air escaping a stone chamber through a fresh opening: "
-        "one sharp satisfying steam-hiss decompression falling to silence, relief, short.", 1.0, 0.55),
-    "pocket_pop": (STYLE + "A sealed pocket of pressure detonating inside stonework: one fat "
-        "muffled underground BOOM with a stone chamber burst and brief debris, deep and heavy.", 1.3, 0.5),
-    # Blackout status - the district loses power for ~20s (LEVELS.md scheduled pressure).
-    "blackout_in": (STYLE + "A city district losing electrical power: one deep descending "
-        "power-down WHOMP, a big machine hum dying away to silence, heavy and ominous.", 1.6, 0.55),
-    "blackout_out": (STYLE + "Electrical power returning to a city district: breakers clunking "
-        "back on and a warm machine hum swelling up from silence, relieving, short.", 1.4, 0.55),
+    # ---- Hazard/status sounds (Airtight, Blackout, Void Zones) --------------------------
+    # These deliberately do NOT use the STYLE prefix: supernatural hazards and electrical
+    # failures need cinematic sci-fi character, which STYLE explicitly bans - prefixing them
+    # homogenized the whole set into indistinguishable low-frequency pops (July 2026).
+    # Higher prompt_influence (0.7+) keeps the model on-brief.
+    "pocket_seal": ("Air suddenly sealed inside a stone chamber: a heavy stone slab slamming "
+        "shut with a deep resonant boom, the air pressure audibly clamping with a hollow "
+        "cavernous ring-out and a low ominous sub-drop. Cinematic, tight, high quality.", 1.4, 0.7),
+    "pocket_fill": ("A continuously building danger drone, 15 seconds: hissing gas slowly "
+        "filling a sealed stone chamber, pressure rising relentlessly from quiet menace to "
+        "intense roar, a deepening rumble with an accelerating ominous pulse underneath, "
+        "constant crescendo the whole time, no melody, no percussion hits, cinematic tension "
+        "bed.", 16.0, 0.6),
+    "pocket_vent": ("High-pressure gas violently escaping through a fresh crack: a sharp "
+        "explosive steam hiss burst, decompressing fast with whistling air, then a quick "
+        "clean relief fade. Bright, crisp, satisfying, cinematic.", 1.4, 0.7),
+    "pocket_pop": ("A violent underground pressure explosion: a deep concussive BLAST inside "
+        "a stone chamber, rock cracking and splitting, a shockwave punch with a rumbling "
+        "debris tail and dust settling. Cinematic, powerful, massive low end with a sharp "
+        "crack transient. AAA game explosion.", 1.8, 0.7),
+    "blackout_in": ("A city-wide power failure: electrical hum and buzz abruptly cutting out, "
+        "a heavy descending power-down whine like giant turbines spinning down, transformer "
+        "breakers thunking off one after another, ending in eerie ringing silence. Cinematic, "
+        "detailed, high quality.", 2.2, 0.7),
+    "blackout_out": ("Electrical power surging back on across a city: breakers clunking in "
+        "sequence, an electrical hum swelling up with a bright crackling energy flicker that "
+        "stabilizes into a steady warm buzz. Satisfying, crisp, cinematic.", 1.8, 0.7),
+    "void_open": ("A rift tearing open in the fabric of space: a sharp reversed suction "
+        "whoosh building into a deep resonant CRACK of reality splitting, followed by an "
+        "eerie shimmering otherworldly hum settling in. Cinematic sci-fi, detailed, "
+        "unsettling, high quality.", 2.0, 0.75),
+    "void_suck": ("A heavy stone swallowed by a dark vortex: a smooth deep AIRY whoosh being "
+        "pulled inward, muffled and round, ending in a soft deep sub-bass swallow like a "
+        "distant underwater gulp. Warm, dark, organic, smooth - absolutely no screech, no "
+        "electronic glitch, no distortion, no harsh high frequencies, no metallic tones.", 1.3, 0.75),
 }
 
 

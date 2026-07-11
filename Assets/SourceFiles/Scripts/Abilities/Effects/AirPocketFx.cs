@@ -19,7 +19,9 @@ public sealed class AirPocketFx : MonoBehaviour
 
     private readonly List<SpriteRenderer> _cells = new();
     private static Shader _smokeShader; // pockets rebuild their FX as they grow - load once
+    private static AudioClip _fillClip; // the 16s rising tension bed, loaded once
     private Material _material;
+    private AudioSource _fillAudio;
     private float _fill;
     private float _ventFrom = -1f;
     private float _stateTime;
@@ -38,6 +40,19 @@ public sealed class AirPocketFx : MonoBehaviour
     {
         if (_smokeShader == null) _smokeShader = Resources.Load<Shader>("AirPocketSmoke");
         _material = new Material(_smokeShader);
+
+        // The fill bed: a single long crescendo that plays while the smoke rises and is CUT
+        // wherever the vent or the pop lands (a fuse is at most ~12s; the bed runs 16). Owned
+        // by this object so it dies with the pocket; volume swells with the fill level.
+        if (_fillClip == null) _fillClip = Resources.Load<AudioClip>("Audio/Sfx/pocket_fill");
+        if (_fillClip != null)
+        {
+            _fillAudio = gameObject.AddComponent<AudioSource>();
+            _fillAudio.clip = _fillClip;
+            _fillAudio.spatialBlend = 0f;
+            _fillAudio.volume = 0f;
+            _fillAudio.Play();
+        }
 
         // The smoke is ONE world-space volume swelling from the region's centroid; the quads
         // are only windows onto it (the shader evaluates density in world coordinates), so a
@@ -81,12 +96,28 @@ public sealed class AirPocketFx : MonoBehaviour
         }
     }
 
-    /// <summary>Fuse progress 0..1 - drives the smoke level. Ignored once venting/detonated.</summary>
+    /// <summary>Where the tension bed currently is, so a rebuilt FX (pockets grow/merge)
+    /// resumes the crescendo instead of audibly restarting it mid-fuse.</summary>
+    public float FillAudioTime => _fillAudio != null ? _fillAudio.time : 0f;
+
+    /// <summary>Resume the tension bed at a carried-over position (clamped inside the clip).</summary>
+    public void ResumeFillAudioAt(float time)
+    {
+        if (_fillAudio == null || _fillAudio.clip == null) return;
+        _fillAudio.time = Mathf.Clamp(time, 0f, _fillAudio.clip.length - 0.05f);
+    }
+
+    /// <summary>Fuse progress 0..1 - drives the smoke level and the tension bed's swell.
+    /// Ignored once venting/detonated.</summary>
     public void SetFill(float fill)
     {
         if (_ventFrom >= 0f || _detonated) return;
         _fill = Mathf.Clamp01(fill);
         _material.SetFloat("_Fill", _fill);
+        if (_fillAudio != null)
+        {
+            _fillAudio.volume = (0.35f + 0.65f * _fill) * SettingsService.EffectiveSfx;
+        }
     }
 
     /// <summary>The rescue: the region reconnected to open air - drain the smoke out fast.</summary>
@@ -95,6 +126,7 @@ public sealed class AirPocketFx : MonoBehaviour
         if (_detonated || _ventFrom >= 0f) return;
         _ventFrom = _fill;
         _stateTime = 0f;
+        if (_fillAudio != null) _fillAudio.Stop(); // the hiss one-shot takes over
     }
 
     /// <summary>The pop: white-hot flash filling the cavity, shockwave ring, optional authored
@@ -106,6 +138,7 @@ public sealed class AirPocketFx : MonoBehaviour
         _detonated = true;
         _stateTime = 0f;
         _material.SetFloat("_Fill", 1f);
+        if (_fillAudio != null) _fillAudio.Stop(); // the blast takes over
 
         var flashGo = new GameObject("PocketFlash");
         flashGo.transform.SetParent(transform, false);

@@ -19,6 +19,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: dc9a776c7f484804a21216007318a007, type: 2}
   - {fileID: 11400000, guid: 3b379f7e21fc4a38945a77cc5dac1b0f, type: 2}
   - {fileID: 11400000, guid: b2b00ca8f00049e3bb1de5beeea71b85, type: 2}
+  - {fileID: 11400000, guid: e8abb70b60fb489787f33551510f68e3, type: 2}
   menuBackgroundVideo: {fileID: 0}
   menuBackgroundImage: {fileID: 21300000, guid: edaa7f2f1477f4957a94528fe612bf71, type: 3}
   nextChapterPreviewImage: {fileID: 0}

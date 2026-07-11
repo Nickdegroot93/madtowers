@@ -64,9 +64,12 @@ public static class LevelMenuPresentation
     {
         if (level == null) return new ProgressParts(completed ? "Completed" : "Free", completed ? "" : "Play");
 
-        if (progressProvider != null)
+        // A provider may claim only the TYPE label and leave progress to the goal (Airtight,
+        // Void Zones): null/empty falls through to the win condition's default.
+        string providerLabel = progressProvider?.MenuProgressLabel(level, best, completed);
+        if (!string.IsNullOrWhiteSpace(providerLabel))
         {
-            return ParseProgressLabel(progressProvider.MenuProgressLabel(level, best, completed), completed);
+            return ParseProgressLabel(providerLabel, completed);
         }
 
         (string primary, string suffix) = level.WinCondition.MenuProgress(best, completed);

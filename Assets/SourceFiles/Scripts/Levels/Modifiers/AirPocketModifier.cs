@@ -18,8 +18,15 @@ using UnityEngine;
 /// can't reach is sealed. 4-connectivity on purpose: a diagonal crack is not an opening.
 /// </summary>
 [CreateAssetMenu(fileName = "AirPocket", menuName = "Stacking/Levels/Modifiers/Air Pockets (Airtight)")]
-public class AirPocketModifier : LevelModifier
+public class AirPocketModifier : LevelModifier, ILevelMenuProgressProvider
 {
+    // The GAME TYPE this modifier turns a level into: the menu and results card read
+    // "AIRTIGHT" as the challenge, while the goal (place N / reach X) keeps owning the
+    // progress line and end-of-run metric (label-only claim - nulls fall through).
+    public string MenuChallengeLabel => "Airtight";
+    public string MenuProgressLabel(LevelDefinition level, ProgressStore.LevelBest best, bool completed) => null;
+    public ResultMetric? EndOfRunMetric(LevelDefinition level, RunResult result, ProgressStore.LevelBest best) => null;
+
     [Header("Fuse")]
     [Tooltip("Seconds for the smoke to fill a 1-cell pocket. The rescue window: destroy a sealing block before it fills to vent the pocket harmlessly.")]
     [Min(1f)]
@@ -461,6 +468,7 @@ public class AirPocketModifier : LevelModifier
     private void RebuildFx(Pocket pocket)
     {
         float fill = pocket.Fx != null ? pocket.Elapsed / pocket.FuseTotal : 0f;
+        float audioTime = pocket.Fx != null ? pocket.Fx.FillAudioTime : 0f;
         if (pocket.Fx != null) pocket.Fx.DestroyNow();
 
         _cellScratch.Clear();
@@ -470,5 +478,8 @@ public class AirPocketModifier : LevelModifier
         }
         pocket.Fx = AirPocketFx.Create(_cellScratch, _gridSpacing);
         pocket.Fx.SetFill(fill);
+        // A grown/merged pocket keeps its crescendo where it was - an audible restart
+        // mid-fuse broke the "one long rising bed" promise.
+        pocket.Fx.ResumeFillAudioAt(audioTime);
     }
 }

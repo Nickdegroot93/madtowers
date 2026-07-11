@@ -106,10 +106,15 @@ teardown. Played via `SfxPlayer.PlayLoop("countdown")` / `StopLoop()` (dedicated
 Present in `Resources/Audio/Sfx/` but not triggered anywhere yet. Earmarked for the **laser
 line clear** gap below.
 
-### `pocket_seal`, `pocket_vent`, `pocket_pop` — Airtight air pockets · *WIRED, not generated yet*
-Airtight mode's sealed-hollow hazard (LEVELS.md "Airtight details"). All three calls are
-safe no-ops until the clips exist; prompts live in `Tools/generate_elevenlabs_sfx.py`
-(`--only pocket_seal pocket_vent pocket_pop`, needs `ELEVENLABS_API_KEY`).
+### `pocket_seal`, `pocket_fill`, `pocket_vent`, `pocket_pop` — Airtight air pockets · *generated (ElevenLabs)*
+Airtight mode's sealed-hollow hazard (LEVELS.md "Airtight details"). Prompts live in
+`Tools/generate_elevenlabs_sfx.py`; regenerate any one with `--only <name> --force`.
+NOTE: the hazard/status sounds deliberately skip the house STYLE prefix — cinematic
+sci-fi/electrical character is the point, and the prefix homogenized them into
+indistinguishable low-frequency pops (July 2026).
+- `pocket_fill` — the 16 s rising tension bed played on the pocket's own AudioSource while
+  the smoke rises, swelling with the fill level and CUT wherever the vent or pop lands
+  ([AirPocketFx.cs Build/SetFill](Assets/SourceFiles/Scripts/Abilities/Effects/AirPocketFx.cs)).
 - `pocket_seal` — a placement seals an empty region and the fuse arms ([AirPocketModifier.cs ReconcilePockets](Assets/SourceFiles/Scripts/Levels/Modifiers/AirPocketModifier.cs)).
 - `pocket_vent` — the rescue: a sealing block is destroyed and the smoke escapes ([AirPocketModifier.cs Vent](Assets/SourceFiles/Scripts/Levels/Modifiers/AirPocketModifier.cs)).
 - `pocket_pop` — detonation, alongside the size-scaled Tremor quake + camera impact ([AirPocketModifier.cs Detonate](Assets/SourceFiles/Scripts/Levels/Modifiers/AirPocketModifier.cs)).
@@ -117,14 +122,23 @@ safe no-ops until the clips exist; prompts live in `Tools/generate_elevenlabs_sf
 **Should be:** a deep muffled airless *whump* (seal); a sharp relieving steam-hiss (vent);
 a fat muffled underground *boom* (pop).
 
-### `blackout_in`, `blackout_out` — Blackout status · *WIRED, not generated yet*
-The scheduled power-loss state (LEVELS.md "Blackout details"). Safe no-ops until generated;
-prompts in `Tools/generate_elevenlabs_sfx.py`.
+### `blackout_in`, `blackout_out` — Blackout status · *generated (ElevenLabs)*
+The scheduled power-loss state (LEVELS.md "Blackout details"). Prompts in
+`Tools/generate_elevenlabs_sfx.py`.
 - `blackout_in` — the curtain starts fading in ([BlackoutOverlay.cs Awake](Assets/SourceFiles/Scripts/Abilities/Effects/BlackoutOverlay.cs)).
 - `blackout_out` — the relight pre-fade begins ([BlackoutOverlay.cs LateUpdate](Assets/SourceFiles/Scripts/Abilities/Effects/BlackoutOverlay.cs)).
 
 **Should be:** a deep descending power-down *whomp*, hum dying (in); breakers clunking back,
 hum swelling (out).
+
+### `void_open`, `void_suck` — Void Zones · *generated (ElevenLabs)*
+The forbidden-sky-rectangle hazard (LEVELS.md "Void Zones details"). Prompts in
+`Tools/generate_elevenlabs_sfx.py`.
+- `void_open` — a zone tears open ahead of the tower ([VoidZoneModifier.cs TrySpawnZone](Assets/SourceFiles/Scripts/Levels/Modifiers/VoidZoneModifier.cs)).
+- `void_suck` — a landed block is dragged into the eye ([VoidSuckFx.cs Begin](Assets/SourceFiles/Scripts/Abilities/Effects/VoidSuckFx.cs)).
+
+**Should be:** a low fabric-of-space rip settling into a whirl (open); an accelerating
+spiral whoosh ending in a deep gulp-thud (suck).
 
 ## Music
 
@@ -151,11 +165,6 @@ Entering a level swaps menu → chapter music; returning to the menu swaps back.
   `AudioMixer` with Music + SFX groups, both players routed to them).
 
 ## Gaps — sounds the game wants but does not have
-- **WIRED but ungenerated (calls are live, clips missing — blocked on `ELEVENLABS_API_KEY`):**
-  `pocket_seal`, `pocket_vent`, `pocket_pop` (Airtight air pockets) and `blackout_in`,
-  `blackout_out` (Blackout power-loss state). Prompts are authored in
-  `Tools/generate_elevenlabs_sfx.py` — one command generates all five:
-  `python3 Tools/generate_elevenlabs_sfx.py --only pocket_seal pocket_vent pocket_pop blackout_in blackout_out`.
 - **Per-ability identity** for everything still on `swoosh_01` / `pop_01`: Brace shield-up,
   Slo-Mo time-warp, Flip queue-swap flick, Hardline catch, Rebound save, Pocket Cache,
   Overdraw shuffle, Suspension gravity-lock, status consumable/combo.
