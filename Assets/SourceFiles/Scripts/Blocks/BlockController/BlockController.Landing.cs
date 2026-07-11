@@ -81,7 +81,16 @@ public partial class BlockController
 
     private bool IsValidLandingSupport(RaycastHit2D hit)
     {
-        if (hit.collider == null || hit.normal.y < landingSupportNormalY) return false;
+        if (hit.collider == null) return false;
+        // A LandableSlope surface (the Pyramid's ~42-44 degree faces, normals ~0.71/0.75
+        // riding the 0.7 gate too closely to trust unmarked) opts in below the normal
+        // gate - a rejected slope would be descended THROUGH, not rested on. The 0.3
+        // floor still rejects near-vertical/underside grazes. Note the support-width
+        // check below measures against the support collider's AABB, which for a wide
+        // slope polygon is generous: any real touch of the slope counts as a landing,
+        // which IS the pyramid's contract (touch it and it sheds you).
+        float gate = LandableSlope.Covers(hit.collider) ? 0.3f : landingSupportNormalY;
+        if (hit.normal.y < gate) return false;
         return GetHorizontalSupportOverlapAtHit(hit) >= GetMinimumLandingSupportWidth();
     }
 

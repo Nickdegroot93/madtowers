@@ -14,9 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: The Sphinx Road
   menuThumbnail: {fileID: 21300000, guid: 08afd1fcdc959402c98d39232da6afba, type: 3}
-  menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: e7daa3104128405ba51018e33535bbb8, type: 2}
+  menuChallengeLabelOverride: 
+  gameModeConfig: {fileID: 11400000, guid: 3191dafd3f30142b391b229ad7787c70, type: 2}
   targetType: 1
   targetValue: 100
+  timeLimitSeconds: 120
   instruction: Stack 100 blocks beneath the pyramids.
   modifiers: []
+  bannedAbilities: []
+  abilityRarityProfile: {fileID: 0}

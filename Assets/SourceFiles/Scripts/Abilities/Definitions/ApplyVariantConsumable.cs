@@ -36,7 +36,14 @@ public class ApplyVariantConsumable : ConsumableAbility
         if (variant == null || !AbilityEffects.ActivePieceCanTransform(context)) return false;
 
         BlockController active = BlockController.ActiveControlled;
-        if (active.TryGetComponent(out BlockIdentity identity) && identity.Variant == variant) return false;
+        if (active.TryGetComponent(out BlockIdentity identity))
+        {
+            if (identity.Variant == variant) return false;
+            // A locked-identity piece (the Pyramid) never takes variant data — refuse here
+            // so the card greys out instead of eating the charge while the piece visibly
+            // stays unchanged (shape swaps stay allowed; only the re-skin is meaningless).
+            if (identity.Definition != null && identity.Definition.LockDefaultData) return false;
+        }
 
         return true;
     }

@@ -212,6 +212,32 @@ Code-level details that are part of the contract (not inspector values):
 - Anchored/frozen blocks (`FreezeInPlace()`, used by the anchor-brick variant and the
   Freeze power-up) become Static bodies; landed maintenance skips any non-Dynamic
   body. Static blocks are allowed to violate grid registration — they freeze as-is by design.
+- **Sloped colliders and the landing gate (the Pyramid brick).** A descending kinematic
+  piece only stops on a surface `IsValidLandingSupport` accepts
+  (`hit.normal.y ≥ landingSupportNormalY` 0.7 ≈ slopes ≤ ~37°); a rejected surface is
+  simply descended *through* — there is no other stop. Steeper surfaces must opt in via
+  the **`LandableSlope`** marker component on the collider (static registry, no hot-path
+  `GetComponent`): marked surfaces accept landings down to a 0.3 normal.y sanity floor,
+  and the support-width check still rejects sub-cell corner clips. The Pyramid uses this
+  for its ~42/44° faces (normals ≈0.71/0.75 — too close to the 0.7 gate to trust
+  unmarked): a piece touching them locks, goes Dynamic, and gravity/friction slide it
+  off — that IS the behaviour (Nick approved the exception 2026-07-11; the gate is
+  untouched for every unmarked surface). Its apex is a
+  single point **offset 0.07 u off-centre** (invisible: the sprite's apex stays centred).
+  Both symmetric apexes failed (July 2026 tests): a 0.12 u apex flat let perfectly
+  column-aligned pieces see-saw balance into an ever-wobbling tip-to-tip tower that
+  never slept; a centred point was worse — zero torque at perfect alignment, so pieces
+  balanced, went quiet, and the I3 watchdog slept a 17-pyramid tip-to-tip tower solid.
+  Perfect alignment is the DEFAULT alignment (grid columns), so it must not be an
+  equilibrium: the offset guarantees contact at +0.07 with COM at 0 → always torque →
+  the knife-edge defer tips it, every time, to the same side. Non-cell shape anatomy
+  (the pattern): keep REAL 1×1 box cells wherever the shape has full cells — they are
+  the grid anchor (`GetPrimaryWorldX` snaps the first collider, which must sit ON a
+  column), the placement-beam footprint, the COM sample points, and the column
+  alignment (the Pyramid's v2 without them sat half a column off every other brick and
+  its beam collapsed to one column). The polygon part lives on a named child ("Body")
+  positioned at its centroid, authored pre-inset (forgiveness only resizes
+  `BoxCollider2D`s), listed AFTER the cells.
 
 ## 3. Floor & Sky Platforms (must match the blocks)
 

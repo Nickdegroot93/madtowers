@@ -490,6 +490,36 @@ public static class BlockDemoScenarios
         if (skin != null) skin.SetDamage(to, to);
     }
 
+    public static IEnumerator Pyramid(BlockDemoStage stage)
+    {
+        // The no-flat-top lesson, told twice by real physics: the pyramid lands like a
+        // monument, an O dropped dead on the peak tips and rolls away, and a wide I laid
+        // across the apex see-saws off. No shims at all - the slope IS the behaviour.
+        stage.SetView(4.2f, 3.0f);
+        yield return stage.Reveal();
+        yield return stage.Hold(0.3f);
+
+        // 3-wide monument. Cells sit at integer offsets from the pivot, and demo columns
+        // have their centres at n+0.5 - so the ON-GRID drop is x=0.5 (cells -0.5/0.5/1.5,
+        // apex over ~0.57, right where the O and I are aimed).
+        GameObject pyramid = DropIn(stage, "Pyramid", stage.Variant, new Vector2(0.5f, 6.6f));
+        yield return stage.WaitForLand(pyramid);
+        yield return stage.Hold(0.8f);
+
+        // Attempt one: an O dead-centre on the peak - it tips and rolls off.
+        GameObject o = DropIn(stage, "O", null, new Vector2(0.5f, 7.6f));
+        yield return stage.WaitForLand(o);
+        yield return stage.Hold(2.0f); // physics: the topple and slide
+
+        // Attempt two: a wide I bridged across the apex - a see-saw with one ending.
+        GameObject beam = DropIn(stage, "I", null, new Vector2(0.5f, 8.4f));
+        yield return stage.WaitForLand(beam);
+        yield return stage.Hold(2.6f); // physics: the see-saw slides away
+
+        // The monument stands alone.
+        yield return stage.Hold(1.2f);
+    }
+
     public static IEnumerator Maw(BlockDemoStage stage)
     {
         // A flat I maw: every top cell is exposed, so the strip wakes as a wall of mouths -
@@ -606,7 +636,12 @@ public static class BlockDemoScenarios
     public static void PosterPose(BlockDemoStage stage)
     {
         string id = ProgressStore.BlockId(stage.Variant);
-        GameObject piece = stage.Spawn("T", stage.Variant, new Vector2(0f, 0.5f));
+        // Shape-bound bricks (the Pyramid) pose as their own silhouette, not the uniform T
+        // (their data IS their shape; a pyramid-skinned T would be a lie). Data-driven so
+        // the next shape-bound brick poses correctly with no edit here.
+        GameObject piece = ContentCatalog.IsShapeBound(stage.Variant)
+            ? stage.Spawn(id, stage.Variant, new Vector2(0f, 0.5f))
+            : stage.Spawn("T", stage.Variant, new Vector2(0f, 0.5f));
         BlockVariantSkin skin = AttachSkinByConvention(piece, id);
         if (skin is MawBlockSkin maw) maw.Activate();                    // the grins ARE the poster
         if (skin is SandstoneBlockSkin sand) sand.SetDamage(0.55f, 0f);  // the cracks ARE the poster

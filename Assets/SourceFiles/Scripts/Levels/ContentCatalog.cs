@@ -108,6 +108,27 @@ public static class ContentCatalog
         return list;
     }
 
+    /// <summary>All data that is some shape definition's LOCKED identity (the Pyramid): block
+    /// TYPES, not appliable variants. One catalog pass - callers iterating variants hoist this
+    /// once instead of paying an <see cref="AllBlocks"/> scan per variant.</summary>
+    public static HashSet<BlockData> ShapeBoundVariants()
+    {
+        var set = new HashSet<BlockData>();
+        foreach (BlockDefinition block in AllBlocks())
+        {
+            if (block != null && block.LockDefaultData) set.Add(block.DefaultData);
+        }
+        return set;
+    }
+
+    /// <summary>True when this data is some shape definition's LOCKED identity (the Pyramid): a
+    /// block TYPE, not an appliable variant. Such data never enters variant rolls/overrides -
+    /// its shape is toggled in the Blocks list instead (it still gets a Vault card).</summary>
+    public static bool IsShapeBound(BlockData variant)
+    {
+        return variant != null && ShapeBoundVariants().Contains(variant);
+    }
+
     /// <summary>Every BlockData variant (Anchor, Boulder, Ice, ...), sorted by name; excludes the plain
     /// Normal brick. Editor-discovered live; in player builds it reads the baked manifest (so the Custom
     /// Game "Block Variants" section works on device too).</summary>

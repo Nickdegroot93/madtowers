@@ -234,7 +234,7 @@ public class Spawner : MonoBehaviour
         _currentBlock = replacement;
         _upcoming[0] = outgoing;
 
-        BlockData data = RollVariantChances(GetBlockData(incoming));
+        BlockData data = ResolveSpawnData(incoming);
         WireBlock(replacement, incoming, data);
         AnnounceUpcoming();
         GameEvents.RaiseBlockSpawned(replacement, data);
@@ -350,7 +350,7 @@ public class Spawner : MonoBehaviour
         // (transmute + Hold SWAP) the piece keeps the same turn: DefaultData, no BlockSpawned, so
         // per-spawn passives never pay twice. The per-piece lockout keys off BlockLocked, not this,
         // so a banked-in piece raising BlockSpawned can't reopen the re-hold loophole.
-        BlockData data = asNewSpawn ? RollVariantChances(GetBlockData(definition)) : definition.DefaultData;
+        BlockData data = asNewSpawn ? ResolveSpawnData(definition) : definition.DefaultData;
         WireBlock(replacement, definition, data);
         if (asNewSpawn) GameEvents.RaiseBlockSpawned(replacement, data);
         return true;
@@ -399,7 +399,7 @@ public class Spawner : MonoBehaviour
         }
 
         _currentBlock = block;
-        BlockData data = asNewSpawn ? RollVariantChances(GetBlockData(definition)) : definition.DefaultData;
+        BlockData data = asNewSpawn ? ResolveSpawnData(definition) : definition.DefaultData;
         WireBlock(block, definition, data);
         if (suspended) block.SetDescentSuspended(true);
         if (asNewSpawn) GameEvents.RaiseBlockSpawned(block, data);
@@ -445,7 +445,7 @@ public class Spawner : MonoBehaviour
         {
             // The bag spawn is the one place a queued variant override is consumed (the player's
             // next brick); everything else rolls only the ambient/chance table.
-            BlockData data = ConsumeQueuedVariantOverride() ?? RollVariantChances(GetBlockData(definition));
+            BlockData data = ResolveSpawnData(definition, allowQueuedOverride: true);
             WireBlock(_currentBlock, definition, data);
             GameEvents.RaiseBlockSpawned(_currentBlock, data);
         }
@@ -547,9 +547,18 @@ public class Spawner : MonoBehaviour
     /// </summary>
     public void ApplyVariantToNextBlock(BlockData variant)
     {
-        if (variant == null) return;
+        // Shape-bound identity data (the Pyramid's) is never applied to another piece nor
+        // banked - same sink guard as QueueVariantOverride/AddVariantChance.
+        if (variant == null || ContentCatalog.IsShapeBound(variant)) return;
 
-        if (_currentBlock != null && !_currentBlock.HasLanded)
+        // A locked-default piece (Pyramid) keeps its identity data; bank the variant for
+        // the next real brick instead of transmuting this one.
+        bool currentLocked = _currentBlock != null &&
+                             _currentBlock.TryGetComponent(out BlockIdentity currentIdentity) &&
+                             currentIdentity.Definition != null &&
+                             currentIdentity.Definition.LockDefaultData;
+
+        if (_currentBlock != null && !_currentBlock.HasLanded && !currentLocked)
         {
             _currentBlock.ApplyData(variant);
 
@@ -578,7 +587,9 @@ public class Spawner : MonoBehaviour
     /// </summary>
     public void QueueVariantOverride(BlockData variant, int count)
     {
-        if (variant == null) return;
+        // Shape-bound identity data (the Pyramid's) must never be banked onto another
+        // shape - the guard lives at the sink so every producer is safe by construction.
+        if (variant == null || ContentCatalog.IsShapeBound(variant)) return;
         for (int i = 0; i < count; i++) _queuedVariantOverrides.Enqueue(variant);
     }
 
@@ -589,7 +600,10 @@ public class Spawner : MonoBehaviour
     /// </summary>
     public void AddVariantChance(BlockData variant, float chance)
     {
-        if (variant == null || chance <= 0f) return;
+        // Shape-bound identity data (the Pyramid's) never enters the roll table: the
+        // Custom Game menu merely hides its slider, but authored GameModeConfig ambient
+        // entries and power-ups funnel through here too - enforce the invariant at the sink.
+        if (variant == null || chance <= 0f || ContentCatalog.IsShapeBound(variant)) return;
 
         for (int i = 0; i < _variantChances.Count; i++)
         {
@@ -728,6 +742,20 @@ public class Spawner : MonoBehaviour
 
         definition = null;
         return false;
+    }
+
+    // THE locked-default policy, owned in one place: a definition with a locked default
+    // (the Pyramid: its no-rotate data IS the shape's identity) never takes ambient/chance
+    // variant data OR a queued override - a roll would silently re-enable rotation and
+    // dress a non-cellular silhouette in a per-cell overlay skin. Only the genuine bag
+    // spawn passes allowQueuedOverride (the player's literal next brick); a locked draw
+    // leaves the override banked for the next real brick.
+    private BlockData ResolveSpawnData(BlockDefinition definition, bool allowQueuedOverride = false)
+    {
+        if (definition != null && definition.LockDefaultData) return definition.DefaultData;
+
+        BlockData overrideData = allowQueuedOverride ? ConsumeQueuedVariantOverride() : null;
+        return overrideData ?? RollVariantChances(GetBlockData(definition));
     }
 
     private BlockData RollVariantChances(BlockData baseData)

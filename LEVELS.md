@@ -372,9 +372,15 @@ Egypt skin folder with sandstone ashlar floor, gold dust + heat haze + lone vult
 menu art and music still to come
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| The Sphinx Road | GameMode_Classic | Place 100 | Stacking endurance, dusk-Giza dressing. |
-| Obelisk Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
-| Pyramid Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+| The Sphinx Road | GameMode_GizaClassic | Place 100 | Stacking endurance, dusk-Giza dressing. Pyramid brick in the bag (~3%). |
+| Obelisk Line | GameMode_GizaLaserLimit | Place 50 | Height-limit waves (5 waves). Pyramid brick in the bag (~3%). |
+| Pyramid Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. Deliberately NO pyramid brick (a 2-wide dead-top on 3 columns is brutal — revisit after playtest). |
+
+Giza's signature brick is the **Pyramid** (see BLOCKVARIANTS.md): a 3-column monument SHAPE
+(`Block_Pyramid`, straight base course + pyramid top, non-rotatable, nothing rests on its
+faces). The Giza mode assets are copies of the standard ones with every standard definition
+four times in the bag + the pyramid once (≈1/29 ≈ 3% of spawns — Nick's call: a 3-wide
+dead-top brick is a big event, keep it rare).
 
 **Chapter: Lost City (sortOrder 100)** — imported Lost City / Distant Planet pack (giant-moon
 plate as a chapter-owned `bg_moon_lc` copy with the below-skyline half flattened to clean fog

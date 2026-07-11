@@ -225,8 +225,12 @@ public static class CustomGameMenu
         }
         RuntimeUiKit.CreateLabel(panel, "Ambient spawn chance per piece (1.00 = every block).", 20, 36f,
             FontStyle.Italic, SectionColor);
+        var shapeBound = ContentCatalog.ShapeBoundVariants(); // one scan, not one per variant
         foreach (BlockData variant in variants)
         {
+            // Shape-bound data (the Pyramid) is a block TYPE - it lives in the Blocks
+            // toggles above, not in the ambient variant chances.
+            if (shapeBound.Contains(variant)) continue;
             BlockData captured = variant;
             float current = _settings.VariantChances.TryGetValue(captured, out float c) ? c : 0f;
             RuntimeUiKit.CreateStepperRow(panel, variant.DisplayName, current, 0f, 1f, 0.05f, "0.00",
