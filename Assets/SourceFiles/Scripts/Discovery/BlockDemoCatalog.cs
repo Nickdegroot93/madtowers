@@ -50,6 +50,8 @@ public static class BlockDemoCatalog
             "Shakes the whole tower when it lands. Sloppy placements will not survive the jolt."),
         ["Maw"] = new Entry(BlockDemoScenarios.Maw,
             "It devours any brick placed on top of it - and every meal costs you a life. Build around the mouth, never on it."),
+        ["Sandstone"] = new Entry(BlockDemoScenarios.Sandstone,
+            "It cracks under the weight it carries - watch the fractures grow with every brick. The third one is one too many."),
     };
 
     public static bool HasDemo(BlockData variant) =>

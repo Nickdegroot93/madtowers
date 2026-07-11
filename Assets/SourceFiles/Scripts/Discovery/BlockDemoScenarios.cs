@@ -416,6 +416,77 @@ public static class BlockDemoScenarios
         _ = tower; _ = beam;
     }
 
+    public static IEnumerator Sandstone(BlockDemoStage stage)
+    {
+        // The load scale: the sandstone lands pristine, then identical bricks land on it one
+        // at a time and the crack network grows with each - the countdown the player must
+        // learn to read. After the second the brick is visibly riddled; the third is one too
+        // many: a shiver, then it bursts to sand and the whole pile drops by real physics.
+        // (Puppets carry no BlockController, so the shim drives the skin's damage read-out
+        // the way the real load reader does - smoothly, ratcheting; the burst is Shatter +
+        // the real SFX, exactly what Crumble() plays.)
+        stage.SetView(3.2f, 2.2f);
+        yield return stage.Reveal();
+        yield return stage.Hold(0.25f);
+
+        GameObject sand = DropIn(stage, "O", stage.Variant, new Vector2(0.5f, 5.4f)); // cols -1..1
+        SandstoneBlockSkin skin = Dress<SandstoneBlockSkin>(sand);
+        skin.Apply();
+        BlockDemoPuppet.Relayer(sand);
+        yield return stage.WaitForLand(sand);
+        yield return stage.Hold(0.7f);
+
+        // Brick one: the first cracks appear.
+        yield return DropWeightAndCrack(stage, skin, new Vector2(0.5f, 5.8f), 0f, 0.39f, 1f);
+        yield return stage.Hold(0.9f);
+
+        // Brick two: the network spreads, sand starts to trickle. Clearly wounded.
+        yield return DropWeightAndCrack(stage, skin, new Vector2(0.5f, 6.6f), 0.39f, 0.78f, 0.92f);
+        yield return stage.Hold(1.0f);
+
+        // Brick three: one too many. It shivers under the strain - then bursts, and
+        // everything it carried comes down.
+        GameObject last = DropIn(stage, "Pip", null, new Vector2(0.5f, 7.4f));
+        yield return stage.WaitForLand(last);
+        yield return DriveDamage(skin, 0.78f, 0.95f, 0.35f);
+        SfxPlayer.Play("sandstone_crack", 0.6f, 0.06f, 0.84f);
+        yield return stage.Hold(0.7f); // the shiver: "it's about to go"
+        stage.Shatter(sand, new Color(0.82f, 0.68f, 0.42f, 1f)); // Crumble()'s SandTint
+        SfxPlayer.Play("sandstone_burst", 1f);
+        stage.CameraKick(0.12f);
+        stage.Dust(new Vector2(0.5f, 1.2f), 1.1f, 0.5f);
+        yield return stage.Hold(2.2f);
+    }
+
+    /// <summary>One unit brick onto the sandstone, then ramp the skin's crack read-out to the
+    /// level the real load reader would settle at, with the real crack tick.</summary>
+    private static IEnumerator DropWeightAndCrack(BlockDemoStage stage, SandstoneBlockSkin skin,
+        Vector2 from, float damageFrom, float damageTo, float crackPitch)
+    {
+        GameObject weight = DropIn(stage, "Pip", null, from);
+        yield return stage.WaitForLand(weight);
+        SfxPlayer.Play("sandstone_crack", 0.6f, 0.06f, crackPitch);
+        yield return DriveDamage(skin, damageFrom, damageTo, 0.5f);
+    }
+
+    /// <summary>The demo's stand-in for the smoothed load reader: ease the skin's damage and
+    /// current-load read-outs from the previous level up to the new one (cracks only ever
+    /// grow - the ratchet).</summary>
+    private static IEnumerator DriveDamage(SandstoneBlockSkin skin, float from, float to,
+        float seconds)
+    {
+        if (skin == null) yield break;
+        float t = 0f;
+        while (t < seconds && skin != null)
+        {
+            t += Time.deltaTime;
+            float d = Mathf.Lerp(from, to, Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / seconds)));
+            skin.SetDamage(d, d);
+            yield return null;
+        }
+        if (skin != null) skin.SetDamage(to, to);
+    }
+
     public static IEnumerator Maw(BlockDemoStage stage)
     {
         // A flat I maw: every top cell is exposed, so the strip wakes as a wall of mouths -
@@ -534,7 +605,8 @@ public static class BlockDemoScenarios
         string id = ProgressStore.BlockId(stage.Variant);
         GameObject piece = stage.Spawn("T", stage.Variant, new Vector2(0f, 0.5f));
         BlockVariantSkin skin = AttachSkinByConvention(piece, id);
-        if (skin is MawBlockSkin maw) maw.Activate(); // the grins ARE the poster
+        if (skin is MawBlockSkin maw) maw.Activate();                    // the grins ARE the poster
+        if (skin is SandstoneBlockSkin sand) sand.SetDamage(0.55f, 0f);  // the cracks ARE the poster
     }
 
     /// <summary>Get the variant's real look onto a puppet with zero per-variant code: resolve
