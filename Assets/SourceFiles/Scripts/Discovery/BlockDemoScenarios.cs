@@ -435,17 +435,21 @@ public static class BlockDemoScenarios
         yield return stage.WaitForLand(sand);
         yield return stage.Hold(0.7f);
 
-        // Brick one: an O flush on top. The first cracks appear.
-        yield return DropWeightAndCrack(stage, skin, "O", new Vector2(0.5f, 7.0f), 0f, 0.39f, 1f);
+        // Weights are shapes whose hues contrast the sandstone's tan (an O is the same
+        // yellow and the two would blur together - Nick's call). Brick one: a cyan I laid
+        // flush across it. The first cracks appear.
+        yield return DropWeightAndCrack(stage, skin, "I", new Vector2(0.5f, 7.0f), 0f, 0.39f, 1f);
         yield return stage.Hold(0.9f);
 
-        // Brick two: an I laid across as a bridge. The network spreads, sand trickles.
-        yield return DropWeightAndCrack(stage, skin, "I", new Vector2(0.5f, 7.6f), 0.39f, 0.78f, 0.92f);
+        // Brick two: a green S on the bridge (its cells sit right of the pivot - drop half a
+        // column left so the piece CENTres over the tower). The network spreads, sand trickles.
+        yield return DropWeightAndCrack(stage, skin, "S", new Vector2(-0.5f, 7.6f), 0.39f, 0.78f, 0.92f);
         yield return stage.Hold(1.0f);
 
-        // Brick three: one more O - one too many. It shivers under the strain, then bursts,
-        // and the tower it carried comes down.
-        GameObject last = DropIn(stage, "O", null, new Vector2(0.5f, 8.6f));
+        // Brick three: a red Z - one too many. It shivers under the strain, then bursts,
+        // and the tower it carried comes down. (Z centred over the S's top pair so the
+        // collapse keeps it on the pile instead of flinging it out of frame.)
+        GameObject last = DropIn(stage, "Z", null, new Vector2(0f, 8.6f));
         yield return stage.WaitForLand(last);
         yield return DriveDamage(skin, 0.78f, 0.95f, 0.35f);
         SfxPlayer.Play("sandstone_crack", 0.6f, 0.06f, 0.84f);
