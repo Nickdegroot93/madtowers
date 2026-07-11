@@ -111,6 +111,11 @@ SOUNDS = {
         "one sharp satisfying steam-hiss decompression falling to silence, relief, short.", 1.0, 0.55),
     "pocket_pop": (STYLE + "A sealed pocket of pressure detonating inside stonework: one fat "
         "muffled underground BOOM with a stone chamber burst and brief debris, deep and heavy.", 1.3, 0.5),
+    # Blackout status - the district loses power for ~20s (LEVELS.md scheduled pressure).
+    "blackout_in": (STYLE + "A city district losing electrical power: one deep descending "
+        "power-down WHOMP, a big machine hum dying away to silence, heavy and ominous.", 1.6, 0.55),
+    "blackout_out": (STYLE + "Electrical power returning to a city district: breakers clunking "
+        "back on and a warm machine hum swelling up from silence, relieving, short.", 1.4, 0.55),
 }
 
 

@@ -127,7 +127,7 @@ touch engine code.
 |---|---|---|
 | **Classic stacking** | any mode, no modifiers — the base game | `Endless` (free play), `ReachHeight` (climb to X m), or `PlaceBlocks` (stack N) — three sub-flavours for free |
 | **Height-Limit Waves** ("Laser Limit" — Tricky Towers' puzzle mode) | `HeightLimitWavesModifier` asset on the level | `PlaceBlocks` = sum of wave counts |
-| **Scheduled theme pressure** (snowstorms, sandstorms, neon sync, rain...) | `ScheduledStatusModifier` applying one or more `StatusEffectDefinition` assets | any standard goal |
+| **Scheduled theme pressure** (blackouts, snowstorms, sandstorms, wind...) | `ScheduledStatusModifier` applying one or more `StatusEffectDefinition` assets | any standard goal |
 | **Airtight** (no sealed hollows) | `AirPocketModifier` asset on the level | any standard goal (typically `PlaceBlocks`) |
 | *future: rising water, timed rush, wind gauntlet…* | one modifier subclass each, same recipe | standard goals |
 
@@ -201,6 +201,39 @@ touch engine code.
   camera impact. `shakeDurationSeconds` (0.4) and `shakeRadius` (7) tune the burst.
 - SFX contract: `pocket_seal` / `pocket_vent` / `pocket_pop` (defined in
   `Tools/generate_elevenlabs_sfx.py`, safe no-ops until generated).
+
+#### Blackout details (the first scheduled-pressure state)
+
+- **The district loses power** for ~20 s: a PITCH-BLACK curtain covers the world
+  (`Resources/BlackoutOverlay.shader` + `BlackoutOverlay.cs`) with exactly ONE light — a
+  feathered lantern riding the falling piece. Outside it the tower is a memory: the
+  3-second power-down is the deliberate memorize window, then you place by what the
+  lantern reveals as the piece descends. The HUD is screen-space canvas and stays readable
+  by construction; ability-session overlays (Extract/Overdraw, order 220+) render above
+  the curtain (order 200) so ability use stays possible in the dark.
+- **Playtested-and-rejected looks, do not regress**: partial darkness (0.93 and 0.985 both
+  read as "I can still see everything" — display gamma turns even 1.5% linear bleed into
+  ~12% on-screen brightness, so anything below ~1.0 is decorative, not difficult); a
+  tower-peak bearing glow (it lit the very thing the mode hides); a plain smoothstep edge
+  (gamma compresses the fade's tail into a visible ring — the shader feathers by running
+  the falloff past the radius and easing quadratically into black).
+- **It is a STATUS, not a mode**: `Status_Blackout` (kind Custom, 20 s) owns the look via
+  its `screenEffect` prefab (`Data/PowerUps/Status/BlackoutOverlay.prefab`), so anything
+  can trigger a blackout — the scheduler, a future cursed brick, a chapter gimmick. The
+  overlay pre-fades via `StatusEffects.GetRemaining` so the relight never pops.
+- **Scheduling is data**: `Data/Modifiers/ScheduledStatus_Blackout_Standard` — first
+  blackout after 45 s, then every 75 s, `graceBlocks 8` (never blinds a near-empty board),
+  duration from the status (override per level for gentler/meaner chapters). Attached to
+  all three Crimson Core levels; drop the same asset (or a re-tuned copy) on any dark
+  chapter's levels. Stacks freely with other modifiers — note that world-space indicator
+  lines (the wave limit laser at order 50, Sacrifice/Hardline at −40/−39) go dark with
+  everything else: during a blackout you stay under the line you MEMORIZED. Only the
+  lantern, ability-session overlays (220+) and the HUD canvas pierce the dark.
+- Playtest dials: `darkness` (1 - see above), `lanternRadius` (7), `lanternFlicker`, fade
+  timings (fade-out must stay under StatusFieldController's 1.2 s teardown grace) on the
+  prefab; the feather band (`0.45`/`1.35` × radius) in the shader.
+- SFX contract: `blackout_in` / `blackout_out` (prompts in the ElevenLabs tool, safe
+  no-ops until generated; the generic `status_engage` also fires on activation).
 
 ### Campaign structure & progression
 

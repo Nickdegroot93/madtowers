@@ -117,6 +117,15 @@ safe no-ops until the clips exist; prompts live in `Tools/generate_elevenlabs_sf
 **Should be:** a deep muffled airless *whump* (seal); a sharp relieving steam-hiss (vent);
 a fat muffled underground *boom* (pop).
 
+### `blackout_in`, `blackout_out` — Blackout status · *WIRED, not generated yet*
+The scheduled power-loss state (LEVELS.md "Blackout details"). Safe no-ops until generated;
+prompts in `Tools/generate_elevenlabs_sfx.py`.
+- `blackout_in` — the curtain starts fading in ([BlackoutOverlay.cs Awake](Assets/SourceFiles/Scripts/Abilities/Effects/BlackoutOverlay.cs)).
+- `blackout_out` — the relight pre-fade begins ([BlackoutOverlay.cs LateUpdate](Assets/SourceFiles/Scripts/Abilities/Effects/BlackoutOverlay.cs)).
+
+**Should be:** a deep descending power-down *whomp*, hum dying (in); breakers clunking back,
+hum swelling (out).
+
 ## Music
 
 Played by [MusicPlayer.cs](Assets/SourceFiles/Scripts/Core/MusicPlayer.cs): a random opener,

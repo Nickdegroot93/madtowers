@@ -19,4 +19,5 @@ MonoBehaviour:
   targetType: 2
   targetValue: 50
   instruction: Reach 50 meters above the crimson core.
-  modifiers: []
+  modifiers:
+  - {fileID: 11400000, guid: 57cc85b4d35a4aeeae634ad54ee1bfea, type: 2}

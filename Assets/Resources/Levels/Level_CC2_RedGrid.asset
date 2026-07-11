@@ -21,3 +21,4 @@ MonoBehaviour:
   instruction: Clear 5 waves - keep the tower under the red grid line!
   modifiers:
   - {fileID: 11400000, guid: 4191f3fccd90469ea9adb55493cc2e3b, type: 2}
+  - {fileID: 11400000, guid: 57cc85b4d35a4aeeae634ad54ee1bfea, type: 2}

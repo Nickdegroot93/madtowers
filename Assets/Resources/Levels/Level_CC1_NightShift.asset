@@ -19,4 +19,5 @@ MonoBehaviour:
   targetType: 1
   targetValue: 100
   instruction: Stack 100 blocks beneath the crimson sun.
-  modifiers: []
+  modifiers:
+  - {fileID: 11400000, guid: 57cc85b4d35a4aeeae634ad54ee1bfea, type: 2}
