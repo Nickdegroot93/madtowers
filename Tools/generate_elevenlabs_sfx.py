@@ -135,6 +135,20 @@ SOUNDS = {
         "whoosh building into a deep resonant CRACK of reality splitting, followed by an "
         "eerie shimmering otherworldly hum settling in. Cinematic sci-fi, detailed, "
         "unsettling, high quality.", 2.0, 0.75),
+    # Sandstone brick - load-limit crumble (BLOCKVARIANTS.md). NO house STYLE prefix (it
+    # pushed the crack into a low tonal chime), and the raw generation ALWAYS comes out
+    # glass-bright (~5 kHz centroid) no matter the prompt - the shipped sandstone_crack.wav
+    # additionally has a post lowpass baked in: FFT gain 1/(1+(f/1800)^3), peak-renorm 0.85.
+    # Keeper stats after the pass: centroid ~1.2 kHz, HF>4k ~1%, in-band(120-2500) flatness
+    # ~0.73 (gritty, not tonal). Rerunning this entry reproduces only the RAW take.
+    "sandstone_crack": ("A subtle muffled crack of dry compacted earth under heavy pressure: "
+        "one soft dull low crunch, like a clay brick quietly splitting inside, followed by a "
+        "faint hush of dry sand shifting and settling. Understated, soft, dull, low-pitched, "
+        "warm, organic, dusty. No glass, no ice, no sharp snap, no high frequencies, no hiss, "
+        "no chime, no ring, no metal, no music.", 0.8, 0.75),
+    "sandstone_burst": ("A sandstone block crumbling apart under load: a dry crunching "
+        "collapse into pouring sand and small stone chunks scattering, granular and "
+        "satisfying, earthy and organic, no boom, no explosion, no chime, no music.", 1.4, 0.7),
     "void_suck": ("A heavy stone swallowed by a dark vortex: a smooth deep AIRY whoosh being "
         "pulled inward, muffled and round, ending in a soft deep sub-bass swallow like a "
         "distant underwater gulp. Warm, dark, organic, smooth - absolutely no screech, no "

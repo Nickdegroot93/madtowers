@@ -140,6 +140,16 @@ The forbidden-sky-rectangle hazard (LEVELS.md "Void Zones details"). Prompts in
 **Should be:** a low fabric-of-space rip settling into a whirl (open); an accelerating
 spiral whoosh ending in a deep gulp-thud (suck).
 
+### `sandstone_crack`, `sandstone_burst` — Sandstone brick · *generated (ElevenLabs)*
+The load-bearing-limit brick (BLOCKVARIANTS.md catalog). Prompts in
+`Tools/generate_elevenlabs_sfx.py` (no house STYLE prefix — it turned the crack into a low
+tonal chime; these need broadband dry grit).
+- `sandstone_crack` — the damage ratchet crosses a new third ([SandstoneBlockBehaviour.cs FixedUpdate](Assets/SourceFiles/Scripts/Blocks/Variants/SandstoneBlockBehaviour.cs)); pitch drops slightly per stage.
+- `sandstone_burst` — the brick crumbles ([SandstoneBlockBehaviour.cs Crumble](Assets/SourceFiles/Scripts/Blocks/Variants/SandstoneBlockBehaviour.cs)).
+
+**Should be:** a dry stone fracture tick, grit settling (crack); a modest sandstone collapse —
+crunch into pouring sand, no explosion (burst).
+
 ## Music
 
 Played by [MusicPlayer.cs](Assets/SourceFiles/Scripts/Core/MusicPlayer.cs): a random opener,
