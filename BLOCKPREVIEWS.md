@@ -28,7 +28,7 @@ a fallback for a behaviour too messy to script — none of the current bricks ne
 | `BlockDemoScenarios` | One demo per variant, built as a **TEMPLATE + REAL PHYSICS** (Nick's rule): an exact starting structure of physical puppets (spawned asleep at their poses), ONE dropped variant piece, and the simulation plays out the consequences — weight, balance, sliding, toppling are genuine Box2D, never animated. Only the variant MOMENT is a small shim doing what the real behaviour does, minus game-state writes: Anchor → body Static on contact; Vine → `FixedJoint2D` welds + `GrowFrom`; Bomb → fuse then blast-radius removal (survivors fall by physics); Tremor → radial velocity kicks; Maw → devour on prey contact; Magma → cells replaced by real stone pips that pour into the hollow. Boulder/Feather/Ice need NO shim — mass and friction do it (the Feather demo is an A/B on the same rig: a normal brick tips the cantilever, the feather doesn't — same drop, only the mass differs). Vortex/Locked stay scripted (they teach an INPUT rule). Skins' real cue methods carry the drama plus the game's own FX. |
 | `BlockDiscoveryController` | Installed by `GameSystemsInstaller`. Watches `GameEvents.BlockSpawned` (+ `Spawner.ApplyVariantToNextBlock`'s direct-apply notify) for never-seen demo-worthy variants, waits until the piece is in view (viewport y ≤ 0.75 **and** ≥0.35s old, else a 2.5s timeout / already-landed), then freezes and presents. Marks discovery **at modal-open** (quit-safe). FIFO queue for multiple debuts; tears down instantly on GameOver. |
 | `BlockDebutModal` | The debut card: `GameMenuStyle`-styled panel, rounded RawImage demo, name + description (authored `vaultDescription`, catalog caption fallback), one Continue. Sort 6100 (above the ability offer). |
-| `VaultPosterService` | Caches one ~360² RT poster per discovered variant for the Vault grid (BLOCKPREVIEWS' "pre-bake first frames as posters"). See §4 for the timeScale wrinkle. Released in the menu's `TearDownRoot`. |
+| `VaultPosterService` | Caches one ~360² RT poster per discovered variant for the Vault grid (BLOCKPREVIEWS' "pre-bake first frames as posters"). Captures in **batches**: every queued request opens its stage at once (slots keep the physics apart) and they all share ONE warm-up window — a full grid lands in ~0.7s; sequential capture read like a slow web page (Nick, July 2026). See §4 for the timeScale wrinkle. Released in the menu's `TearDownRoot`. |
 
 ## 3. The freeze (debut modal) — world-alive, NOT timeScale 0
 
@@ -76,6 +76,11 @@ author the demo when ready.
    **Grid discipline:** columns are integers (a cell = `[n, n+1]`, centre `n+0.5`); the pivot
    cheat-sheet is in the file header. Structures on exact columns; gaps are exact column counts;
    drops on columns. Off-grid = the misaligned-pocket / mid-air-clip bugs, every time.
+   **Real-board staging (Nick, July 2026):** props and weights are REAL piece shapes (O, I, T,
+   L, Domino, ...) — never a stack of Pips (1×1s are special blocks and read wrong). Frame wide,
+   like a real board: defaults are ortho 3.4 / centre-y 2.4, scenarios run ~3.8–4.6; add a
+   flanking structure or two so the star piece sits in a scene, not a vacuum, and compose the
+   stack deliberately (a flush O, an I laid as a bridge) rather than piling random shapes.
    **Shim menu** (each mirrors the real behaviour, no game-state writes): `FreezeSquare(piece)`
    (Anchor/settled Maw), `FixedJoint2D` + `GrowFrom` per `PiecesNear(...)` neighbour (Vine),
    fuse loop + `Shatter` victims in `PiecesNear` radius (Bomb), radial `linearVelocity` kicks

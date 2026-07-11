@@ -80,33 +80,45 @@ public sealed class VaultPosterService : MonoBehaviour
     private IEnumerator Work()
     {
         _working = true;
+        // One frame so every Assign from the same grid-build lands in the first batch - the
+        // grid requests all its posters in one loop, and they should cost ONE warm-up.
+        yield return null;
+
         while (_queue.Count > 0)
         {
-            (BlockData variant, ChapterDefinition chapter, string key) = _queue.Dequeue();
+            // Drain everything queued so far and warm ALL the dioramas together in a single
+            // scaled-time window (stage slots keep their physics apart). This is what stops
+            // the Vault grid loading like a slow web page: N posters, one 0.65s wait.
+            var batch = new List<(string key, BlockDemoStage stage)>();
+            while (_queue.Count > 0)
+            {
+                (BlockData variant, ChapterDefinition chapter, string key) = _queue.Dequeue();
+                batch.Add((key, BlockDemoStage.OpenPose(variant, chapter, PosterPixels)));
+            }
 
-            // The scaled-time warm-up window. Restore whatever the menu had (0 while it is up;
-            // if a level got selected mid-capture the game already runs at 1 and we leave it).
+            // The warm-up window. Restore whatever the menu had (0 while it is up; if a level
+            // got selected mid-capture the game already runs at 1 and we leave it).
             float previousTimeScale = Time.timeScale;
             Time.timeScale = 1f;
-
-            BlockDemoStage stage = BlockDemoStage.OpenPose(variant, chapter, PosterPixels);
             yield return new WaitForSeconds(WarmUpSeconds);
-
-            RenderTexture poster = stage.DetachTexture();
-            stage.Close();
-
             if (LevelSelectionState.IsSelectionPending) Time.timeScale = previousTimeScale;
 
-            Cache[key] = poster;
-            if (_waiting.TryGetValue(key, out List<RawImage> targets))
+            foreach ((string key, BlockDemoStage stage) in batch)
             {
-                foreach (RawImage target in targets)
+                RenderTexture poster = stage.DetachTexture();
+                stage.Close();
+
+                Cache[key] = poster;
+                if (_waiting.TryGetValue(key, out List<RawImage> targets))
                 {
-                    if (target == null) continue;
-                    target.texture = poster;
-                    target.color = Color.white;
+                    foreach (RawImage target in targets)
+                    {
+                        if (target == null) continue;
+                        target.texture = poster;
+                        target.color = Color.white;
+                    }
+                    _waiting.Remove(key);
                 }
-                _waiting.Remove(key);
             }
         }
         _working = false;

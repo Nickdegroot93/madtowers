@@ -117,7 +117,7 @@ public static class BlockDemoScenarios
         // supported end as BALLAST, and now a normal brick can land far out over the void and
         // the beam holds. Counterweight - that's what four times the mass buys you. Pure
         // simulation: without the boulder's torque the same landing dumps everything.
-        stage.SetView(3.0f, 2.1f);
+        stage.SetView(3.8f, 2.8f);
         stage.SpawnPhysical("O", null, new Vector2(1.5f, 0.5f), asleep: true); // tower, cols 0..2
         // The beam sits like a settled piece that slid half a cell: 1.5 columns dangling over
         // the void, just enough of its own weight over the tower to stand - but one brick on
@@ -159,7 +159,7 @@ public static class BlockDemoScenarios
         // and three hanging in open air - physics would dump it instantly, but the anchor's
         // real rule fires first: freeze on contact (squared to the grid, like the game's
         // micro-align). Then a full brick lands far out on the frozen overhang - and stays.
-        stage.SetView(3.2f, 2.1f);
+        stage.SetView(4.0f, 2.9f);
         stage.SpawnPhysical("O", null, new Vector2(-1.5f, 0.5f), asleep: true);
         yield return stage.Settle(0.4f);
         yield return stage.Reveal();
@@ -229,7 +229,7 @@ public static class BlockDemoScenarios
         // Template: a pocket exactly ONE column wide (col -1..0), two deep, between two towers.
         // The magma T bridges it, melts, and its cells become REAL stone pips - dropped in
         // order so physics pours them into the hollow: the pocket fills, the rest levels off.
-        stage.SetView(3.0f, 1.9f);
+        stage.SetView(3.8f, 2.6f);
         stage.SpawnPhysical("O", null, new Vector2(-1.5f, 0.5f), asleep: true); // cols -3..-1
         stage.SpawnPhysical("O", null, new Vector2(1.5f, 0.5f), asleep: true);  // cols 0..2
         yield return stage.Settle(0.4f);
@@ -268,7 +268,7 @@ public static class BlockDemoScenarios
         // The bomb drops down the pillar's column - a clean one-column channel, exactly like a
         // real placement - lands touching the tower's MIDDLE brick, and the blast removes what
         // it touches. The top brick genuinely loses its support and crashes down onto the base.
-        stage.SetView(3.5f, 2.7f);
+        stage.SetView(4.2f, 3.1f);
         GameObject baseBrick = stage.SpawnPhysical("O", null, new Vector2(-0.5f, 0.5f), asleep: true);
         GameObject middle = stage.SpawnPhysical("O", null, new Vector2(-0.5f, 2.5f), asleep: true);
         stage.SpawnPhysical("O", null, new Vector2(-0.5f, 4.5f), asleep: true);
@@ -319,7 +319,7 @@ public static class BlockDemoScenarios
         // edge - a placement that genuinely works with normal friction. This one is ICE: the
         // real slippery material has no grip, the hook skids off the corner, and the piece
         // drops down the wall. Pure simulation.
-        stage.SetView(3.2f, 2.2f);
+        stage.SetView(4.0f, 2.9f);
         stage.SpawnPhysical("O", null, new Vector2(-1.5f, 0.5f), asleep: true); // cols -3..-1
         stage.SpawnPhysical("O", null, new Vector2(-1.5f, 2.5f), asleep: true); // top y = 4
         yield return stage.Settle(0.4f);
@@ -343,7 +343,7 @@ public static class BlockDemoScenarios
         // A/B on the identical template: a cantilevered beam that a NORMAL brick's weight tips
         // over - and the FEATHER's quarter-weight doesn't. Same drop, same spot; the only
         // difference is the variant's real mass. Both outcomes are pure simulation.
-        stage.SetView(3.1f, 2.1f);
+        stage.SetView(3.9f, 2.8f);
 
         // A: the normal brick wrecks it.
         stage.SpawnPhysical("O", null, new Vector2(0.5f, 0.5f), asleep: true);   // pillar cols -1..1
@@ -379,7 +379,7 @@ public static class BlockDemoScenarios
         // edge (statically stable, barely). The tremor lands flush beside the tower; its REAL
         // rule is radial velocity kicks, which shove the sloppy piece AWAY - out over its
         // overhang - and the simulation topples it. The clean base rides the quake out.
-        stage.SetView(4.3f, 2.3f);
+        stage.SetView(4.6f, 2.9f);
         GameObject tower = stage.SpawnPhysical("O", null, new Vector2(0.5f, 0.5f), asleep: true);  // cols -1..1
         GameObject beam = stage.SpawnPhysical("T", null, new Vector2(-0.5f, 2.5f), asleep: true);  // cols -2..1, overhang left
         yield return stage.Settle(0.7f);
@@ -418,35 +418,38 @@ public static class BlockDemoScenarios
 
     public static IEnumerator Sandstone(BlockDemoStage stage)
     {
-        // The load scale: the sandstone lands pristine, then identical bricks land on it one
-        // at a time and the crack network grows with each - the countdown the player must
-        // learn to read. After the second the brick is visibly riddled; the third is one too
-        // many: a shiver, then it bursts to sand and the whole pile drops by real physics.
-        // (Puppets carry no BlockController, so the shim drives the skin's damage read-out
-        // the way the real load reader does - smoothly, ratcheting; the burst is Shatter +
-        // the real SFX, exactly what Crumble() plays.)
-        stage.SetView(3.2f, 2.2f);
+        // The load scale, told like a real board: neighbouring structures flank an open bay,
+        // the sandstone lands there, and a deliberate tower goes up on it - a flush O, then a
+        // wide I laid as a bridge, and a final O. Each landing grows the crack network (the
+        // shim drives the skin's ratcheting read-out the way the real load reader does; the
+        // real crack SFX ticks per stage). The third brick is one too many: a shiver, then it
+        // bursts to sand and the whole tower it carried drops by real physics.
+        stage.SetView(4.2f, 3.0f);
+        stage.SpawnPhysical("O", null, new Vector2(-2.5f, 0.5f), asleep: true);      // cols -4..-2
+        stage.SpawnPhysical("Domino", null, new Vector2(-3.5f, 2.5f), asleep: true); // on its left half
+        stage.SpawnPhysical("Domino", null, new Vector2(3.5f, 0.5f), asleep: true);  // col 3
+        yield return stage.Settle(0.4f);
         yield return stage.Reveal();
-        yield return stage.Hold(0.25f);
+        yield return stage.Hold(0.3f);
 
-        GameObject sand = DropIn(stage, "O", stage.Variant, new Vector2(0.5f, 5.4f)); // cols -1..1
+        GameObject sand = DropIn(stage, "O", stage.Variant, new Vector2(0.5f, 6.6f)); // cols -1..1
         SandstoneBlockSkin skin = Dress<SandstoneBlockSkin>(sand);
         skin.Apply();
         BlockDemoPuppet.Relayer(sand);
         yield return stage.WaitForLand(sand);
         yield return stage.Hold(0.7f);
 
-        // Brick one: the first cracks appear.
-        yield return DropWeightAndCrack(stage, skin, new Vector2(0.5f, 5.8f), 0f, 0.39f, 1f);
+        // Brick one: an O flush on top. The first cracks appear.
+        yield return DropWeightAndCrack(stage, skin, "O", new Vector2(0.5f, 7.0f), 0f, 0.39f, 1f);
         yield return stage.Hold(0.9f);
 
-        // Brick two: the network spreads, sand starts to trickle. Clearly wounded.
-        yield return DropWeightAndCrack(stage, skin, new Vector2(0.5f, 6.6f), 0.39f, 0.78f, 0.92f);
+        // Brick two: an I laid across as a bridge. The network spreads, sand trickles.
+        yield return DropWeightAndCrack(stage, skin, "I", new Vector2(0.5f, 7.6f), 0.39f, 0.78f, 0.92f);
         yield return stage.Hold(1.0f);
 
-        // Brick three: one too many. It shivers under the strain - then bursts, and
-        // everything it carried comes down.
-        GameObject last = DropIn(stage, "Pip", null, new Vector2(0.5f, 7.4f));
+        // Brick three: one more O - one too many. It shivers under the strain, then bursts,
+        // and the tower it carried comes down.
+        GameObject last = DropIn(stage, "O", null, new Vector2(0.5f, 8.6f));
         yield return stage.WaitForLand(last);
         yield return DriveDamage(skin, 0.78f, 0.95f, 0.35f);
         SfxPlayer.Play("sandstone_crack", 0.6f, 0.06f, 0.84f);
@@ -458,12 +461,12 @@ public static class BlockDemoScenarios
         yield return stage.Hold(2.2f);
     }
 
-    /// <summary>One unit brick onto the sandstone, then ramp the skin's crack read-out to the
+    /// <summary>One brick onto the sandstone tower, then ramp the skin's crack read-out to the
     /// level the real load reader would settle at, with the real crack tick.</summary>
     private static IEnumerator DropWeightAndCrack(BlockDemoStage stage, SandstoneBlockSkin skin,
-        Vector2 from, float damageFrom, float damageTo, float crackPitch)
+        string shape, Vector2 from, float damageFrom, float damageTo, float crackPitch)
     {
-        GameObject weight = DropIn(stage, "Pip", null, from);
+        GameObject weight = DropIn(stage, shape, null, from);
         yield return stage.WaitForLand(weight);
         SfxPlayer.Play("sandstone_crack", 0.6f, 0.06f, crackPitch);
         yield return DriveDamage(skin, damageFrom, damageTo, 0.5f);

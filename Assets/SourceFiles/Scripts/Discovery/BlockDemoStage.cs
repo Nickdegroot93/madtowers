@@ -27,8 +27,8 @@ public sealed class BlockDemoStage : MonoBehaviour
     private static int _originSlot;
 
     // Stage-local framing: the floor's top surface is y = 0, x = 0 is the centre.
-    private const float ViewHalfHeight = 2.7f;  // orthographic size
-    private const float ViewCenterY = 1.85f;    // show mostly the air above the floor
+    private const float ViewHalfHeight = 3.4f;  // orthographic size (Nick: frame like a real board, not a close-up)
+    private const float ViewCenterY = 2.4f;     // show mostly the air above the floor
     private const float FloorHalfWidth = 4.2f;
 
     private Camera _camera;
