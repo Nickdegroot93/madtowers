@@ -151,6 +151,11 @@ Entering a level swaps menu → chapter music; returning to the menu swaps back.
   `AudioMixer` with Music + SFX groups, both players routed to them).
 
 ## Gaps — sounds the game wants but does not have
+- **WIRED but ungenerated (calls are live, clips missing — blocked on `ELEVENLABS_API_KEY`):**
+  `pocket_seal`, `pocket_vent`, `pocket_pop` (Airtight air pockets) and `blackout_in`,
+  `blackout_out` (Blackout power-loss state). Prompts are authored in
+  `Tools/generate_elevenlabs_sfx.py` — one command generates all five:
+  `python3 Tools/generate_elevenlabs_sfx.py --only pocket_seal pocket_vent pocket_pop blackout_in blackout_out`.
 - **Per-ability identity** for everything still on `swoosh_01` / `pop_01`: Brace shield-up,
   Slo-Mo time-warp, Flip queue-swap flick, Hardline catch, Rebound save, Pocket Cache,
   Overdraw shuffle, Suspension gravity-lock, status consumable/combo.
