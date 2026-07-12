@@ -21,7 +21,7 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     public sealed class Wave
     {
         [Min(1)] public int blockCount = 6;
-        [Tooltip("Limit line height in meters above the floor while this wave is being placed.")]
+        [Tooltip("Limit line height in meters above the floor while this wave is being placed. The line actually sits half a cell higher: a tower that exactly fills this height has wobble room without ever fitting one more full row.")]
         [Min(1f)] public float lineHeightAboveFloor = 5f;
     }
 
@@ -59,6 +59,12 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     private int _blocksPlaced;
     private int _lastShownRemaining = -1;
     private float _floorY;
+
+    // Half a cell of leeway above the authored height; read live (not cached at OnLevelStart)
+    // because the active config can resolve after level start on some paths - the same
+    // staleness AirPocketModifier guards against.
+    private float HalfCellGrace => 0.5f * (_context?.GameManager?.ActiveConfig != null
+        ? _context.GameManager.ActiveConfig.GridSpacing : 1f);
     private float _lineY;
     private float _lineTargetY;
     private float _zapCooldown;
@@ -147,8 +153,10 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
 
         _lineY = _lineTargetY = CurrentLineWorldY();
         // Publish the build ceiling so support islands only generate below the line
-        // (GameManager.Awake reset it to infinity at scene load).
-        if (!_finished) TowerHeightLimit.Set(_lineY);
+        // (GameManager.Awake reset it to infinity at scene load). The ceiling gets the
+        // AUTHORED height (grace removed): the grace is zap/visual leeway only - letting it
+        // raise the island band could admit one extra row whose bricks sit flush with the line.
+        if (!_finished) TowerHeightLimit.Set(_lineY - HalfCellGrace);
         CreateLineVisual();
     }
 
@@ -266,8 +274,9 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
 
         // The ceiling follows the SETTLED line, so the freshly revealed island band pops
         // in after the rise completes, not while the line is still gliding through it.
+        // Authored height only - the half-cell grace never feeds the island ceiling (see OnLevelStart).
         bool lineSettled = Mathf.Approximately(_lineY, _lineTargetY);
-        if (lineSettled) TowerHeightLimit.Set(_lineY);
+        if (lineSettled) TowerHeightLimit.Set(_lineY - HalfCellGrace);
 
         if (_waitingForReveal) TickRevealHold(deltaTime, lineSettled);
 
@@ -311,10 +320,15 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
         }
     }
 
+    // The line sits HALF A CELL above the authored height (draw, island ceiling and zap check all
+    // use this one value, so they can never disagree). Authored height = the rows that must fit;
+    // the grace means a tower that exactly fills them can wobble without grazing the laser, while
+    // one more full row still clearly crosses. Without it, a flush-full tower sat a hair under the
+    // line and any settle jiggle zapped it (Nick, July 2026).
     private float CurrentLineWorldY()
     {
         if (waves.Length == 0) return _floorY;
-        return _floorY + waves[Mathf.Clamp(_waveIndex, 0, waves.Length - 1)].lineHeightAboveFloor;
+        return _floorY + waves[Mathf.Clamp(_waveIndex, 0, waves.Length - 1)].lineHeightAboveFloor + HalfCellGrace;
     }
 
     // Countdown riding the right end of the line: blocks left until it rises. Sits just

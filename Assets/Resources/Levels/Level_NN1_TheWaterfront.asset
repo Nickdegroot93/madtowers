@@ -15,8 +15,9 @@ MonoBehaviour:
   displayName: The Waterfront
   menuThumbnail: {fileID: 21300000, guid: 5089b8c535e3a4aa7b2bab13313957e2, type: 3}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: e7daa3104128405ba51018e33535bbb8, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: 230725aa776f457885f43fead2fe857a, type: 2}
   targetType: 1
   targetValue: 100
-  instruction: Stack 100 blocks on the glowing waterfront.
-  modifiers: []
+  instruction: Stack 100 blocks - the void devours whatever touches it!
+  modifiers:
+  - {fileID: 11400000, guid: b916b18165104bef8b55b2675baf32ba, type: 2}

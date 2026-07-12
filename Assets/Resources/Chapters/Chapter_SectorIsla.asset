@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Chapter_SectorIsla
   m_EditorClassIdentifier: Assembly-CSharp::ChapterDefinition
   displayName: Sector Isla
-  chapterNumber: 11
-  sortOrder: 110
+  chapterNumber: 7
+  sortOrder: 70
   levels:
   - {fileID: 11400000, guid: 6aaac36fdfd146179b4762a52a9bf0a4, type: 2}
   - {fileID: 11400000, guid: 3fb93703602b4b53bbe576f05da89fa6, type: 2}

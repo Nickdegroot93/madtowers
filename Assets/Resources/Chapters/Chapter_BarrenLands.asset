@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Chapter_BarrenLands
   m_EditorClassIdentifier: Assembly-CSharp::ChapterDefinition
   displayName: Barren Lands
-  chapterNumber: 2
-  sortOrder: 20
+  chapterNumber: 6
+  sortOrder: 60
   levels:
   - {fileID: 11400000, guid: 7c6b9c01924f4c418ad7dcc0284a157f, type: 2}
   - {fileID: 11400000, guid: 27fbf1f7b0aa4b04af64522f0dfee826, type: 2}

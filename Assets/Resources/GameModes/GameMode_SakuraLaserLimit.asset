@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d0fe95161ec248308119ac199c73fdda, type: 3}
-  m_Name: GameMode_JungleLaserLimit
+  m_Name: GameMode_SakuraLaserLimit
   m_EditorClassIdentifier: 
-  startingLives: 1
-  initialFallSpeed: 2.2
-  maxFallSpeed: 4.4
+  startingLives: 2
+  initialFallSpeed: 2.3
+  maxFallSpeed: 4.6
   difficultyScalingMode: 1
   difficultyAdjustmentMode: 0
-  speedIncreasePerBlock: 0.038
+  speedIncreasePerBlock: 0.036
   speedIncreaseIntervalSeconds: 60
   speedIncreasePerInterval: 0.1
   blockBag:
@@ -31,11 +31,11 @@ MonoBehaviour:
   fallbackBlockDataVariants:
   - {fileID: 11400000, guid: d47f69c0549f64a78b7a3dde80d0f06a, type: 2}
   ambientBlockVariantChances:
-  - variant: {fileID: 11400000, guid: 1f06221198e4489db356e674ea2e6438, type: 2}
-    chancePerBlock: 0.05
+  - variant: {fileID: 11400000, guid: ae824ff3bd9041c8a2c556d36a82b60a, type: 2}
+    chancePerBlock: 0.06
   spawnDelay: 0
   gridSpacing: 1
-  horizontalPlacementBufferColumns: 2
+  horizontalPlacementBufferColumns: 3
   powerUpChoiceEveryBlocks: 10
   powerUpChoicePool:
   - {fileID: 11400000, guid: 0dca35f837a34a25996ebab97183f7aa, type: 2}
@@ -96,7 +96,7 @@ MonoBehaviour:
   slowMotionScale: 0.5
   staticSupportIslandsEnabled: 0
   staticSupportIslandHeightInterval: 1
-  staticSupportIslandSpawnChance: 0.3
+  staticSupportIslandSpawnChance: 0.25
   staticSupportIslandFirstHeight: 9
   staticSupportIslandSpawnAheadHeight: 6
   staticSupportIslandMinColumn: -6
@@ -126,6 +126,9 @@ MonoBehaviour:
   floorSegments:
   - centerColumn: 0
     columnCount: 9
+    baseHeightCells: 0
+    columnHeightSteps: 010000000000000001000000020000000200000002000000010000000000000001000000
+    pockets: []
   minimumCameraY: 0
   towerPeakScreenY: 0.5
   spawnPointScreenY: 0.9

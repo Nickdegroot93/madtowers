@@ -33,5 +33,5 @@ MonoBehaviour:
   - {fileID: 8300000, guid: b02500483b039466caa766384bf2ad57, type: 3}
   - {fileID: 8300000, guid: 4b54c24ba0fbf4116bc932c792222596, type: 3}
   skinFolder: Skins/Crimson
-  alwaysUnlocked: 1
+  alwaysUnlocked: 0
   featuredUnlocks: []

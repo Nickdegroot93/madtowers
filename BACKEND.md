@@ -130,7 +130,7 @@ user"** — and that's fine. Every field obeys DATA.md rule 3 (monotonic, or tim
 ```jsonc
 {
   "schemaVersion": 2,
-  "completedLevelIds": ["Level_TW1_Foundations", "..."],   // set (union merge)
+  "completedLevelIds": ["Level_JD1_TheUndergrowth", "..."],   // set (union merge)
   "bests": [ { "levelId": "...", "bestScore": 84, "bestHeightMeters": 14.2,
                "achievedAtUnixUtc": 1781290000 } ],          // per-metric max merge
   "discoveredBlocks": ["normal", "ice", "maw", "magma"],     // set (union) — drives the Vault

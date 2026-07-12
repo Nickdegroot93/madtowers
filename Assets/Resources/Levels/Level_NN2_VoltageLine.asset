@@ -15,9 +15,9 @@ MonoBehaviour:
   displayName: Voltage Line
   menuThumbnail: {fileID: 21300000, guid: 2d1a128c289324d8a972359a816c6424, type: 3}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: bd1c62ac13cb4aafaf91929f5f3f4941, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: 4a6d223acc884231b144708180fd7b4e, type: 2}
   targetType: 1
-  targetValue: 50
+  targetValue: 60
   instruction: Clear 5 waves - keep the tower under the voltage line!
   modifiers:
-  - {fileID: 11400000, guid: 4191f3fccd90469ea9adb55493cc2e3b, type: 2}
+  - {fileID: 11400000, guid: bdc983b2ff0a43f5bf7e7297ed3eb3d1, type: 2}

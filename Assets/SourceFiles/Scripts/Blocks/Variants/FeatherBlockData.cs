@@ -2,8 +2,9 @@ using UnityEngine;
 
 /// <summary>
 /// A very light brick (mass 0.25) - shoved around by every later landing. It carries a fixed, theme-
-/// independent downy-feather look (FeatherBlockSkin) that gently floats and sways (the "light" read), and
-/// it lands soft - a flutter, no slam. No special physics beyond its low mass. See BLOCKVARIANTS.md.
+/// independent downy-feather look (FeatherBlockSkin) that gently floats and sways while falling (the
+/// "light" read), lands soft - a flutter, no slam - and then sits dead still like any placed brick.
+/// No special physics beyond its low mass. See BLOCKVARIANTS.md.
 /// </summary>
 [CreateAssetMenu(fileName = "FeatherBlockData", menuName = "Stacking/Blocks/Feather Block Variant")]
 public class FeatherBlockData : BlockData

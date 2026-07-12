@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Chapter_MonsoonSector
   m_EditorClassIdentifier: Assembly-CSharp::ChapterDefinition
   displayName: Monsoon Sector
-  chapterNumber: 14
-  sortOrder: 140
+  chapterNumber: 13
+  sortOrder: 130
   levels:
   - {fileID: 11400000, guid: 9f0d966aee354706b885138a5ecb4469, type: 2}
   - {fileID: 11400000, guid: 837c194a6ba84e6e9360105507b0f3ac, type: 2}

@@ -18,6 +18,6 @@ MonoBehaviour:
   gameModeConfig: {fileID: 11400000, guid: 157c61c28f674daaa3b9a47c0827fa20, type: 2}
   targetType: 1
   targetValue: 65
-  instruction: Clear 5 larger waves - stay beneath the vine-light.
+  instruction: Clear 5 waves - stay beneath the vine-light.
   modifiers:
   - {fileID: 11400000, guid: 5cf9f8462bfc4165b9b9ebc1e53a1079, type: 2}

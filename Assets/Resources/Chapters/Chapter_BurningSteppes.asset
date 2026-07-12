@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Chapter_BurningSteppes
   m_EditorClassIdentifier: Assembly-CSharp::ChapterDefinition
   displayName: Burning Steppes
-  chapterNumber: 8
-  sortOrder: 80
+  chapterNumber: 10
+  sortOrder: 100
   levels:
   - {fileID: 11400000, guid: 8d7b86ff0ecb415b9a16f937ed5c3eff, type: 2}
   - {fileID: 11400000, guid: bbca7af9de1d40e09da513dbbdb5fa52, type: 2}

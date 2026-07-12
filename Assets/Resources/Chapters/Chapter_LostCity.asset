@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Chapter_LostCity
   m_EditorClassIdentifier: Assembly-CSharp::ChapterDefinition
   displayName: Lost City
-  chapterNumber: 10
-  sortOrder: 100
+  chapterNumber: 9
+  sortOrder: 90
   levels:
   - {fileID: 11400000, guid: 5dd353a5544c4e2991fb9c6c876444bf, type: 2}
   - {fileID: 11400000, guid: 44302c239ccd430aab0af06cd75b8756, type: 2}

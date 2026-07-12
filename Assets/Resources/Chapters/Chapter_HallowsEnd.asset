@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Chapter_HallowsEnd
   m_EditorClassIdentifier: Assembly-CSharp::ChapterDefinition
   displayName: Hallow's End
-  chapterNumber: 12
-  sortOrder: 120
+  chapterNumber: 14
+  sortOrder: 140
   levels:
   - {fileID: 11400000, guid: dc9a776c7f484804a21216007318a007, type: 2}
   - {fileID: 11400000, guid: 3b379f7e21fc4a38945a77cc5dac1b0f, type: 2}

@@ -13,7 +13,7 @@ written by **`ProgressStore`** (`Scripts/Core/ProgressStore.cs`) to
 ```jsonc
 {
   "schemaVersion": 3,
-  "completedLevelIds": ["Level_TW1_Foundations", "Level_TW2_UnderPressure"],
+  "completedLevelIds": ["Level_JD1_TheUndergrowth", "Level_JD2_CanopyTrial"],
   "bests": [
     { "levelId": "Level_Classic", "bestScore": 84, "bestHeightMeters": 14.2,
       "achievedAtUnixUtc": 1781290000 }
@@ -34,7 +34,9 @@ key; the file is the row.
 1. **One gateway.** Only `ProgressStore` touches the file. Gameplay code calls the narrow
    API (`IsLevelCompleted`, `MarkLevelCompleted`, `ReportResult`, `GetBest`). A cloud
    backend later slots in *behind* this API — zero gameplay changes.
-2. **Stable string IDs.** Levels are identified by asset name (`Level_TW1_Foundations`),
+2. **Stable string IDs.** Levels are identified by asset name (`Level_JD1_TheUndergrowth`);
+   note IDs can outlive their assets (retired levels like `Level_JD4_TempleSprint` may
+   linger in saves — harmless, keep merges tolerant),
    never by array index or object reference. These are the future foreign keys. Renaming
    a level asset orphans its progress — treat asset names as immutable once shipped.
 3. **Monotonic values only.** Completions form a *set* (merge = union); bests are

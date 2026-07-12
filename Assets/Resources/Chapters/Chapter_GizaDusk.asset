@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Chapter_GizaDusk
   m_EditorClassIdentifier: Assembly-CSharp::ChapterDefinition
   displayName: Giza Dusk
-  chapterNumber: 9
-  sortOrder: 90
+  chapterNumber: 11
+  sortOrder: 110
   levels:
   - {fileID: 11400000, guid: 36706b90017e4f5385a256acbf4a830b, type: 2}
   - {fileID: 11400000, guid: 4738119023484f16856b1250857b1663, type: 2}

@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Chapter_NeonNightfall
   m_EditorClassIdentifier: Assembly-CSharp::ChapterDefinition
   displayName: Neon Nightfall
-  chapterNumber: 7
-  sortOrder: 70
+  chapterNumber: 3
+  sortOrder: 30
   levels:
   - {fileID: 11400000, guid: 9bbbfc05ba8a4345b10703fa2f3d3f0b, type: 2}
   - {fileID: 11400000, guid: f300c45b2d614f38aac8124b78082750, type: 2}

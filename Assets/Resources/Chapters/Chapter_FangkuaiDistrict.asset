@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Chapter_FangkuaiDistrict
   m_EditorClassIdentifier: Assembly-CSharp::ChapterDefinition
   displayName: Fangkuai District
-  chapterNumber: 5
-  sortOrder: 50
+  chapterNumber: 8
+  sortOrder: 80
   levels:
   - {fileID: 11400000, guid: 829e6d1e3e4e45a6ae51a588c8346456, type: 2}
   - {fileID: 11400000, guid: 1692fec667bb404d813c8eda100c36f0, type: 2}

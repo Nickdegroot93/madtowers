@@ -15,11 +15,11 @@ MonoBehaviour:
   displayName: Temple Steps
   menuThumbnail: {fileID: 21300000, guid: 6b43e5367f8d74790bad08c3df1ad727, type: 3}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: c22636cd5cec49bbaa438ba699481dfc, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: 8b6225594ead4ab3a557ad38cbeacc8e, type: 2}
   targetType: 2
-  targetValue: 50
+  targetValue: 75
   timeLimitSeconds: 120
-  instruction: Reach 50 meters above the temple roofs.
+  instruction: Reach 75 meters above the temple roofs.
   modifiers: []
   bannedAbilities: []
   abilityRarityProfile: {fileID: 0}

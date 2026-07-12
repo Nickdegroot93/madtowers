@@ -15,12 +15,12 @@ MonoBehaviour:
   displayName: Lantern Drift
   menuThumbnail: {fileID: 21300000, guid: 839af4b8f120847a3a519e079b6729c3, type: 3}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: bd1c62ac13cb4aafaf91929f5f3f4941, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: 56397330212a4f1299e0642b494699fc, type: 2}
   targetType: 1
-  targetValue: 50
+  targetValue: 72
   timeLimitSeconds: 120
-  instruction: Clear the path while the skyline drifts behind you.
+  instruction: Clear 6 waves while the skyline drifts behind you.
   modifiers:
-  - {fileID: 11400000, guid: 4191f3fccd90469ea9adb55493cc2e3b, type: 2}
+  - {fileID: 11400000, guid: 77b246c600bd46fe94e6ecd52ce89d2d, type: 2}
   bannedAbilities: []
   abilityRarityProfile: {fileID: 0}

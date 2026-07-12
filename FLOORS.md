@@ -46,7 +46,13 @@ All heights are ≥ 0 above it — that is what keeps every other system working
   and side faces). If ever needed, that's a new feature, not a config trick.
 - The camera frames all segments automatically; very wide layouts play zoomed out.
 
-### Worked example — the shipped Jungle 1 floor (`GameMode_JungleUndergrowth`)
+### Worked example — a pocketed two-mesa layout (illustrative)
+
+> This was Jungle 1's shipped floor until July 2026; the level is now a flat opener
+> (`GameMode_JungleUndergrowth`, one 9-column segment). The recipe below stays as the
+> canonical steps-plus-pockets example. Shipped floors to study instead:
+> `GameMode_SakuraClassic` (stepped ziggurat), `GameMode_NeonNarrowTrio` (two raised
+> pillars via `baseHeightCells`).
 
 ```
 Floor Segments (size 2)

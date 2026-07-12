@@ -3,8 +3,9 @@
 How the very first level teaches the controls: the step flow, the gesture gating, how each step
 detects that the player did it, where the ghost hand comes from, and how completion is
 remembered so it never repeats. **Built** — code in
-`Scripts/Levels/Modifiers/TutorialModifier.cs`, attached to `Level_TW1_Foundations` via
-`Assets/Data/Modifiers/Tutorial_GestureBasics.asset`.
+`Scripts/Levels/Modifiers/TutorialModifier.cs`, attached to `Level_JD1_TheUndergrowth`
+(chapter 1's opener — it was orphaned when its original host `Level_TW1_Foundations` was
+deleted with the test levels) via `Assets/Data/Modifiers/Tutorial_GestureBasics.asset`.
 
 Built from what already exists: the tutorial is a **`LevelModifier`** (LEVELS.md §1) attached to
 one level, remembered in **`ProgressStore`** (DATA.md), drawn on a **`RuntimeUiKit` overlay
@@ -163,7 +164,8 @@ standalone: attach it to any level and it teaches exactly once.
 ## 7. Open / deferred
 
 - Level goal is Place **100**; the tutorial brief suggested ~50 for a faster first win —
-  one-line change on `Level_TW1_Foundations` when tuning.
+  one-line change on `Level_JD1_TheUndergrowth` (the tutorial's host since the chapter
+  reorder) when tuning.
 - Haptics on step success (no haptics helper exists in the project yet).
 - A scripted "tight spot" obstacle to *motivate* the nudge, and an adaptive re-hint in early
   levels if the player never nudges (research: one exposure is not enough for hidden controls).

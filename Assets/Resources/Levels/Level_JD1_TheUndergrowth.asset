@@ -17,9 +17,10 @@ MonoBehaviour:
   menuChallengeLabelOverride: 
   gameModeConfig: {fileID: 11400000, guid: 0f8155fce14de489ca9547314446a73f, type: 2}
   targetType: 1
-  targetValue: 125
-  timeLimitSeconds: 120
-  instruction: Stack 125 blocks before the jungle closes in.
-  modifiers: []
+  targetValue: 100
+  timeLimitSeconds: 0
+  instruction: Place 100 blocks to rise above the undergrowth.
+  modifiers:
+  - {fileID: 11400000, guid: bad7464b471ca4572a4882c4a610a09c, type: 2}
   bannedAbilities: []
   abilityRarityProfile: {fileID: 0}

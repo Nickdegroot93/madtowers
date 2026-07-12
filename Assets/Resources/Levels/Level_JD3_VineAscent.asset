@@ -17,6 +17,6 @@ MonoBehaviour:
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: d5ef5a8d6a9949148da443c32739fe8c, type: 2}
   targetType: 2
-  targetValue: 60
-  instruction: Reach 60 meters from a three-column jungle floor.
+  targetValue: 75
+  instruction: Reach 75 meters from a four-column jungle floor.
   modifiers: []

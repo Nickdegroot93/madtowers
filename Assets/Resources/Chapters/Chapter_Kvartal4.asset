@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Chapter_Kvartal4
   m_EditorClassIdentifier: Assembly-CSharp::ChapterDefinition
   displayName: Kvartal 4
-  chapterNumber: 6
-  sortOrder: 60
+  chapterNumber: 5
+  sortOrder: 50
   levels:
   - {fileID: 11400000, guid: dc4da170293c446eb1e8f9e37ce15491, type: 2}
   - {fileID: 11400000, guid: bab7586b87864d3eb7cd378d308a5fd4, type: 2}

@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: GameMode_JungleUndergrowth
   m_EditorClassIdentifier: 
   startingLives: 0
-  initialFallSpeed: 2.45
-  maxFallSpeed: 6.25
+  initialFallSpeed: 2.5
+  maxFallSpeed: 5
   difficultyScalingMode: 1
   difficultyAdjustmentMode: 0
-  speedIncreasePerBlock: 0.04
+  speedIncreasePerBlock: 0.028
   speedIncreaseIntervalSeconds: 60
   speedIncreasePerInterval: 0.1
   blockBag:
@@ -32,11 +32,11 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d47f69c0549f64a78b7a3dde80d0f06a, type: 2}
   ambientBlockVariantChances:
   - variant: {fileID: 11400000, guid: 1f06221198e4489db356e674ea2e6438, type: 2}
-    chancePerBlock: 0.04
+    chancePerBlock: 0.05
   spawnDelay: 0
   gridSpacing: 1
   horizontalPlacementBufferColumns: 2
-  powerUpChoiceEveryBlocks: 12
+  powerUpChoiceEveryBlocks: 10
   powerUpChoicePool:
   - {fileID: 11400000, guid: 0dca35f837a34a25996ebab97183f7aa, type: 2}
   - {fileID: 11400000, guid: 6470a3ad296e48478c6cb9447a928492, type: 2}
@@ -124,24 +124,13 @@ MonoBehaviour:
     - {x: 1, y: 0}
     - {x: 0, y: 1}
   floorSegments:
-  - centerColumn: -4
-    columnCount: 5
+  - centerColumn: 0
+    columnCount: 9
     baseHeightCells: 0
-    columnHeightSteps: 0200000000000000000000000000000000000000
-    pockets:
-    - column: 0
-      depthCells: 4
-  - centerColumn: 4
-    columnCount: 5
-    baseHeightCells: 0
-    columnHeightSteps: 0000000000000000010000000000000000000000
-    pockets:
-    - column: 0
-      depthCells: 1
-    - column: 4
-      depthCells: 3
+    columnHeightSteps: 000000000000000000000000000000000000000000000000000000000000000000000000
+    pockets: []
   minimumCameraY: 0
-  towerPeakScreenY: 0.56
+  towerPeakScreenY: 0.5
   spawnPointScreenY: 0.9
   cameraSmoothTime: 0.28
   minimumCameraSize: 15

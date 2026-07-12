@@ -170,10 +170,15 @@ touch engine code.
   laser level...).
 - Tuning knobs on the asset: `waves[]` (blockCount + lineHeightAboveFloor), `lineRiseSeconds`,
   and the laser style — `lineColor`, `lineThickness`, `lineBaseAlpha`, `linePulseAmount`,
-  `linePulseSpeed`. Defaults: **6 @ 5m → 10 @ 8m → 15 @ 13m → 21 @ 20m** (52 blocks total) —
+  `linePulseSpeed`. Shipped standard asset: **6@5 · 8@7 · 10@10 · 12@14 · 14@19** (5 waves, 50 blocks;
+  the code-default 4-wave/52 set was retuned) —
   the rises follow ~3 blocks per meter, so late waves force building wider than the floor
   without becoming unfair. Retune if the floor width changes. A countdown rides the right
   end of the line showing blocks left until it rises.
+- **Half-cell grace (code, all wave assets)**: the line renders and zaps **half a cell above**
+  the authored `lineHeightAboveFloor` — a tower that exactly fills the authored rows can
+  wobble without grazing the laser, but one more full row still crosses. Author heights as
+  "rows that must fit"; never bake the grace into the asset values.
 - Laser **art** follows the active chapter automatically: drop a `laser.png` into
   `Resources/Skins/<Chapter>/` (see ART.md) and every laser level in that chapter uses it;
   no file = the code-built bar. Zapped blocks burst via the reusable `BlockShatterFx`
@@ -235,7 +240,9 @@ touch engine code.
   (8), `spawnChance` (0.85), `spawnAheadHeight` (7), width 2–3 × height 2, lateral band
   ±6 columns, `maxZonesPerRun` (0 = unlimited), `suckSeconds`, `overlapInset`. Per-level
   variants = difficulty tiers.
-- Showcase: Hallow's End's 4th level **"Void Zones"** (Classic, place 100). Stacks freely
+- Campaign debut: **Neon Nightfall's opener "The Waterfront"** (Ch3, `VoidZones_NeonDebut`
+  at half exposure: first zone 12m, every 11m, 65%). Recurring/full-strength showcase:
+  Hallow's End's 4th level **"Void Zones"** (Classic, place 100, `VoidZones_Standard`). Stacks freely
   with other modifiers — voids under a Blackout are memorized hazards.
 - SFX: `void_open` / `void_suck` (generated via ElevenLabs; prompts in the tool).
 
@@ -288,29 +295,46 @@ Each chapter's `skinFolder` drives all generated art (blocks/ground/laser) via
 
 ### Current level inventory
 
-**Chapter: Sakura Ridge (sortOrder 10)** — imported Japan Landscape menu art, layered Japan
-gameplay backdrop, Japan skin folder, sakura-ridge A/B music
+**Chapter: Jungle Depths (sortOrder 10)** — imported Jungle Landscape menu art, layered
+jungle gameplay backdrop, jungle skin folder, jungle A/B music. **Chapter 1, authored to
+PROGRESSION.md**: Vine ambient 5% everywhere, islands/sky platforms off, leniency 0.50,
+power-up choice every 10, speeds from the Ch1 row (2.5→5.0 × mode multiplier) with the
+ramp derived to hit cap at 90% of the goal. The gesture **tutorial**
+(`Tutorial_GestureBasics`) is attached to The Undergrowth (self-gates once completed).
+Former 4th level Temple Sprint (timed) retired to `Assets/Data/LegacyLevels/` — timed
+modes join mid-campaign.
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| Morning Gate | GameMode_Classic | Place 100 | Stacking endurance, Japan dressing. |
-| Lantern Drift | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
-| Temple Steps | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+| The Undergrowth | GameMode_JungleUndergrowth | Place 100 | Tutorial level. Flat 9-column floor (pocketed terrace removed). 2.5→5.0 @ +0.028/blk. |
+| Canopy Trial | GameMode_JungleLaserLimit | Place 65 | 5 height-limit waves (8@5 → 18@19). 2.2→4.4 @ +0.038/blk. |
+| Vine Ascent | GameMode_JungleNarrow3 | Reach 75m | 4-column floor climb, no islands. 2.4→4.75 @ +0.022/blk (~120 expected blocks — calibrate blocks-per-meter). |
 
-**Chapter: Barren Lands (sortOrder 20)** — imported Desert Vibe menu art, layered desert
-gameplay backdrop, desert skin, desert A/B music
+**Chapter: Sakura Ridge (sortOrder 20)** — imported Japan Landscape menu art, layered Japan
+gameplay backdrop, Japan skin folder, sakura-ridge A/B music. **Chapter 2, authored to
+PROGRESSION.md**: Feather debuts at 6% ambient on all three levels, chapter-owned mode
+copies (the standard `GameMode_Classic`/`LaserLimit`/`Narrow3` assets are shared by other
+chapters — never edit those for one chapter), Ch2 speeds (2.6→5.2 × mode multiplier),
+derived ramps. Signature floors: every level plays on a **pagoda-roof profile** (low eaves
+at the edges, high in the middle) — three unique variants, none flat.
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| The Mirage | GameMode_Classic | Place 100 | Stacking endurance, desert dressing. |
-| Sandswept Path | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
-| Rising Dunes | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+| Morning Gate | GameMode_SakuraClassic | Place 100 | Ziggurat pagoda floor [0,1,2,3,3,3,2,1,0]. 2.6→5.2 @ +0.029/blk. |
+| Lantern Drift | GameMode_SakuraLaserLimit | Place 72 | 6 waves (7@6 → 17@24, `HeightLimitWaves_SakuraRidge`; final line raised 22→24 after cell-math showed the squeeze beat Jungle's endgame); upturned-eave floor [1,0,1,2,2,2,1,0,1] kept ≤ +2 for wave headroom. 2.3→4.6 @ +0.036/blk. |
+| Temple Steps | GameMode_SakuraNarrow | Reach 75m | Raised 3-wide altar on 5 columns [0,2,2,2,0]. 2.45→4.95 @ +0.023/blk. |
 
-**Chapter: Jungle Depths (sortOrder 30)** — imported Jungle Landscape menu art, layered
-jungle gameplay backdrop, jungle skin folder, jungle A/B music
+**Chapter: Neon Nightfall (sortOrder 30)** — imported Glowing City pack as a waterfront
+skyline (three hand-placed building bands + far strip, generated `water_neon` band, two
+drifting boat strips, fairy-light promenade + vine-fence foreground), Neon skin folder
+with the wet-pavement floor, neon-nightfall menu art, neon-nightfall A/B music
+**Chapter 3, authored to PROGRESSION.md**: no special bricks yet (signature TBD — more
+ideas to come), Ch3 speeds (2.7→5.4 × mode multiplier), derived ramps. The chapter's
+identity for now: the campaign's **first Void Zones level** as the opener, and its first
+genuinely hard puzzle.
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| The Undergrowth | GameMode_JungleClassic | Place 125 | Faster classic variant; fewer placement buffer columns; choices every 12 blocks. |
-| Canopy Trial | GameMode_JungleLaserLimit | Place 65 | Height-limit waves with larger waves and fewer lives. |
-| Vine Ascent | GameMode_JungleNarrow3 | Reach 60m | Faster 3-column climb with denser side islands and stricter camera framing. |
+| The Waterfront | GameMode_NeonVoidZones | Place 100 | **Void Zones debut** (`VoidZones_NeonDebut`: first zone at 12m, every 11m, 65% chance — roughly half the standard asset's exposure; `VoidZones_Standard` stays the recurring-level tuning). Flat 9 floor. 2.3→4.6 @ +0.026/blk (×0.85 hard-mode multiplier). |
+| Voltage Line | GameMode_NeonLaserLimit | Place 60 | **Hard puzzle**: 5 waves 7@4 · 9@7 · 12@10 · 14@13 · 18@18 (integer heights only — a .5 height plus the half-cell grace would land the line back on a row boundary) (`HeightLimitWaves_NeonNightfall`) — low opening line, tight rises; final squeeze needs ~13.5 of the 15 reachable columns (Jungle-endgame density, verified by cell math). 2.4→4.75 @ +0.044/blk. |
+| Penthouse Run | GameMode_NeonNarrowTrio | Reach 60m | **Two rooftop pillars** (w2 @ +2 low, w1 spire @ +7, 1-col gap — iterated down from trio; three pillars played too easy, Nick's call). The 2-wide sits under the spawn. 2.55→5.15 @ +0.031/blk. |
 
 **Chapter: Frozen Peaks (sortOrder 40)** — imported Winter Mountain Landscape gameplay
 backdrop (+ generated `clouds_winter` drift strip), Winter skin folder, frozen-peaks
@@ -321,16 +345,7 @@ menu art, frozen-peaks A/B music
 | Whiteout Pass | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
 | Summit Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
 
-**Chapter: Fangkuai District (sortOrder 50)** — imported Chinese City gameplay backdrop
-(feathered `bg_dusk` plate + generated `clouds_dusk` drift strip), Fangkuai skin folder,
-fangkuai-district menu art, fangkuai-district A/B music
-| Level | Mode | Goal | Notes |
-|---|---|---|---|
-| The Night Market | GameMode_Classic | Place 100 | Stacking endurance, dusk-city dressing. |
-| Firecracker Alley | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
-| Pagoda Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
-
-**Chapter: Kvartal 4 (sortOrder 60)** — imported Sovietwave Panel Buildings pack as a
+**Chapter: Kvartal 4 (sortOrder 50)** — imported Sovietwave Panel Buildings pack as a
 hand-placed night skyline (individual panelka sprites + treeline/fence strips + pack moon,
 generated `clouds_night` drift strip), Kvartal skin folder, kvartal-4 menu art,
 kvartal-4 A/B music
@@ -341,17 +356,49 @@ kvartal-4 A/B music
 | Antenna Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
 | Airtight | GameMode_Classic | Place 100 | Airtight mode (AirPocket_Standard): sealed hollows detonate — see "Airtight details". |
 
-**Chapter: Neon Nightfall (sortOrder 70)** — imported Glowing City pack as a waterfront
-skyline (three hand-placed building bands + far strip, generated `water_neon` band, two
-drifting boat strips, fairy-light promenade + vine-fence foreground), Neon skin folder
-with the wet-pavement floor, neon-nightfall menu art, neon-nightfall A/B music
+**Chapter: Barren Lands (sortOrder 60)** — imported Desert Vibe menu art, layered desert
+gameplay backdrop, desert skin, desert A/B music
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| The Waterfront | GameMode_Classic | Place 100 | Stacking endurance, glowing-city dressing. |
-| Voltage Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
-| Penthouse Run | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+| The Mirage | GameMode_Classic | Place 100 | Stacking endurance, desert dressing. |
+| Sandswept Path | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
+| Rising Dunes | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
 
-**Chapter: Burning Steppes (sortOrder 80)** — imported 2D Volcano Landscape pack (erupting
+**Chapter: Sector Isla (sortOrder 70)** — imported Secret Island pack (green-dusk lagoon:
+crescents sheet, pale far mountains, wheel-city masses over a tiled palm row, teal island
+bands incl. the two-figure accent, generated `water_isla` band + `boat_strip_isla` — the
+pack's speedboat on a wide mostly-empty drift strip at +1.6 u/s, so it crosses fast, leaves
+the screen entirely and returns ~once a minute; hanging-canopy fg sprites deliberately
+skipped in a vertical game), Island skin folder with mossy cobble floor, firefly motes +
+songbird flock, sector-isla menu art, one music track (b was a duplicate of a)
+| Level | Mode | Goal | Notes |
+|---|---|---|---|
+| The Lagoon | GameMode_Classic | Place 100 | Stacking endurance, lagoon dressing. |
+| Marina Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
+| Skywheel Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+
+**Chapter: Fangkuai District (sortOrder 80)** — imported Chinese City gameplay backdrop
+(feathered `bg_dusk` plate + generated `clouds_dusk` drift strip), Fangkuai skin folder,
+fangkuai-district menu art, fangkuai-district A/B music
+| Level | Mode | Goal | Notes |
+|---|---|---|---|
+| The Night Market | GameMode_Classic | Place 100 | Stacking endurance, dusk-city dressing. |
+| Firecracker Alley | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
+| Pagoda Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+
+**Chapter: Lost City (sortOrder 90)** — imported Lost City / Distant Planet pack (giant-moon
+plate as a chapter-owned `bg_moon_lc` copy with the below-skyline half flattened to clean fog
+— the vendor plate's moon bottom + fog-band edges expose as tone rectangles mid-climb in
+portrait; eight-band teal/orange depth ladder LC1→LC8 used in full, pack streak-cloud strip
+drifting), LostCity skin folder with slate-teal cobble ruin floor, pale teal motes + 2 night
+birds, lost-city menu art, lost-city A/B music
+| Level | Mode | Goal | Notes |
+|---|---|---|---|
+| The Oasis Gate | GameMode_Classic | Place 100 | Stacking endurance, alien-moon dressing. |
+| Aqueduct Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
+| Monolith Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+
+**Chapter: Burning Steppes (sortOrder 100)** — imported 2D Volcano Landscape pack (erupting
 hero volcano centered via `worldOffsetX`, chapter-owned `cliffs_near` copy with a jagged-cut
 skyline replacing the vendor sprite's flat crop top, `light MF` lava-glow wash, generated
 `clouds_ash` drift strip), Volcano skin folder with the basalt/lava-joint floor, ember
@@ -362,7 +409,7 @@ particles + heat haze + lone vulture, burning-steppes menu art, burning-steppes 
 | Eruption Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
 | Crater Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
 
-**Chapter: Giza Dusk (sortOrder 90)** — imported Cyber Egypt pack (the pack's flying
+**Chapter: Giza Dusk (sortOrder 110)** — imported Cyber Egypt pack (the pack's flying
 pyramids extracted from the plate into two hovering sky layers `pyramid_small` +
 `pyramid_big` (vP 0.8, desynced hover periods, sink slowly on the climb); chapter-owned `bg_dusk_ce` plate copy keeps the
 sun but drops the baked-in fleet so it can't crop at the portrait edge; four silhouette
@@ -382,54 +429,7 @@ faces). The Giza mode assets are copies of the standard ones with every standard
 four times in the bag + the pyramid once (≈1/29 ≈ 3% of spawns — Nick's call: a 3-wide
 dead-top brick is a big event, keep it rare).
 
-**Chapter: Lost City (sortOrder 100)** — imported Lost City / Distant Planet pack (giant-moon
-plate as a chapter-owned `bg_moon_lc` copy with the below-skyline half flattened to clean fog
-— the vendor plate's moon bottom + fog-band edges expose as tone rectangles mid-climb in
-portrait; eight-band teal/orange depth ladder LC1→LC8 used in full, pack streak-cloud strip
-drifting), LostCity skin folder with slate-teal cobble ruin floor, pale teal motes + 2 night
-birds, lost-city menu art, lost-city A/B music
-| Level | Mode | Goal | Notes |
-|---|---|---|---|
-| The Oasis Gate | GameMode_Classic | Place 100 | Stacking endurance, alien-moon dressing. |
-| Aqueduct Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
-| Monolith Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
-
-**Chapter: Sector Isla (sortOrder 110)** — imported Secret Island pack (green-dusk lagoon:
-crescents sheet, pale far mountains, wheel-city masses over a tiled palm row, teal island
-bands incl. the two-figure accent, generated `water_isla` band + `boat_strip_isla` — the
-pack's speedboat on a wide mostly-empty drift strip at +1.6 u/s, so it crosses fast, leaves
-the screen entirely and returns ~once a minute; hanging-canopy fg sprites deliberately
-skipped in a vertical game), Island skin folder with mossy cobble floor, firefly motes +
-songbird flock, sector-isla menu art, one music track (b was a duplicate of a)
-| Level | Mode | Goal | Notes |
-|---|---|---|---|
-| The Lagoon | GameMode_Classic | Place 100 | Stacking endurance, lagoon dressing. |
-| Marina Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
-| Skywheel Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
-
-**Chapter: Hallow's End (sortOrder 120)** — imported Halloween pack (blood-dusk graveyard,
-composed at the demo scene's own proportions — sizes are scene px × scale, all rows share
-one ground line with bases sunk into the fog; a first hand-eyeballed pass read half-empty
-with apron seams. Ember sky plate, `light2` red horizon glow (soft-edged, single placement),
-eclipse ring + halo upper-right (`sunEnabled` stays 0 — one sun rule), tiled far-mountain
-band + masses, ruined church/farm/fence skyline ring, the three big `b1-b3` vine-canopy
-masses as the midground wall, three 12u gnarled trees on the flanks, telephone-pole wire
-strip (poles plant below the datum), graves-and-fence plate (its uniform fill colour ==
-apron == `groundFogColor`, so it dissolves seamlessly), `cart_strip_hallow` — the pack's
-pumpkin wagon rebuilt from car + 4 spoked wheels + glow at the demo scene's offsets,
-drifting −1.35 u/s hitch-first on a 6144px mostly-empty strip (~36s per crossing), wheels
-tucked behind the fence rows; chunky glowing jack-o'-lantern hedge capped at ~+0.8 so the
-tower base stays readable; hanging-canopy `fgrnd`, white `cloud4` and the additive pumpkin
-light sheets deliberately skipped), Hallow skin folder with graveyard cobble floor and
-lantern-amber cap, ember motes + bat flock, hallows-end menu art, hallows-end A/B music
-| Level | Mode | Goal | Notes |
-|---|---|---|---|
-| The Pumpkin Patch | GameMode_Classic | Place 100 | Stacking endurance, pumpkin-patch dressing. |
-| Lantern Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
-| Blood Moon Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
-| Void Zones | GameMode_Classic | Place 100 | Void Zones mode (VoidZones_Standard): forbidden sky rectangles devour placed bricks — see "Void Zones details". |
-
-**Chapter: Amber Tide (sortOrder 130)** — imported Tropical Landscape pack (pink-amber
+**Chapter: Amber Tide (sortOrder 120)** — imported Tropical Landscape pack (pink-amber
 tropical sunset composed at the demo scene's proportions: baked-sun sky plate with the
 `Glare TL` lens-flare bubbles as a companion layer (`sunEnabled` stays 0 — one sun rule),
 the pack's own 30u cloud sheet drifting 0.12, two pale far ridges + two coral mid rows
@@ -444,7 +444,7 @@ amber-tide menu art (light top), amber-tide A/B music
 | Tide Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
 | Sundown Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
 
-**Chapter: Monsoon Sector (sortOrder 140)** — imported TechnoCity Rain Mode pack (rainy
+**Chapter: Monsoon Sector (sortOrder 130)** — imported TechnoCity Rain Mode pack (rainy
 green cyber-city, composed by the deterministic method: each vendor layer folder shares
 one ground line (far `d` −12.87, mid `c` −8.25, dark `b` −9.10, foreground −10.2), mapped
 to our floor by a single constant so floorOffsetY = vendor_bottom + 9.4. Three building
@@ -470,6 +470,39 @@ monsoon-sector menu art, monsoon-sector A/B music
 | The Palm Road | GameMode_Classic | Place 100 | Stacking endurance, rain-slick dressing. |
 | Wire Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
 | Skyline Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+
+**Chapter: Hallow's End (sortOrder 140)** — imported Halloween pack (blood-dusk graveyard,
+composed at the demo scene's own proportions — sizes are scene px × scale, all rows share
+one ground line with bases sunk into the fog; a first hand-eyeballed pass read half-empty
+with apron seams. Ember sky plate, `light2` red horizon glow (soft-edged, single placement),
+eclipse ring + halo upper-right (`sunEnabled` stays 0 — one sun rule), tiled far-mountain
+band + masses, ruined church/farm/fence skyline ring, the three big `b1-b3` vine-canopy
+masses as the midground wall, three 12u gnarled trees on the flanks, telephone-pole wire
+strip (poles plant below the datum), graves-and-fence plate (its uniform fill colour ==
+apron == `groundFogColor`, so it dissolves seamlessly), `cart_strip_hallow` — the pack's
+pumpkin wagon rebuilt from car + 4 spoked wheels + glow at the demo scene's offsets,
+drifting −1.35 u/s hitch-first on a 6144px mostly-empty strip (~36s per crossing), wheels
+tucked behind the fence rows; chunky glowing jack-o'-lantern hedge capped at ~+0.8 so the
+tower base stays readable; hanging-canopy `fgrnd`, white `cloud4` and the additive pumpkin
+light sheets deliberately skipped), Hallow skin folder with graveyard cobble floor and
+lantern-amber cap, ember motes + bat flock, hallows-end menu art, hallows-end A/B music
+| Level | Mode | Goal | Notes |
+|---|---|---|---|
+| The Pumpkin Patch | GameMode_Classic | Place 100 | Stacking endurance, pumpkin-patch dressing. |
+| Lantern Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
+| Blood Moon Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+| Void Zones | GameMode_Classic | Place 100 | Void Zones mode (VoidZones_Standard): forbidden sky rectangles devour placed bricks — see "Void Zones details". |
+
+**Chapter: Crimson Core (sortOrder 150)** — the Blackout home chapter (dark crimson city,
+chapter-owned pre-tinted retro-sun flipbook — 20 scrolling-band frames @ 12 fps, see
+AMBIENCE.md/BACKDROPS.md/ASSET_IMPORTS.md). All three levels attach
+`ScheduledStatus_Blackout_Standard` (first blackout after 45 s, then every 75 s,
+graceBlocks 8 — see the Blackout game type above).
+| Level | Mode | Goal | Notes |
+|---|---|---|---|
+| Night Shift | GameMode_Classic | Place 100 | Stacking endurance in scheduled darkness. |
+| Red Grid | GameMode_LaserLimit | Place 50 | Height-limit waves under blackouts. |
+| Core Ascent | GameMode_Narrow3 | Reach 50m | 3-column climb by lantern light. |
 
 | Path | Contents |
 |---|---|

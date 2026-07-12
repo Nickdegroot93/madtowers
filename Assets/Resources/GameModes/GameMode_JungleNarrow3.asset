@@ -14,10 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   startingLives: 0
   initialFallSpeed: 2.4
-  maxFallSpeed: 6.2
+  maxFallSpeed: 4.75
   difficultyScalingMode: 1
   difficultyAdjustmentMode: 0
-  speedIncreasePerBlock: 0.04
+  speedIncreasePerBlock: 0.022
   speedIncreaseIntervalSeconds: 60
   speedIncreasePerInterval: 0.1
   blockBag:
@@ -32,11 +32,11 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d47f69c0549f64a78b7a3dde80d0f06a, type: 2}
   ambientBlockVariantChances:
   - variant: {fileID: 11400000, guid: 1f06221198e4489db356e674ea2e6438, type: 2}
-    chancePerBlock: 0.04
+    chancePerBlock: 0.05
   spawnDelay: 0
   gridSpacing: 1
   horizontalPlacementBufferColumns: 2
-  powerUpChoiceEveryBlocks: 12
+  powerUpChoiceEveryBlocks: 10
   powerUpChoicePool:
   - {fileID: 11400000, guid: 0dca35f837a34a25996ebab97183f7aa, type: 2}
   - {fileID: 11400000, guid: 6470a3ad296e48478c6cb9447a928492, type: 2}
@@ -125,9 +125,9 @@ MonoBehaviour:
     - {x: 0, y: 1}
   floorSegments:
   - centerColumn: 0
-    columnCount: 3
+    columnCount: 4
   minimumCameraY: 0
-  towerPeakScreenY: 0.58
+  towerPeakScreenY: 0.5
   spawnPointScreenY: 0.9
   cameraSmoothTime: 0.28
   minimumCameraSize: 15
