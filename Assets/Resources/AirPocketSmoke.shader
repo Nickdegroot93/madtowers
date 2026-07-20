@@ -1,17 +1,22 @@
 Shader "MadTowers/AirPocketSmoke"
 {
     // Airtight mode's sealed-pocket hazard: ONE volume of dark pressure-smoke swelling out of
-    // the pocket's centre until it fills the whole sealed region. The per-cell quads are just
-    // windows onto a single WORLD-SPACE field (density, noise and the ember edge are all
-    // evaluated in world coordinates), so the smoke crosses cell boundaries seamlessly - a
-    // multi-cell pocket reads as one organic cloud, never as cells filling individually.
+    // the pocket's centre until it fills the whole sealed region. The quad is just a window
+    // onto a single WORLD-SPACE field (density, noise and the ember edge are all evaluated
+    // in world coordinates); the pocket's SHAPE comes from _MaskTex - a tiny bilinear texture
+    // with one texel per sealed cell, sampled in world space. The smoke's boundary is the
+    // mask's soft edge displaced by noise, so a full pocket still reads as a torn, churning
+    // cloud that bulges a fraction of a cell past the bricks - never as a clean rectangle.
     // _Fill 0..1 drives the blob's radius from the centre (_Center/_Extent, set per pocket by
-    // AirPocketFx); the boundary is noise-torn and churns faster as the fuse runs down, and a
-    // pulsing ember rim rides the smoke's edge. Theme-independent by design - identical in
-    // every chapter (same rule as Magma's fixed look).
+    // AirPocketFx); the boundary churns faster as the fuse runs down, and a pulsing ember rim
+    // rides the smoke's edge. Theme-independent by design - identical in every chapter (same
+    // rule as Magma's fixed look).
     Properties
     {
         [PerRendererData] _MainTex ("Sprite", 2D) = "white" {}
+        _MaskTex ("Pocket Cell Mask", 2D) = "white" {}
+        _MaskOrigin ("Mask Origin (world xy of texel 0,0)", Vector) = (0, 0, 0, 0)
+        _MaskInvSize ("Mask Inverse World Size", Vector) = (1, 1, 0, 0)
         _Fill ("Fill Level", Range(0, 1)) = 0
         _Center ("Region Centre (world xy)", Vector) = (0, 0, 0, 0)
         _Extent ("Region Extent (world units)", Float) = 1
@@ -47,9 +52,13 @@ Shader "MadTowers/AirPocketSmoke"
 
             TEXTURE2D(_MainTex);
             SAMPLER(sampler_MainTex);
+            TEXTURE2D(_MaskTex);
+            SAMPLER(sampler_MaskTex);
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
+                float4 _MaskOrigin;
+                float4 _MaskInvSize;
                 float _Fill;
                 float4 _Center;
                 float _Extent;
@@ -131,7 +140,19 @@ Shader "MadTowers/AirPocketSmoke"
                 // The blob's torn edge: radius grows with _Fill past the farthest corner, and
                 // the boundary is displaced by the noise so it billows, never a clean circle.
                 float radius = _Fill * 1.35;
-                float edge = radius - d - (n - 0.5) * 0.38;
+                float radialEdge = radius - d - (n - 0.5) * 0.38;
+
+                // The pocket's shape: the mask is bilinear, so it crosses 0.5 exactly at the
+                // cell boundary and fades over one cell. A second, finer churn field displaces
+                // that threshold, so the smoke bulges past the bricks by a fraction of a cell -
+                // pressure straining at the seams - instead of clipping to a hard rectangle
+                // once the blob outgrows the cavity.
+                float2 maskUV = (i.worldXY - _MaskOrigin.xy) * _MaskInvSize.xy;
+                float m = SAMPLE_TEXTURE2D(_MaskTex, sampler_MaskTex, maskUV).r;
+                float nEdge = smoke((_Center.xy + sw) * _NoiseScale * 1.9 + 37.0, t * 0.7);
+                float maskEdge = (m - 0.5 + (nEdge - 0.5) * 0.5) * 1.5;
+
+                float edge = min(radialEdge, maskEdge);
                 float density = smoothstep(0.0, 0.22, edge);
                 if (density <= 0.003) discard;
 

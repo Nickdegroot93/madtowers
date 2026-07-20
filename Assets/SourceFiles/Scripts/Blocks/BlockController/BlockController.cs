@@ -369,6 +369,10 @@ public partial class BlockController : MonoBehaviour
         }
     }
 
+    /// <summary>The block's solid (non-trigger) colliders - the live shapes for geometric
+    /// coverage tests. Cell CENTERS snapped to the grid lie once a tower tilts; these don't.</summary>
+    public IReadOnlyList<Collider2D> SolidColliders => _cellGeometry.SolidColliders;
+
     // ---- Off-screen loss (driven by LossZone's camera-relative cull) -----------------------
 
     // "Falling" for the cull test. An unlocked piece can't be judged by velocity (steering
