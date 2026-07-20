@@ -17,10 +17,10 @@ MonoBehaviour:
   menuChallengeLabelOverride: 
   gameModeConfig: {fileID: 11400000, guid: 51d78738f41e640cf996306c67fcdafa, type: 2}
   targetType: 1
-  targetValue: 50
+  targetValue: 68
   timeLimitSeconds: 120
   instruction: Clear 5 waves - keep the tower under the obelisk line!
   modifiers:
-  - {fileID: 11400000, guid: 4191f3fccd90469ea9adb55493cc2e3b, type: 2}
+  - {fileID: 11400000, guid: b4556488f50e4c828a64b975013618c1, type: 2}
   bannedAbilities: []
   abilityRarityProfile: {fileID: 0}

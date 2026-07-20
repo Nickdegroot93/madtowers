@@ -15,7 +15,7 @@ MonoBehaviour:
   displayName: The Night Market
   menuThumbnail: {fileID: 21300000, guid: 4ee9ad82a43eb4648a08597768769d29, type: 3}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: e7daa3104128405ba51018e33535bbb8, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: fe2523f8aeca46f1b819fe6c1c7c5f5f, type: 2}
   targetType: 1
   targetValue: 100
   instruction: Stack 100 blocks under the lantern glow.

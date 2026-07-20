@@ -15,9 +15,9 @@ MonoBehaviour:
   displayName: Core Ascent
   menuThumbnail: {fileID: 0}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: c22636cd5cec49bbaa438ba699481dfc, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: fba34891ee844825a68c707e4d77783c, type: 2}
   targetType: 2
-  targetValue: 50
-  instruction: Reach 50 meters above the crimson core.
+  targetValue: 110
+  instruction: Reach 110 meters up the core shaft - lights out!
   modifiers:
   - {fileID: 11400000, guid: 57cc85b4d35a4aeeae634ad54ee1bfea, type: 2}

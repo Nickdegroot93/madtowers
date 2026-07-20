@@ -15,8 +15,9 @@ MonoBehaviour:
   displayName: The Lagoon
   menuThumbnail: {fileID: 21300000, guid: 89e91f677c14d44628e13fc5d28db16b, type: 3}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: e7daa3104128405ba51018e33535bbb8, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: b19f7cd20ba0494cb0b937677c46927b, type: 2}
   targetType: 1
   targetValue: 100
-  instruction: Stack 100 blocks over the secret lagoon.
-  modifiers: []
+  instruction: Stack 100 blocks airtight - sealed hollows detonate!
+  modifiers:
+  - {fileID: 11400000, guid: dfd2ed6d4bbb486faf213ba3cf0cbcc4, type: 2}

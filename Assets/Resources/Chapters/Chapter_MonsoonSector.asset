@@ -22,7 +22,7 @@ MonoBehaviour:
   menuBackgroundVideo: {fileID: 0}
   menuBackgroundImage: {fileID: 21300000, guid: 6d7e1f7352bc04c8aa7e10df7f5210ab, type: 3}
   nextChapterPreviewImage: {fileID: 0}
-  menuTopIsLight: 1
+  menuTopIsLight: 0
   menuAccentColor: {r: 0.45, g: 0.95, b: 0.6, a: 1}
   menuAccentSecondaryColor: {r: 0.4, g: 0.8, b: 0.85, a: 1}
   menuPanelColor: {r: 0.04, g: 0.1, b: 0.08, a: 0.78}

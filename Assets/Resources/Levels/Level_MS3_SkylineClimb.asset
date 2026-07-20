@@ -15,8 +15,8 @@ MonoBehaviour:
   displayName: Skyline Climb
   menuThumbnail: {fileID: 0}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: c22636cd5cec49bbaa438ba699481dfc, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: f308407e7a3f4d13b77ed710fcdb64d7, type: 2}
   targetType: 2
-  targetValue: 50
-  instruction: Reach 50 meters above the monsoon sector.
+  targetValue: 100
+  instruction: Reach 100 meters above the monsoon sector.
   modifiers: []

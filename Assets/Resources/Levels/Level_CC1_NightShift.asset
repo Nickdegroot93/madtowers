@@ -15,7 +15,7 @@ MonoBehaviour:
   displayName: Night Shift
   menuThumbnail: {fileID: 0}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: e7daa3104128405ba51018e33535bbb8, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: 73ba4e67b7f944b2aa982a97a84c5d0b, type: 2}
   targetType: 1
   targetValue: 100
   instruction: Stack 100 blocks beneath the crimson sun.

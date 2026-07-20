@@ -15,8 +15,8 @@ MonoBehaviour:
   displayName: Crater Climb
   menuThumbnail: {fileID: 21300000, guid: 236db7a9a33714d4ba409c7bc88800bf, type: 3}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: c22636cd5cec49bbaa438ba699481dfc, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: 84794e219c124e3e92c1d8c68264b35a, type: 2}
   targetType: 2
-  targetValue: 50
-  instruction: Reach 50 meters above the molten fields.
+  targetValue: 85
+  instruction: Reach 85 meters out of the crater.
   modifiers: []

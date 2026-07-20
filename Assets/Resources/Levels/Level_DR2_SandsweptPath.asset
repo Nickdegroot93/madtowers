@@ -15,9 +15,9 @@ MonoBehaviour:
   displayName: Sandswept Path
   menuThumbnail: {fileID: 21300000, guid: 670bdebacf0c424aa96a4d770bc1dfed, type: 3}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: bd1c62ac13cb4aafaf91929f5f3f4941, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: 7a1057ff1a3f4f019754d0d121f61e4b, type: 2}
   targetType: 1
-  targetValue: 50
+  targetValue: 72
   instruction: Clear 5 waves - stay under the shimmering laser!
   modifiers:
-  - {fileID: 11400000, guid: 4191f3fccd90469ea9adb55493cc2e3b, type: 2}
+  - {fileID: 11400000, guid: 063962dc194443bfa31086a2a87e2d2a, type: 2}

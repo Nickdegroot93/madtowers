@@ -20,7 +20,7 @@ MonoBehaviour:
     solid the instant it lands, becoming permanent terrain that holds even when the
     blocks beneath it vanish - a free foothold to build from. Stack this to see them
     more often.
-  rarity: 1
+  rarity: 2
   unique: 0
   maxStacks: 2
   requiresVariantsInLevel: []

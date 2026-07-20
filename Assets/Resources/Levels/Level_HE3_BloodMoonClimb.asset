@@ -15,8 +15,8 @@ MonoBehaviour:
   displayName: Blood Moon Climb
   menuThumbnail: {fileID: 21300000, guid: 116b5b55296134236b32dd818277251f, type: 3}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: c22636cd5cec49bbaa438ba699481dfc, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: 0a3b1317de3d4772bb20dd8f653ed849, type: 2}
   targetType: 2
-  targetValue: 50
-  instruction: Reach 50 meters under the blood moon.
+  targetValue: 90
+  instruction: Reach 90 meters - feed the maws their own tower!
   modifiers: []

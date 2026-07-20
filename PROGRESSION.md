@@ -21,7 +21,18 @@ physics contract (never tune impact for difficulty) is [PHYSICS.md](PHYSICS.md).
 > the opener, Temple Sprint retired. Ch2 Sakura Ridge: Feather @6%, chapter-owned mode
 > copies, three pagoda-profile floors, 6 waves / 72 (final line 24). Ch3 Neon Nightfall:
 > Void Zones opener, hard 5-wave puzzle (60), trio-pillar climb to 60m; no signature brick
-> yet. (Details in LEVELS.md.) **Wave achievability rule**: pieces are 4 cells, reachable
+> yet. Ch4 Frozen Peaks: Ice debuts at volume (28% everywhere — playtest-bracketed: 10–15%
+> too easy, 50% too rough), mountain floors, summit-spike wall climb. Ch5 Kvartal 4:
+> Locked debuts (10/8/10% on the first three levels, incl. the first true 3-column climb),
+> Airtight debuts as the Locked-free wall; panelka floors carry the campaign's first
+> (shallow) pockets. Ch6 Barren Lands: Sandstone @5% (12% playtested too frequent.
+> The tuning rule that fell out: judge a brick by WHEN its hazard is live — Locked is
+> hazardous only before landing, Ice mostly at landing, but Sandstone stays an OPEN problem
+> whose risk compounds with every later placement, so each one on the board adds permanent
+> mental load; open-problem bricks tune single-digit like destructive ones), deep-pocket
+> canyon floors (the pocket showcase), dust weather parked for later. Ch7 Sector Isla: Airtight opener, Anchor debut @3% (AnchorSpawn ability Rare→Epic), tough puzzle, first timed level (40/180 s). Ch8 Fangkuai District: Vortex debut @8% (4% on the 4th level; 6% felt too scarce), lantern-post/alley/staircase floors, Void Zones II at full standard strength (new Level_FD4_VoidGate). Ch9 Lost City: Boulder @5/4/4% + Tremor @6/5/5% (3-4% playtested invisible; Tremor's burst resolves on landing, so it tunes above the open-problem band) (the double-debut exception), levitating-ruin floors, first sky platforms (sparse: 6m interval @35%, off in the climb). 4th level Hollow Moon: Airtight III on stepped terrain (Place 100). Ch10 Burning Steppes: Magma @10% + Bomb @4/3/4%, rift/vent/crater floors, first flat-rise wave set (older sets due a sweep — late waves played too easy because rises accelerated). **Magma inflates counted blocks ×4 per piece** — scale PlaceBlocks/wave targets by (1+3×rate) wherever magma rides the bag, keep wave lines unchanged, derive ramps from inflated targets; height goals unaffected (Nick's catch, ch10 scaled ×1.3). Ch11 Giza Dusk: Void Zones III opener (9m/7m/90%), broken-obelisk + great-pyramid floors, Reach 90m, no Airtight (pyramid faces + sealing = too much), Giza laser scaling fixed. Ch12 Amber Tide: Vine recurs @12%, signature TBD (Nick); interim identity = nothing-touches-the-ground floors (floating slabs / archipelago) + the most island-forward sky-platform tuning (4m @50%, off in the climb), Reach 95m. Ch13 Monsoon Sector: Airtight opener + Locked @3% on every level (first hostile brick inside an Airtight — the poison combo), catenary/skyline floors, first Reach 100m, menuTopIsLight fixed. Ch14 Hallow's End: Maw debut @3% (opener only), the Maw Sort climb (50% maw, two 4-wide pillars, 2 lives), gallows-platform waves, void showcase at Ch14 pace. Ch15 Crimson Core (finale): Bomb @4/3/4% (fuse glow pierces the blackout), Reactor/circuit/core-shaft floors, Reach 110m; Blackout's 0.90 stacks on every level's multiplier. ALL 15 CHAPTERS AUTHORED.
+> Note this makes Ice the precedent that MILD hazards can run far past the single-digit
+> band — the single-digit rule stays for destructive bricks (Bomb/Maw/Tremor). (Details in LEVELS.md.) **Wave achievability rule**: pieces are 4 cells, reachable
 > width = floor + buffer columns both sides; keep the final squeeze at ≤ ~90% of max-width
 > capacity (Jungle's endgame ≈ the hard edge; standard ≈ the comfy edge). **Laser modes
 > must set `difficultyScalingMode: PerBlock`** — the shipped standard/Giza laser modes use
@@ -50,9 +61,10 @@ physics contract (never tune impact for difficulty) is [PHYSICS.md](PHYSICS.md).
   it.
 - **Every chapter's first level is beatable cold.** The opener of a chapter is the gentlest
   level in it; the last is the wall. Never open a chapter on its hardest idea.
-- **Positives can be common; hazards stay rare.** Anchor/Vine may sit at 10–20% or be a bag
-  default. Bomb/Maw/Tremor stay in the single digits — one is a spike of tension, a swarm is
-  a coin-flip.
+- **Positives can be common; destructive hazards stay rare.** Anchor/Vine may sit at 10–20%
+  or be a bag default. MILD hazards (Ice, Feather, Locked — annoying, not destructive) can
+  run as high as a level's identity demands (Frozen Peaks ships Ice at 28%; 50% playtested as too rough). Bomb/Maw/Tremor
+  stay in the single digits — one is a spike of tension, a swarm is a coin-flip.
 
 ---
 

@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: GameMode_GizaClassic
   m_EditorClassIdentifier: 
   startingLives: 0
-  initialFallSpeed: 2
-  maxFallSpeed: 5
+  initialFallSpeed: 3.25
+  maxFallSpeed: 6.1
   difficultyScalingMode: 1
   difficultyAdjustmentMode: 0
-  speedIncreasePerBlock: 0.025
+  speedIncreasePerBlock: 0.032
   speedIncreaseIntervalSeconds: 60
   speedIncreasePerInterval: 0.1
   blockBag:
@@ -147,8 +147,16 @@ MonoBehaviour:
   - centerColumn: 0
     columnCount: 9
     baseHeightCells: 0
-    columnHeightSteps: 
-    pockets: []
+    columnHeightSteps: 030000000000000001000000010000000100000001000000010000000000000003000000
+    pockets:
+    - column: 0
+      depthCells: 1
+    - column: 0
+      depthCells: 3
+    - column: 8
+      depthCells: 1
+    - column: 8
+      depthCells: 3
   minimumCameraY: 0
   towerPeakScreenY: 0.5
   spawnPointScreenY: 0.9

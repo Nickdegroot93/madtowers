@@ -15,8 +15,8 @@ MonoBehaviour:
   displayName: Pyramid Climb
   menuThumbnail: {fileID: 21300000, guid: c973a038b69a94063bcacb255debc6cc, type: 3}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: c22636cd5cec49bbaa438ba699481dfc, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: c9787fdd691441efabe2b4b9ba76660b, type: 2}
   targetType: 2
-  targetValue: 50
-  instruction: Reach 50 meters above the sands of Giza.
+  targetValue: 90
+  instruction: Reach 90 meters up the great pyramid.
   modifiers: []

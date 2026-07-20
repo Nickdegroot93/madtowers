@@ -15,9 +15,9 @@ MonoBehaviour:
   displayName: Wire Line
   menuThumbnail: {fileID: 0}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: bd1c62ac13cb4aafaf91929f5f3f4941, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: 586b81a8922141cdb53c1de9b361e9db, type: 2}
   targetType: 1
-  targetValue: 50
+  targetValue: 70
   instruction: Clear 5 waves - keep the tower under the wire line!
   modifiers:
-  - {fileID: 11400000, guid: 4191f3fccd90469ea9adb55493cc2e3b, type: 2}
+  - {fileID: 11400000, guid: e5052ed90fb64102a3a863f33c7c4106, type: 2}

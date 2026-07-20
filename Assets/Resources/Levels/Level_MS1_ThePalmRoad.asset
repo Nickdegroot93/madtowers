@@ -15,8 +15,9 @@ MonoBehaviour:
   displayName: The Palm Road
   menuThumbnail: {fileID: 0}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: e7daa3104128405ba51018e33535bbb8, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: 210cff82937548b4a25274bd2a13dec7, type: 2}
   targetType: 1
   targetValue: 100
-  instruction: Stack 100 blocks on the rain-slick palm road.
-  modifiers: []
+  instruction: Stack 100 blocks airtight - sealed hollows detonate!
+  modifiers:
+  - {fileID: 11400000, guid: dfd2ed6d4bbb486faf213ba3cf0cbcc4, type: 2}

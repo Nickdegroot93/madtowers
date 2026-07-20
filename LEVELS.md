@@ -175,6 +175,15 @@ touch engine code.
   the rises follow ~3 blocks per meter, so late waves force building wider than the floor
   without becoming unfair. Retune if the floor width changes. A countdown rides the right
   end of the line showing blocks left until it rises.
+- **Flat-rise principle (July 2026)**: across a wave set, **rise-per-block must not grow**
+  — early sets accelerated the line (rises 3,4,5m as waves grew), handing free headroom
+  exactly when the player's widened base makes height cheap, so late waves played too easy
+  (Nick's playtest read). Keep rises ~constant while wave sizes grow (rise-per-block
+  shrinking), which tightens the endgame instead of relaxing it. The FINAL line is forced
+  by capacity (total blocks × 4 cells / ~14 usable columns) — differentiate difficulty in
+  the MIDDLE lines, never by inflating the last rise. First set on the principle:
+  `HeightLimitWaves_BurningSteppes`; the older chapter sets are due a sweep against it
+  after playtest.
 - **Half-cell grace (code, all wave assets)**: the line renders and zaps **half a cell above**
   the authored `lineHeightAboveFloor` — a tower that exactly fills the authored rows can
   wobble without grazing the laser, but one more full row still crosses. Author heights as
@@ -202,6 +211,21 @@ touch engine code.
   never solid) and open air is flood-filled from outside — 4-connectivity, so a diagonal
   crack is not an opening. Rescans run on lock/destroy events plus a 0.5 s cadence for
   settle drift.
+- **Tilt-proofing** — the raster alone lies once the tower leans (centres round on/off the
+  lattice, hairline cracks open between bricks), so a coarse sealed region passes two
+  stricter gates before it can cost a life: **coverage** (every candidate cell is sampled
+  against the blocks' live colliders — ≥65% covered is brick, not air; 35–65% is a sliver
+  crack, passable but never pocket volume; and a raster-solid wall cell that's physically
+  cracked below 65% is a **leak**, the region isn't airtight) and **persistence** (a fresh
+  seal sits on silent probation for ~0.9 s of scans before it arms — drift flickers
+  evaporate, real seals arm a beat after the lock). Strictness errs toward the player: a
+  wrongly-vented pocket costs nothing, a wrongly-armed one costs a life.
+- Look: the pocket's cell set is baked into a tiny bilinear **mask texture** (one texel per
+  cell) that one quad renders in world space — the smoke's boundary is the mask edge torn
+  by noise, bulging a fraction of a cell past the bricks, so no fill level ever reads as a
+  clean rectangle. The detonation flare renders through the **same mask**
+  (`Resources/AirPocketFlash.shader`): a cavity-shaped, noise-eaten flash, not a bounding
+  box.
 - Tuning knobs on the asset (`Data/Modifiers/AirPocket_Standard`): `fuseSeconds` (5, the
   1-cell rescue window), `extraSecondsPerCell` (1 — bigger pockets hold more air and fill
   slower), optional per-cell `popEffect` prefab + scale (null-safe; the code-built flash,
@@ -339,30 +363,50 @@ genuinely hard puzzle.
 **Chapter: Frozen Peaks (sortOrder 40)** — imported Winter Mountain Landscape gameplay
 backdrop (+ generated `clouds_winter` drift strip), Winter skin folder, frozen-peaks
 menu art, frozen-peaks A/B music
+**Chapter 4, authored to PROGRESSION.md**: **Ice debuts as the chapter's identity** — the screw is
+volume, not speed: **28% ambient on all three levels** (playtest-bracketed: 10–15% too easy,
+50% too rough — just over a quarter of the bag slippery is where the mountain bites
+without tipping unfair). Ch4 speeds
+(2.8→5.6 × mode multiplier), derived ramps, mountain-profile floors.
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| The Snowline | GameMode_Classic | Place 100 | Stacking endurance, winter dressing. |
-| Whiteout Pass | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
-| Summit Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+| The Snowline | GameMode_FrozenClassic | Place 100 | Ice 28%. Rounded summit floor [0,0,1,2,3,2,1,0,0]. 2.8→5.6 @ +0.031/blk. |
+| Whiteout Pass | GameMode_FrozenLaserLimit | Place 65 | Ice 28%. 5 waves 8@5 · 10@8 · 12@11 · 15@15 · 20@20 (`HeightLimitWaves_FrozenPeaks`, final squeeze at the Jungle edge). Twin-peak pass floor [1,2,1,0,0,0,1,2,1]. 2.45→4.95 @ +0.043/blk. |
+| Summit Climb | GameMode_FrozenNarrow | Reach 75m | **The wall**: Ice 28% on a 5-column floor split by a +5 summit spike [1,2,5,2,1] — two 2-wide ledges, slippery bricks, bridge over the spike to build wide. 2.65→5.3 @ +0.025/blk. |
 
 **Chapter: Kvartal 4 (sortOrder 50)** — imported Sovietwave Panel Buildings pack as a
 hand-placed night skyline (individual panelka sprites + treeline/fence strips + pack moon,
 generated `clouds_night` drift strip), Kvartal skin folder, kvartal-4 menu art,
 kvartal-4 A/B music
+**Chapter 5, authored to PROGRESSION.md**: **Locked debuts** (can't-rotate planning
+hazard) on the first three levels, and the campaign's **first Airtight** closes the
+chapter as its real wall — deliberately Locked-free (a can't-rotate piece in a
+seal-no-hollows mode would be a double screw). Ch5 speeds (3.0→5.8 × mode multiplier),
+derived ramps. Floors are **panelka silhouettes** — each of the first three levels plays
+over raised apartment-slab terrain with a nudge-in **pocket just under a roofline** on an
+exposed side face (depth 1 from the column top); only the Airtight wall keeps a flat
+yard, so the sealing rule is read against clean ground.
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| Panelka Row | GameMode_Classic | Place 100 | Stacking endurance, sovietwave night dressing. |
-| Curfew Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
-| Antenna Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
-| Airtight | GameMode_Classic | Place 100 | Airtight mode (AirPocket_Standard): sealed hollows detonate — see "Airtight details". |
+| Panelka Row | GameMode_KvartalClassic | Place 100 | Locked 10%. Two slabs [3,3,·,·,·,·,2,2,·] with a street at datum under the spawn; roofline pockets on both inner faces. 3.0→5.8 @ +0.031/blk. |
+| Curfew Line | GameMode_KvartalLaserLimit | Place 68 | Locked 8%. Courtyard floor [2,2,·,·,·,·,·,3,3] — edge buildings, build in the yard; inward-facing roofline pockets. 5 waves 8@5 · 11@8 · 13@11 · 16@15 · 20@21 (`HeightLimitWaves_Kvartal4`, comfy-side squeeze since Locked rides the bag). 2.65→5.1 @ +0.04/blk. |
+| Antenna Climb | GameMode_KvartalNarrow3 | Reach 60m | Locked 10% on the campaign's **first true 3-column climb** [0,0,2] — a rooftop with a stairwell-exit corner (pocket under its top); a piece that won't rotate on three columns is the level. 2.85→5.5 @ +0.031/blk. |
+| Airtight | GameMode_KvartalAirtight | Place 100 | **Airtight debut** (AirPocket_Standard: sealed hollows detonate — see "Airtight details"). No variants; the rule is the whole screw. 2.55→4.95 @ +0.027/blk (×0.85). |
 
 **Chapter: Barren Lands (sortOrder 60)** — imported Desert Vibe menu art, layered desert
 gameplay backdrop, desert skin, desert A/B music
+**Chapter 6, authored to PROGRESSION.md**: **Sandstone debuts** (5% on all three levels — 12%
+playtested as too frequent; unlike slippery Ice, a load-bearing brick occupies the tower
+and stays a problem, so its felt rate is much higher than its roll rate) at
+Ch6 speeds (3.1→6.0 × mode multiplier). Floor identity: **deep pockets** — carved
+cliff-dwelling niches, the pocket showcase chapter (Kvartal's roofline nicks were the
+soft introduction; here the niches are big enough to matter). Possible later addition:
+a dust-weather scheduled status (parked — Nick).
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| The Mirage | GameMode_Classic | Place 100 | Stacking endurance, desert dressing. |
-| Sandswept Path | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
-| Rising Dunes | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+| The Mirage | GameMode_BarrenClassic | Place 100 | Sandstone 5%. Canyon bed between two +4 mesa walls [4,4,·,·,·,·,·,4,4]; **outer-face stacked niches** (depths 1+3 on columns 0 and 8) — the stack leaves a floating brick over each mesa, the look Nick picked from Rising Dunes. Pockets go on the OUTSIDE of structures (Nick's call, July 2026). 3.1→6.0 @ +0.032/blk. |
+| Sandswept Path | GameMode_BarrenLaserLimit | Place 72 | Sandstone 5%. Sunken wadi [2,1,·,·,·,·,·,1,2] with a ground-level cave in each OUTER rim face (depth 2, columns 0/8). 5 waves 9@5 · 12@8 · 14@12 · 17@16 · 20@21 (`HeightLimitWaves_BarrenLands`). 2.75→5.3 @ +0.039/blk. |
+| Rising Dunes | GameMode_BarrenNarrow | Reach 65m | Sandstone 5%. 4 columns beside a **+5 cliff** [0,0,0,5] with two niches in its face (depths 1 and 3) — tuck pieces into the cliff as you climb past it. 2.95→5.7 @ +0.029/blk. |
 
 **Chapter: Sector Isla (sortOrder 70)** — imported Secret Island pack (green-dusk lagoon:
 crescents sheet, pale far mountains, wheel-city masses over a tiled palm row, teal island
@@ -371,20 +415,31 @@ pack's speedboat on a wide mostly-empty drift strip at +1.6 u/s, so it crosses f
 the screen entirely and returns ~once a minute; hanging-canopy fg sprites deliberately
 skipped in a vertical game), Island skin folder with mossy cobble floor, firefly motes +
 songbird flock, sector-isla menu art, one music track (b was a duplicate of a)
+**Chapter 7, authored to PROGRESSION.md**: **Anchor debuts** as a rare lucky drop (3% on
+all three levels — it freezes into permanent terrain, incredibly powerful, so seeing one
+is a jackpot moment) and the `AnchorSpawn` ability was promoted **Rare → Epic** to match.
+The chapter opens on **Airtight** (watertight fits the island) — second Airtight in the
+campaign, first as an opener. Ch7 speeds (3.2→6.2 × mode multiplier); the campaign's
+**first timed level** closes the chapter.
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| The Lagoon | GameMode_Classic | Place 100 | Stacking endurance, lagoon dressing. |
-| Marina Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
-| Skywheel Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+| The Lagoon | GameMode_IslaAirtight | Place 100 | **Airtight opener** (AirPocket_Standard). Gentle beach-berm floor [·,1,1,·,·,·,1,1,·]; no terrain pockets (a hollow beside the sealing rule reads as a trap). 2.7→5.25 @ +0.028/blk (×0.85). |
+| Marina Line | GameMode_IslaLaserLimit | Place 64 | **Tough puzzle**: 5 waves 8@4 · 10@7 · 13@10 · 15@14 · 18@19 (`HeightLimitWaves_SectorIsla`, hard-edge squeeze). Dock-deck floor [1,1,1,1,·,·,·,3,·] with an outside dock-edge cave (col 0) and a piling niche (col 7 depth 2). 2.8→5.45 @ +0.046/blk. |
+| Skywheel Sprint | GameMode_IslaTimed | 40 blocks / 180 s | **First timed level** (TimedPlaceBlocks, 4.5 s/block budget — generous debut; tighten later per the timed ladder). Flat floor, one screw: the clock. 3.2→6.2 @ +0.083/blk. |
 
 **Chapter: Fangkuai District (sortOrder 80)** — imported Chinese City gameplay backdrop
 (feathered `bg_dusk` plate + generated `clouds_dusk` drift strip), Fangkuai skin folder,
 fangkuai-district menu art, fangkuai-district A/B music
+**Chapter 8, authored to PROGRESSION.md**: **Vortex debuts** (inverted steering — a
+control hazard: 8% on the first three levels (6% felt too scarce — Nick), 4% on the fourth) at Ch8 speeds
+(3.4→6.4 × mode multiplier). Fourth level added: **Void Zones round two** at the standard
+asset's full strength (the Ch3 debut ran the half-exposure asset).
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| The Night Market | GameMode_Classic | Place 100 | Stacking endurance, dusk-city dressing. |
-| Firecracker Alley | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
-| Pagoda Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+| The Night Market | GameMode_FangkuaiClassic | Place 100 | Vortex 8%. Two **floating lanterns** [·,3,·,·,·,·,·,3,·] — free-floating cubes at +1..+2 via float-pair pockets (fixed from the truncated-post first pass). 3.4→6.4 @ +0.033/blk. |
+| Firecracker Alley | GameMode_FangkuaiLaserLimit | Place 68 | Vortex 8%. Walled alley [3,·,·,·,·,·,·,·,3], outside ground caves (cols 0/8 depth 2). 5 waves 8@4 · 11@7 · 13@11 · 16@15 · 20@20 (`HeightLimitWaves_Fangkuai`, hard edge). 3.0→5.65 @ +0.043/blk. |
+| Pagoda Climb | GameMode_FangkuaiNarrow | Reach 80m | Vortex 8%. Descending staircase [4,3,2,1,0] with floating cap + niche on the tall end (col 0, depths 1+3). 3.25→6.1 @ +0.025/blk. |
+| Void Gate | GameMode_FangkuaiVoidZones | Place 100 | **Void Zones II** — `VoidZones_Standard` full strength (first zone 10m, every 8m, 85%). Vortex 4%. Flat floor. 2.9→5.45 @ +0.028/blk (×0.85). NOTE: menu thumbnail temporarily reuses Night Market's — needs its own art. |
 
 **Chapter: Lost City (sortOrder 90)** — imported Lost City / Distant Planet pack (giant-moon
 plate as a chapter-owned `bg_moon_lc` copy with the below-skyline half flattened to clean fog
@@ -392,22 +447,39 @@ plate as a chapter-owned `bg_moon_lc` copy with the below-skyline half flattened
 portrait; eight-band teal/orange depth ladder LC1→LC8 used in full, pack streak-cloud strip
 drifting), LostCity skin folder with slate-teal cobble ruin floor, pale teal motes + 2 night
 birds, lost-city menu art, lost-city A/B music
+**Chapter 9, authored to PROGRESSION.md**: **Boulder + Tremor debut together** (the tower
+fights back — weight and shakes pair naturally; the planned double-negative exception
+chapter). Ch9 speeds (3.5→6.7 × mode multiplier). Floor identity: **levitating ruins** —
+floating capstones (depth-1 pocket stacks) sell the anti-gravity lost-city fantasy under
+the giant moon, plus the campaign's first **sky platforms**, kept sparse (interval 6m ·
+35% ≈ one island per ~17m — "1–2 every now and then", Nick) and OFF in the climb.
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| The Oasis Gate | GameMode_Classic | Place 100 | Stacking endurance, alien-moon dressing. |
-| Aqueduct Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
-| Monolith Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+| The Oasis Gate | GameMode_LostCityClassic | Place 100 | Boulder 5% + Tremor 6%. **Levitating debris field** [3,·,4,·,1,1,·,5,·] with float-pair pockets: a free-floating cube (col 0), stub+float (col 2), stub+2-tall floating slab (col 7), low threshold under the spawn (reworked from the notched-post first pass — Nick: boring). Sparse sky platforms ON. 3.5→6.7 @ +0.036/blk. |
+| Aqueduct Line | GameMode_LostCityLaserLimit | Place 69 | Boulder 4% + Tremor 5%. **Five ruined aqueduct piers** [2,·,2,·,2,·,2,·,2] (1-col gaps to bridge), a fragment floats mid-span over the centre pier (+3, float pair). Sparse sky platforms ON. 5 waves 9@5 · 11@8 · 13@11 · 16@15 · 20@20 (`HeightLimitWaves_LostCity`). 3.1→5.9 @ +0.045/blk. |
+| Monolith Climb | GameMode_LostCityNarrow | Reach 85m | Boulder 4% + Tremor 5%. 4 columns beside a **+6 monolith with a levitating shard** (depths 1+3). Sky platforms OFF (pure climb). 3.35→6.35 @ +0.025/blk. |
+| Hollow Moon | GameMode_LostCityAirtight | Place 100 | **Airtight III** (AirPocket_Standard) — first Airtight on real terrain: sunken plaza [1,1,·,2,·,·,·,1,1] with a 1-wide broken altar beside the spawn; sealing against terrain faces is the new lesson. Boulder 4% + Tremor 5% (the chapter pair rides every level — Nick), no pockets/islands. 3.0→5.7 @ +0.03/blk (×0.85). Thumbnail reuses Oasis Gate's — needs art. |
 
 **Chapter: Burning Steppes (sortOrder 100)** — imported 2D Volcano Landscape pack (erupting
 hero volcano centered via `worldOffsetX`, chapter-owned `cliffs_near` copy with a jagged-cut
 skyline replacing the vendor sprite's flat crop top, `light MF` lava-glow wash, generated
 `clouds_ash` drift strip), Volcano skin folder with the basalt/lava-joint floor, ember
 particles + heat haze + lone vulture, burning-steppes menu art, burning-steppes A/B music
+**Chapter 10, authored to PROGRESSION.md**: **Magma debuts at home** (10% everywhere — it
+melts to terrain, more gift than hazard) paired with **Bomb** (4/3/4% — destructive,
+single-digit band). Ch10 speeds (3.7→6.9 × mode multiplier). Difficulty carried by the
+**floors** (Nick's call) and by the first wave set built on the **flat-rise principle**
+(see the Height-Limit Waves section: rise-per-block must not grow across waves).
+**Magma count inflation (Nick's catch)**: each magma melts into 4 pips that each count
+as a placed block (the body is removed), so at magma rate m the counted-block rate is
+×(1+3m). All counted targets here are scaled ×1.3 (100→130, waves ×1.3 with LINES
+unchanged — pips are 1 cell per count, so the physical squeeze is identical) and ramps
+derive from the inflated targets. Height goals are unaffected.
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| The Ashfall | GameMode_Classic | Place 100 | Stacking endurance, caldera dressing. |
-| Eruption Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
-| Crater Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+| The Ashfall | GameMode_BurningClassic | Place 130 | Magma 10% + Bomb 4%. **Rift floor**: two plates tilting into a 1-col chasm left of spawn ([4,3,2,1] · gap · [1,2,3,4]), floating lava rock over the tall edge. 3.7→6.9 @ +0.027/blk (counted-block target). |
+| Eruption Line | GameMode_BurningLaserLimit | Place 91 | Magma 10% + Bomb 3%. **Vent field** [2,·,3,·,·,·,3,·,2] — build in the bowl between +3 vents. 5 waves 12@6 · 16@10 · 18@13 · 20@17 · 25@21 (magma inflation loaded into the LATE waves — a small first wave can roll zero magmas, so it must fit as real pieces) (`HeightLimitWaves_BurningSteppes`): rises stay ~flat (4,3,4,4) while waves grow, so rise-per-block SHRINKS 0.31→0.25 — no late-wave relief window. 3.25→6.05 @ +0.034/blk. |
+| Crater Climb | GameMode_BurningNarrow | Reach 85m | Magma 10% + Bomb 4%. **Climb out of a crater** [5,2,0,2,5] — +5 rims pinch the 5-col bowl, floating lava rock over the left rim. 3.5→6.55 @ +0.019/blk. |
 
 **Chapter: Giza Dusk (sortOrder 110)** — imported Cyber Egypt pack (the pack's flying
 pyramids extracted from the plate into two hovering sky layers `pyramid_small` +
@@ -417,11 +489,17 @@ skyline bands + two hand-placed masses per side, pack `light under city` haze wa
 clouds and heat haze deliberately omitted — the hovering fleet carries the motion),
 Egypt skin folder with sandstone ashlar floor, gold dust + heat haze + lone vulture;
 menu art and music still to come
+**Chapter 11, authored to PROGRESSION.md**: Pyramid stays the signature at its rare bag
+rate (~3% — a big event, not a pattern). The opener becomes **Void Zones III**
+(`VoidZones_Giza`: first zone 9m, every 7m, 90% — the meanest void tuning yet; the void +
+pyramid dead-tops carry the difficulty). **No Airtight in this chapter by design** —
+sealing rules around pyramid faces would be a triple screw (Nick). Ch11 speeds (3.8→7.2
+× mode multiplier), floors themed to the monument skyline.
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| The Sphinx Road | GameMode_GizaClassic | Place 100 | Stacking endurance, dusk-Giza dressing. Pyramid brick in the bag (~3%). |
-| Obelisk Line | GameMode_GizaLaserLimit | Place 50 | Height-limit waves (5 waves). Pyramid brick in the bag (~3%). |
-| Pyramid Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. Deliberately NO pyramid brick (a 2-wide dead-top on 3 columns is brutal — revisit after playtest). |
+| The Sphinx Road | GameMode_GizaClassic | Place 100 | **Void Zones III** + Pyramid bag (~3%). Processional road floor [3,·,1,1,1,1,1,·,3] with **hovering stones** at both edges (float pairs — echoes the backdrop's flying pyramids). 3.25→6.1 @ +0.032/blk (×0.85). |
+| Obelisk Line | GameMode_GizaLaserLimit | Place 68 | Pyramid bag (~3%). **Broken obelisks** [·,4,·,·,·,·,·,4,·] with hovering tips (float pairs). 5 waves 12@6 · 14@10 · 14@13 · 14@17 · 14@21 (`HeightLimitWaves_GizaDusk`, flat-rise: flat block sizes + flat rises = no late relief). Scaling fixed to PerBlock (was None). 3.35→6.35 @ +0.049/blk. |
+| Pyramid Climb | GameMode_GizaNarrow | Reach 90m | **Climb the great pyramid** [0,2,4,2,0] — 5-col stepped monument, spawn lands beside the peak. Deliberately NO pyramid brick (unchanged: 2-wide dead-top on narrow ground is brutal). 3.6→6.85 @ +0.025/blk. |
 
 Giza's signature brick is the **Pyramid** (see BLOCKVARIANTS.md): a 3-column monument SHAPE
 (`Block_Pyramid`, straight base course + pyramid top, non-rotatable, nothing rests on its
@@ -438,11 +516,18 @@ a matching plum fog; vendor `light TL` glow blob and `shadow TL` vignette delibe
 skipped — no pulse support yet / vendor-scene leftover), Tide skin folder with dusk-plum
 shore cobbles under a coral sunset cap, warm dusk motes + a busy songbird flock,
 amber-tide menu art (light top), amber-tide A/B music
+**Chapter 12, authored to PROGRESSION.md**: a deliberate **breather chapter** — Vine
+recurs at 12% (the campaign's friendliest brick, back from Ch1; welds help survive the
+Ch12 pace) and nothing else. Signature mechanic still TBD (Nick will pick one later);
+the interim identity is **nothing touches the ground** — floating-slab and archipelago
+floors plus sky platforms (interval 4m @50%, the most island-forward chapter; OFF in the
+climb). Ch12 speeds (4.0→7.4 ×
+mode multiplier) — by now the speed IS the pressure.
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| The Palm Coast | GameMode_Classic | Place 100 | Stacking endurance, palm-coast dressing. |
-| Tide Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
-| Sundown Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+| The Palm Coast | GameMode_AmberClassic | Place 100 | Vine 12%. **One 2-wide slab pillar** (top +2, spawn-covering) and **one 1-wide monolith** (top +3) across a 1-col void — three landable columns total, each with a single bottom WINDOW (top slots removed: a hole above the landing surface reads as nonsense — Nick; the slotted-pillar look is the accepted rendering of "floating", see FLOORS.md on why true floating terrain isn't expressible). Sky platforms ON (they're the expansion room). 4.0→7.4 @ +0.038/blk. |
+| Tide Line | GameMode_AmberLaserLimit | Place 68 | Vine 12%. **Archipelago** — three grounded islets at base heights 1/0/2 with 1-col channels (first multi-baseHeight floor). Sky platforms ON. 5 waves 13@6 · 14@10 · 14@14 · 14@18 · 13@21 (`HeightLimitWaves_AmberTide`, flat-rise). 3.5→6.5 @ +0.049/blk. |
+| Sundown Climb | GameMode_AmberNarrow | Reach 95m | Vine 12% — welds are the climb's friend at this speed. Two-step shore [0,0,1,1]; sky platforms OFF (pure climb). 3.8→7.05 @ +0.024/blk. |
 
 **Chapter: Monsoon Sector (sortOrder 130)** — imported TechnoCity Rain Mode pack (rainy
 green cyber-city, composed by the deterministic method: each vendor layer folder shares
@@ -465,11 +550,17 @@ streaks, `particlesInFront` so it falls over the scenery — see AMBIENCE.md too
 with this chapter; vendor rain prefab kept for reference only. No flybys — rain carries the
 motion, a flock in a downpour read wrong), Techno skin folder with wet neon pavement floor,
 monsoon-sector menu art, monsoon-sector A/B music
+**Chapter 13, authored to PROGRESSION.md**: the **poison chapter** — an Airtight opener
+(rain-sealed city fits) with **Locked riding every level at just 3%**: the first hostile
+brick inside an Airtight (Kvartal kept its debut clean on purpose; five chapters later the
+combo IS the difficulty — a piece that won't rotate while you're trying to seal seams).
+Ch13 speeds (4.2→7.7 × mode multiplier). `menuTopIsLight` fixed 1→0 (dark rainy art was
+getting a dark-ink title).
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| The Palm Road | GameMode_Classic | Place 100 | Stacking endurance, rain-slick dressing. |
-| Wire Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
-| Skyline Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
+| The Palm Road | GameMode_MonsoonAirtight | Place 100 | **Airtight IV + Locked 3%**. Raised plaza centre [·,·,·,1,1,1,·,·,·]. 3.55→6.55 @ +0.033/blk (×0.85). |
+| Wire Line | GameMode_MonsoonLaserLimit | Place 70 | Locked 3%. **Catenary dip floor** [3,2,1,0,0,0,1,2,3] — the sagging powerline. 5 waves 13@6 · 14@10 · 14@13 · 14@17 · 15@21 (`HeightLimitWaves_MonsoonSector`, flat-rise). 3.7→6.8 @ +0.049/blk. |
+| Skyline Climb | GameMode_MonsoonNarrow | Reach 100m | Locked 3%. **Descending tower-block skyline** [5,3,1,0]. The campaign's first 100m goal. 4.0→7.3 @ +0.023/blk. |
 
 **Chapter: Hallow's End (sortOrder 140)** — imported Halloween pack (blood-dusk graveyard,
 composed at the demo scene's own proportions — sizes are scene px × scale, all rows share
@@ -486,23 +577,33 @@ tucked behind the fence rows; chunky glowing jack-o'-lantern hedge capped at ~+0
 tower base stays readable; hanging-canopy `fgrnd`, white `cloud4` and the additive pumpkin
 light sheets deliberately skipped), Hallow skin folder with graveyard cobble floor and
 lantern-amber cap, ember motes + bat flock, hallows-end menu art, hallows-end A/B music
+**Chapter 14, authored to PROGRESSION.md**: **Maw debuts** — 3% on the opener (it costs a
+life per devour, the rarest-tier rule), absent from the puzzle and the void level (a
+devour mechanic beside the line, or beside the void, muddies both — Nick/design), and then
+the chapter's signature: **the Maw Sort** at 50% on the climb. Ch14 speeds (4.3→7.9 ×
+mode multiplier).
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| The Pumpkin Patch | GameMode_Classic | Place 100 | Stacking endurance, pumpkin-patch dressing. |
-| Lantern Line | GameMode_LaserLimit | Place 50 | Height-limit waves (5 waves, standard asset). |
-| Blood Moon Climb | GameMode_Narrow3 | Reach 50m | 3-column floor climb. |
-| Void Zones | GameMode_Classic | Place 100 | Void Zones mode (VoidZones_Standard): forbidden sky rectangles devour placed bricks — see "Void Zones details". |
+| The Pumpkin Patch | GameMode_HallowsClassic | Place 100 | **Maw debut @3%**. Washboard pumpkin-row floor [1,0,1,0,1,0,1,0,1]. 4.3→7.9 @ +0.04/blk. |
+| Lantern Line | GameMode_HallowsLaserLimit | Place 72 | NO maw. **Gallows platform** [·,·,·,4,4,·,·,·,·] centre obstruction with mid-face niches. 5 waves 12@6 · 14@10 · 15@14 · 15@18 · 16@22 (`HeightLimitWaves_HallowsEnd`, flat-rise). 3.8→6.95 @ +0.049/blk. |
+| Blood Moon Climb | GameMode_HallowsMawClimb | Reach 90m | **THE MAW SORT**: two 4-wide pillars at +3 (1-col void between), **Maw at 50%** — maws never eat each other and weld into a monolith, so you build a maw tower on one pillar and a real tower on the other, sorting every piece at 4.1→7.5. startingLives 2 (one misroute = a devour). @ +0.026/blk. |
+| Void Zones | GameMode_HallowsVoidZones | Place 100 | Void Zones showcase (`VoidZones_Standard`, unchanged), now on a chapter-owned mode at Ch14 pace. NO maw. Flat floor. 3.65→6.7 @ +0.034/blk (×0.85). |
 
 **Chapter: Crimson Core (sortOrder 150)** — the Blackout home chapter (dark crimson city,
 chapter-owned pre-tinted retro-sun flipbook — 20 scrolling-band frames @ 12 fps, see
 AMBIENCE.md/BACKDROPS.md/ASSET_IMPORTS.md). All three levels attach
 `ScheduledStatus_Blackout_Standard` (first blackout after 45 s, then every 75 s,
 graceBlocks 8 — see the Blackout game type above).
+**Chapter 15, authored to PROGRESSION.md**: the **finale**. Blackout is the identity (all
+three levels keep `ScheduledStatus_Blackout_Standard`); **Bomb joins** (4/3/4% — its fuse
+glow is one of the few things that pierces the dark, a deliberate blackout synergy). Ch15
+speeds (4.5→8.2 × mode multiplier × Blackout's 0.90 — the scheduled dark stacks its
+fairness discount on every level). More per-level ideas to come (Nick).
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
-| Night Shift | GameMode_Classic | Place 100 | Stacking endurance in scheduled darkness. |
-| Red Grid | GameMode_LaserLimit | Place 50 | Height-limit waves under blackouts. |
-| Core Ascent | GameMode_Narrow3 | Reach 50m | 3-column climb by lantern light. |
+| Night Shift | GameMode_CrimsonClassic | Place 100 | Bomb 4%. **The Reactor**: two containment pylons — each a stub with a **2×2 slab floating above it** — separated by a **4-column void over the core** (centre platform removed, Nick: the gap IS the floor; an unsteered first drop falls into the reactor). 4.05→7.4 @ +0.037/blk. |
+| Red Grid | GameMode_CrimsonLaserLimit | Place 72 | Bomb 3%. **Circuit-trace floor** [2,0,1,0,2,0,1,0,2] with outer ground-caves. 5 waves 12@5 · 14@9 · 15@13 · 15@17 · 16@21 (`HeightLimitWaves_CrimsonCore`, flat-rise, lowest opening line since Neon). 3.55→6.5 @ +0.046/blk. |
+| Core Ascent | GameMode_CrimsonNarrow | Reach 110m | Bomb 4%. **The Core Shaft**: a 3-wide channel between +6 containment walls, a fragment floating over the left wall — the campaign's final wall, in the dark. 3.85→7.0 @ +0.02/blk. |
 
 | Path | Contents |
 |---|---|

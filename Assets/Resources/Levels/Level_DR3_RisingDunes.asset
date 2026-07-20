@@ -15,8 +15,8 @@ MonoBehaviour:
   displayName: Rising Dunes
   menuThumbnail: {fileID: 21300000, guid: aaaa3fe5a2c84457a635b0a2583aea6a, type: 3}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: c22636cd5cec49bbaa438ba699481dfc, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: 918c2ac6ce2644b188262194853aac34, type: 2}
   targetType: 2
-  targetValue: 50
-  instruction: Reach 50 meters from a three-column starting floor.
+  targetValue: 65
+  instruction: Reach 65 meters up the pocketed canyon cliff.
   modifiers: []

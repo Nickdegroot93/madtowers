@@ -15,8 +15,8 @@ MonoBehaviour:
   displayName: Pagoda Climb
   menuThumbnail: {fileID: 21300000, guid: 1e61828378a42400cbbf3f79b2ce344b, type: 3}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: c22636cd5cec49bbaa438ba699481dfc, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: 7b06344b09354fdebcc99e36fbb51d8c, type: 2}
   targetType: 2
-  targetValue: 50
-  instruction: Reach 50 meters from a three-column pagoda footing.
+  targetValue: 80
+  instruction: Reach 80 meters up the pagoda staircase.
   modifiers: []

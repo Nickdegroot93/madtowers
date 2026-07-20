@@ -19,7 +19,8 @@ MonoBehaviour:
   targetType: 1
   targetValue: 100
   timeLimitSeconds: 120
-  instruction: Stack 100 blocks beneath the pyramids.
-  modifiers: []
+  instruction: Stack 100 blocks - the void devours whatever touches it!
+  modifiers:
+  - {fileID: 11400000, guid: 413afe5bca9c4ab5b0d157aafec050b2, type: 2}
   bannedAbilities: []
   abilityRarityProfile: {fileID: 0}

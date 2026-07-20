@@ -74,6 +74,11 @@ Columns −6…−2 and 2…6 are ground; −1…1 is a void gap.
 - **Valley**: `columnHeightSteps [3,1,0,0,0,1,3]` — nudge bricks into the bowl.
 - **Twin pillars**: two segments, `columnCount 3`, `centerColumn ±4`, `baseHeightCells 4` / `6`.
 - **Trio (Tricky-Towers)**: three segments, `baseHeightCells` 5 / 2 / 7.
+- **Floating fragment** (the levitating-ruin look): a depth-1 pocket alone only notches a
+  column — the float needs a PAIR of pockets bracketing one solid cell. Column height 3 +
+  pockets (depth 1, depth 3) = a fully free-floating cube at +1..+2; height 4 + (1, 3) =
+  grounded stub + float; height 5 + (1, 4) = stub + 2-tall floating slab. Shipped examples:
+  Rising Dunes' cliff, Oasis Gate's debris field, Night Market's lanterns.
 - The **Custom Game** screen ships these as `Floor shape` presets (Flat/Steps/Valley/Twin/
   Trio) for instant testing with any width — no assets touched
   (`GameModeConfig.BuildCustomFloorSegments`).

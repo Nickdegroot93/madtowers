@@ -15,9 +15,9 @@ MonoBehaviour:
   displayName: Firecracker Alley
   menuThumbnail: {fileID: 21300000, guid: 2a0731f1427554ad8b7d564a41c3ca07, type: 3}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: bd1c62ac13cb4aafaf91929f5f3f4941, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: 76d64a777d0740129dbcec8e71966bff, type: 2}
   targetType: 1
-  targetValue: 50
+  targetValue: 68
   instruction: Clear 5 waves - keep the tower under the festival laser!
   modifiers:
-  - {fileID: 11400000, guid: 4191f3fccd90469ea9adb55493cc2e3b, type: 2}
+  - {fileID: 11400000, guid: ab4b09dfda0e4ff0bc252392ba7edfaa, type: 2}

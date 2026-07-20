@@ -15,8 +15,8 @@ MonoBehaviour:
   displayName: Summit Climb
   menuThumbnail: {fileID: 21300000, guid: 6fe3926073e2e4de69c20abc2e769654, type: 3}
   menuChallengeLabelOverride:
-  gameModeConfig: {fileID: 11400000, guid: c22636cd5cec49bbaa438ba699481dfc, type: 2}
+  gameModeConfig: {fileID: 11400000, guid: 019439edd9704bc09e594b44722844d3, type: 2}
   targetType: 2
-  targetValue: 50
-  instruction: Reach 50 meters up the icy three-column ridge.
+  targetValue: 75
+  instruction: Reach 75 meters around the frozen summit spike.
   modifiers: []
