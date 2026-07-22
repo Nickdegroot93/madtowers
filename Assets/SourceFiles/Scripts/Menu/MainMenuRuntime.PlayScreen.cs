@@ -29,7 +29,11 @@ public static partial class MainMenuRuntime
             swipe.OnPanEnd = _pager.EndPan;
         }
 
+        // Only the LIVE play screen may play an unlock reveal - resolved here and cleared right
+        // after, so the pager's off-screen neighbour builds (same BuildChapterContent) never do.
+        ResolvePendingReveal(chapter, _chapterIndex);
         BuildChapterContent(parent, chapter, _chapterIndex);
+        ClearResolvedReveal();
     }
 
     // A soft drop shadow under light text, so titles stay legible on bright / low-contrast
@@ -182,6 +186,10 @@ public static partial class MainMenuRuntime
         ChapterDefinition next = _chapters[nextIndex];
         bool unlocked = Campaign.IsChapterUnlocked(_chapters, nextIndex);
 
+        // A pending chapter reveal builds the card in its locked-mystery look and animates it
+        // open a beat later; the swap re-runs FillNextChapterContent with unlocked visuals.
+        bool reveal = _revealKind == RevealKind.Chapter;
+
         RectTransform card = CreateRect(parent, "NextChapterCard",
             new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f),
             // Bottom edge clears the nav bar (top at 204 with the raised NavBottomMargin) by a
@@ -194,35 +202,16 @@ public static partial class MainMenuRuntime
         cardImage.color = cardFill;
         RuntimeUiKit.AddOutline(card, GoldOutline(0.24f));
 
-        Sprite preview = current.NextChapterPreviewImage != null
-            ? current.NextChapterPreviewImage
-            : next.MenuBackgroundImage;
-        if (preview != null)
-        {
-            CreateCoverImage(card, "Preview", preview, new Color(1f, 1f, 1f, 0.42f),
-                Vector2.zero, new Vector2(300f, 160f), new Vector2(0.5f, 0.5f));
-        }
-
-        CreateTmp(card, "NextLabel", "NEXT CHAPTER", 15, TextMuted, TextAnchor.MiddleLeft,
-            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -22f), new Vector2(180f, 26f), new Vector2(0f, 1f));
-        CreateTmp(card, "NextTitle", next.DisplayName.ToUpperInvariant(), 21, TextPrimary, TextAnchor.MiddleLeft,
-            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -50f), new Vector2(206f, 34f), new Vector2(0f, 1f));
-        if (unlocked)
-        {
-            Image nextArrow = CreateImage(card, "NextArrow", MenuSprites.Chevron(TextPrimary), Color.white);
-            nextArrow.preserveAspect = true;
-            SetCentered(nextArrow.rectTransform, new Vector2(258f, -75f), new Vector2(40f, 40f));
-        }
-        else
-        {
-            Image lockIcon = CreateImage(card, "NextLock", MenuSprites.Lock(LockedColor), Color.white);
-            lockIcon.preserveAspect = true;
-            SetCentered(lockIcon.rectTransform, new Vector2(258f, -75f), new Vector2(34f, 34f));
-        }
+        // The state-dependent visuals live in one stretched container so the unlock reveal can
+        // swap locked -> unlocked content without touching the card root (fill, outline, button).
+        RectTransform content = CreateRect(card, "Content",
+            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+        Stretch(content);
+        FillNextChapterContent(content, current, next, unlocked && !reveal);
 
         Button button = card.gameObject.AddComponent<Button>();
         button.targetGraphic = cardImage;
-        button.interactable = unlocked;
+        button.interactable = unlocked && !reveal;
         button.onClick.AddListener(() =>
         {
             // Slide to the next chapter (entering from the right) through the same transition
@@ -239,6 +228,46 @@ public static partial class MainMenuRuntime
         colors.pressedColor = WithAlpha(Color.Lerp(cardFill, Color.black, 0.12f), 1f);
         colors.disabledColor = cardFill;
         button.colors = colors;
+
+        if (reveal) AttachChapterReveal(parent, card, content, current, next, button);
+    }
+
+    // The next-chapter card's two faces. Locked is a deliberate MYSTERY: no name, no preview -
+    // the player earns even the sight of what comes next, which is what makes the chapter
+    // reveal (preview sweeping in, name appearing) worth the wait.
+    private static void FillNextChapterContent(RectTransform content, ChapterDefinition current,
+        ChapterDefinition next, bool unlocked)
+    {
+        if (unlocked)
+        {
+            Sprite preview = current.NextChapterPreviewImage != null
+                ? current.NextChapterPreviewImage
+                : next.MenuBackgroundImage;
+            if (preview != null)
+            {
+                CreateCoverImage(content, "Preview", preview, new Color(1f, 1f, 1f, 0.42f),
+                    Vector2.zero, new Vector2(300f, 160f), new Vector2(0.5f, 0.5f));
+            }
+
+            CreateTmp(content, "NextLabel", "NEXT CHAPTER", 15, TextMuted, TextAnchor.MiddleLeft,
+                FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -22f), new Vector2(180f, 26f), new Vector2(0f, 1f));
+            CreateTmp(content, "NextTitle", next.DisplayName.ToUpperInvariant(), 21, TextPrimary, TextAnchor.MiddleLeft,
+                FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -50f), new Vector2(206f, 34f), new Vector2(0f, 1f));
+
+            Image nextArrow = CreateImage(content, "NextArrow", MenuSprites.Chevron(TextPrimary), Color.white);
+            nextArrow.preserveAspect = true;
+            SetCentered(nextArrow.rectTransform, new Vector2(258f, -75f), new Vector2(40f, 40f));
+            return;
+        }
+
+        CreateTmp(content, "NextLabel", "NEXT CHAPTER", 15, WithAlpha(TextMuted, 0.75f), TextAnchor.MiddleLeft,
+            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -22f), new Vector2(180f, 26f), new Vector2(0f, 1f));
+        CreateTmp(content, "NextTitle", "LOCKED", 21, LockedColor, TextAnchor.MiddleLeft,
+            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -50f), new Vector2(206f, 34f), new Vector2(0f, 1f));
+
+        Image lockIcon = CreateImage(content, "NextLock", MenuSprites.Lock(LockedColor), Color.white);
+        lockIcon.preserveAspect = true;
+        SetCentered(lockIcon.rectTransform, new Vector2(258f, -75f), new Vector2(34f, 34f));
     }
 
     // The next-chapter card's bottom-LEFT mirror: the way back. Chapter 1 has nowhere to go
@@ -420,6 +449,16 @@ public static partial class MainMenuRuntime
             bool isCurrent = i == currentIndex;
             bool current = isCurrent && unlocked && !completed;
 
+            // The level this build's unlock reveal targets starts in its LOCKED look; the
+            // attached runner animates it open to the real state a beat later.
+            if (_revealKind == RevealKind.Level && i == _revealLevelIndex)
+            {
+                BuildLevelRail(row, i, count, chapter, false, false, false);
+                BuildLevelCard(row, chapter, level, i, false, false, false);
+                AttachLevelReveal(row, parent, chapter, level, i, count);
+                continue;
+            }
+
             BuildLevelRail(row, i, count, chapter, unlocked, completed, current);
             BuildLevelCard(row, chapter, level, i, unlocked, completed, current);
         }
@@ -509,7 +548,10 @@ public static partial class MainMenuRuntime
         Image cardImage = card.gameObject.AddComponent<Image>();
         cardImage.sprite = RuntimeSprites.RoundedPanel();
         cardImage.type = Image.Type.Sliced;
-        Color cardFill = MenuGlassFill(chapter, unlocked ? 0.80f : 0.68f);
+        // Locked cards are deliberately DARKER and near-opaque (not lighter glass): the contrast
+        // against the live cards is what makes "locked" legible at a glance, and what gives the
+        // unlock reveal its before/after pop.
+        Color cardFill = MenuGlassFill(chapter, unlocked ? 0.80f : 0.94f);
         cardImage.color = cardFill;
 
         AddFrostedGlass(card, chapter != null ? chapter.MenuBackgroundImage : null, LevelCardFrostWash);
@@ -518,7 +560,7 @@ public static partial class MainMenuRuntime
         // warm gold) at full strength plus the glow, so it reads as "this chapter's" highlight.
         Color cardBorder = current
             ? WithAlpha(Color.Lerp(chapterLight, Color.white, 0.25f), 1f)
-            : WithAlpha(TextPrimary, unlocked ? 0.34f : 0.18f);
+            : WithAlpha(TextPrimary, unlocked ? 0.34f : 0.10f);
         RuntimeUiKit.AddOutline(card, cardBorder);
 
         if (current)
@@ -545,7 +587,7 @@ public static partial class MainMenuRuntime
             ? level.MenuThumbnail
             : MenuSprites.LevelThumbnail(index, chapter.MenuAccentColor, chapter.MenuAccentSecondaryColor);
         RectTransform thumb = CreateCoverImage(card, "Thumbnail", thumbSprite,
-            unlocked ? Color.white : new Color(0.55f, 0.55f, 0.55f, 0.55f),
+            unlocked ? Color.white : new Color(0.30f, 0.30f, 0.34f, 0.45f),
             new Vector2(22f, -16f), new Vector2(132f, 152f), new Vector2(0f, 1f));
         RuntimeUiKit.AddOutline(thumb, WithAlpha(TextPrimary, unlocked ? 0.18f : 0.08f));
 
@@ -554,7 +596,7 @@ public static partial class MainMenuRuntime
         Color edgeColor = ChapterEdge(chapterLight);
         Image numberPlate = CreateImage(card, "NumberPlate",
             MenuSprites.DiamondBadge(MenuGlassFill(chapter, unlocked ? 0.16f : 0.10f),
-                WithAlpha(edgeColor, unlocked ? 1f : 0.42f)),
+                WithAlpha(edgeColor, unlocked ? 1f : 0.28f)),
             Color.white);
         SetCentered(numberPlate.rectTransform, new Vector2(200f, -52f), new Vector2(62f, 62f));
         CreateTmp(numberPlate.transform, "Number", (index + 1).ToString(), 26, unlocked ? TextPrimary : LockedColor,
@@ -629,7 +671,9 @@ public static partial class MainMenuRuntime
         colors.normalColor = cardFill;
         colors.highlightedColor = WithAlpha(Color.Lerp(cardFill, TextPrimary, 0.08f), cardFill.a);
         colors.pressedColor = WithAlpha(Color.Lerp(cardFill, Color.black, 0.12f), cardFill.a);
-        colors.disabledColor = MenuGlassFill(chapter, 0.36f);
+        // Locked cards render their own (dark, near-opaque) fill untinted; the old translucent
+        // disabled wash made locked read LIGHTER than live cards.
+        colors.disabledColor = Color.white;
         button.colors = colors;
     }
 

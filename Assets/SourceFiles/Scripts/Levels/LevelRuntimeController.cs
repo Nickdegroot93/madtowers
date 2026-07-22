@@ -614,7 +614,11 @@ public class LevelRuntimeController : MonoBehaviour
 
         // Boosted completions still complete (SHOP.md §6) - only the best goes to the
         // boosted board instead of the clean one.
+        bool firstCompletion = !ProgressStore.IsLevelCompleted(_level);
         ProgressStore.MarkLevelCompleted(_level);
+        // A FIRST completion may unlock the next level or chapter; the menu plays that
+        // unlock as a reveal animation instead of showing it silently pre-unlocked.
+        if (firstCompletion) UnlockRevealPending.RecordFirstCompletion(_level);
         ProgressStore.ReportResult(_level, result.Score, result.MaxHeight, RunSuppliesState.ActiveRunBoosted);
         GameEvents.RaiseLevelCompleted(_level, result);
 

@@ -227,7 +227,11 @@ public static partial class MainMenuRuntime
 
         if (!_chapterIndexInitialized)
         {
-            _chapterIndex = DefaultChapterIndex(_chapters);
+            // A pending unlock reveal pins the opening chapter: after finishing a chapter's
+            // last level and restarting the app, the default rule would open on the newly
+            // unlocked chapter and the reveal moment would silently never play.
+            int revealChapter = PendingRevealChapterIndex(_chapters);
+            _chapterIndex = revealChapter >= 0 ? revealChapter : DefaultChapterIndex(_chapters);
             _chapterIndexInitialized = true;
         }
         _chapterIndex = Mathf.Clamp(_chapterIndex, 0, _chapters.Length - 1);
@@ -266,11 +270,18 @@ public static partial class MainMenuRuntime
 
     private static int DefaultChapterIndex(ChapterDefinition[] chapters)
     {
+        // Open on the chapter the player is actually PLAYING: the first unlocked one that
+        // still has an incomplete level. Completed chapters stay unlocked forever, so the
+        // old "first unlocked" rule always landed everyone back on chapter 1.
         for (int i = 0; i < chapters.Length; i++)
         {
-            if (Campaign.IsChapterUnlocked(chapters, i) && chapters[i].Levels.Count > 1) return i;
+            // AlwaysUnlocked sandboxes are permanently "unlocked and incomplete" - without
+            // this guard one added mid-order would capture the opening screen for everyone.
+            if (chapters[i].AlwaysUnlocked) continue;
+            if (Campaign.IsChapterUnlocked(chapters, i) && !Campaign.IsChapterCompleted(chapters[i])) return i;
         }
-        for (int i = 0; i < chapters.Length; i++)
+        // Everything's done: land on the last unlocked chapter (the campaign's end).
+        for (int i = chapters.Length - 1; i >= 0; i--)
         {
             if (Campaign.IsChapterUnlocked(chapters, i)) return i;
         }

@@ -85,6 +85,25 @@ SOUNDS = {
     "status_engage": (STYLE + "A protective wind aura whooshing around: full circular gust "
         "swirl, breathy and energetic.", 0.9, 0.5),
 
+    # ---- Menu unlock reveals (level / chapter). The menu's dopamine beat: rattle = the
+    # anticipation (lock straining), the unlock = the payoff. Chapter is the same gesture
+    # one size grander. Reward reads through WEIGHT, not brightness: the first take used
+    # "rising magical sparkle" phrasing and came out high-pitched/chimey - rejected by Nick.
+    # Keep these deep, dull and punchy; ban chimes/high tones explicitly.
+    # Prompt lesson (July 2026): piling on "low-pitched / dull / no high tones" made the
+    # model emit pure sub-60Hz rumble - inaudible on phone speakers. Describe the knock and
+    # the wood/stone material instead and let the negatives stop at chimes/bells/music.
+    "unlock_rattle": (STYLE + "A locked wooden latch rattled and strained: quick tense dry "
+        "knocking clatter, wood on stone, building tension, no break, no release. No chimes, "
+        "no bells, no music.", 0.5, 0.55),
+    "unlock_level": (STYLE + "A heavy wooden bar lifted off a stone door and the door "
+        "swinging open: one solid satisfying wooden CLUNK-clack with a crisp knock "
+        "transient, then a short dry whoosh. Punchy, warm, rewarding. No chimes, no bells, "
+        "no music.", 0.9, 0.55),
+    "unlock_chapter": (STYLE + "A huge ancient stone gate unlocking and rumbling open: one "
+        "solid latch CLUNK, heavy stone grinding briefly, ending in a resonant stone THOOM "
+        "with dust settling. Mighty and satisfying. No chimes, no bells, no music.", 1.5, 0.55),
+
     # ---- Tier-0 landing layers (JUICE.md §5): every landing mixes transient + body (+ tail
     # on gentle placements), so each layer must be a SINGLE clean hit with no extra events.
     # Round-robins: same prompt, separate generations = natural variation.

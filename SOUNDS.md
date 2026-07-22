@@ -150,6 +150,19 @@ tonal chime; these need broadband dry grit).
 **Should be:** a dry stone fracture tick, grit settling (crack); a modest sandstone collapse —
 crunch into pouring sand, no explosion (burst).
 
+### `unlock_rattle`, `unlock_level`, `unlock_chapter` — Menu unlock reveals · *generated (ElevenLabs)*
+The menu's unlock-reveal moment (returning to the menu after a FIRST-time level completion):
+the newly unlocked level card / next-chapter card is built locked, strains, then breaks open.
+Prompts in `Tools/generate_elevenlabs_sfx.py`; sequence driven by
+[MenuUnlockRevealRunner.cs](Assets/SourceFiles/Scripts/Menu/MenuUnlockRevealRunner.cs), armed by
+[MainMenuRuntime.UnlockReveal.cs](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.UnlockReveal.cs).
+- `unlock_rattle` — the lock badge strains/shakes (anticipation beat), level and chapter both.
+- `unlock_level` — the next LEVEL card breaks open (flash + punch + sparkles).
+- `unlock_chapter` — the next CHAPTER card breaks open (the grander stinger; preview sweeps in).
+
+**Should be:** a tense lock jiggle with no release (rattle); a crisp unlatch CLACK + whoosh +
+short rising sparkle (level); a deep gate CLUNK + grinding whoosh + sparkles (chapter).
+
 ## Music
 
 Played by [MusicPlayer.cs](Assets/SourceFiles/Scripts/Core/MusicPlayer.cs): a random opener,

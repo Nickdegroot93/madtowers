@@ -97,6 +97,23 @@ Silent. Runs on `BlockLocked` with ComboDetector's revalidate-after-settle patte
   change; the menu top bar shows the real balance. `RunResult.CoinsEarned` carries the run's
   skill coins (excludes win bonus). Cloud sync arrives with BACKEND.md's Supabase phase.
 
+## 3b. Menu unlock reveals (shipped, July 2026)
+
+The one sanctioned "celebration" outside gameplay: returning to the menu after a FIRST-time
+level completion plays the unlock it earned instead of showing it silently pre-unlocked.
+Three beats — scroll-into-view + delay (anticipation), lock-badge rattle (strain), flash-covered
+swap to the unlocked look with a scale punch + sparkle burst (payoff). The next level card and
+the next-chapter card share the sequence; the chapter one is grander (radial preview sweep —
+the locked card is a deliberate MYSTERY: no name, no thumbnail). Tap fast-forwards the
+anticipation; the payoff always plays. Driver: `MenuUnlockRevealRunner` (all knobs), armed by
+`MainMenuRuntime.UnlockReveal.cs`, carried across the scene reload by `UnlockRevealPending`
+(PlayerPrefs).
+
+**Sound rule (Nick, playtested): reward reads through WEIGHT, not brightness.** The first
+unlock stingers used "rising magical sparkle" prompts and came out chimey — rejected. The
+shipped `unlock_*` clips are knock/clunk/grind character (see SOUNDS.md + the prompt-table
+lesson in `Tools/generate_elevenlabs_sfx.py`). Don't add chimes/pitch-up arpeggios here.
+
 ## 4. Tuning knobs
 
 | Knob | Where | Default |
