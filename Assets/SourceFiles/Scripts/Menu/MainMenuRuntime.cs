@@ -50,7 +50,7 @@ public static partial class MainMenuRuntime
 
     private enum MenuTab
     {
-        Shop,
+        Profile,
         Chapters,
         Home,
         Vault,
@@ -143,6 +143,7 @@ public static partial class MainMenuRuntime
     private static void ResetForPlayMode()
     {
         LevelSelectionState.ClearSelection();
+        RunSuppliesState.ClearAll();
         _root = null;
         _backgroundLayer = null;
         _contentLayer = null;
@@ -175,6 +176,7 @@ public static partial class MainMenuRuntime
     public static void ReturnToMenu()
     {
         LevelSelectionState.ClearSelection();
+        RunSuppliesState.ClearRun();
         LevelSelectionState.BeginSelectionIfNeeded();
         Time.timeScale = 1f;
         SceneManager.sceneLoaded += ShowMenuOnceAfterLoad;
@@ -242,6 +244,7 @@ public static partial class MainMenuRuntime
         else if (_activeTab == MenuTab.Settings) BuildSettingsScreen(contentRoot, chapter);
         else if (_activeTab == MenuTab.Vault) BuildVaultScreen(contentRoot, chapter);
         else if (_activeTab == MenuTab.Chapters) BuildChaptersScreen(contentRoot, chapter);
+        else if (_activeTab == MenuTab.Profile) BuildProfileScreen(contentRoot, chapter);
         else BuildDummyScreen(contentRoot, _activeTab);
 
         Transform navRoot = RecreateSection(ref _navRoot, _navLayer, "BottomNavRoot");
@@ -295,6 +298,12 @@ public static partial class MainMenuRuntime
     private static void EnsureRoot()
     {
         if (_root != null) return;
+
+        // An in-play domain reload (editing scripts while play mode runs) wipes _root but
+        // leaves the old canvas alive - it would render as a stale phantom over the rebuilt
+        // menu. Editor-workflow hygiene only; players never hit this path.
+        GameObject orphan = GameObject.Find("Main Menu");
+        if (orphan != null) UnityEngine.Object.Destroy(orphan);
 
         _root = RuntimeUiKit.CreateOverlayCanvas("Main Menu", 5000);
         // The background bleeds full-screen behind any notch/cutout; everything readable and

@@ -44,11 +44,17 @@ public static partial class MainMenuRuntime
 
         // Centered, fully opaque panel. Its own raycast target swallows taps so they don't reach
         // the backdrop. Layout flows top-down: thumbnail, challenge type, title, stat cards,
-        // description, then the play / ranks buttons pinned to the bottom.
+        // description, (supplies + attempts once the meta systems unlock, SHOP.md §7.1), then
+        // the play / ranks buttons pinned to the bottom.
         const float W = 880f;
-        const float H = 840f;
         const float pad = 44f;
         const float contentW = W - pad * 2f;
+        // Supplies exist for campaign levels only (runtime levels have no save identity) and
+        // stay invisible until Chapter 1 is done - the soft-landing rule.
+        bool suppliesOn = AttemptsService.MetaEnabled && ProgressStore.LevelId(level) != null;
+        // 768 not 840: the description is one line, so the supplies section moves up into
+        // the slack instead of floating below dead space (Nick's whitespace note).
+        float H = suppliesOn ? 768f + SuppliesSectionHeight : 840f;
         Color panelColor = new Color(0.075f, 0.065f, 0.058f, 1f);
         RectTransform panel = CreateRect(overlay.transform, "Panel",
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
@@ -92,12 +98,36 @@ public static partial class MainMenuRuntime
         BuildSummaryStat(panel, "Target", new Vector2(pad, -394f), cardW, "TARGET", targetText, lightChapter, TextPrimary);
         BuildSummaryStat(panel, "Best", new Vector2(pad + cardW + 18f, -394f), cardW, "YOUR BEST", bestText, lightChapter, darkChapter);
 
+        // A boosted best exists on its own board (SHOP.md §5): a one-line caption under the
+        // stat cards, never mixed into YOUR BEST.
+        ProgressStore.LevelBest bestRecord = ProgressStore.GetBest(level);
+        if (bestRecord != null && (bestRecord.bestScoreBoosted > 0 || bestRecord.bestHeightMetersBoosted > 0f))
+        {
+            // Height-goal levels can hold a boosted best with score 0 - show the metric
+            // that actually exists instead of printing "BOOSTED BEST 0".
+            string boostedValue = bestRecord.bestScoreBoosted > 0
+                ? bestRecord.bestScoreBoosted.ToString()
+                : $"{bestRecord.bestHeightMetersBoosted:F1}m";
+            CreateTmp(panel, "BoostedBest",
+                $"BOOSTED BEST  {boostedValue}", 15, WithAlpha(GoldBase, 0.75f),
+                TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
+                new Vector2(pad + cardW + 18f, -502f), new Vector2(cardW, 20f), new Vector2(0f, 1f));
+        }
+
         // Description (thin, muted) - the level's instruction line.
         if (!string.IsNullOrWhiteSpace(level.Instruction))
         {
             CreateTmp(panel, "Description", level.Instruction, 23, new Color(0.78f, 0.75f, 0.70f, 1f),
                 TextAnchor.UpperLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont,
                 new Vector2(pad, -528f), new Vector2(contentW, 130f), new Vector2(0f, 1f));
+        }
+
+        // The supplies section (RUN LIVES + BOOSTS card rows + the status line, SHOP.md §9.1)
+        // sits between the description and the buttons; the extra panel height made room.
+        SuppliesUi suppliesUi = null;
+        if (suppliesOn)
+        {
+            suppliesUi = BuildSuppliesSection(panel, level, pad, contentW, -600f);
         }
 
         // Play (gradient gold) + Ranks (dark) buttons, pinned to the bottom.
@@ -110,15 +140,33 @@ public static partial class MainMenuRuntime
         playBg.raycastTarget = true;
         Image playIcon = CreateImage(playBg.transform, "PlayIcon", MenuSprites.TrianglePlay(), TextPrimary);
         SetCenteredAt(playIcon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(-64f, 0f), new Vector2(38f, 38f));
-        CreateTmp(playBg.transform, "PlayLabel", "PLAY", 36, TextPrimary,
-            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(24f, 0f), new Vector2(220f, 48f), new Vector2(0.5f, 0.5f));
+        TextMeshProUGUI playLabel = CreateTmp(playBg.transform, "PlayLabel", "PLAY", 36, TextPrimary,
+            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(24f, 0f), new Vector2(260f, 48f), new Vector2(0.5f, 0.5f));
         Button playButton = playBg.gameObject.AddComponent<Button>();
         playButton.targetGraphic = playBg;
         playButton.onClick.AddListener(() =>
         {
             SfxPlayer.Play("ui-start-game");
+            // The loadout rides the same static-carrier as the level; RunSuppliesApplier
+            // charges + applies it in the loaded scene (atomic with run start). Null when
+            // nothing was picked - a clean run.
+            RunSuppliesState.Pending = suppliesUi?.Selection.ToLoadout();
             SelectLevel(selected);
         });
+
+        // The button tells the truth (SHOP.md §9.1): CLEAN or BOOSTED, gold-edged when
+        // boosted, disabled when the attempts meter is empty.
+        if (suppliesUi != null)
+        {
+            // The CLEAN/BOOSTED label is wider than plain "PLAY" and collides with the
+            // triangle icon - the words carry the meaning now, drop the glyph.
+            playIcon.gameObject.SetActive(false);
+            playLabel.rectTransform.anchoredPosition = Vector2.zero;
+            suppliesUi.PlayBg = playBg;
+            suppliesUi.PlayLabel = playLabel;
+            suppliesUi.PlayButton = playButton;
+            RefreshPlayButton(suppliesUi);
+        }
 
         float ranksX = pad + playW + 18f;
         float ranksW = contentW - playW - 18f;
@@ -145,6 +193,13 @@ public static partial class MainMenuRuntime
         Button closeButton = closeBg.gameObject.AddComponent<Button>();
         closeButton.targetGraphic = closeBg;
         closeButton.onClick.AddListener(Close);
+
+        // Help at the wall (SHOP.md §7.2): after 3 straight losses on this level the boost
+        // tray is simply already open - once per streak, no popup, no discount theatre.
+        if (suppliesUi != null && RunSuppliesState.ShouldNudge(level))
+        {
+            OpenBoostTray(suppliesUi);
+        }
     }
 
     // A small stat card (TARGET / YOUR BEST): label on top in the light chapter colour, value

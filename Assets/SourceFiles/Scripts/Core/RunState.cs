@@ -3,6 +3,12 @@ using UnityEngine;
 [System.Serializable]
 public sealed class RunState
 {
+    // Hard ceiling for GAINED lives (SHOP.md §3.1): purchased supplies, authored level
+    // lives and ExtraLife pickups can never stack a run past 3. Authored configs above
+    // the cap (Custom Game's stepper goes to 20) are trusted as-is - the cap governs
+    // additions, not starts.
+    public const int MaxLives = 3;
+
     [SerializeField] private float _maxHeight;
     [SerializeField] private int _score;
     [SerializeField] private int _standingBlocks;
@@ -27,7 +33,11 @@ public sealed class RunState
 
     public void SetLives(int lives) => _lives = Mathf.Max(0, lives);
 
-    public void AddLife() => _lives++;
+    public void AddLife()
+    {
+        if (_lives >= MaxLives) return;
+        _lives++;
+    }
 
     public bool TrySpendLife()
     {

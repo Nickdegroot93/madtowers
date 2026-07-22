@@ -18,7 +18,7 @@ using UnityEngine;
 /// </summary>
 public static class ProgressStore
 {
-    private const int CurrentSchemaVersion = 3;
+    private const int CurrentSchemaVersion = 4;
 
     [Serializable]
     public class PlayerProgress
@@ -38,15 +38,34 @@ public static class ProgressStore
         public List<string> discoveredBlocks = new List<string>();
         public List<string> abilitiesSeen = new List<string>();
         public List<string> vaultInspected = new List<string>();
+        // The wallet (v4, SHOP.md §10 / DATA.md rule 3): spending is non-monotonic, so the
+        // balance is DERIVED from two monotonic counters - merging two devices is max() on
+        // each. Folded here from the old PlayerPrefs "profile.coins" (see MigrateLegacyCoins).
+        public long currencyEarned;
+        public long currencySpent;
+        // Attempts meter (SHOP.md §7): inherently non-monotonic, so it follows the settings
+        // pattern - last-writer-wins by timestamp (DATA.md). Count is the value AT the
+        // timestamp; regen since then is derived on read.
+        public int attemptsCount = -1; // -1 = never initialized (fresh meter starts full)
+        public long attemptsUpdatedAtUnixUtc;
+        // One-time premium unlock (monotonic false->true). Only ever set via a validated IAP
+        // receipt when that ships (BACKEND.md §9); until then it stays false in production.
+        public bool premiumUnlocked;
     }
 
     [Serializable]
     public class LevelBest
     {
         public string levelId;
+        // Clean-board bests (SHOP.md §5). Pre-v4 saves only had these fields - correct, since
+        // every pre-shop run was by definition clean.
         public int bestScore;
         public float bestHeightMeters;
         public long achievedAtUnixUtc;
+        // Boosted-board bests: runs that started with any purchased supply. Never mixed with
+        // the clean fields; both pairs are per-metric max (monotonic).
+        public int bestScoreBoosted;
+        public float bestHeightMetersBoosted;
     }
 
     private static PlayerProgress _data;
@@ -166,9 +185,11 @@ public static class ProgressStore
 
     /// <summary>
     /// Record a finished run's results. Monotonic: only improvements are stored, so this
-    /// is safe to call from any end-of-run path (completion, game over, both).
+    /// is safe to call from any end-of-run path (completion, game over, both). Boosted runs
+    /// (any purchased supply, SHOP.md §5) improve only the boosted pair; clean runs only the
+    /// clean pair - the two boards never mix.
     /// </summary>
-    public static void ReportResult(LevelDefinition level, int score, float heightMeters)
+    public static void ReportResult(LevelDefinition level, int score, float heightMeters, bool boosted = false)
     {
         string id = LevelId(level);
         if (id == null) return;
@@ -179,13 +200,23 @@ public static class ProgressStore
             best = new LevelBest { levelId = id };
             Data.bests.Add(best);
         }
-        else if (score <= best.bestScore && heightMeters <= best.bestHeightMeters)
+        else if (boosted
+            ? score <= best.bestScoreBoosted && heightMeters <= best.bestHeightMetersBoosted
+            : score <= best.bestScore && heightMeters <= best.bestHeightMeters)
         {
-            return; // no improvement, no write
+            return; // no improvement on the board this run played for, no write
         }
 
-        best.bestScore = Mathf.Max(best.bestScore, score);
-        best.bestHeightMeters = Mathf.Max(best.bestHeightMeters, heightMeters);
+        if (boosted)
+        {
+            best.bestScoreBoosted = Mathf.Max(best.bestScoreBoosted, score);
+            best.bestHeightMetersBoosted = Mathf.Max(best.bestHeightMetersBoosted, heightMeters);
+        }
+        else
+        {
+            best.bestScore = Mathf.Max(best.bestScore, score);
+            best.bestHeightMeters = Mathf.Max(best.bestHeightMeters, heightMeters);
+        }
         best.achievedAtUnixUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         Save();
     }
@@ -196,16 +227,91 @@ public static class ProgressStore
         return id != null ? FindBest(id) : null;
     }
 
-    /// <summary>Wipe local progress (debug / "reset progress" settings button).</summary>
+    // ---- wallet (SHOP.md §10; spend/earn are the ONLY writers) ------------------------------
+
+    /// <summary>Spendable balance, derived from the two monotonic counters.</summary>
+    public static int CoinBalance => (int)Math.Max(0L, Data.currencyEarned - Data.currencySpent);
+
+    public static void EarnCoins(int amount)
+    {
+        if (amount <= 0) return;
+        Data.currencyEarned += amount;
+        Save();
+    }
+
+    /// <summary>Spend up to <paramref name="amount"/>; clamps at the balance (matches the old
+    /// PlayerPrefs wallet's clamp-at-zero behaviour) and reports what was actually spent.</summary>
+    public static int SpendCoins(int amount)
+    {
+        int spend = Mathf.Clamp(amount, 0, CoinBalance);
+        if (spend == 0) return 0;
+        Data.currencySpent += spend;
+        Save();
+        return spend;
+    }
+
+    // ---- attempts meter (SHOP.md §7) ---------------------------------------------------------
+
+    /// <summary>Attempts meter state as last persisted (count is the value AT the timestamp;
+    /// callers derive regen since). count -1 = never initialized.</summary>
+    public static void GetAttemptsState(out int count, out long updatedAtUnixUtc)
+    {
+        count = Data.attemptsCount;
+        updatedAtUnixUtc = Data.attemptsUpdatedAtUnixUtc;
+    }
+
+    public static void SetAttemptsState(int count, long updatedAtUnixUtc)
+    {
+        Data.attemptsCount = count;
+        Data.attemptsUpdatedAtUnixUtc = updatedAtUnixUtc;
+        Save();
+    }
+
+    /// <summary>The one-time premium unlock ("MadTowers Unlimited"). Setter exists for the
+    /// future IAP path only - nothing in the game calls it yet.</summary>
+    public static bool IsPremium => Data.premiumUnlocked;
+
+    /// <summary>Wipe local progress (debug / "reset progress" settings button). The wallet
+    /// survives on purpose: coins lived outside this store (PlayerPrefs) before v4, so the
+    /// reset button never touched them - folding them in must not change what the button does.</summary>
     public static void ResetAll()
     {
-        _data = new PlayerProgress();
+        long earned = Data.currencyEarned;
+        long spent = Data.currencySpent;
+        _data = new PlayerProgress { currencyEarned = earned, currencySpent = spent };
         Save();
     }
 
     // ---- plumbing --------------------------------------------------------------------------
 
-    private static PlayerProgress Data => _data ??= Load();
+    private static PlayerProgress Data
+    {
+        get
+        {
+            if (_data == null)
+            {
+                _data = Load();
+                MigrateLegacyCoins();
+            }
+            return _data;
+        }
+    }
+
+    // v4 fold (BACKEND.md §8 Phase B): the old PlayerPrefs wallet moves into the save document
+    // as earned (its balance was all-earned by definition - there was no sink before the shop).
+    // Runs after _data is assigned so the Save() inside doesn't recurse into Load().
+    private const string LegacyCoinsKey = "profile.coins";
+
+    private static void MigrateLegacyCoins()
+    {
+        if (!PlayerPrefs.HasKey(LegacyCoinsKey)) return;
+
+        int legacy = Mathf.Max(0, PlayerPrefs.GetInt(LegacyCoinsKey, 0));
+        if (legacy > 0) _data.currencyEarned += legacy;
+        PlayerPrefs.DeleteKey(LegacyCoinsKey);
+        PlayerPrefs.Save();
+        Save();
+    }
 
     private static LevelBest FindBest(string id)
     {

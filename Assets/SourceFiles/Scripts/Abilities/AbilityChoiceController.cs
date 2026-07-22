@@ -60,8 +60,14 @@ public class AbilityChoiceController : MonoBehaviour
         // more than 1 under a ScorePerBlockBonus state - modulo would skip the offer.)
         int interval = config.PowerUpChoiceEveryBlocks;
         bool crossedMilestone = score / interval > _lastHandledScore / interval;
+        // The Quick Study supply (SHOP.md §3.2) front-loads ONE extra-early offer: the first
+        // crossing of its own small threshold. Later milestones are untouched - the regular
+        // interval crossings still fire from wherever the score is.
+        bool quickStudy = RunSuppliesState.HasActiveBoost(BoostId.QuickStudy)
+            && _lastHandledScore < SupplyCatalog.QuickStudyAtBlocks
+            && score >= SupplyCatalog.QuickStudyAtBlocks;
         _lastHandledScore = score;
-        if (!crossedMilestone) return;
+        if (!crossedMilestone && !quickStudy) return;
 
         IReadOnlyList<AbilityDefinition> pool = config.PowerUpChoicePool;
         if (pool == null || pool.Count == 0) return;

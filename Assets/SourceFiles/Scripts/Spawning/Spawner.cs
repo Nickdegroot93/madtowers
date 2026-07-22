@@ -117,6 +117,14 @@ public class Spawner : MonoBehaviour
 
             AddVariantChance(entry.Variant, entry.ChancePerBlock);
         }
+
+        // The Scarce Hazards supply (SHOP.md §3.2) is PULLED here, right after registration,
+        // instead of pushed from RunSuppliesApplier - Start-order between two components is
+        // undefined, and a push could land before the table exists (silent no-op).
+        if (RunSuppliesState.HasActiveBoost(BoostId.ScarceHazards))
+        {
+            ReduceHazardChances(SupplyCatalog.ScarceHazardsReduction);
+        }
     }
 
     // Rolls a SINGLE upcoming shape: a forced definition-chance injection (Spike/Cube

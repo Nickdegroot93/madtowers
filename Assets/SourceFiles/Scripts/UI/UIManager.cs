@@ -170,7 +170,12 @@ public class UIManager : MonoBehaviour
     }
 
     private int _shownLives = -1;
+    private int _maxLivesSeen;
+    private bool[] _heartFull;
 
+    // Two-state hearts (SHOP.md §2): a held life is the FULL heart, a lost life leaves an
+    // EMPTY socket behind - the row's length is the run's high-water mark, so losses read
+    // as "a slot went dark", never "a heart vanished".
     private void HandleLivesChanged(int lives)
     {
         EnsureHearts();
@@ -178,47 +183,135 @@ public class UIManager : MonoBehaviour
 
         int previous = _shownLives < 0 ? lives : _shownLives;
         _shownLives = lives;
+        _maxLivesSeen = Mathf.Max(_maxLivesSeen, lives);
 
         for (int i = 0; i < _hearts.Length; i++)
         {
             if (_hearts[i] == null) continue;
-            if (i < lives && !_hearts[i].enabled)
+            bool inRow = i < _maxLivesSeen;
+            bool full = i < lives;
+
+            if (!inRow)
             {
-                _hearts[i].enabled = true;
-                if (previous < lives) StartCoroutine(PopHeart(_hearts[i]));      // gained: pop in
+                _hearts[i].enabled = false;
+                _heartFull[i] = false;
+                continue;
             }
-            else if (i >= lives && _hearts[i].enabled)
+
+            bool wasFull = _heartFull[i] && _hearts[i].enabled;
+            _heartFull[i] = full;
+            _hearts[i].enabled = true;
+            if (full)
             {
-                if (i < previous) StartCoroutine(BreakHeart(_hearts[i]));        // lost: swell + fade out
-                else _hearts[i].enabled = false;
+                SetHeartState(_hearts[i], full: true);
+                if (!wasFull && lives > previous) StartCoroutine(PopHeart(_hearts[i])); // gained: pop in
+            }
+            else if (wasFull && lives < previous)
+            {
+                StartCoroutine(BreakHeart(_hearts[i]));                          // lost: shatter to socket
+            }
+            else
+            {
+                SetHeartState(_hearts[i], full: false);
             }
         }
 
         if (lives < previous) SfxPlayer.Play("life_lost", 0.8f, 0.03f);
     }
 
-    // The lost heart swells, blanches and dissolves - a beat of grief, on unscaled time so the
-    // pause/game-over freeze can't rob the player of the feedback.
+    private void SetHeartState(Image heart, bool full)
+    {
+        heart.sprite = full ? HeartSprites.Full() : HeartSprites.Empty();
+        // With no dedicated socket asset yet, the empty state is the full art dimmed.
+        heart.color = full || HeartSprites.HasDedicatedEmpty
+            ? Color.white
+            : new Color(0.25f, 0.22f, 0.22f, 0.55f);
+    }
+
+    // The lost heart swells for a beat, then SHATTERS: it swaps to the empty socket while
+    // four UV-quadrant shards of the full art fly out, spin and dissolve. Unscaled time so
+    // the pause/game-over freeze can't rob the player of the feedback. Restrained per
+    // JUICE.md: shards and one existing sfx, no flash, no shake.
     private System.Collections.IEnumerator BreakHeart(Image heart)
     {
-        const float duration = 0.45f;
+        const float swellSeconds = 0.14f;
         Vector3 baseScale = heart.rectTransform.localScale;
-        Color baseColor = heart.color;
         float age = 0f;
-        while (age < duration && heart != null)
+        while (age < swellSeconds && heart != null)
         {
             age += Time.unscaledDeltaTime;
-            float t = Mathf.Clamp01(age / duration);
-            heart.rectTransform.localScale = baseScale * (1f + 0.6f * Mathf.Sin(t * Mathf.PI * 0.5f));
-            Color c = Color.Lerp(baseColor, Color.white, t * 0.7f);
-            c.a = baseColor.a * (1f - t * t);
-            heart.color = c;
+            float t = Mathf.Clamp01(age / swellSeconds);
+            heart.rectTransform.localScale = baseScale * (1f + 0.35f * t);
             yield return null;
         }
         if (heart == null) yield break;
-        heart.enabled = false;
+
+        SpawnHeartShards(heart);
         heart.rectTransform.localScale = baseScale;
-        heart.color = baseColor;
+        SetHeartState(heart, full: false);
+    }
+
+    // Four quadrant shards cut straight from the full-heart sprite's texture, so the break
+    // always matches the art - no separate cracked asset to keep in sync.
+    private void SpawnHeartShards(Image heart)
+    {
+        Sprite full = HeartSprites.Full();
+        if (full == null || _heartsContainer == null) return;
+
+        Rect r = full.rect;
+        Vector2 halfSize = ((RectTransform)heart.transform).sizeDelta * 0.5f;
+        Vector2 center = ((RectTransform)heart.transform).anchoredPosition + halfSize;
+        for (int q = 0; q < 4; q++)
+        {
+            int qx = q % 2;
+            int qy = q / 2;
+            var quadrant = new Rect(r.x + qx * r.width * 0.5f, r.y + qy * r.height * 0.5f,
+                r.width * 0.5f, r.height * 0.5f);
+            Sprite shardSprite = Sprite.Create(full.texture, quadrant, new Vector2(0.5f, 0.5f));
+
+            GameObject shard = new GameObject("HeartShard", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            RectTransform rect = (RectTransform)shard.transform;
+            rect.SetParent(_heartsContainer, false);
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.zero;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = halfSize;
+            rect.anchoredPosition = center + new Vector2((qx - 0.5f) * halfSize.x, (qy - 0.5f) * halfSize.y);
+
+            Image image = shard.GetComponent<Image>();
+            image.sprite = shardSprite;
+            image.color = heart.color;
+            image.raycastTarget = false;
+
+            Vector2 fling = new Vector2((qx - 0.5f) * 2f + Random.Range(-0.4f, 0.4f),
+                (qy - 0.5f) * 2f + Random.Range(0.2f, 0.9f)) * Random.Range(90f, 140f);
+            StartCoroutine(AnimateHeartShard(rect, image, shardSprite, fling,
+                Random.Range(-260f, 260f)));
+        }
+    }
+
+    private System.Collections.IEnumerator AnimateHeartShard(RectTransform rect, Image image,
+        Sprite sprite, Vector2 velocity, float spinDegPerSec)
+    {
+        const float duration = 0.55f;
+        const float gravity = -420f;
+        float age = 0f;
+        Color baseColor = image.color;
+        while (age < duration && rect != null)
+        {
+            float dt = Time.unscaledDeltaTime;
+            age += dt;
+            velocity.y += gravity * dt;
+            rect.anchoredPosition += velocity * dt;
+            rect.localRotation = Quaternion.Euler(0f, 0f, rect.localEulerAngles.z + spinDegPerSec * dt);
+            float t = Mathf.Clamp01(age / duration);
+            Color c = baseColor;
+            c.a = baseColor.a * (1f - t * t);
+            image.color = c;
+            yield return null;
+        }
+        if (rect != null) Destroy(rect.gameObject);
+        if (sprite != null) Destroy(sprite); // the quadrant Sprite wrapper is ours to free
     }
 
     private System.Collections.IEnumerator PopHeart(Image heart)
@@ -847,6 +940,7 @@ public class UIManager : MonoBehaviour
         _heartsContainer.sizeDelta = new Vector2(MaxHearts * (HeartSize + HeartGap), HeartSize);
 
         _hearts = new Image[MaxHearts];
+        _heartFull = new bool[MaxHearts];
         for (int i = 0; i < MaxHearts; i++)
         {
             GameObject heart = new GameObject($"Heart{i}", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
@@ -859,8 +953,8 @@ public class UIManager : MonoBehaviour
             heartRect.sizeDelta = new Vector2(HeartSize, HeartSize);
 
             Image image = heart.GetComponent<Image>();
-            image.sprite = RuntimeSprites.Heart();
-            image.color = HeartColor;
+            image.sprite = HeartSprites.Full();
+            image.color = Color.white;
             image.raycastTarget = false;
             image.enabled = false;
             _hearts[i] = image;

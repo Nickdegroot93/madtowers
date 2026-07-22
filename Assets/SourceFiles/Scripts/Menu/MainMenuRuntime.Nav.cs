@@ -54,7 +54,7 @@ public static partial class MainMenuRuntime
         Color gold = chapter != null ? ChapterLight(chapter) : GoldBase;
         RuntimeUiKit.AddOutline(nav, WithAlpha(gold, 0.55f));
 
-        MenuTab[] tabs = { MenuTab.Shop, MenuTab.Chapters, MenuTab.Home, MenuTab.Vault, MenuTab.Settings };
+        MenuTab[] tabs = { MenuTab.Profile, MenuTab.Chapters, MenuTab.Home, MenuTab.Vault, MenuTab.Settings };
 
         // Thin vertical dividers on the internal slot boundaries - but NOT the two flanking the
         // centre Home hexagon, which is its own separator.
@@ -110,7 +110,7 @@ public static partial class MainMenuRuntime
         Color tint = _activeTab == tab ? activeColor : TextMuted;
         Sprite glyph = tab switch
         {
-            MenuTab.Shop => MenuSprites.NavBag(tint),
+            MenuTab.Profile => MenuSprites.Person(tint),
             MenuTab.Chapters => MenuSprites.NavLayers(tint),
             MenuTab.Vault => MenuSprites.NavGrid(tint),
             MenuTab.Settings => MenuSprites.NavGear(tint),

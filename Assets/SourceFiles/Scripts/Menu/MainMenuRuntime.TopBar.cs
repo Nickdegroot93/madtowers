@@ -92,9 +92,17 @@ public static partial class MainMenuRuntime
         spacerLayout.flexibleWidth = 1f;
 
         BuildCurrencyCard(bar, statBackground, "$", profile.Coins.ToString("N0", CultureInfo.InvariantCulture), null);
-        BuildCurrencyCard(bar, statBackground, null,
-            $"{profile.Lives}/{profile.MaxLives}",
-            $"{profile.LifeRefillRemaining.Minutes:00}:{profile.LifeRefillRemaining.Seconds:00}");
+
+        // The attempts chip (SHOP.md §7): real meter once the meta systems unlock, absent
+        // before that (soft landing) and absent for premium (the meter doesn't exist for them).
+        if (AttemptsService.MeterActive)
+        {
+            System.TimeSpan regen = AttemptsService.NextRegenIn;
+            bool showTimer = AttemptsService.Count < AttemptsService.MaxAttempts;
+            BuildCurrencyCard(bar, statBackground, null,
+                $"{AttemptsService.Count}/{AttemptsService.MaxAttempts}",
+                showTimer ? $"{(int)regen.TotalMinutes:00}:{regen.Seconds:00}" : null);
+        }
     }
 
     // Turns a freshly-built card (root = RoundedPanel fill) into a frosted-glass panel: a blurred
@@ -162,7 +170,7 @@ public static partial class MainMenuRuntime
         }
         else
         {
-            Sprite heartIcon = MenuIcon("heart");
+            Sprite heartIcon = HeartSprites.Full();
             if (heartIcon != null)
             {
                 Image heart = CreateImage(card, "Heart", heartIcon, Color.white);

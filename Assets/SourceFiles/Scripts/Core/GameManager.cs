@@ -355,6 +355,14 @@ public class GameManager : MonoBehaviour
         Debug.Log($"Life added! Total: {_runState.Lives}");
     }
 
+    /// <summary>The Slow Descent supply (SHOP.md §3.2): one flat scale on the whole authored
+    /// speed curve, applied by RunSuppliesApplier at run start - independent of the ability
+    /// fall-speed multiplier, which AbilityRuntime recomputes freely all run.</summary>
+    public void ApplyRunSupplySpeedScale(float multiplier)
+    {
+        _difficulty.ScaleSpeeds(multiplier);
+    }
+
     /// <summary>Composed multiplier from abilities/status effects; pushed by AbilityRuntime
     /// on inventory/lives/status changes, never per frame.</summary>
     public void SetAbilityFallSpeedMultiplier(float multiplier)

@@ -29,6 +29,25 @@ public sealed class DifficultyController
         _speedTimer = 0f;
     }
 
+    /// <summary>Scale every speed quantity by one factor (the Slow Descent supply,
+    /// SHOP.md §3.2): start, cap AND both ramps, so the level keeps its authored shape -
+    /// the cap still lands at the same block count, just 10% lower. Call once, right
+    /// after ApplyConfig, before the first block falls.</summary>
+    public void ScaleSpeeds(float multiplier)
+    {
+        if (multiplier <= 0f) return;
+
+        _currentFallSpeed *= multiplier;
+        _maxFallSpeed *= multiplier;
+        // Additive ramps are absolute speed-per-step and must shrink with the band; percent
+        // ramps are already relative, so scaled start+cap alone keeps the authored shape.
+        if (_adjustmentMode == DifficultyAdjustmentMode.Additive)
+        {
+            _speedIncreasePerBlock *= multiplier;
+            _speedIncreasePerInterval *= multiplier;
+        }
+    }
+
     public void Tick(float deltaTime)
     {
         if (_scalingMode != DifficultyScalingMode.OverTime) return;

@@ -164,7 +164,7 @@ public class LevelRuntimeController : MonoBehaviour
         // Screen BEFORE ReportResult: the card compares this run against the best as it
         // stood before the run banked - otherwise a new best could never be detected.
         ShowGameOverScreen();
-        if (_level != null) ProgressStore.ReportResult(_level, finalScore, maxHeightMeters);
+        if (_level != null) ProgressStore.ReportResult(_level, finalScore, maxHeightMeters, RunSuppliesState.ActiveRunBoosted);
     }
 
     private void ShowGameOverScreen()
@@ -183,6 +183,7 @@ public class LevelRuntimeController : MonoBehaviour
             // and the ledger blocks further earning - re-advertising them here would read as
             // a second payout that never happens.
             Coins = _completed ? 0 : result.CoinsEarned,
+            Boosted = RunSuppliesState.ActiveRunBoosted,
             PrimaryLabel = "Try Again",
             OnPrimary = () => { if (GameManager.Instance != null) GameManager.Instance.RestartGame(); },
         });
@@ -193,7 +194,7 @@ public class LevelRuntimeController : MonoBehaviour
     // uses; the provider lookup is shared so the two can never disagree.
     private ResultMetric ResolveEndOfRunMetric(RunResult result)
     {
-        ProgressStore.LevelBest best = _level != null ? ProgressStore.GetBest(_level) : null;
+        ProgressStore.LevelBest best = BestForRunBoard();
 
         ILevelMenuProgressProvider provider = LevelMenuPresentation.FindProgressProvider(_level);
         ResultMetric? overrideMetric = provider?.EndOfRunMetric(_level, result, best);
@@ -201,6 +202,22 @@ public class LevelRuntimeController : MonoBehaviour
 
         WinCondition condition = _winCondition ?? new EndlessWinCondition();
         return condition.EndOfRunMetric(result, best);
+    }
+
+    // The results card compares against the board this run played for (SHOP.md §5): a boosted
+    // run races the boosted best, never the clean one. Metric providers only read the clean
+    // fields, so a boosted run gets a view with the boosted pair mapped onto them.
+    private ProgressStore.LevelBest BestForRunBoard()
+    {
+        ProgressStore.LevelBest best = _level != null ? ProgressStore.GetBest(_level) : null;
+        if (best == null || !RunSuppliesState.ActiveRunBoosted) return best;
+        return new ProgressStore.LevelBest
+        {
+            levelId = best.levelId,
+            bestScore = best.bestScoreBoosted,
+            bestHeightMeters = best.bestHeightMetersBoosted,
+            achievedAtUnixUtc = best.achievedAtUnixUtc,
+        };
     }
 
     private void Update()
@@ -595,8 +612,10 @@ public class LevelRuntimeController : MonoBehaviour
         RunResult result = GameManager.Instance.CurrentRunResult;
         _victoryContent = BuildVictoryContent(result);
 
+        // Boosted completions still complete (SHOP.md §6) - only the best goes to the
+        // boosted board instead of the clean one.
         ProgressStore.MarkLevelCompleted(_level);
-        ProgressStore.ReportResult(_level, result.Score, result.MaxHeight);
+        ProgressStore.ReportResult(_level, result.Score, result.MaxHeight, RunSuppliesState.ActiveRunBoosted);
         GameEvents.RaiseLevelCompleted(_level, result);
 
         if (GameManager.Instance.IsGamePaused)
@@ -618,6 +637,7 @@ public class LevelRuntimeController : MonoBehaviour
             // The banked total: the run's skill coins plus the once-per-run win bonus
             // (CoinLedger adds the bonus when LevelCompleted is raised below).
             Coins = result.CoinsEarned + CoinLedger.WinBonusCoins,
+            Boosted = RunSuppliesState.ActiveRunBoosted,
             PrimaryLabel = "Keep Playing",
             VictorySentence = "Your tower still stands - keep stacking to push your best score even higher.",
             OnPrimary = ContinuePlaying,

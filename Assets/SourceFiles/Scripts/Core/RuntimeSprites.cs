@@ -54,7 +54,9 @@ public static partial class RuntimeSprites
                     for (int sx = 0; sx < 3; sx++)
                     {
                         float u = ((x + (sx + 0.5f) / 3f) / S) * 2.6f - 1.3f;
-                        float v = ((y + (sy + 0.5f) / 3f) / S) * 2.6f - 1.5f;
+                        // -1.182 vertically centers the curve's v extent of [-1, 1.236] in the
+                        // texture, so a centered Image rect shows a centered heart.
+                        float v = ((y + (sy + 0.5f) / 3f) / S) * 2.6f - 1.182f;
                         float f = u * u + v * v - 1f;
                         if (f * f * f - u * u * v * v * v <= 0f) coverage += 1f;
                     }
@@ -384,6 +386,155 @@ public static partial class RuntimeSprites
     }
 
     // ---- shared plumbing -----------------------------------------------------------------
+
+    // ---- the run-life heart, two states (SHOP.md §2) --------------------------------------
+    // Baked in the game's own bevel language (the brick shaders' rounded-shape + bevel +
+    // near-black outline), not a flat glyph: a signed distance field over the classic heart
+    // curve drives an outline band, a lit bevel (normal from the field's nearest-edge
+    // direction) and a body ramp. FULL = deep ruby gem with a top-left sheen; EMPTY = the
+    // same silhouette as a dark recessed socket (inverted bevel light = reads as a hole).
+    // Procedural on purpose: it matches the bricks, scales crisp, and the shatter/crack
+    // animations own the shape (Nick, 2026-07-20 - replaced the emoji-style heart.png).
+
+    private static Sprite _heartFull;
+    private static Sprite _heartEmpty;
+
+    public static Sprite HeartFull()
+    {
+        if (_heartFull == null) _heartFull = BakeHeart(full: true);
+        return _heartFull;
+    }
+
+    public static Sprite HeartEmpty()
+    {
+        if (_heartEmpty == null) _heartEmpty = BakeHeart(full: false);
+        return _heartEmpty;
+    }
+
+    private static Sprite BakeHeart(bool full)
+    {
+        const int S = 192;
+
+        // 1. Coverage mask (3x3 supersampled) - also the alpha edge.
+        float[] mask = new float[S * S];
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                float coverage = 0f;
+                for (int sy = 0; sy < 3; sy++)
+                {
+                    for (int sx = 0; sx < 3; sx++)
+                    {
+                        float u = ((x + (sx + 0.5f) / 3f) / S) * 2.6f - 1.3f;
+                        // -1.182 vertically centers the curve's v extent of [-1, 1.236] in the
+                        // texture (the old -1.5 clipped the lobes and left the heart riding high).
+                        float v = ((y + (sy + 0.5f) / 3f) / S) * 2.6f - 1.182f;
+                        float f = u * u + v * v - 1f;
+                        if (f * f * f - u * u * v * v * v <= 0f) coverage += 1f;
+                    }
+                }
+                mask[y * S + x] = coverage / 9f;
+            }
+        }
+
+        // 2. Vector distance field (8SSEDT): per inside pixel, offset to the nearest edge.
+        //    Gives both depth (outline/bevel bands) and the bevel normal for lighting.
+        Vector2[] toEdge = new Vector2[S * S];
+        const float far = 1e6f;
+        for (int i = 0; i < toEdge.Length; i++)
+        {
+            toEdge[i] = mask[i] < 0.5f ? Vector2.zero : new Vector2(far, far);
+        }
+        void Relax(int x, int y, int dx, int dy)
+        {
+            int nx = x + dx, ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= S || ny >= S) return;
+            Vector2 candidate = toEdge[ny * S + nx] + new Vector2(dx, dy);
+            if (candidate.sqrMagnitude < toEdge[y * S + x].sqrMagnitude) toEdge[y * S + x] = candidate;
+        }
+        for (int y = 0; y < S; y++)
+            for (int x = 0; x < S; x++)
+            { Relax(x, y, -1, 0); Relax(x, y, 0, -1); Relax(x, y, -1, -1); Relax(x, y, 1, -1); }
+        for (int y = S - 1; y >= 0; y--)
+            for (int x = S - 1; x >= 0; x--)
+            { Relax(x, y, 1, 0); Relax(x, y, 0, 1); Relax(x, y, 1, 1); Relax(x, y, -1, 1); }
+
+        // 3. Shade. Bands are in pixels at S=192.
+        const float outlineW = 7f;
+        const float bevelW = 22f;
+        Color outlineColor = new Color(0.13f, 0.03f, 0.06f, 1f); // near-black plum, the tower's line weight
+        Vector2 lightDir = new Vector2(-0.55f, 0.84f).normalized; // top-left, matching the bricks
+
+        Texture2D tex = NewTexture(S, S);
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                float a = mask[y * S + x];
+                if (a <= 0f) { tex.SetPixel(x, y, Color.clear); continue; }
+
+                float d = toEdge[y * S + x].magnitude;
+                Color color;
+                if (d <= outlineW)
+                {
+                    color = outlineColor;
+                }
+                else
+                {
+                    // Normalized coords for ramps/sheen: u right, v up, 0..1 across the heart.
+                    float u01 = x / (float)S;
+                    float v01 = y / (float)S;
+                    // Bevel light: normal points from the pixel toward the edge (outward);
+                    // SetPixel space is already y-up, so it dots with the light directly.
+                    Vector2 normal = toEdge[y * S + x];
+                    normal = normal.sqrMagnitude > 0.001f ? normal.normalized : Vector2.up;
+                    float lit = Vector2.Dot(normal, lightDir);
+                    float band = Mathf.Clamp01((outlineW + bevelW - d) / bevelW);        // 1 at outline, 0 at body
+
+                    if (full)
+                    {
+                        // Ruby body: darker low, richer high, faceted feel from the bevel.
+                        Color deep = new Color(0.42f, 0.05f, 0.12f, 1f);
+                        Color body = new Color(0.72f, 0.11f, 0.20f, 1f);
+                        Color glow = new Color(0.98f, 0.42f, 0.42f, 1f);
+                        color = Color.Lerp(deep, body, Mathf.Clamp01(v01 * 1.5f - 0.1f));
+                        if (band > 0f)
+                        {
+                            color = lit > 0f
+                                ? Color.Lerp(color, glow, band * lit * 0.85f)
+                                : Color.Lerp(color, deep, band * -lit * 0.9f);
+                        }
+                        // Top-left sheen blob - the gem's one highlight, tight and bright.
+                        float sx = (u01 - 0.34f) / 0.11f;
+                        float sy2 = (v01 - 0.72f) / 0.075f;
+                        float sheen = Mathf.Clamp01(1f - (sx * sx + sy2 * sy2));
+                        color = Color.Lerp(color, new Color(1f, 0.93f, 0.92f, 1f), sheen * sheen * 0.8f);
+                    }
+                    else
+                    {
+                        // Socket: dark recess. Inverted bevel (lit from BELOW) reads as a hole;
+                        // a whisper of dried red keeps it the heart's ghost, not a generic pit.
+                        // Contrast is the whole trick: pit near-black, walls clearly lighter,
+                        // hole-shadow hugging the top edge, a bright lip catching the bottom.
+                        Color pit = new Color(0.045f, 0.030f, 0.036f, 1f);
+                        Color wall = new Color(0.22f, 0.145f, 0.15f, 1f);
+                        float depth = Mathf.Clamp01(d / (outlineW + bevelW + 26f)); // 0 at rim, 1 deep inside
+                        color = Color.Lerp(wall, pit, depth);
+                        if (band > 0f)
+                        {
+                            color = lit > 0f
+                                ? Color.Lerp(color, pit, band * lit)                                          // top edge: hole shadow
+                                : Color.Lerp(color, new Color(0.44f, 0.26f, 0.26f, 1f), band * -lit * 0.85f); // bottom lip catches light
+                        }
+                    }
+                }
+                color.a = a;
+                tex.SetPixel(x, y, color);
+            }
+        }
+        return Finish(tex, S);
+    }
 
     private static Texture2D NewTexture(int width, int height)
     {

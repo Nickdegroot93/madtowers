@@ -62,6 +62,10 @@ public static partial class RuntimeUiKit
         contentRect.anchorMax = new Vector2(1f, 1f);
         contentRect.pivot = new Vector2(0.5f, 1f);
         contentRect.anchoredPosition = Vector2.zero;
+        // A fresh RectTransform defaults to sizeDelta (100,100); with the stretch anchors
+        // above that made the content 100 units WIDER than the panel, hanging 50 out each
+        // side of the mask (rows near the edges got clipped). Height is the fitter's job.
+        contentRect.sizeDelta = Vector2.zero;
 
         VerticalLayoutGroup layout = contentObject.AddComponent<VerticalLayoutGroup>();
         layout.padding = new RectOffset(36, 36, 36, 36);

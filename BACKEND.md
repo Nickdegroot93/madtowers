@@ -237,6 +237,15 @@ End-to-end, the thing you asked about:
 
 ## 9. Open decisions to revisit at Phase E
 
+> **Direction note (Nick, 2026-07-20, during the shop work):** online is to become the
+> STANDARD, not an opt-in — "everyone needs to be logged in... the lives [attempts] reset
+> based on a certain time and that's checked on our servers." That means: attempts-meter
+> regen server-validated, leaderboards as a core loop, login expected. This TENSIONS with
+> §3.1/§5's guest-first local-first stance ("never gate play behind a login screen",
+> "fully playable offline") — resolve at Phase E: the likely landing spot is anonymous
+> auto-auth (still no login WALL) + server-authoritative attempts/scores once online,
+> with offline play degraded rather than blocked. Do not silently drop either principle.
+
 - **Currency authority.** Soft currency can stay client-side (earned/spent, monotonic). If
   currency is ever **bought via IAP**, that purchase must be server-validated (receipt check) —
   don't trust the client for paid balance. Decide when monetization is decided.

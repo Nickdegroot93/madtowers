@@ -17,6 +17,7 @@ public static class GameSystemsInstaller
 
         Ensure<StatusEffects>(host);          // status state + the runtime are resolved by the rest,
         Ensure<AbilityRuntime>(host);         // so they go first
+        Ensure<RunSuppliesApplier>(host);     // consumes the pre-run loadout (needs AbilityRuntime for Stocked boosts)
         Ensure<ComboDetector>(host);
         Ensure<StatusFieldController>(host);
         Ensure<HoldCache>(host);

@@ -24,6 +24,7 @@ public sealed class RunResultsScreen : MonoBehaviour
         public bool GoalReached;        // show the "GOAL ... REACHED" line (level was made)
         public float EndlessHeight;     // > 0 on endless runs only: quiet secondary height line
         public int Coins;               // banked this run (incl. win bonus on victory); 0 hides the line
+        public bool Boosted;            // run started with purchased supplies (SHOP.md §5) - the honesty tag
         public string PrimaryLabel;     // "Try Again" / "Keep Playing"
         public System.Action OnPrimary;
         public string VictorySentence;  // why keep playing (victory only)
@@ -125,6 +126,16 @@ public sealed class RunResultsScreen : MonoBehaviour
             _content.Victory ? 60f : 42f, display: true);
         kicker.characterSpacing = 8f;
         AddReveal(kicker.gameObject, KickerAt);
+
+        // The boosted honesty tag (SHOP.md §5): a quiet gold line under the kicker so an
+        // assisted run always says so - the score below belongs to the boosted board.
+        if (_content.Boosted)
+        {
+            TextMeshProUGUI boosted = CreateRow(panel.transform, "BOOSTED RUN", 22,
+                WithAlpha(Gold, 0.85f), 30f, display: false);
+            boosted.characterSpacing = 10f;
+            AddReveal(boosted.gameObject, KickerAt);
+        }
 
         TextMeshProUGUI metricLabel = CreateRow(panel.transform, _content.Metric.Label, 24,
             new Color(1f, 1f, 1f, 0.55f), 32f, display: false);
