@@ -308,7 +308,10 @@ touch engine code.
 The game is a campaign of chapters: chapters unlock in `sortOrder` once the
 previous chapter's levels are ALL completed; levels within a chapter unlock sequentially.
 Rules live in `Campaign.cs` (read-side only); completions and personal bests persist via
-`ProgressStore` (see **DATA.md** for the persistence architecture and cloud-sync plan).
+`ProgressStore` (see **DATA.md** — cloud sync is live) and bests feed the per-level
+CLEAN/BOOSTED leaderboards. Campaign runs are additionally server-gated: `RunGate.BeginRun`
+must obtain a `start_run` grant (the attempts meter) before a run starts, and results go
+back through `finish_run` (BACKEND.md §6 — Custom Game is exempt).
 A chapter with `alwaysUnlocked: true` is a sandbox — always playable, never gates the
 campaign. The menu shows chapters as a carousel (one chapter per screen).
 `Campaign.UnlockAllForTesting` is **off by default everywhere** so editor testing exercises
@@ -824,8 +827,8 @@ Already possible with today's data (no code):
 
 Needs code (rough effort, all fit the existing hooks):
 
-- ~~**Chapter/level unlock persistence**~~ — done: `ProgressStore` (local JSON, cloud-sync
-  ready — see DATA.md) + `Campaign` lock rules + menu locks/checkmarks/personal bests.
+- ~~**Chapter/level unlock persistence**~~ — done: `ProgressStore` (local JSON, cloud sync
+  live — see DATA.md) + `Campaign` lock rules + menu locks/checkmarks/personal bests.
 - **Wind gusts** (small) — a LevelModifier like Earthquake but with telegraphed directional pushes. Watch PHYSICS.md I1: forces only, never positions.
 - ~~**Bomb brick**~~ — done: Bomb variant (1s fuse, chain-deletes touching blocks). Use via ambient chance or a cursed power-up.
 - **Brittle brick** (medium) — breaks into single cells when load exceeds a threshold.

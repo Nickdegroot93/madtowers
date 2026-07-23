@@ -146,12 +146,65 @@ public static partial class MainMenuRuntime
         playButton.targetGraphic = playBg;
         playButton.onClick.AddListener(() =>
         {
+            if (suppliesUi != null && suppliesUi.StartPending) return;
             SfxPlayer.Play("ui-start-game");
-            // The loadout rides the same static-carrier as the level; RunSuppliesApplier
-            // charges + applies it in the loaded scene (atomic with run start). Null when
-            // nothing was picked - a clean run.
-            RunSuppliesState.Pending = suppliesUi?.Selection.ToLoadout();
-            SelectLevel(selected);
+
+            // Campaign runs must win the server's start_run grant BEFORE the launch reload
+            // (BACKEND.md §6.1); Custom Game / online-disabled answer instantly. The button
+            // freezes while the grant is in flight so a double-tap can't start two runs.
+            bool boosted = suppliesUi != null && suppliesUi.Selection.Boosted;
+            string loadoutJson = suppliesUi?.Selection.ToLoadoutJson();
+            if (suppliesUi != null) suppliesUi.StartPending = true;
+            playButton.interactable = false;
+            playLabel.text = "STARTING...";
+            playLabel.fontSize = 27f;
+
+            RunGate.BeginRun(selected, boosted, loadoutJson, result =>
+            {
+                if (result.Allowed)
+                {
+                    // The loadout rides the same static-carrier as the level;
+                    // RunSuppliesApplier charges + applies it in the loaded scene (atomic
+                    // with run start). Null when nothing was picked - a clean run. The
+                    // grant charged the attempt, so launch even if the modal was closed
+                    // while the answer was in flight.
+                    RunSuppliesState.Pending = suppliesUi?.Selection.ToLoadout();
+                    SelectLevel(selected);
+                    return;
+                }
+
+                if (suppliesUi != null) suppliesUi.StartPending = false;
+                if (playLabel == null) return;   // modal closed while pending - drop the denial quietly
+
+                if (result.DeniedReason == "busy")
+                {
+                    // A previous grant is still in flight (modal closed + reopened during
+                    // the window). Quiet no-op: restore the button; the pending grant's
+                    // landing decides what happens.
+                    if (suppliesUi != null) RefreshSuppliesSection(suppliesUi);
+                    else
+                    {
+                        playButton.interactable = true;
+                        playLabel.text = "PLAY";
+                        playLabel.fontSize = 36f;
+                    }
+                    return;
+                }
+
+                if (result.Offline) OnlineService.RetryConnect();
+                if (suppliesUi != null)
+                {
+                    // The status row owns the messaging (offline / out-of-attempts states).
+                    RefreshSuppliesSection(suppliesUi);
+                }
+                else
+                {
+                    // Pre-meta modal (no supplies section): the button itself has to speak.
+                    playButton.interactable = true;
+                    playLabel.text = result.Offline ? "OFFLINE - RETRY" : "PLAY";
+                    playLabel.fontSize = result.Offline ? 24f : 36f;
+                }
+            });
         });
 
         // The button tells the truth (SHOP.md §9.1): CLEAN or BOOSTED, gold-edged when
@@ -182,7 +235,11 @@ public static partial class MainMenuRuntime
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(16f, 0f), new Vector2(150f, 40f), new Vector2(0.5f, 0.5f));
         Button ranksButton = ranksBg.gameObject.AddComponent<Button>();
         ranksButton.targetGraphic = ranksBg;
-        ranksButton.onClick.AddListener(() => SfxPlayer.Play("ui-button-click")); // leaderboards: TODO
+        ranksButton.onClick.AddListener(() =>
+        {
+            SfxPlayer.Play("ui-button-click");
+            OpenLeaderboard(level, chapter);
+        });
 
         // Close (X), top-right - a solid translucent dark circle (not a ring), over the thumbnail.
         Color closeFill = new Color(0.03f, 0.03f, 0.04f, 0.55f);

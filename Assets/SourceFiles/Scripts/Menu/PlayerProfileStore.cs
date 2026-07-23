@@ -49,7 +49,7 @@ public static class PlayerProfileStore
     }
 
     public static Snapshot Current => new Snapshot(
-        "PLAYER ONE",
+        OnlineService.DisplayName,
         24,
         0.48f,
         Coins,

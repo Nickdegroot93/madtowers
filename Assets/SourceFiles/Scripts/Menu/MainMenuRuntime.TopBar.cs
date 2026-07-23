@@ -63,11 +63,27 @@ public static partial class MainMenuRuntime
         profileStack.childForceExpandWidth = true;
         profileStack.childForceExpandHeight = false;
 
-        TextMeshProUGUI playerName = CreateTmp(profileColumn, "PlayerName", profile.PlayerName, 18, TextPrimary,
+        // The server identity (auto "Builder-XXXX" until claimed, BACKEND.md §3.2); falls
+        // back to the placeholder while offline/disabled. TopBarLive re-renders it when the
+        // online state or profile changes (name claim, boot completing after the bar built).
+        TextMeshProUGUI playerName = CreateTmp(profileColumn, "PlayerName", OnlineService.DisplayName, 18, TextPrimary,
             TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont,
             Vector2.zero, new Vector2(0f, 27f), new Vector2(0f, 1f));
         AutoSize(playerName, 14, 18);
         playerName.gameObject.AddComponent<LayoutElement>().preferredHeight = 27f;
+
+        // Tapping your name opens the claim flow (BACKEND.md §3.4 prompt #2). The whole
+        // profile column is the target so the tap area clears the 64px contract.
+        Image nameTapCatcher = profileColumn.gameObject.AddComponent<Image>();
+        nameTapCatcher.color = Color.clear;
+        Button nameTap = profileColumn.gameObject.AddComponent<Button>();
+        nameTap.transition = Selectable.Transition.None;
+        nameTap.onClick.AddListener(() =>
+        {
+            if (!OnlineService.Enabled) return;
+            SfxPlayer.Play("ui-button-click");
+            OpenClaimNameModal(null);
+        });
 
         Image expTrack = CreateImage(profileColumn, "ExpTrack", RuntimeSprites.RoundedPanel(),
             new Color(0.02f, 0.019f, 0.017f, 0.36f));
@@ -94,14 +110,93 @@ public static partial class MainMenuRuntime
         BuildCurrencyCard(bar, statBackground, "$", profile.Coins.ToString("N0", CultureInfo.InvariantCulture), null);
 
         // The attempts chip (SHOP.md §7): real meter once the meta systems unlock, absent
-        // before that (soft landing) and absent for premium (the meter doesn't exist for them).
-        if (AttemptsService.MeterActive)
+        // before that (soft landing) and absent for premium (the meter doesn't exist for
+        // them). While the online layer is enabled but unreachable the chip says OFFLINE -
+        // campaign runs can't start (BACKEND.md §5.1) and that's the top bar's job to admit.
+        RectTransform attemptsCard = null;
+        if (AttemptsService.OnlineBlocked)
+        {
+            attemptsCard = BuildCurrencyCard(bar, statBackground, null, "OFFLINE", null);
+        }
+        else if (AttemptsService.MeterActive)
         {
             System.TimeSpan regen = AttemptsService.NextRegenIn;
             bool showTimer = AttemptsService.Count < AttemptsService.MaxAttempts;
-            BuildCurrencyCard(bar, statBackground, null,
+            attemptsCard = BuildCurrencyCard(bar, statBackground, null,
                 $"{AttemptsService.Count}/{AttemptsService.MaxAttempts}",
                 showTimer ? $"{(int)regen.TotalMinutes:00}:{regen.Seconds:00}" : null);
+        }
+
+        // Live refresh: name + meter numbers change underneath the bar (boot completing,
+        // name claim, regen ticking). The bar is otherwise a build-time snapshot.
+        TopBarLive live = bar.gameObject.AddComponent<TopBarLive>();
+        live.PlayerName = playerName;
+        live.AttemptsPrimary = attemptsCard != null ? FindTmp(attemptsCard, "Primary") : null;
+        live.AttemptsSecondary = attemptsCard != null ? FindTmp(attemptsCard, "Secondary") : null;
+        live.BuiltMode = ChipMode();
+    }
+
+    private static TextMeshProUGUI FindTmp(RectTransform card, string name)
+    {
+        Transform child = card.Find(name);
+        return child != null ? child.GetComponent<TextMeshProUGUI>() : null;
+    }
+
+    // Which attempts chip the bar would build right now (hidden / OFFLINE / meter). A live
+    // bar whose mode drifts from what it built rebuilds the menu section once.
+    private static int ChipMode() => AttemptsService.OnlineBlocked ? 1 : AttemptsService.MeterActive ? 2 : 0;
+
+    /// <summary>Keeps the built top bar truthful between rebuilds: re-renders the player
+    /// name on online-state changes, ticks the regen countdown once a second (unscaled -
+    /// the menu runs at timeScale 0), and triggers one full rebuild when the chip MODE
+    /// changes (offline chip appearing/vanishing needs different children, not new text).</summary>
+    private sealed class TopBarLive : MonoBehaviour
+    {
+        public TextMeshProUGUI PlayerName;
+        public TextMeshProUGUI AttemptsPrimary;
+        public TextMeshProUGUI AttemptsSecondary;
+        public int BuiltMode;
+
+        private float _nextTick;
+        private bool _consumed;
+
+        private void OnEnable()
+        {
+            OnlineService.StateChanged += HandleChanged;
+            AttemptsSync.Changed += HandleChanged;
+        }
+
+        private void OnDisable()
+        {
+            OnlineService.StateChanged -= HandleChanged;
+            AttemptsSync.Changed -= HandleChanged;
+        }
+
+        private void HandleChanged()
+        {
+            if (_consumed) return;
+            if (PlayerName != null) PlayerName.text = OnlineService.DisplayName;
+            if (ChipMode() != BuiltMode)
+            {
+                // One-shot: the rebuild replaces this bar (and this component) wholesale.
+                _consumed = true;
+                BuildMenu();
+            }
+        }
+
+        private void Update()
+        {
+            if (_consumed || AttemptsPrimary == null) return;
+            if (Time.unscaledTime < _nextTick) return;
+            _nextTick = Time.unscaledTime + 1f;
+            if (BuiltMode != 2) return;   // OFFLINE chip has nothing to tick
+
+            int count = AttemptsService.Count;
+            AttemptsPrimary.text = $"{count}/{AttemptsService.MaxAttempts}";
+            if (AttemptsSecondary == null) return;
+            System.TimeSpan regen = AttemptsService.NextRegenIn;
+            AttemptsSecondary.text = count < AttemptsService.MaxAttempts
+                ? $"{(int)regen.TotalMinutes:00}:{regen.Seconds:00}" : "";
         }
     }
 
@@ -135,7 +230,7 @@ public static partial class MainMenuRuntime
         Stretch(wash.rectTransform);
     }
 
-    private static void BuildCurrencyCard(Transform parent, Sprite background, string coinGlyph, string primary, string secondary)
+    private static RectTransform BuildCurrencyCard(Transform parent, Sprite background, string coinGlyph, string primary, string secondary)
     {
         RectTransform card = CreateRect(parent, "StatusCard",
             Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f),
@@ -203,6 +298,7 @@ public static partial class MainMenuRuntime
         TextMeshProUGUI plus = CreateTmp(card, "Plus", "+", 32, TextPrimary, TextAnchor.MiddleCenter,
             FontStyle.Normal, RuntimeUiKit.DefaultFont);
         SetCenteredAt(plus.rectTransform, new Vector2(1f, 0.5f), new Vector2(-26f, 0f), new Vector2(44f, 44f));
+        return card;
     }
 
     // Cached menu icons loaded by short name from Resources/Menu (e.g. "coin", "heart"). Drop a

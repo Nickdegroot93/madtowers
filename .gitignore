@@ -69,3 +69,6 @@ Assets/Tutorials/Media/
 # AI-generation staging (paid outputs stay local; installed copies live in Assets/)
 Tools/icon-gen/gen_raw/
 Tools/thumb-gen/gen_raw/
+
+# Supabase CLI binaries (repo-local install, ~156MB - re-download per BACKEND.md §10.5)
+Tools/bin/

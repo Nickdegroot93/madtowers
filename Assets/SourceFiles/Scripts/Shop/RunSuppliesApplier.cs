@@ -19,10 +19,15 @@ public sealed class RunSuppliesApplier : MonoBehaviour
 
     private void Awake()
     {
-        // Menu scene (no run starting): reset the active-run view and stand down.
+        // Menu scene (no run starting): reset the active-run view and stand down. Reaching
+        // the menu also abandons any granted-but-unfinished server run: the attempt stays
+        // spent (loss-only rule) and the stale run_id must not leak into a later run's
+        // finish report (RunGate.BeginRun re-grants for every campaign launch, but Custom
+        // Game never talks to RunGate and would otherwise inherit it).
         if (LevelSelectionState.IsSelectionPending)
         {
             RunSuppliesState.ConsumePendingForRunStart();
+            RunGate.ClearActiveRun();
             return;
         }
 
@@ -30,11 +35,13 @@ public sealed class RunSuppliesApplier : MonoBehaviour
         _loadout = RunSuppliesState.ConsumePendingForRunStart();
 
         // The attempts meter charges campaign runs only (levels with a save identity);
-        // Custom Game and other runtime levels are free practice. NOTE: the modal's disabled
-        // Play button is the actual gate - a false return here (meter empty) is NOT blocked,
-        // so any future launch path that bypasses the modal must check
-        // AttemptsService.CanStartRun itself.
-        if (ProgressStore.LevelId(level) != null)
+        // Custom Game and other runtime levels are free practice. ONLINE the server already
+        // charged at start_run (RunGate.BeginRun, before the launch reload) - the local
+        // spend exists only for the disabled-online fallback. NOTE: the modal's disabled
+        // Play button plus the start_run grant are the actual gates - a false return here
+        // (meter empty) is NOT blocked, so any future launch path that bypasses the modal
+        // must go through RunGate.BeginRun itself.
+        if (ProgressStore.LevelId(level) != null && !OnlineService.Enabled)
         {
             _attemptSpent = AttemptsService.SpendForRunStart();
         }

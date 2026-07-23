@@ -51,6 +51,9 @@ public static class ProgressStore
         // One-time premium unlock (monotonic false->true). Only ever set via a validated IAP
         // receipt when that ships (BACKEND.md §9); until then it stays false in production.
         public bool premiumUnlocked;
+        // The post-chapter-1 "sign in" card has been shown once (BACKEND.md §3.4). Monotonic
+        // timestamp: 0 = never shown; merge = max.
+        public long linkPromptShownAtUnixUtc;
     }
 
     [Serializable]
@@ -271,6 +274,16 @@ public static class ProgressStore
     /// future IAP path only - nothing in the game calls it yet.</summary>
     public static bool IsPremium => Data.premiumUnlocked;
 
+    /// <summary>Has the one-time post-chapter-1 "sign in" card been shown (BACKEND.md §3.4)?</summary>
+    public static bool WasLinkPromptShown() => Data.linkPromptShownAtUnixUtc > 0;
+
+    public static void MarkLinkPromptShown()
+    {
+        if (Data.linkPromptShownAtUnixUtc > 0) return;
+        Data.linkPromptShownAtUnixUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        Save();
+    }
+
     /// <summary>Wipe local progress (debug / "reset progress" settings button). The wallet
     /// survives on purpose: coins lived outside this store (PlayerPrefs) before v4, so the
     /// reset button never touched them - folding them in must not change what the button does.</summary>
@@ -281,6 +294,42 @@ public static class ProgressStore
         _data = new PlayerProgress { currencyEarned = earned, currencySpent = spent };
         Save();
     }
+
+    // ---- cloud mirror seam (BACKEND.md §5.2; only ProgressSync calls these) ------------------
+
+    /// <summary>Fired after every successful disk write (except merge applications - the
+    /// guard below - so the sync layer never echoes its own pull back as a push).</summary>
+    public static event Action Saved;
+
+    public static int SchemaVersion => CurrentSchemaVersion;
+
+    /// <summary>Increments on every gameplay save (not on merge applications). The sync
+    /// layer compares this across a merge round trip: if it moved, the merged reply is
+    /// missing a newer local write and must not replace the document.</summary>
+    public static long MutationCounter { get; private set; }
+
+    /// <summary>The whole save document as one JSON object - exactly what merge_progress
+    /// takes as p_payload.</summary>
+    public static string ExportPayloadJson() => JsonUtility.ToJson(Data);
+
+    /// <summary>Replace the local document with the server-merged one. The merge is a
+    /// superset of local state (union/max server-side), so replacing wholesale is safe.
+    /// Saves without firing Saved - a pull must not schedule a push of itself.</summary>
+    public static void ApplyMergedPayload(string json)
+    {
+        PlayerProgress merged = null;
+        try { merged = JsonUtility.FromJson<PlayerProgress>(json); }
+        catch (Exception e) { Debug.LogWarning($"[Progress] Unreadable merged payload: {e.Message}"); }
+        if (merged == null) return;
+
+        merged.schemaVersion = CurrentSchemaVersion;
+        _data = merged;
+        _suppressSavedEvent = true;
+        try { Save(); }
+        finally { _suppressSavedEvent = false; }
+    }
+
+    private static bool _suppressSavedEvent;
 
     // ---- plumbing --------------------------------------------------------------------------
 
@@ -356,6 +405,12 @@ public static class ProgressStore
         catch (Exception e)
         {
             Debug.LogError($"[Progress] Save failed: {e.Message}");
+            return;
+        }
+        if (!_suppressSavedEvent)
+        {
+            MutationCounter++;
+            Saved?.Invoke();
         }
     }
 }

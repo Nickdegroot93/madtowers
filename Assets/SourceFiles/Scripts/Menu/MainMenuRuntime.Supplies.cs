@@ -40,6 +40,22 @@ public static partial class MainMenuRuntime
             loadout.Boosts.AddRange(Boosts);
             return loadout;
         }
+
+        /// <summary>The loadout as jsonb for start_run (the boosted board's honesty badge,
+        /// SHOP.md §5) - null for a clean run, matching ToLoadout.</summary>
+        public string ToLoadoutJson()
+        {
+            if (!Boosted) return null;
+            var sb = new System.Text.StringBuilder(96);
+            sb.Append("{\"lives\":").Append(Lives).Append(",\"boosts\":[");
+            for (int i = 0; i < Boosts.Count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                sb.Append('"').Append(Boosts[i]).Append('"');
+            }
+            sb.Append("]}");
+            return sb.ToString();
+        }
     }
 
     // One modal's worth of supplies UI state: rebuilt-in-place roots + the pieces the
@@ -55,6 +71,7 @@ public static partial class MainMenuRuntime
         public TextMeshProUGUI PlayLabel;
         public GameObject PlayOutline;      // gold edge, boosted only
         public Button PlayButton;
+        public bool StartPending;           // a start_run grant is in flight - freeze the button
         public float SectionTop;            // y of the section inside the panel
         public float ContentW;
         public float Pad;
@@ -113,8 +130,62 @@ public static partial class MainMenuRuntime
 
         BuildLivesRow(ui, section, wallet, -26f);
         BuildBoostsRow(ui, section, -26f - SupplyRowH - SupplyRowGap);
-        BuildStatusRow(ui, section, wallet, -26f - 2f * (SupplyRowH + SupplyRowGap));
+        TextMeshProUGUI countdown = BuildStatusRow(ui, section, wallet, -26f - 2f * (SupplyRowH + SupplyRowGap));
         RefreshPlayButton(ui);
+
+        // Keeps the section honest between taps: ticks the out-of-attempts countdown once a
+        // second (the old build-time snapshot froze until the next interaction) and rebuilds
+        // when the online state or the server meter changes. Dies with the section.
+        SuppliesLive live = section.gameObject.AddComponent<SuppliesLive>();
+        live.Ui = ui;
+        live.Countdown = countdown;
+    }
+
+    /// <summary>Per-section live updater (menu runs at timeScale=0 - unscaled time only).
+    /// Event handlers fire a single rebuild and retire; the rebuilt section brings a fresh
+    /// instance, so a deferred-destroyed one can never refresh twice.</summary>
+    private sealed class SuppliesLive : MonoBehaviour
+    {
+        public SuppliesUi Ui;
+        public TextMeshProUGUI Countdown;   // null unless the out-of-attempts row is up
+
+        private float _nextTick;
+        private bool _consumed;
+
+        private void OnEnable()
+        {
+            OnlineService.StateChanged += HandleChanged;
+            AttemptsSync.Changed += HandleChanged;
+        }
+
+        private void OnDisable()
+        {
+            OnlineService.StateChanged -= HandleChanged;
+            AttemptsSync.Changed -= HandleChanged;
+        }
+
+        private void HandleChanged()
+        {
+            if (_consumed || Ui == null || Ui.StartPending) return;
+            _consumed = true;
+            RefreshSuppliesSection(Ui);
+        }
+
+        private void Update()
+        {
+            if (_consumed || Countdown == null) return;
+            if (Time.unscaledTime < _nextTick) return;
+            _nextTick = Time.unscaledTime + 1f;
+
+            if (AttemptsService.CanStartRun)
+            {
+                // The meter healed while the modal sat open - flip back to the normal row.
+                HandleChanged();
+                return;
+            }
+            TimeSpan regen = AttemptsService.NextRegenIn;
+            Countdown.text = $"OUT OF ATTEMPTS - NEXT IN {(int)regen.TotalMinutes:00}:{regen.Seconds:00}";
+        }
     }
 
     // ---- RUN LIVES: hearts + one big +/- stepper ----------------------------------------------
@@ -227,11 +298,29 @@ public static partial class MainMenuRuntime
 
     // ---- the status row: running total, or the out-of-attempts block ---------------------------
 
-    private static void BuildStatusRow(SuppliesUi ui, RectTransform section, int wallet, float y)
+    private static TextMeshProUGUI BuildStatusRow(SuppliesUi ui, RectTransform section, int wallet, float y)
     {
         RectTransform zone = CreateRect(section, "Status",
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
             new Vector2(0f, y), new Vector2(ui.ContentW, SupplyStatusH));
+
+        // Campaign runs need the server's start_run grant (BACKEND.md §5.1): when the online
+        // layer can't reach it, say so honestly instead of showing meter numbers we can't
+        // vouch for. RETRY kicks the reconnect; the SuppliesLive watcher rebuilds on Ready.
+        if (AttemptsService.OnlineBlocked)
+        {
+            CreateTmp(zone, "Offline", "YOU'RE OFFLINE - CONNECTION\nNEEDED FOR RANKED LEVELS",
+                17, LockedColor, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
+                new Vector2(4f, 0f), new Vector2(ui.ContentW - 210f, 52f), new Vector2(0f, 0.5f));
+            Button retry = CreateSupplyButton(zone, "Retry", "RETRY", 170f,
+                new Vector2(0f, 0f), enabled: true, gold: true);
+            retry.onClick.AddListener(() =>
+            {
+                SfxPlayer.Play("ui-button-click");
+                OnlineService.RetryConnect();
+            });
+            return null;
+        }
 
         // The meter only speaks up when it actually blocks play (its home is the top bar).
         // (The Hour Pass buy that used to sit here was cut by Nick 2026-07-20 - waiting or
@@ -239,10 +328,9 @@ public static partial class MainMenuRuntime
         if (AttemptsService.MeterActive && !AttemptsService.CanStartRun)
         {
             TimeSpan regen = AttemptsService.NextRegenIn;
-            CreateTmp(zone, "Blocked", $"OUT OF ATTEMPTS - NEXT IN {(int)regen.TotalMinutes:00}:{regen.Seconds:00}",
+            return CreateTmp(zone, "Blocked", $"OUT OF ATTEMPTS - NEXT IN {(int)regen.TotalMinutes:00}:{regen.Seconds:00}",
                 18, LockedColor, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(4f, 0f), new Vector2(ui.ContentW - 8f, 30f), new Vector2(0f, 0.5f));
-            return;
         }
 
         // TOTAL [coin]n — WALLET [coin]n, in fixed slots (amounts stay well under the slot
@@ -261,6 +349,7 @@ public static partial class MainMenuRuntime
             FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(x, 0f), new Vector2(100f, 30f), new Vector2(0f, 0.5f));
         CreateCoinAmountLeft(zone, wallet, 17, WithAlpha(TextMuted, 0.85f), x + 104f);
+        return null;
     }
 
     /// <summary>Left-anchored coin+amount pair: coin at <paramref name="leftX"/>, number
@@ -487,13 +576,16 @@ public static partial class MainMenuRuntime
     private static void RefreshPlayButton(SuppliesUi ui)
     {
         if (ui.PlayLabel == null) return;
+        if (ui.StartPending) return;   // the in-flight start_run owns the button right now
 
         bool boosted = ui.Selection.Boosted;
-        bool canStart = AttemptsService.CanStartRun;
+        bool offline = AttemptsService.OnlineBlocked;
+        bool canStart = !offline && AttemptsService.CanStartRun;
 
         // Plain "PLAY" for a clean run (labelling it CLEAN read as noise - Nick); the boosted
-        // state keeps its word + gold edge, that's the honesty tag.
-        ui.PlayLabel.text = !canStart ? "OUT OF ATTEMPTS" : boosted ? "PLAY - BOOSTED" : "PLAY";
+        // state keeps its word + gold edge, that's the honesty tag. OFFLINE outranks the
+        // meter: without the server there is no grant to be had (BACKEND.md §5.1).
+        ui.PlayLabel.text = offline ? "OFFLINE" : !canStart ? "OUT OF ATTEMPTS" : boosted ? "PLAY - BOOSTED" : "PLAY";
         ui.PlayLabel.fontSize = boosted || !canStart ? 27f : 36f;
         if (ui.PlayOutline != null) UnityEngine.Object.Destroy(ui.PlayOutline);
         ui.PlayOutline = boosted && canStart

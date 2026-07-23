@@ -337,15 +337,36 @@ public class GameManager : MonoBehaviour
         Debug.Log(string.IsNullOrWhiteSpace(reason) ? "Game Over" : reason);
     }
 
+    private bool _restartPending;
+
     public void RestartGame()
     {
-        Time.timeScale = 1f;
-        _pauseOwners.Clear();
-        _phaseRequests.Clear();
-        _gameOverLatched = false;
-        IsGamePaused = false;
-        BlockController.ResetRuntimeState();
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        // Try Again is a NEW run: it must win its own start_run grant before the reload
+        // (BACKEND.md §6.1 - each loss nets exactly one attempt, retries included). The
+        // gate answers instantly for Custom Game / online-disabled; while a server answer
+        // is pending, further clicks are ignored. A denial (out of attempts, offline)
+        // lands back on the menu, where the level modal owns the messaging.
+        if (_restartPending) return;
+        _restartPending = true;
+        RunGate.BeginRun(LevelSelectionState.SelectedLevel, boosted: false, loadoutJson: null, result =>
+        {
+            _restartPending = false;
+            if (this == null) return; // scene tore down while the grant was in flight
+            if (!result.Allowed)
+            {
+                // "busy" = another grant already in flight (e.g. a menu PLAY racing this
+                // retry) - swallow it; that grant's landing decides what happens next.
+                if (result.DeniedReason != "busy") MainMenuRuntime.ReturnToMenu();
+                return;
+            }
+            Time.timeScale = 1f;
+            _pauseOwners.Clear();
+            _phaseRequests.Clear();
+            _gameOverLatched = false;
+            IsGamePaused = false;
+            BlockController.ResetRuntimeState();
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        });
     }
 
     public void AddLife()

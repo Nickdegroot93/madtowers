@@ -115,7 +115,7 @@ Listed so we can judge whether each tab earns its place. Tagged by readiness:
 | **Graphics** | ✅ **implemented:** frame-rate cap (30/60/120) · visual effects (bloom/post + prefab VFX) · screen shake. Enforced via central gates — see [GRAPHICS.md](GRAPHICS.md). Quality preset / render-scale can layer in later. |
 | **Sound & Haptics** | ✅ **implemented:** music volume · SFX volume · mute all. Vibration on/off (+ intensity) deferred — no haptics layer yet. |
 | **Notifications** | daily-reward / lives-refilled / events push toggles — **infra** (push, Phase E backend) |
-| **Account** | sign in · cloud save · linked accounts · restore purchases · language — **infra** (Supabase, Phase E); greyed placeholder until then |
+| **Account** | sign in (Apple/Google, BACKEND.md §3) · cloud save · linked accounts · restore purchases · **delete account** (store-required, BACKEND.md §3.7 — server RPC built + smoke-tested, client button NOT built yet) · language — backend live since 2026-07-23 (anonymous accounts, cloud sync; sign-in surfaces live in the Profile tab + link prompt, BACKEND.md §10.5); this Settings tab itself is still unbuilt |
 | **About / Legal** | version + build · privacy policy · terms · support / contact · rate the app · credits — **now**, store-required, static |
 
 ---

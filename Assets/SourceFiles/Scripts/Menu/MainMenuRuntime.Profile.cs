@@ -1,3 +1,4 @@
+using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -5,12 +6,13 @@ using static RuntimeUiKit;
 
 // The Profile tab, v2 (Nick's 2026-07-20 pass killed the v1 stats/attempts clutter):
 // three cards only -
-//   1. identity: avatar + name, with the promise that Game Center / Google Play Games
-//      sign-in (and their avatars) arrives with online play
+//   1. identity: avatar + the live server name (auto "Builder-XXXX" until claimed,
+//      BACKEND.md §3.2) with real buttons - CHANGE NAME opens the claim modal, and a
+//      guest account gets a gold SIGN IN CTA that opens the shared sign-in sheet (§3.3)
 //   2. MADTOWERS UNLIMITED: the one real pitch - the full game, forever (no ads,
 //      unlimited attempts), one purchase
-//   3. ONLINE PLAY: a big locked coming-soon block (leaderboards, achievements,
-//      profiles & avatars, titles & banners) so players SEE that online is on the way
+//   3. ONLINE PLAY: leaderboards are live now; the rest (achievements, avatars,
+//      titles & banners) stays the coming-soon promise
 // No wallet, no meter, no hour pass, no lifetime stats - this page is identity and
 // promises, not a dashboard. (partial of MainMenuRuntime - same class, shared statics.)
 public static partial class MainMenuRuntime
@@ -32,26 +34,110 @@ public static partial class MainMenuRuntime
         BuildProfileOnlineCard(content, accent);
     }
 
-    // 1. Who you are - and where the real profile comes from later.
+    // 1. Who you are - the live server identity: big avatar + name row, an honest status
+    // line, then REAL buttons (change name / sign in), not a whole-card mystery tap.
     private static void BuildProfileIdentityCard(Transform content, Color accent)
     {
-        RectTransform card = CreateProfileCard(content, 190f);
+        bool guest = !OnlineService.IsLinked;
+        RectTransform card = CreateProfileCard(content, 336f);
 
-        // Avatar: a circular slot with the person glyph - visibly a PLACEHOLDER for the
-        // platform profile picture (Game Center / Play Games) that arrives with online play.
+        // Avatar: a circular slot with the person glyph - still a placeholder; real avatars
+        // arrive with the platform-services layer (BACKEND.md §3.6).
         Image ring = CreateImage(card, "AvatarRing", MenuSprites.CircleBadge(
             new Color(0.12f, 0.11f, 0.09f, 1f), WithAlpha(accent, 0.55f)), Color.white);
-        SetRect(ring.rectTransform, new Vector2(32f, 0f), new Vector2(110f, 110f), new Vector2(0f, 0.5f));
+        SetRect(ring.rectTransform, new Vector2(36f, -32f), new Vector2(124f, 124f), new Vector2(0f, 1f));
+        ring.rectTransform.pivot = new Vector2(0f, 1f);
         Image person = CreateImage(ring.transform, "Person", MenuSprites.Person(WithAlpha(accent, 0.85f)), Color.white);
         person.preserveAspect = true;
-        SetCenteredAt(person.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(56f, 56f));
+        SetCenteredAt(person.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(62f, 62f));
 
-        CreateTmp(card, "Name", "PLAYER ONE", 34, TextPrimary, TextAnchor.UpperLeft,
-            FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(170f, -52f), new Vector2(560f, 42f), new Vector2(0f, 1f));
-        CreateTmp(card, "SignIn", "SIGN IN WITH GAME CENTER / GOOGLE PLAY GAMES\nARRIVES WITH ONLINE PLAY",
-            14, WithAlpha(TextMuted, 0.8f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(170f, -100f), new Vector2(560f, 42f), new Vector2(0f, 1f));
+        TextMeshProUGUI name = CreateTmp(card, "Name", OnlineService.DisplayName, 42, TextPrimary,
+            TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(188f, -44f), new Vector2(540f, 50f), new Vector2(0f, 1f));
+        TextMeshProUGUI status = CreateTmp(card, "Status",
+            guest ? "GUEST ACCOUNT" : "SIGNED IN", 19,
+            guest ? WithAlpha(TextMuted, 0.9f) : WithAlpha(GoldBase, 0.9f),
+            TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(188f, -104f), new Vector2(540f, 26f), new Vector2(0f, 1f));
+        TextMeshProUGUI detail = CreateTmp(card, "Detail",
+            guest ? "UNINSTALLING LOSES YOUR PROGRESS" : "YOUR PROGRESS IS SAFE ON EVERY DEVICE", 16,
+            WithAlpha(TextMuted, 0.65f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(188f, -136f), new Vector2(540f, 24f), new Vector2(0f, 1f));
+
+        // The profile name follows auth state (connect -> Builder-XXXX arrives; claim -> new
+        // name). Menu rebuilds destroy this card constantly and state changes are rare after
+        // boot, so unhook eagerly on destroy - a lazy handler-side check would leave one dead
+        // closure per rebuild parked on the static event until the next change.
+        TextMeshProUGUI nameButtonLabel = null; // assigned when the button row is built below
+        void RefreshIdentity()
+        {
+            if (name == null)
+            {
+                OnlineService.StateChanged -= RefreshIdentity;
+                return;
+            }
+            bool g = !OnlineService.IsLinked;
+            name.text = OnlineService.DisplayName;
+            status.text = g ? "GUEST ACCOUNT" : "SIGNED IN";
+            status.color = g ? WithAlpha(TextMuted, 0.9f) : WithAlpha(GoldBase, 0.9f);
+            detail.text = g ? "UNINSTALLING LOSES YOUR PROGRESS" : "YOUR PROGRESS IS SAFE ON EVERY DEVICE";
+            if (nameButtonLabel != null)
+                nameButtonLabel.text = HasClaimedName ? "CHANGE NAME" : "CLAIM YOUR NAME";
+        }
+        OnlineService.StateChanged += RefreshIdentity;
+        card.gameObject.AddComponent<UnhookOnDestroy>().Unhook =
+            () => OnlineService.StateChanged -= RefreshIdentity;
+
+        // Button row: CHANGE NAME (dark) + SIGN IN (gold CTA) for guests; a signed-in
+        // account keeps just the full-width name button.
+        const float btnH = 84f;
+        const float btnY = 30f;
+        const float sidePad = 36f;
+
+        RectTransform BuildIdentityButton(string goName, string label, bool gold, float anchorMinX, float anchorMaxX, Action onClick)
+        {
+            Image bg;
+            if (gold)
+            {
+                bg = CreateImage(card, goName, MenuSprites.RoundedGradient(
+                    new Color(1f, 0.86f, 0.45f, 1f), new Color(0.82f, 0.58f, 0.18f, 1f)), Color.white);
+            }
+            else
+            {
+                bg = CreateImage(card, goName, RuntimeSprites.RoundedPanel(), new Color(0.13f, 0.12f, 0.10f, 1f));
+                RuntimeUiKit.AddOutline(bg.transform, GoldOutline(0.35f));
+            }
+            bg.type = Image.Type.Sliced;
+            RectTransform rt = bg.rectTransform;
+            rt.anchorMin = new Vector2(anchorMinX, 0f);
+            rt.anchorMax = new Vector2(anchorMaxX, 0f);
+            rt.pivot = new Vector2(0.5f, 0f);
+            rt.offsetMin = new Vector2(anchorMinX <= 0f ? sidePad : 10f, btnY);
+            rt.offsetMax = new Vector2(anchorMaxX >= 1f ? -sidePad : -10f, btnY + btnH);
+            bg.raycastTarget = true;
+            CreateTmp(bg.transform, "Label", label, 23,
+                gold ? new Color(0.16f, 0.11f, 0.04f, 1f) : TextPrimary,
+                TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+            Button button = bg.gameObject.AddComponent<Button>();
+            button.targetGraphic = bg;
+            button.onClick.AddListener(() => { SfxPlayer.Play("ui-button-click"); onClick?.Invoke(); });
+            return rt;
+        }
+
+        string nameLabel = HasClaimedName ? "CHANGE NAME" : "CLAIM YOUR NAME";
+        RectTransform nameButton;
+        if (guest)
+        {
+            nameButton = BuildIdentityButton("ChangeName", nameLabel, false, 0f, 0.5f,
+                () => OpenClaimNameModal(RefreshIdentity));
+            BuildIdentityButton("SignIn", "SIGN IN", true, 0.5f, 1f, OpenSignInSheet);
+        }
+        else
+        {
+            nameButton = BuildIdentityButton("ChangeName", nameLabel, false, 0f, 1f,
+                () => OpenClaimNameModal(RefreshIdentity));
+        }
+        nameButtonLabel = nameButton.GetComponentInChildren<TextMeshProUGUI>();
     }
 
     // 2. The one thing worth advertising, built like a real store package (IAP offer
@@ -156,10 +242,14 @@ public static partial class MainMenuRuntime
             RuntimeUiKit.TitleFont, new Vector2(0f, -166f), new Vector2(720f, 26f), new Vector2(0.5f, 1f));
         soon.characterSpacing = 8f;
 
+        // Leaderboards shipped with the server phase - say so; the rest stays promised.
+        CreateTmp(card, "Live", "LEADERBOARDS - LIVE NOW", 15,
+            WithAlpha(GoldBase, 0.9f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(0f, -214f), new Vector2(720f, 22f), new Vector2(0.5f, 1f));
         CreateTmp(card, "Features",
-            "LEADERBOARDS   -   ACHIEVEMENTS\nPROFILES & AVATARS   -   TITLES & BANNERS", 15,
+            "ACHIEVEMENTS   -   PROFILES & AVATARS   -   TITLES & BANNERS", 15,
             WithAlpha(TextMuted, 0.8f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, -218f), new Vector2(720f, 52f), new Vector2(0.5f, 1f));
+            new Vector2(0f, -244f), new Vector2(720f, 26f), new Vector2(0.5f, 1f));
 
         // Nick's direction (2026-07-20): online won't be a side feature - accounts become
         // the standard, with lives and leaderboards living on the server.
@@ -182,5 +272,13 @@ public static partial class MainMenuRuntime
         LayoutElement layout = card.gameObject.AddComponent<LayoutElement>();
         layout.preferredHeight = height;
         return card;
+    }
+
+    /// <summary>Runs a static-event unsubscribe when its GameObject dies - for UI that
+    /// subscribes to long-lived events but is destroyed on every menu rebuild.</summary>
+    private sealed class UnhookOnDestroy : MonoBehaviour
+    {
+        public Action Unhook;
+        private void OnDestroy() => Unhook?.Invoke();
     }
 }

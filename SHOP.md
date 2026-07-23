@@ -45,9 +45,9 @@ The word "lives" means two unrelated systems. In code, UI, and docs:
 
 - **Run lives** — in-run buffer (`RunState.Lives`): a lost block costs a life
   instead of ending the run (BLOCKS.md costs-life flag). Bought pre-run. Max **3**.
-- **Attempts** — the meta/energy system (not yet implemented): how many runs you may
-  *start*. Regenerates on a timer; ads and purchases refill it; the premium unlock
-  removes it entirely. (§7)
+- **Attempts** — the meta/energy system (**server-authoritative as of 2026-07-23**,
+  BACKEND.md §6): how many runs you may *start*. Regenerates on a timer; the
+  rewarded ad refills it; the premium unlock removes it entirely. (§7)
 
 Never render either as a generic heart without its own icon language: run lives =
 shield-heart pips in the run HUD; attempts = a counter on the Play screen top bar.
@@ -149,9 +149,10 @@ so today's hoards (no sink yet) will splurge early — expected, fine.
   Authored level lives don't set it; only purchases do.
 - **Two boards per level: CLEAN and BOOSTED.** Local bests split the same way
   (`bestScoreClean` / `bestScoreBoosted`, both monotonic per-metric max — DATA.md).
-- BACKEND.md `scores` table: primary key becomes `(user_id, level_id, board)` where
+- BACKEND.md §4 `scores` table is keyed `(user_id, level_id, board)` where
   `board ∈ {clean, boosted}`, plus a `loadout jsonb` column on boosted rows (which
   supplies — shown as small icons next to the score, the Hunt-style honesty badge).
+  Scores are written only by the server's `finish_run` function (BACKEND.md §6.2).
 - UI: one leaderboard screen, a two-tab toggle, **CLEAN is the default tab**. Your
   boosted best is never shown on the clean tab, and vice versa.
 - Boosted is a real board with real bragging rights (fastest assisted clears are
@@ -187,8 +188,10 @@ meter, so victories feel free and failures create the decision point).
   Nick's "~30 minutes" intent; rolling beats a cliff reset because the meter always
   visibly heals). Genre reference points: Candy Crush 1/30min (aggressive), casual
   merge games 1/2min (toothless); 1/10min sits deliberately player-friendly of the
-  classics while still giving the premium unlock a reason to exist. Wall-clock
-  based; clock-cheating accepted for v1 (same trust level as local scores).
+  classics while still giving the premium unlock a reason to exist. **As built
+  (2026-07-23) the meter is server-authoritative** — regen computed lazily on server time
+  via `start_run`/`finish_run`, `AttemptsService` is a display cache (BACKEND.md §6); the
+  wall-clock model survives only as the `SupabaseConfig.Enabled=false` offline fallback.
 - **Watch an ad → +2 attempts** (cap 5). The only ad placement in the game, opt-in
   rewarded video with explicit copy ("+2 attempts"). No forced ads, no
   interstitials — ads exist purely as the free player's refill lever.
@@ -200,7 +203,7 @@ meter, so victories feel free and failures create the decision point).
   system removed forever.** Pitched on the Profile page as "the full game, forever —
   no ads, unlimited lives, one purchase". This is "buying the game." It never touches run
   supplies, boosts, coins, or leaderboards — premium players and free players
-  compete identically. Receipt validation per BACKEND.md §9 when it ships.
+  compete identically. Receipt validation per BACKEND.md §6.4 when it ships.
 - Attempts gate **campaign runs only**. Custom Game (editor-only today) and any
   future practice mode don't spend attempts.
 
@@ -233,7 +236,7 @@ difficulty is when help lands as help, not as a sales pitch.
 4. **The clean game is the whole game.** Supplies removed, nothing else changes —
    no level, mode, or content is supply-gated.
 5. Kids/store compliance: ads are opt-in rewarded only; premium price shown in
-   store currency; account deletion path per BACKEND.md §3.4.
+   store currency; account deletion path per BACKEND.md §3.7.
 
 ---
 
@@ -271,8 +274,11 @@ With purchasing fully point-of-use in the modal, a storefront page was redundant
 Nick cut it, then cut the v1 profile's stats/attempts clutter too ("remove all the
 bullshit"). The nav slot is **PROFILE** (Person icon), three cards only:
 
-1. **Identity** — avatar placeholder + name, with the explicit promise that Game
-   Center / Google Play Games sign-in (and their avatars) arrives with online play.
+1. **Identity** — avatar placeholder + name, with the explicit promise that **Sign in
+   with Apple / Google** arrives with online play (BACKEND.md §3 — the account system is
+   Supabase, not Game Center / Play Games; those are an optional cosmetic layer later).
+   The built card's copy now reads "SIGN IN WITH APPLE / GOOGLE — COMES WITH THE MOBILE
+   BUILD" (`MainMenuRuntime.Profile.cs`), matching the Supabase decision.
 2. **MADTOWERS UNLIMITED** — the one pitch: the full game forever, no ads, unlimited
    lives, one purchase; $3.99 chip disabled until the IAP ships.
 3. **ONLINE PLAY — COMING SOON** — a big locked block (lock icon) listing
@@ -298,10 +304,12 @@ spending supplies (JUICE.md principle 1).
 
 - Wallet stays `currencyEarned`/`currencySpent` counters (balance derived) — every
   supply purchase increments `currencySpent`. Fold `PlayerProfileStore` coins into
-  `ProgressStore` **before** building the shop (BACKEND.md §8 Phase B obligation).
+  `ProgressStore` **before** building the shop (BACKEND.md §9 Phase B prerequisite — done).
 - New save fields (all monotonic or timestamped):
   - `suppliesSpentTotal` (counter, analytics/tuning),
-  - `attemptsState { count, lastRegenUnixUtc, unlimitedUntilUnixUtc }` (timestamped),
+  - `attemptsState { count, lastRegenUnixUtc, unlimitedUntilUnixUtc }` (timestamped) —
+    offline-era field; once online ships this is a local display cache of the server-owned
+    `attempts` row (BACKEND.md §6.3), no longer synced truth,
   - `premiumUnlocked` (monotonic bool, set only via validated receipt),
   - bests split per board (per-metric max, as today).
 - No per-run purchase persistence needed: a loadout lives in memory from modal →

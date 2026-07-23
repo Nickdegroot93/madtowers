@@ -95,7 +95,8 @@ Silent. Runs on `BlockLocked` with ComboDetector's revalidate-after-settle patte
   LevelCompleted (+ win bonus), on GameOver, or on teardown (mid-run quit keeps earnings).
 - `PlayerProfileStore.Coins` is PlayerPrefs-backed (`profile.coins`), persisted on every
   change; the menu top bar shows the real balance. `RunResult.CoinsEarned` carries the run's
-  skill coins (excludes win bonus). Cloud sync arrives with BACKEND.md's Supabase phase.
+  skill coins (excludes win bonus). Cloud sync is live (BACKEND.md §10.5) — the wallet
+counters ride the progress payload.
 
 ## 3b. Menu unlock reveals (shipped, July 2026)
 

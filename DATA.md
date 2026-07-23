@@ -68,34 +68,36 @@ Same recipe for: cosmetics owned, currencies (use *earned-total* + *spent-total*
 monotonic, balance = derived), statistics (counters are monotonic), settings (small,
 last-writer-wins with timestamp).
 
-## Tomorrow: cloud sync + leaderboards (Supabase)
+## Tomorrow: online play (Supabase) — and this doc's scope
 
-> **Full design: `BACKEND.md`** (auth, the hybrid table schema, RLS, the local-first sync
-> algorithm, leaderboards, the Vault/collections flow, and account deletion). The sketch below is
-> the summary; BACKEND.md is the binding plan. Deferred to roadmap Phase E.
+> **Full design: `BACKEND.md` (DESIGN FINAL 2026-07-22 — online is the STANDARD).** Auth,
+> the hybrid table schema, RLS, server-authoritative attempts & scores, sync, leaderboards,
+> account deletion. BACKEND.md is the binding plan; build at roadmap Phase E.
 
-The plan when online day comes — nothing below requires changing today's code, only
-adding behind `ProgressStore`:
+**Scope carve-out (binding):** the five rules and the local-first contract govern the
+personal **progress payload only** (completions, bests, discoveries, settings, wallet
+counters). Two things are explicitly **outside** local-first — the **server owns them**:
 
-- **Auth:** Supabase anonymous sign-in at first launch (device-bound), optional account
-  linking later. The client ships only the anon/public key; RLS does the guarding.
-- **Tables (sketch):**
-  - `profiles(user_id, display_name, created_at)`
-  - `progress(user_id, payload jsonb, schema_version, updated_at)` — the synced document
-  - `scores(user_id, level_id text, best_score int, best_height real, achieved_at)`
-    — unique `(user_id, level_id)`, upsert on improvement
-- **Sync algorithm:** push local document; server merges with the same union/max rules
-  (a Postgres function); pull merged result. Works after any amount of offline play on
-  any number of devices, *because* of rule 3.
-- **Leaderboards:** personal best = the upsert above; Top-100 =
-  `select ... from scores where level_id = $1 order by best_score desc limit 100`
-  (indexed), or a per-level view/RPC. UI reads via PostgREST from C#
-  (`UnityWebRequest` — plain HTTPS, no SDK required).
-- **Anti-cheat reality check:** client-submitted scores are spoofable. Acceptable for a
-  casual game v1; mitigations when it matters: server-side sanity bounds (max plausible
-  score/height per level), shadow-flagging outliers, never shipping a service key.
-- Managed alternatives (Unity Gaming Services Leaderboards, PlayFab) exist, but
-  Supabase is the home-territory choice here (the developer knows Postgres).
+- **The attempts meter** — granted/regenerated/refunded only by server functions
+  (`start_run`/`finish_run`, regen computed lazily on server time; BACKEND.md §6). The
+  local `AttemptsService` becomes a display cache of the server's last answer, never
+  authoritative. Campaign runs require a connection to *start*.
+- **Leaderboard scores** — written only by `finish_run` against a server-issued `run_id`
+  (the anti-cheat handshake: a score is only submittable for a run the server saw start,
+  once, with sanity bounds). No client write path exists.
+
+What stays true, unchanged by the online decision:
+
+- **Auth:** silent Supabase anonymous sign-in at first launch — everyone has a real
+  `user_id` from second one — upgraded in place by Sign in with Apple / Google linking.
+  The client ships only the anon/public key; RLS does the guarding.
+- **Progress sync:** push the local document; a Postgres function merges with the same
+  union/max/last-writer-wins rules; pull the merged result. Works after any amount of
+  offline play on any number of devices, *because* of rule 3.
+- **Tables:** `profiles`, `progress(payload jsonb)`, `scores` keyed
+  `(user_id, level_id, board)` for the CLEAN/BOOSTED split, plus server-owned `attempts`
+  and `runs` — full DDL in BACKEND.md §4.
+- **Reads from C#:** PostgREST over plain HTTPS (`UnityWebRequest` — no SDK required).
 
 ## Far future: online co-op (alternating-control mode)
 

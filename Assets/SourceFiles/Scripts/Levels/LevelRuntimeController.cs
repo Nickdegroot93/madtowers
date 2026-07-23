@@ -165,6 +165,10 @@ public class LevelRuntimeController : MonoBehaviour
         // stood before the run banked - otherwise a new best could never be detected.
         ShowGameOverScreen();
         if (_level != null) ProgressStore.ReportResult(_level, finalScore, maxHeightMeters, RunSuppliesState.ActiveRunBoosted);
+        // Server finish (BACKEND.md §6.2): score submission rides the same exchange. A
+        // game over AFTER a completion no-ops - the win's ReportFinish already consumed
+        // the run_id. Local bests above stay local-first regardless.
+        RunGate.ReportFinish(won: false, finalScore, maxHeightMeters);
     }
 
     private void ShowGameOverScreen()
@@ -620,6 +624,9 @@ public class LevelRuntimeController : MonoBehaviour
         // unlock as a reveal animation instead of showing it silently pre-unlocked.
         if (firstCompletion) UnlockRevealPending.RecordFirstCompletion(_level);
         ProgressStore.ReportResult(_level, result.Score, result.MaxHeight, RunSuppliesState.ActiveRunBoosted);
+        // Server finish (BACKEND.md §6.2): the win refunds the attempt and submits the
+        // score in one exchange, against the run_id granted at start.
+        RunGate.ReportFinish(won: true, result.Score, result.MaxHeight);
         GameEvents.RaiseLevelCompleted(_level, result);
 
         if (GameManager.Instance.IsGamePaused)
