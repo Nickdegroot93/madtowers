@@ -50,9 +50,13 @@ public static partial class MainMenuRuntime
         navImage.type = Image.Type.Sliced;
         navImage.color = new Color(0.06f, 0.05f, 0.04f, 0.96f);
 
+        // The chapter-tinted pieces register for the swipe cross-fade (see OnChapterBlend).
+        _navOutline = null; _navDividers.Clear();
+        _navHexImage = null; _navHouseImage = null; _navHomeLabel = null;
+
         ChapterDefinition chapter = _chapters.Length > 0 ? _chapters[_chapterIndex] : null;
         Color gold = chapter != null ? ChapterLight(chapter) : GoldBase;
-        RuntimeUiKit.AddOutline(nav, WithAlpha(gold, 0.55f));
+        _navOutline = RuntimeUiKit.AddOutline(nav, WithAlpha(gold, 0.55f));
 
         MenuTab[] tabs = { MenuTab.Profile, MenuTab.Chapters, MenuTab.Home, MenuTab.Vault, MenuTab.Settings };
 
@@ -64,6 +68,7 @@ public static partial class MainMenuRuntime
             // Wide/bright enough to survive the canvas downscale to phone resolution - the old
             // 1.5 px at 0.22 alpha rendered subpixel and simply vanished.
             Image divider = CreateImage(nav, $"NavDivider{i}", RuntimeSprites.Square(), WithAlpha(gold, 0.34f));
+            _navDividers.Add(divider);
             RectTransform d = divider.rectTransform;
             float fx = i / (float)tabs.Length;
             d.anchorMin = new Vector2(fx, 0.5f);
@@ -142,17 +147,8 @@ public static partial class MainMenuRuntime
         // so its top and bottom points overhang both bar edges - the reference's prominent centre
         // button (HexButton also bakes the darker back-plate seam and the light outline). The
         // house glyph and the HOME label both sit INSIDE the hexagon.
-        Color topColor, bottomColor;
-        if (chapter != null)
-        {
-            topColor = chapter.PlayButtonTopColor;
-            bottomColor = Color.Lerp(chapter.PlayButtonBottomColor, Color.black, 0.36f);
-        }
-        else
-        {
-            topColor = new Color(0.96f, 0.66f, 0.26f, 1f);
-            bottomColor = new Color(0.55f, 0.24f, 0.05f, 1f);
-        }
+        Color topColor = HomeHexTopColor(chapter);
+        Color bottomColor = HomeHexBottomColor(chapter);
 
         // Soft drop shadow so the hexagon reads as floating over the bar (the concepts' depth).
         Image hexShadow = CreateImage(slot, "HomeHexShadow", RuntimeSprites.SoftBlob(),
@@ -171,13 +167,29 @@ public static partial class MainMenuRuntime
 
         // Light cream-gold glyph + label inside the hexagon, so it reads against the darker amber
         // (the label uses the chapter light colour, lifted toward white for contrast on the fill).
-        Color glyphColor = active ? Color.Lerp(gold, Color.white, 0.3f) : Color.Lerp(TextMuted, gold, 0.35f);
+        Color glyphColor = HomeGlyphColor(chapter, active);
         Image house = CreateImage(hex, "HomeIcon", MenuSprites.NavHouse(glyphColor), Color.white);
         house.preserveAspect = true;
         SetCenteredAt(house.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, 28f), new Vector2(64f, 64f));
 
-        CreateTmp(hex, "Label", "HOME", 16, glyphColor, TextAnchor.MiddleCenter,
+        _navHomeLabel = CreateTmp(hex, "Label", "HOME", 16, glyphColor, TextAnchor.MiddleCenter,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -32f), new Vector2(124f, 26f), new Vector2(0.5f, 0.5f));
+        _navHexImage = image;
+        _navHouseImage = house;
+    }
+
+    // Single source for the Home hexagon's chapter theming - BuildHomeNavButton and the swipe
+    // cross-fade (OnChapterBlend) must produce identical colours or the fade lands with a pop.
+    private static Color HomeHexTopColor(ChapterDefinition chapter) =>
+        chapter != null ? chapter.PlayButtonTopColor : new Color(0.96f, 0.66f, 0.26f, 1f);
+
+    private static Color HomeHexBottomColor(ChapterDefinition chapter) =>
+        chapter != null ? Color.Lerp(chapter.PlayButtonBottomColor, Color.black, 0.36f) : new Color(0.55f, 0.24f, 0.05f, 1f);
+
+    private static Color HomeGlyphColor(ChapterDefinition chapter, bool active)
+    {
+        Color gold = chapter != null ? ChapterLight(chapter) : GoldBase;
+        return active ? Color.Lerp(gold, Color.white, 0.3f) : Color.Lerp(TextMuted, gold, 0.35f);
     }
 
     private static void OpenCustomGame()

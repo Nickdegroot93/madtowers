@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Coffee.UIEffects;
 using TMPro;
 using UnityEngine;
@@ -136,7 +137,143 @@ public static partial class MainMenuRuntime
                 _chapterIndex = index;
                 _activeTab = MenuTab.Home;
                 BuildMenu();
-            });
+            },
+            OnChapterBlend);
+    }
+
+    // Cross-fades the chapter-tinted chrome while a swipe is in flight, so the accent colours
+    // travel with the page instead of snapping at commit. Two mechanisms, chosen per element:
+    //
+    // - Plain Graphic colours (nav outline, dividers, HOME label, top-bar wash) lerp in place
+    //   from their as-built colour to the incoming chapter's formula. No layering artifacts.
+    // - Sprite-baked colours (Home hexagon gradient + house glyph, frosted-glass backdrops)
+    //   can't be re-tinted, so a ghost TWIN - the same object cloned in place, re-skinned for
+    //   the incoming chapter - fades in DIRECTLY above its original. Cloning in place keeps
+    //   draw order intact: nothing ever draws over elements it sat under in the real bar
+    //   (a whole-bar overlay was tried first and mid-fade its bar panel washed out the
+    //   overhanging Home hexagon).
+    //
+    // The real graphics stay fully opaque underneath the twins, so opacity never dips; the
+    // commit rebuild lands on exactly the colours the fade reached (shared formula helpers),
+    // and BuildMenu sweeping the sections away kills twins and registry together.
+    private static int _chromeBlendTarget = -1;
+
+    // Registry - populated by BuildBottomNav / BuildTopStatusBar on every real build.
+    private static Image _navOutline;
+    private static readonly List<Image> _navDividers = new List<Image>();
+    private static Image _navHexImage;
+    private static Image _navHouseImage;
+    private static Graphic _navHomeLabel;
+    private static Image _topBarWashImage;
+    private static readonly List<Image> _chromeFrostBlurs = new List<Image>();
+
+    // Live blend state.
+    private sealed class ChromeLerp { public Graphic G; public Color From; public Color To; }
+    private static readonly List<ChromeLerp> _chromeLerps = new List<ChromeLerp>();
+    private static readonly List<CanvasGroup> _chromeTwins = new List<CanvasGroup>();
+
+    private static void OnChapterBlend(int targetIndex, float progress)
+    {
+        if (progress <= 0.001f || _chapters == null || targetIndex < 0 || targetIndex >= _chapters.Length)
+        {
+            TearDownChromeBlend();
+            return;
+        }
+
+        // (Re)arm on a new target, or when a mid-swipe BuildMenu destroyed the twins.
+        bool twinsDead = _chromeTwins.Count > 0 && _chromeTwins[0] == null;
+        if (_chromeBlendTarget != targetIndex || (_chromeTwins.Count == 0 && _chromeLerps.Count == 0) || twinsDead)
+        {
+            SetUpChromeBlend(targetIndex);
+        }
+
+        float p = Mathf.Clamp01(progress);
+        foreach (ChromeLerp lerp in _chromeLerps)
+        {
+            if (lerp.G != null) lerp.G.color = Color.Lerp(lerp.From, lerp.To, p);
+        }
+        foreach (CanvasGroup twin in _chromeTwins)
+        {
+            if (twin != null) twin.alpha = p;
+        }
+    }
+
+    private static void SetUpChromeBlend(int targetIndex)
+    {
+        TearDownChromeBlend();
+        _chromeBlendTarget = targetIndex;
+        ChapterDefinition target = _chapters[targetIndex];
+        Color gold = ChapterLight(target);
+
+        AddChromeLerp(_navOutline, WithAlpha(gold, 0.55f));
+        foreach (Image divider in _navDividers) AddChromeLerp(divider, WithAlpha(gold, 0.34f));
+        AddChromeLerp(_navHomeLabel, HomeGlyphColor(target, active: true));
+        if (_topBarWashImage != null)
+        {
+            AddChromeLerp(_topBarWashImage,
+                WithAlpha(Color.Lerp(target.MenuAccentSecondaryColor, TextPrimary, 0.18f), 0.07f));
+        }
+
+        // Home hexagon: clone the whole hex (gradient + glyph + label ride along), re-skin
+        // the clone for the incoming chapter.
+        if (_navHexImage != null)
+        {
+            Image ghostHex = CreateChromeTwin(_navHexImage);
+            ghostHex.sprite = MenuSprites.HexButton(HomeHexTopColor(target), HomeHexBottomColor(target));
+            Color glyph = HomeGlyphColor(target, active: true);
+            Transform house = ghostHex.transform.Find("HomeIcon");
+            if (house != null) house.GetComponent<Image>().sprite = MenuSprites.NavHouse(glyph);
+            Transform label = ghostHex.transform.Find("Label");
+            if (label != null) label.GetComponent<Graphic>().color = glyph;
+        }
+
+        // Frosted-glass backdrops in the top bar show the chapter's backdrop slice.
+        Sprite targetBackdrop = target.MenuBackgroundImage;
+        if (targetBackdrop != null)
+        {
+            foreach (Image blur in _chromeFrostBlurs)
+            {
+                if (blur == null) continue;
+                CreateChromeTwin(blur).sprite = targetBackdrop;
+            }
+        }
+    }
+
+    private static void AddChromeLerp(Graphic graphic, Color to)
+    {
+        if (graphic == null) return;
+        _chromeLerps.Add(new ChromeLerp { G = graphic, From = graphic.color, To = to });
+    }
+
+    // Clones a chrome element in place, directly above the original in draw order, faded out
+    // and raycast-dead. Component copies (MenuFrostedBackdrop, UIEffect) ride along, which the
+    // frost twins rely on for their screen-locking and blur.
+    private static Image CreateChromeTwin(Image real)
+    {
+        GameObject clone = UnityEngine.Object.Instantiate(real.gameObject, real.transform.parent);
+        clone.name = real.gameObject.name + "Twin";
+        clone.transform.SetSiblingIndex(real.transform.GetSiblingIndex() + 1);
+        CanvasGroup group = clone.AddComponent<CanvasGroup>();
+        group.alpha = 0f;
+        group.interactable = false;
+        group.blocksRaycasts = false;
+        _chromeTwins.Add(group);
+        return clone.GetComponent<Image>();
+    }
+
+    private static void TearDownChromeBlend()
+    {
+        foreach (ChromeLerp lerp in _chromeLerps)
+        {
+            if (lerp.G != null) lerp.G.color = lerp.From;   // swipe cancelled: restore
+        }
+        _chromeLerps.Clear();
+        foreach (CanvasGroup twin in _chromeTwins)
+        {
+            if (twin != null) UnityEngine.Object.Destroy(twin.gameObject);
+        }
+        _chromeTwins.Clear();
+        _chromeBlendTarget = -1;
     }
 
     // Swipe target for one step: +1 forward (only if unlocked), -1 back (always allowed -

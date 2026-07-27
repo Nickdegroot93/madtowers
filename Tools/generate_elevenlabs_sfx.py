@@ -29,6 +29,7 @@ STYLE = ("Punchy satisfying sound effect for a charming cartoony stone-brick puz
 
 # name -> (prompt, duration_seconds, prompt_influence)
 # KEEPERS (loved, do NOT regenerate): fission_feed, maw_crunch, flip_swap, zap_charge (engineered wav).
+# game_over is also a keeper: its bytes now come from the Cyberleaf pack (July 2026), not this table.
 SOUNDS = {
     "shatter_zap": (STYLE + "A stone brick blasted apart by a magic bolt: one punchy deep "
         "crack-POP with chunky stone debris scattering, energetic and satisfying.", 0.9, 0.55),
@@ -81,7 +82,7 @@ SOUNDS = {
     "life_lost": (STYLE + "Losing a life in a puzzle game: one deep soft muffled thud with "
         "a short sad downward whoosh, weighty but not harsh, brief.", 0.9, 0.55),
     "game_over": (STYLE + "Game over: three slow deep muffled drum thuds descending in pitch, "
-        "dark heavy and somber, very low frequency, absolutely no melodic or high tones.", 1.6, 0.6),
+        "dark heavy and somber, very low frequency, absolutely no melodic or high tones.", 1.6, 0.6),  # KEEPER (Cyberleaf bytes)
     "status_engage": (STYLE + "A protective wind aura whooshing around: full circular gust "
         "swirl, breathy and energetic.", 0.9, 0.5),
 

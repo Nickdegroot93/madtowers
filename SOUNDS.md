@@ -11,8 +11,13 @@ Prefer **CC0 / royalty-free** (freesound.org CC0, Kenney, Sonniss GDC packs).
 
 Two tiers of SFX today:
 - **Authored** (real sounds, leading/trailing silence trimmed, mostly `.wav`): `freeze`,
-  `transmute`, `nudge`, `rotate-swoosh`, `pop`, `countdown`, `ui-button-click`,
-  `ui-leave-game`, `ui-start-game` (+ unwired `zap`).
+  `transmute`, `nudge`, `rotate-swoosh`, `pop`, `countdown` (+ unwired `zap`). The whole
+  **UI set** is authored from the purchased **Cyberleaf – Modern UI SFX** pack
+  (`~/Documents/SoundPack/Cyberleaf - Modern UI SFX`, July 2026): `ui-button-click`,
+  `ui-start-game`, `ui-leave-game`, `ui-page-swipe`, `ui-pause`, `ui-resume`,
+  `ui-victory`, `ui-star-earned`, and `game_over`. All were mono-downmixed,
+  silence-trimmed and RMS-normalized to −14 dBFS (same rule as the ElevenLabs
+  pipeline); source picks are listed per clip below so a re-pick is one file swap.
 - **Placeholder** (procedurally synthesized by `Tools/generate_sfx.py`, rough — still to be
   replaced): `impact_heavy_01/02`, `impact_soft_01`, `impact_shatter_01`, `gun_cock_01`,
   `swoosh_01`, `nudge_thud_01`, `pop_01`.
@@ -93,14 +98,29 @@ A clock that **starts** when the 5→0 hold-steady countdown arms and **stops** 
 teardown. Played via `SfxPlayer.PlayLoop("countdown")` / `StopLoop()` (dedicated source).
 - Armed in [LevelRuntimeController.cs:268](Assets/SourceFiles/Scripts/Levels/LevelRuntimeController.cs#L268); stopped in `DestroyCountdownUi` ([:338](Assets/SourceFiles/Scripts/Levels/LevelRuntimeController.cs#L338)).
 
-### `ui-button-click` — UI button (6 sites) · *authored*
-- Bottom nav tabs ([MainMenuRuntime.cs:1183](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L1183)), Home tab ([:1212](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L1212)), chapter switch ([:700](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L700)), generic menu button ([:1269](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L1269)), opening the level-summary modal ([:1287](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L1287)), and the Ranks button ([:1407](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L1407)).
+### `ui-button-click` — UI button (~30 sites) · *authored (Cyberleaf `Buttons/ClickyButton1a`)*
+- The one generic tap for every menu button: nav tabs, chapter card, settings rows/toggles
+  (`CommitSetting`), vault modals, profile, leaderboard segments, identity flow, pre-run
+  supplies steppers, HUD layout editor, block-debut CONTINUE. `RuntimeUiKit.CreateButton`
+  is silent by design — each call site plays this by hand.
 
-### `ui-leave-game` — Leave to menu · *authored*
-- Confirmed "Back to Menu" / quit a run ([PauseMenuController.cs:147](Assets/SourceFiles/Scripts/UI/PauseMenuController.cs#L147)).
+### `ui-page-swipe` — Chapter pager commit · *authored (Cyberleaf `Buttons/ClickAndSlide`)*
+- Chapter swipe settles onto a new page ([MenuChapterPager.cs:300](Assets/SourceFiles/Scripts/Menu/MenuChapterPager.cs#L300)) — commit only, a cancelled swipe stays silent. Split off the overloaded `swoosh_01`.
 
-### `ui-start-game` — Start a level · *authored*
-- **Play** button in the level-summary modal ([MainMenuRuntime.cs:1389](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.cs#L1389)).
+### `ui-leave-game` — Leave to menu · *authored (Cyberleaf `SlidesAndTransitions/CloseOrDisable1`)*
+- Confirmed "Back to Menu" / quit a run ([PauseMenuController.cs](Assets/SourceFiles/Scripts/UI/PauseMenuController.cs)), results-screen leave button ([RunResultsScreen.cs](Assets/SourceFiles/Scripts/UI/RunResultsScreen.cs)).
+
+### `ui-start-game` — Start a level · *authored (Cyberleaf `SlidesAndTransitions/OpenOrEnable5`)*
+- **Play** button in the level-summary modal ([MainMenuRuntime.LevelSummary.cs:152](Assets/SourceFiles/Scripts/Menu/MainMenuRuntime.LevelSummary.cs#L152)).
+
+### `ui-pause` / `ui-resume` — Pause overlay in/out · *authored (Cyberleaf `Minimize4` / `Maximize2`)*
+- Matched low warm pair: pause in [PauseMenuController.ShowPauseMenu](Assets/SourceFiles/Scripts/UI/PauseMenuController.cs), resume in `Resume()`.
+
+### `ui-victory` / `game_over` — Results-screen stingers · *authored (Cyberleaf `Success7a` / `CloseOrDisable4`)*
+- Fired at results-screen build ([RunResultsScreen.cs:91](Assets/SourceFiles/Scripts/UI/RunResultsScreen.cs#L91)); victory previously borrowed `ability_pick`. Both fit before the hero-counter thud at t≈1.35 s. `game_over` keeps its name from the ElevenLabs table but its bytes are Cyberleaf now — **do not regenerate** (marked KEEPER in the tool).
+
+### `ui-star-earned` — Tutorial star earned · *authored (Cyberleaf `GenericNotification1`)*
+- Tutorial step completes with the star ([TutorialModifier.cs:510](Assets/SourceFiles/Scripts/Levels/Modifiers/TutorialModifier.cs#L510)); previously borrowed `ui-start-game`.
 
 ### `zap` — *authored, UNWIRED*
 Present in `Resources/Audio/Sfx/` but not triggered anywhere yet. Earmarked for the **laser
@@ -194,7 +214,7 @@ Entering a level swaps menu → chapter music; returning to the menu swaps back.
 - **Combo / pattern fired** — a distinct chime, separate from the generic `pop_01`.
 - **Per-shard drop / land in Fission** — a lighter "tick" per micro-cube.
 - **Gentle (non-flick) landings** — silent today; only flick-drops play `impact_heavy`.
-- **Life lost** / **game over** — none wired.
-- **Level win / hold-steady success** — none wired (the countdown plays, but not the win itself).
+- ~~Life lost / game over~~ — wired: `life_lost` ([UIManager.cs](Assets/SourceFiles/Scripts/UI/UIManager.cs)), `game_over` (results screen).
+- ~~Level win~~ — wired: `ui-victory` on the results screen.
 - **Power-up offer appears** / **ability card pick** — none wired (`ui-button-click` is menu-only).
 - **Laser line clear** (puzzle modes) — none wired; `zap` is the earmarked clip.

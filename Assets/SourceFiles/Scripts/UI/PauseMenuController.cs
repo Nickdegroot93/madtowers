@@ -28,6 +28,7 @@ public class PauseMenuController : MonoBehaviour
         if (GameManager.Instance == null || GameManager.Instance.isGameOver ||
             GameManager.Instance.IsGamePaused) return;
 
+        SfxPlayer.Play("ui-pause", 0.9f);
         GameManager.Instance.PushPause(this);
         GameManager.Instance.RequestPhase(this, GamePhase.Paused);
         StartCoroutine(CaptureBlurThenShowMenu());
@@ -123,6 +124,7 @@ public class PauseMenuController : MonoBehaviour
 
     private void Resume()
     {
+        SfxPlayer.Play("ui-resume", 0.9f);
         DestroyMenu();
         ReleaseBlur();
         if (GameManager.Instance != null)

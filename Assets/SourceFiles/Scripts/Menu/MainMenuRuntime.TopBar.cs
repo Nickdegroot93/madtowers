@@ -23,7 +23,10 @@ public static partial class MainMenuRuntime
         barImage.sprite = RuntimeSprites.RoundedPanel();
         barImage.type = Image.Type.Sliced;
         barImage.color = WithAlpha(Color.Lerp(chapterTint, TextPrimary, 0.18f), 0.07f);
-        AddFrostedGlass(bar, statBackground, TopBarFrostWash);
+        // Register the chapter-tinted pieces for the swipe cross-fade (see OnChapterBlend).
+        _topBarWashImage = barImage;
+        _chromeFrostBlurs.Clear();
+        AddFrostedGlass(bar, statBackground, TopBarFrostWash, chapterBlend: true);
         RuntimeUiKit.AddOutline(bar, GlassBorder);
 
         HorizontalLayoutGroup layout = bar.gameObject.AddComponent<HorizontalLayoutGroup>();
@@ -205,7 +208,8 @@ public static partial class MainMenuRuntime
     // the screen as the card scrolls/swipes, under a dark wash for legibility. Call right after the
     // fill image and BEFORE adding content so content draws on top. No-op without a background
     // (the card keeps its plain darkened fill).
-    private static void AddFrostedGlass(RectTransform card, Sprite background, float washAlpha, float blurScale = 2f)
+    private static void AddFrostedGlass(RectTransform card, Sprite background, float washAlpha, float blurScale = 2f,
+        bool chapterBlend = false)
     {
         if (background == null) return;
 
@@ -223,6 +227,9 @@ public static partial class MainMenuRuntime
         UIEffect blurFx = blur.gameObject.AddComponent<UIEffect>();
         blurFx.samplingFilter = SamplingFilter.BlurFast;
         blurFx.samplingScale = blurScale;
+        // Top-bar chrome frosts show the CHAPTER's backdrop, so a swipe cross-fades them;
+        // frosted cards inside the sliding page content just ride the page and never blend.
+        if (chapterBlend) _chromeFrostBlurs.Add(blur);
 
         // Dark wash over the blur so text stays readable against bright backgrounds.
         Image wash = CreateImage(frame, "Wash", RuntimeSprites.RoundedPanel(), new Color(0.03f, 0.028f, 0.025f, washAlpha));
@@ -242,7 +249,7 @@ public static partial class MainMenuRuntime
         cardImage.sprite = RuntimeSprites.RoundedPanel();
         cardImage.type = Image.Type.Sliced;
         cardImage.color = new Color(0.02f, 0.018f, 0.016f, 0.68f);
-        AddFrostedGlass(card, background, CurrencyCardFrostWash);
+        AddFrostedGlass(card, background, CurrencyCardFrostWash, chapterBlend: true);
         RuntimeUiKit.AddOutline(card, GlassBorder);
 
         if (!string.IsNullOrEmpty(coinGlyph))

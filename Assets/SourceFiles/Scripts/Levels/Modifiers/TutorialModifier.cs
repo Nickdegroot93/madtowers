@@ -507,7 +507,7 @@ public class TutorialModifier : LevelModifier
         _codaTime = earned ? 0f : CodaHoldSeconds - SkipCodaHoldSeconds;
         HideDemo();
         if (_skipRoot != null) _skipRoot.SetActive(false);
-        if (earned) SfxPlayer.Play("ui-start-game", 0.6f);
+        if (earned) SfxPlayer.Play("ui-star-earned", 0.75f);
 
         if (_caption != null)
         {

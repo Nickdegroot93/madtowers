@@ -88,7 +88,7 @@ public sealed class RunResultsScreen : MonoBehaviour
         screen._content = content;
         screen.Build();
 
-        SfxPlayer.Play(content.Victory ? "ability_pick" : "game_over", content.Victory ? 0.75f : 0.85f, 0f);
+        SfxPlayer.Play(content.Victory ? "ui-victory" : "game_over", content.Victory ? 0.9f : 0.85f, 0f);
     }
 
     private void OnDestroy()

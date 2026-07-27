@@ -49,6 +49,7 @@ public class MenuChapterPager : MonoBehaviour
     private Action<RectTransform, int> _buildContent;
     private Func<int, RectTransform> _buildBackground;
     private Action<int> _commit;
+    private Action<int, float> _blend;
     private bool _configured;
     private float _scaleFactor = 1f;
 
@@ -73,7 +74,8 @@ public class MenuChapterPager : MonoBehaviour
     public void Configure(RectTransform content, RectTransform bgTrack, RectTransform contentParent,
         int chapterCount,
         Func<int, int> resolveTarget, Action<RectTransform, int> buildContent,
-        Func<int, RectTransform> buildBackground, Action<int> commit)
+        Func<int, RectTransform> buildBackground, Action<int> commit,
+        Action<int, float> blend = null)
     {
         _content = content;
         _bgTrack = bgTrack;
@@ -83,6 +85,7 @@ public class MenuChapterPager : MonoBehaviour
         _buildContent = buildContent;
         _buildBackground = buildBackground;
         _commit = commit;
+        _blend = blend;
         _configured = true;
         RefreshMetrics();
     }
@@ -227,6 +230,7 @@ public class MenuChapterPager : MonoBehaviour
 
     private void TearDownNeighbor(bool resetLayers)
     {
+        if (_hasNeighbor) _blend?.Invoke(_targetIndex, 0f);
         if (_neighbor != null) Destroy(_neighbor.gameObject);
         if (_neighborBg != null) Destroy(_neighborBg.gameObject);
         _neighbor = null;
@@ -248,12 +252,14 @@ public class MenuChapterPager : MonoBehaviour
 
     // Slides the foreground content and the background track by the same offset, so the whole
     // chapter scene moves as one. The neighbour content rides alongside; the neighbour
-    // background rides the track as a child.
+    // background rides the track as a child. Reports the travelled fraction so the fixed
+    // chrome (top bar, bottom nav) can cross-fade its chapter tint in step with the page.
     private void ApplyPan(float t)
     {
         SetX(_content, t);
         if (_neighbor != null) SetX(_neighbor, _chapterDelta * _width + t);
         SetX(_bgTrack, t);
+        if (_hasNeighbor) _blend?.Invoke(_targetIndex, Mathf.Clamp01(Mathf.Abs(t) / _width));
     }
 
     private void ApplyResist(float dx)
@@ -297,7 +303,7 @@ public class MenuChapterPager : MonoBehaviour
     private IEnumerator Settle(float targetT, bool commit)
     {
         _busy = true;
-        if (commit) SfxPlayer.Play("swoosh_01", 0.45f, 0.06f);
+        if (commit) SfxPlayer.Play("ui-page-swipe", 0.8f, 0.05f);
 
         float x = _content != null ? _content.anchoredPosition.x : 0f;
         float vel = Mathf.Clamp(_velocity, -MaxCarryVelocity, MaxCarryVelocity);
