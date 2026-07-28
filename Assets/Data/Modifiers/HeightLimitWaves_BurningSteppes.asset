@@ -12,17 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 45551f4731194d8e918b0857e4e95251, type: 3}
   m_Name: HeightLimitWaves_BurningSteppes
   m_EditorClassIdentifier: Assembly-CSharp::HeightLimitWavesModifier
-  waves:
-  - blockCount: 12
-    lineHeightAboveFloor: 6
-  - blockCount: 16
-    lineHeightAboveFloor: 10
-  - blockCount: 18
-    lineHeightAboveFloor: 13
-  - blockCount: 20
-    lineHeightAboveFloor: 17
-  - blockCount: 25
-    lineHeightAboveFloor: 21
+  difficultyRank: 5
   lineRiseSeconds: 1.2
   lineColor: {r: 1, g: 0.27, b: 0.2, a: 1}
   lineThickness: 0.12

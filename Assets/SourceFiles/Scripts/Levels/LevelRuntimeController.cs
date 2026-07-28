@@ -164,11 +164,12 @@ public class LevelRuntimeController : MonoBehaviour
         // Screen BEFORE ReportResult: the card compares this run against the best as it
         // stood before the run banked - otherwise a new best could never be detected.
         ShowGameOverScreen();
-        if (_level != null) ProgressStore.ReportResult(_level, finalScore, maxHeightMeters, RunSuppliesState.ActiveRunBoosted);
+        int reportedScore = ReportedScore(finalScore);
+        if (_level != null) ProgressStore.ReportResult(_level, reportedScore, maxHeightMeters, RunSuppliesState.ActiveRunBoosted);
         // Server finish (BACKEND.md §6.2): score submission rides the same exchange. A
         // game over AFTER a completion no-ops - the win's ReportFinish already consumed
         // the run_id. Local bests above stay local-first regardless.
-        RunGate.ReportFinish(won: false, finalScore, maxHeightMeters);
+        RunGate.ReportFinish(won: false, reportedScore, maxHeightMeters);
     }
 
     private void ShowGameOverScreen()
@@ -206,6 +207,21 @@ public class LevelRuntimeController : MonoBehaviour
 
         WinCondition condition = _winCondition ?? new EndlessWinCondition();
         return condition.EndOfRunMetric(result, best);
+    }
+
+    // The score banked to bests and submitted to the board. A metric-owning modifier replaces
+    // the raw run score (puzzle waves report encoded waves-cleared); everything else reports
+    // the run's cumulative score untouched. First non-null override wins.
+    private int ReportedScore(int rawScore)
+    {
+        for (int i = 0; i < _activeModifiers.Count; i++)
+        {
+            int? overridden = _activeModifiers[i] != null
+                ? _activeModifiers[i].OverrideReportedScore(_modifierContext, rawScore)
+                : null;
+            if (overridden.HasValue) return overridden.Value;
+        }
+        return rawScore;
     }
 
     // The results card compares against the board this run played for (SHOP.md §5): a boosted
@@ -588,12 +604,25 @@ public class LevelRuntimeController : MonoBehaviour
         }
     }
 
-    // PlaceBlocks wins on the LIVE standing count, not cumulative score - so destroying
+    // PlaceBlocks/ClearWaves win on the LIVE standing count, not cumulative score - so destroying
     // or dropping placed blocks genuinely sets the goal back. Re-arms for free: this event
     // fires on every increment too, so re-crossing the target re-triggers verification.
     // Both progress signals (live block count, tower height) funnel through the condition: it
     // decides whether its goal is met now. A signal the goal doesn't care about is a cheap no-op.
-    private void HandleStandingBlocksChanged(int placedBlocks) => TryArmFromProgress();
+    // Modifiers hear the signal FIRST: the wave engine must advance before the ClearWaves
+    // condition reads its thresholds, or an arming check could run against a stale wave.
+    private void HandleStandingBlocksChanged(int placedBlocks)
+    {
+        // Isolated per modifier (like EndModifiers): this fires deep inside BlockLedger's
+        // landing/destroy chain - one throwing modifier must not desync the cumulative
+        // placement bookkeeping behind it or rob the other modifiers of the signal.
+        for (int i = 0; i < _activeModifiers.Count; i++)
+        {
+            try { _activeModifiers[i].OnStandingBlocksChanged(_modifierContext, placedBlocks); }
+            catch (System.Exception e) { Debug.LogException(e); }
+        }
+        TryArmFromProgress();
+    }
     private void HandleHeightChanged(float height) => TryArmFromProgress();
 
     private bool GoalMetNow() => _winCondition != null && _winCondition.IsMet(BuildWinContext());
@@ -623,10 +652,11 @@ public class LevelRuntimeController : MonoBehaviour
         // A FIRST completion may unlock the next level or chapter; the menu plays that
         // unlock as a reveal animation instead of showing it silently pre-unlocked.
         if (firstCompletion) UnlockRevealPending.RecordFirstCompletion(_level);
-        ProgressStore.ReportResult(_level, result.Score, result.MaxHeight, RunSuppliesState.ActiveRunBoosted);
+        int reportedScore = ReportedScore(result.Score);
+        ProgressStore.ReportResult(_level, reportedScore, result.MaxHeight, RunSuppliesState.ActiveRunBoosted);
         // Server finish (BACKEND.md §6.2): the win refunds the attempt and submits the
         // score in one exchange, against the run_id granted at start.
-        RunGate.ReportFinish(won: true, result.Score, result.MaxHeight);
+        RunGate.ReportFinish(won: true, reportedScore, result.MaxHeight);
         GameEvents.RaiseLevelCompleted(_level, result);
 
         if (GameManager.Instance.IsGamePaused)

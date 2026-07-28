@@ -112,4 +112,9 @@ public abstract class WinCondition
     /// <summary>(target, best) lines for the level summary modal. <paramref name="attempted"/> = ever
     /// played or completed (controls the "-" placeholder).</summary>
     public abstract (string target, string best) TargetAndBest(ProgressStore.LevelBest best, bool completed, bool attempted);
+
+    /// <summary>How a leaderboard row prints this level's stored score. Null = the raw number.
+    /// Goals whose stored scores are ENCODED (ClearWaves packs waves + in-wave progress into one
+    /// int) override this so the board shows the metric, never the encoding.</summary>
+    public virtual string FormatBoardScore(int bestScore) => null;
 }

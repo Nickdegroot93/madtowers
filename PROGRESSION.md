@@ -42,6 +42,15 @@ physics contract (never tune impact for difficulty) is [PHYSICS.md](PHYSICS.md).
 > trap the grace exists to prevent. Note: mode assets also carry a small
 > time-based ramp (`speedIncreasePerInterval` 0.1 per 60 s) on top of the per-block ramp —
 > negligible at current values, fold into the formula if it ever grows.
+>
+> **Waves REBUILT (2026-07-26)**: all hand-authored wave tables and per-chapter wave/block
+> targets above are HISTORICAL. Puzzle waves are now endless and generated (counting = live
+> standing blocks; goal = `ClearWaves` with waves-to-win 5/6/7 by chapter third; difficulty =
+> `difficultyRank` on the modifier asset — ALL shipped at rank 5, per-chapter differentiation
+> comes from brick variants + speed, not looser lines). The wave
+> achievability rule, flat-rise principle, integer-heights rule and magma ×4 scaling are all
+> now enforced BY the wave engine's math instead of by authoring discipline — see LEVELS.md
+> "Height-Limit Waves details".
 
 ---
 

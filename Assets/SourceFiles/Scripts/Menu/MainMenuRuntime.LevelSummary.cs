@@ -104,9 +104,11 @@ public static partial class MainMenuRuntime
         if (bestRecord != null && (bestRecord.bestScoreBoosted > 0 || bestRecord.bestHeightMetersBoosted > 0f))
         {
             // Height-goal levels can hold a boosted best with score 0 - show the metric
-            // that actually exists instead of printing "BOOSTED BEST 0".
+            // that actually exists instead of printing "BOOSTED BEST 0". Goals with ENCODED
+            // stored scores (ClearWaves) print through the condition, like the RANKS rows.
             string boostedValue = bestRecord.bestScoreBoosted > 0
-                ? bestRecord.bestScoreBoosted.ToString()
+                ? (level.WinCondition.FormatBoardScore(bestRecord.bestScoreBoosted)
+                    ?? bestRecord.bestScoreBoosted.ToString())
                 : $"{bestRecord.bestHeightMetersBoosted:F1}m";
             CreateTmp(panel, "BoostedBest",
                 $"BOOSTED BEST  {boostedValue}", 15, WithAlpha(GoldBase, 0.75f),

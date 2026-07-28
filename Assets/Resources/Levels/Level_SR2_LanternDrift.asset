@@ -16,10 +16,10 @@ MonoBehaviour:
   menuThumbnail: {fileID: 21300000, guid: 839af4b8f120847a3a519e079b6729c3, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: 56397330212a4f1299e0642b494699fc, type: 2}
-  targetType: 1
-  targetValue: 72
+  targetType: 5
+  targetValue: 5
   timeLimitSeconds: 120
-  instruction: Clear 6 waves while the skyline drifts behind you.
+  instruction: Clear 5 waves while the skyline drifts behind you.
   modifiers:
   - {fileID: 11400000, guid: 77b246c600bd46fe94e6ecd52ce89d2d, type: 2}
   bannedAbilities: []

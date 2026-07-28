@@ -16,8 +16,8 @@ MonoBehaviour:
   menuThumbnail: {fileID: 21300000, guid: 35696bfe836db4050aef91f84b1259b6, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: 52017f778c2f4494927aa07f9cff3171, type: 2}
-  targetType: 1
-  targetValue: 72
-  instruction: Clear 5 waves - keep the tower under the lantern line!
+  targetType: 5
+  targetValue: 7
+  instruction: Clear 7 waves - keep the tower under the lantern line!
   modifiers:
   - {fileID: 11400000, guid: be5e0f8a8a2f485288b4b5581a414dcb, type: 2}

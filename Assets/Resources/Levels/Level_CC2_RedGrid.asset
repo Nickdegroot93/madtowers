@@ -16,9 +16,9 @@ MonoBehaviour:
   menuThumbnail: {fileID: 0}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: ac3ff93598474f20ae2c283638bbb500, type: 2}
-  targetType: 1
-  targetValue: 72
-  instruction: Clear 5 waves - keep the tower under the red grid line!
+  targetType: 5
+  targetValue: 7
+  instruction: Clear 7 waves - keep the tower under the red grid line!
   modifiers:
   - {fileID: 11400000, guid: 24ca696283654eab83085a4293c17fd8, type: 2}
   - {fileID: 11400000, guid: 57cc85b4d35a4aeeae634ad54ee1bfea, type: 2}

@@ -79,13 +79,16 @@ public static partial class MainMenuRuntime
         // Per-open cache so tab flips don't refetch a board already loaded this visit.
         var cache = new Dictionary<bool, Leaderboards.LeaderboardResult>();
         bool showingBoosted = defaultBoosted;
+        // The goal knows how its stored scores print (ClearWaves boards store ENCODED waves;
+        // showing the raw int would leak the encoding).
+        WinCondition condition = level.WinCondition;
 
         void Load()
         {
             bool boosted = showingBoosted;
             if (cache.TryGetValue(boosted, out Leaderboards.LeaderboardResult cached))
             {
-                BuildLeaderboardList(body, cached, accent);
+                BuildLeaderboardList(body, cached, accent, condition);
                 return;
             }
             BuildLeaderboardMessage(body, "FETCHING SCORES...", null, null);
@@ -94,7 +97,7 @@ public static partial class MainMenuRuntime
                 {
                     if (overlay == null) return;                 // closed while in flight
                     cache[boosted] = result;
-                    if (boosted == showingBoosted) BuildLeaderboardList(body, result, accent);
+                    if (boosted == showingBoosted) BuildLeaderboardList(body, result, accent, condition);
                 },
                 err =>
                 {
@@ -143,7 +146,8 @@ public static partial class MainMenuRuntime
         button.onClick.AddListener(() => { SfxPlayer.Play("ui-button-click"); onButton?.Invoke(); });
     }
 
-    private static void BuildLeaderboardList(RectTransform body, Leaderboards.LeaderboardResult result, Color accent)
+    private static void BuildLeaderboardList(RectTransform body, Leaderboards.LeaderboardResult result, Color accent,
+        WinCondition condition)
     {
         ClearChildren(body);
 
@@ -175,21 +179,21 @@ public static partial class MainMenuRuntime
         for (int i = 0; i < result.entries.Count; i++)
         {
             Leaderboards.Entry entry = result.entries[i];
-            BuildLeaderboardRow(content, entry, entry.display_name, entry.is_you, accent);
+            BuildLeaderboardRow(content, entry, entry.display_name, entry.is_you, accent, condition);
         }
 
         if (pinYou)
         {
             // The server's "you" object carries rank/score/height only - the client knows
             // its own name, and the row is by definition yours.
-            RectTransform pinned = BuildLeaderboardRow(body, result.you, OnlineService.DisplayName, true, accent);
+            RectTransform pinned = BuildLeaderboardRow(body, result.you, OnlineService.DisplayName, true, accent, condition);
             SetRect(pinned, new Vector2(0f, 16f), new Vector2(body.sizeDelta.x, 84f), new Vector2(0.5f, 0f));
             pinned.pivot = new Vector2(0.5f, 0f);
         }
     }
 
     private static RectTransform BuildLeaderboardRow(Transform parent, Leaderboards.Entry entry,
-        string displayName, bool isYou, Color accent)
+        string displayName, bool isYou, Color accent, WinCondition condition)
     {
         RectTransform row = CreateRect(parent, "Row",
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(0f, 84f));
@@ -216,8 +220,11 @@ public static partial class MainMenuRuntime
             new Vector2(132f, 0f), new Vector2(420f, 32f), new Vector2(0f, 0.5f));
 
         // Score is the board metric; height-goal boards can hold score 0 - show the metric
-        // that exists (same rule as the modal's BOOSTED BEST caption).
-        string value = entry.best_score > 0 ? entry.best_score.ToString() : $"{entry.best_height:F1}m";
+        // that exists (same rule as the modal's BOOSTED BEST caption). Goals with encoded
+        // stored scores print through the condition (waves, not the packed int).
+        string value = entry.best_score > 0
+            ? (condition?.FormatBoardScore(entry.best_score) ?? entry.best_score.ToString())
+            : $"{entry.best_height:F1}m";
         CreateTmp(row, "Score", value, 30, accent, TextAnchor.MiddleRight,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(-26f, 0f), new Vector2(220f, 38f), new Vector2(1f, 0.5f));
 

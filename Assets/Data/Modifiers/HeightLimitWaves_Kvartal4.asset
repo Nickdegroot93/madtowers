@@ -12,17 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 45551f4731194d8e918b0857e4e95251, type: 3}
   m_Name: HeightLimitWaves_Kvartal4
   m_EditorClassIdentifier: Assembly-CSharp::HeightLimitWavesModifier
-  waves:
-  - blockCount: 8
-    lineHeightAboveFloor: 5
-  - blockCount: 11
-    lineHeightAboveFloor: 8
-  - blockCount: 13
-    lineHeightAboveFloor: 11
-  - blockCount: 16
-    lineHeightAboveFloor: 15
-  - blockCount: 20
-    lineHeightAboveFloor: 21
+  difficultyRank: 5
   lineRiseSeconds: 1.2
   lineColor: {r: 1, g: 0.27, b: 0.2, a: 1}
   lineThickness: 0.12

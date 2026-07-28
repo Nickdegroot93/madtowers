@@ -126,7 +126,7 @@ touch engine code.
 | Type | Assembled from | Win condition |
 |---|---|---|
 | **Classic stacking** | any mode, no modifiers — the base game | `Endless` (free play), `ReachHeight` (climb to X m), or `PlaceBlocks` (stack N) — three sub-flavours for free |
-| **Height-Limit Waves** ("Laser Limit" — Tricky Towers' puzzle mode) | `HeightLimitWavesModifier` asset on the level | `PlaceBlocks` = sum of wave counts |
+| **Height-Limit Waves** ("Laser Limit" — Tricky Towers' puzzle mode) | `HeightLimitWavesModifier` asset on the level | `ClearWaves` = waves to win (waves continue endlessly after) |
 | **Scheduled theme pressure** (blackouts, snowstorms, sandstorms, wind...) | `ScheduledStatusModifier` applying one or more `StatusEffectDefinition` assets | any standard goal |
 | **Airtight** (no sealed hollows) | `AirPocketModifier` asset on the level | any standard goal (typically `PlaceBlocks`) |
 | **Void Zones** (forbidden sky rectangles) | `VoidZoneModifier` asset on the level | any standard goal (typically `PlaceBlocks`) |
@@ -153,41 +153,71 @@ touch engine code.
 5. Validate wiring in `OnLevelStart` (warn loudly if the level's goal doesn't match).
 6. Document it here and add a catalog row.
 
-#### Height-Limit Waves details
+#### Height-Limit Waves details (REBUILT July 2026 — endless generated waves)
 
-- Blocks arrive in **waves**; the whole tower must stay under a glowing **limit line**.
-- Clearing a wave's block count makes the line **glide up** and the next, bigger wave begins.
+- Blocks arrive in **endless waves**; the whole tower must stay under a glowing **limit line**.
+  Clearing a wave makes the line **glide up** and the next, bigger wave begins — forever.
+- **Counting is the LIVE standing count** (BLOCKS.md), never cumulative placements: a wave of
+  10 means 10 blocks *standing*. A block that is zapped, scrapped, sacrificed, bombed or
+  knocked off **reopens its wave's bill** (the counter grows back; a "10 block" wave can owe
+  13 after losses). There is no crediting a block that no longer exists, and no ability
+  cheese — destruction never shortens a wave. The line itself **never descends**.
 - A **landed** block crossing the line is **zapped** (destroyed) and costs a life through the
   normal lives/GameOver flow. The falling piece passes the line freely (it spawns above it).
-- Wire-up: pair the modifier with `targetType: PlaceBlocks`, `targetValue: <sum of wave
-  counts>` — clearing the last wave completes the level via the normal goal system, and
-  "Keep Building" continues as a free endless run (line disappears). A console warning
-  fires at level start if the goal doesn't match the waves.
-- **Per-level difficulty = per-level modifier assets**: duplicate
-  `Data/Modifiers/HeightLimitWaves_Standard`, change its waves (count, sizes, line
-  heights), assign to another level. Lower starting line / smaller rises / bigger waves =
-  harder puzzle. Mode dials and other modifiers stack on top (icy laser level, earthquake
-  laser level...).
-- Tuning knobs on the asset: `waves[]` (blockCount + lineHeightAboveFloor), `lineRiseSeconds`,
-  and the laser style — `lineColor`, `lineThickness`, `lineBaseAlpha`, `linePulseAmount`,
-  `linePulseSpeed`. Shipped standard asset: **6@5 · 8@7 · 10@10 · 12@14 · 14@19** (5 waves, 50 blocks;
-  the code-default 4-wave/52 set was retuned) —
-  the rises follow ~3 blocks per meter, so late waves force building wider than the floor
-  without becoming unfair. Retune if the floor width changes. A countdown rides the right
-  end of the line showing blocks left until it rises.
-- **Flat-rise principle (July 2026)**: across a wave set, **rise-per-block must not grow**
-  — early sets accelerated the line (rises 3,4,5m as waves grew), handing free headroom
-  exactly when the player's widened base makes height cheap, so late waves played too easy
-  (Nick's playtest read). Keep rises ~constant while wave sizes grow (rise-per-block
-  shrinking), which tightens the endgame instead of relaxing it. The FINAL line is forced
-  by capacity (total blocks × 4 cells / ~14 usable columns) — differentiate difficulty in
-  the MIDDLE lines, never by inflating the last rise. First set on the principle:
-  `HeightLimitWaves_BurningSteppes`; the older chapter sets are due a sweep against it
-  after playtest.
-- **Half-cell grace (code, all wave assets)**: the line renders and zaps **half a cell above**
-  the authored `lineHeightAboveFloor` — a tower that exactly fills the authored rows can
-  wobble without grazing the laser, but one more full row still crosses. Author heights as
-  "rows that must fit"; never bake the grace into the asset values.
+- **A wave must be SURVIVED, not touched — the clear-confirm gate**: reaching the target only
+  *arms* the clear. The spawn hold goes up immediately (it has to — the count signal fires
+  inside `LockBlock`, just ahead of the next spawn), but the line stays put and the advance
+  lands only after ~0.35 s with the count still holding and **nothing standing above the
+  line** — checked geometrically, independent of the zap cooldown, so a violation still
+  waiting out the cooldown blocks the advance just as hard as one already zapped. A zap or
+  collapse inside the window cancels the clear: the wave stays open, the counter shows the
+  reopened bill, the next piece resumes. Without this, the last block of a wave banked the
+  wave *and then* got zapped — cleared waves are monotonic, so the credit was unrecoverable
+  (Nick, July 2026).
+- Wire-up: pair the modifier with `targetType: ClearWaves`, `targetValue: <waves to win>`
+  (`Endless` is also legal — waves with no win, daily-mode material). The win lands exactly
+  when wave N clears (same standing-count signal, via `ClearWavesWinCondition` reading
+  `HeightLimitWavesModifier.ActiveRun`), and "Keep Playing" continues INTO the wave chase —
+  the line keeps rising; there is no fallback to a plain endless run. A console warning
+  fires at level start for any other goal pairing.
+- **Nothing is hand-authored — every height is SOLVED from the floor** (the wave engine, all
+  code-owned constants in the modifier):
+  1. Wave `n` asks a quota `q(n)` of net new standing blocks: `6 + 1.5·(n−1)`, capped at 24.
+  2. Capacity: per playable grid column, the cells between its top and the line. Interior gap
+     columns count from the height they become bridgeable (the lower flanking top); **overhang
+     columns** outside the footprint (3 per side) count from `edgeTop + 3·i` cells — building
+     wider than the floor is part of the game, but walking outward costs rise.
+  3. The asset's **`difficultyRank` 1–5** sets the required packing density
+     (start 0.45/0.55/0.65/0.75/0.85 by rank, +0.012 per wave, capped 0.60/0.68/0.76/0.83/0.90).
+     Densities are NOMINAL against a capacity model that budgets overhang/gap columns the
+     player isn't forced to use, so they sit well above the experienced squeeze (0.72 nominal
+     played as "could place 20 where 8 were asked" — Nick). Rank 5's 0.90 cap is
+     PROGRESSION.md's achievability hard edge.
+  4. Line height for wave `n` = smallest `h` with `capacity(h) · density(n) ≥ cumQuota(n) ·
+     avgCellsPerBlock`, min rise 1 cell (the solver's tiny late-wave rises are the squeeze —
+     never pad them). `avgCellsPerBlock` comes from the level's shape bag
+     (bag-weighted prefab cell count) **divided by the magma inflation** `1 + 3·magmaRate`
+     (PROGRESSION.md's ×4-counted-blocks rule, read off the mode's ambient variant chances).
+  Deterministic per level (floor + bag + rank), so leaderboard runs race identical waves. The
+  engine re-solves if the floor config resolves late (procedural floors).
+- **Per-level difficulty = `difficultyRank` on the per-chapter modifier asset** — but ALL
+  shipped assets run rank 5 (Nick, 2026-07-26: rank 2 played far too easy — "needed 8, could
+  have placed 20"; puzzle chapters differentiate by brick variants + per-chapter speed
+  instead, the squeeze stays uniformly tight). Waves-to-win stays 5/6/7 by chapter third.
+  Lower ranks remain in the code for a future easier mode. Style knobs stay per asset:
+  `lineRiseSeconds`, `lineColor`, `lineThickness`, `lineBaseAlpha`, `linePulseAmount`,
+  `linePulseSpeed`. Mode dials and other modifiers stack on top. The old flat-rise principle
+  is subsumed: density ramping per wave makes rise-per-block naturally non-growing.
+- **Scores are ENCODED**: bests and leaderboards store `wavesCleared × 1000 + peak in-wave
+  progress` (`HeightLimitWavesModifier.OverrideReportedScore`; every display — menu, results,
+  RANKS rows, the modal's BOOSTED BEST caption — decodes through
+  `ClearWavesWinCondition.FormatBoardScore`/`DecodeWaves`).
+  Sub-wave granularity keeps board ties rare. Pre-rebuild block-count bests decode as garbage
+  waves; dev saves only (nothing shipped).
+- **Half-cell grace (code)**: the line renders and zaps **half a cell above** the solved
+  height — a tower that exactly fills the solved rows can wobble without grazing the laser,
+  but one more full row still crosses. The grace never feeds the island ceiling.
+- A countdown rides the right end of the line showing blocks left to STAND until it rises.
 - Laser **art** follows the active chapter automatically: drop a `laser.png` into
   `Resources/Skins/<Chapter>/` (see ART.md) and every laser level in that chapter uses it;
   no file = the code-built bar. Zapped blocks burst via the reusable `BlockShatterFx`

@@ -16,8 +16,8 @@ MonoBehaviour:
   menuThumbnail: {fileID: 21300000, guid: c319e3e8c512d42acaa3ab3712a93840, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: af07226cea41499c9f2cb43fae41a80b, type: 2}
-  targetType: 1
-  targetValue: 68
+  targetType: 5
+  targetValue: 5
   instruction: Clear 5 waves - stay under the curfew line!
   modifiers:
   - {fileID: 11400000, guid: 69a4f27b770f4748a008cfed8c7e2336, type: 2}

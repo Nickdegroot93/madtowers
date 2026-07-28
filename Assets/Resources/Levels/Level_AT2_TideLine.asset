@@ -16,8 +16,8 @@ MonoBehaviour:
   menuThumbnail: {fileID: 21300000, guid: d8fb6a98b7a804bfab0036dbd6ee271b, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: 512c364d8f9d49deab5834424d9bce71, type: 2}
-  targetType: 1
-  targetValue: 68
-  instruction: Clear 5 waves - keep the tower under the tide line!
+  targetType: 5
+  targetValue: 7
+  instruction: Clear 7 waves - keep the tower under the tide line!
   modifiers:
   - {fileID: 11400000, guid: 535f4dca4da846d99b3c3ead6deb95dd, type: 2}

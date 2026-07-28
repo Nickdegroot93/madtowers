@@ -30,6 +30,17 @@ public abstract class LevelModifier : ScriptableObject
     /// <summary>Called each time a block locks into the tower.</summary>
     public virtual void OnBlockLocked(LevelModifierContext context, int totalBlocksPlaced) { }
 
+    /// <summary>Called whenever the LIVE standing-block count changes: +1 per counting
+    /// placement, -1 when a counting block is destroyed or falls (BLOCKS.md). Progression that
+    /// must not credit blocks that no longer stand (puzzle waves) keys off this, never off
+    /// cumulative placements.</summary>
+    public virtual void OnStandingBlocksChanged(LevelModifierContext context, int standingBlocks) { }
+
+    /// <summary>A modifier that owns the level's metric may replace the score reported to
+    /// personal bests and the leaderboard (encoded waves, not raw blocks). First non-null
+    /// wins; null leaves the run's raw score untouched.</summary>
+    public virtual int? OverrideReportedScore(LevelModifierContext context, int rawScore) => null;
+
     /// <summary>Called once when the level tears down (scene unload). Unsubscribe from any
     /// events and destroy any UI built in OnLevelStart here - the runtime clone is otherwise
     /// kept alive by a live static-event subscription, leaking it (and firing stale handlers

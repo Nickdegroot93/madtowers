@@ -3,38 +3,43 @@ using TMPro;
 using UnityEngine;
 
 /// <summary>
-/// "Laser limit" level type (Tricky Towers' puzzle mode): blocks arrive in waves, and the
-/// whole tower must stay below a glowing limit line. When a wave's blocks are all placed,
-/// the line rises and the next, bigger wave begins. A landed block crossing the line is
-/// zapped (destroyed) and costs a life via the normal GameOver/lives flow.
+/// "Laser limit" puzzle mode: blocks arrive in ENDLESS waves and the whole tower must stay
+/// below a glowing limit line. A wave clears when the LIVE standing-block count reaches its
+/// cumulative target AND SURVIVES a short confirm window (the count signal fires inside the
+/// lock, before the laser has looked at the new block - see the clear-confirm gate) - a block
+/// that is zapped, scrapped, sacrificed or knocked off stops counting, so the wave genuinely
+/// reopens (10 blocks means 10 blocks STANDING; there is no
+/// crediting a block that no longer exists). When a wave clears the line rises and the next,
+/// bigger wave begins - forever. The line never descends: losses show as a deficit in the
+/// counter, never as the laser sinking into a standing tower.
 ///
-/// Pure modifier - no engine changes. Pair it on a LevelDefinition with
-/// targetType PlaceBlocks and targetValue = the sum of all wave block counts, so the
-/// existing goal system provides the win the moment the last wave is cleared.
-/// Only LANDED blocks are checked: the falling piece passes the line freely (it has to -
-/// it spawns above it).
+/// Author the level with LevelTargetType.ClearWaves and targetValue = waves to win; the win
+/// lands exactly when that wave clears (same standing-count signal, via ClearWavesWinCondition
+/// reading <see cref="ActiveRun"/>), and the waves simply continue as the endless score chase.
+///
+/// WAVE MATH - nothing is hand-authored; every height is SOLVED from the floor:
+///   1. Each wave n asks for a quota q(n) of net new standing blocks (gentle growth, capped).
+///   2. The floor contributes capacity: for every playable grid column, the cells between its
+///      top surface and the line are buildable. Gap columns between segments count from the
+///      height they become bridgeable (the lower neighbouring top); overhang columns outside
+///      the footprint count from progressively higher up - building wider than the floor is
+///      part of the game, but walking an overhang staircase outward costs rise.
+///   3. The authored rank 1-5 sets the required packing density (occupied cells / available
+///      cells) the player must achieve, ramping slightly every wave toward the rank's cap.
+///   4. The line height for wave n is then the smallest h with
+///         capacity(h) * density(n) >= cumulativeQuota(n) * averageCellsPerPiece(shape bag).
+/// Deterministic per level (floor + bag + rank), so leaderboard runs race identical waves.
+///
+/// Stored/board scores for wave levels are ENCODED: wavesCleared x 1000 + peak in-wave
+/// progress, so boards rank sub-wave granularity while every display decodes to waves.
 /// </summary>
 [CreateAssetMenu(fileName = "HeightLimitWaves", menuName = "Stacking/Levels/Modifiers/Height Limit Waves")]
 public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvider
 {
-    [System.Serializable]
-    public sealed class Wave
-    {
-        [Min(1)] public int blockCount = 6;
-        [Tooltip("Limit line height in meters above the floor while this wave is being placed. The line actually sits half a cell higher: a tower that exactly fills this height has wobble room without ever fitting one more full row.")]
-        [Min(1f)] public float lineHeightAboveFloor = 5f;
-    }
-
-    [Tooltip("Each wave: how many blocks to place, and where the line sits. Cleared in order; line rises between waves.")]
-    // Default heights follow ~3 blocks per meter of rise (playtested): late waves must
-    // build wider than the floor, but the squeeze stays fair.
-    [SerializeField] private Wave[] waves =
-    {
-        new Wave { blockCount = 6,  lineHeightAboveFloor = 5f },
-        new Wave { blockCount = 10, lineHeightAboveFloor = 8f },
-        new Wave { blockCount = 15, lineHeightAboveFloor = 13f },
-        new Wave { blockCount = 21, lineHeightAboveFloor = 20f },
-    };
+    [Header("Difficulty")]
+    [Tooltip("1 = loose (generous line rises, sloppy stacking passes) .. 5 = near-perfect packing required. Sets the packing density the wave math derives line heights from; every wave tightens slightly toward the rank's cap.")]
+    [Range(1, 5)]
+    [SerializeField] private int difficultyRank = 2;
 
     [Tooltip("Seconds the line takes to glide to the next wave's height.")]
     [SerializeField] private float lineRiseSeconds = 1.2f;
@@ -49,27 +54,70 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     [SerializeField] private float linePulseAmount = 0.18f;
     [SerializeField] private float linePulseSpeed = 6f;
 
+    // ---- Wave-math tuning (code-owned, never serialized - SHOP.md's staleness rule) ----------
+    // Quotas: net new standing blocks per wave. Gentle growth keeps deep endless waves a
+    // session-sized ask, not an hour.
+    private const int FirstWaveQuota = 6;
+    private const float QuotaGrowthPerWave = 1.5f;
+    private const int QuotaCap = 24;
+    // Required packing density per rank (start -> cap, ramping per wave). Calibrated against
+    // Nick's July 2026 playtests: 0.72 start read as "could place 20 where 8 were asked" -
+    // the capacity model budgets overhang/gap columns a player isn't forced to use, so
+    // NOMINAL density must sit well above the experienced squeeze. Rank 5 (the shipped
+    // tier) runs 0.85 -> 0.90; 0.90 is PROGRESSION.md's achievability hard edge.
+    private static readonly float[] DensityStartByRank = { 0.45f, 0.55f, 0.65f, 0.75f, 0.85f };
+    private static readonly float[] DensityCapByRank = { 0.60f, 0.68f, 0.76f, 0.83f, 0.90f };
+    private const float DensityRampPerWave = 0.012f;
+    // Overhang: virtual columns outside the floor footprint, usable from progressively higher
+    // up (a stable overhang staircase costs rise to walk outward).
+    private const int OverhangColumnsPerSide = 3;
+    private const float OverhangRiseCellsPerColumn = 3f;
+    // The line always visibly moves between waves, whatever the math says. Kept at ONE cell:
+    // at shipped density a wave's solved rise can legitimately be tiny, and padding it to two
+    // cells was measurable free headroom (Nick's "way too easy" read, July 2026).
+    private const float MinRiseCells = 1f;
+    private const float FallbackCellsPerPiece = 4f;
+
     private const float ZapCooldownSeconds = 0.75f; // a collapse can't chain-drain lives in one beat
     private const float LineLength = 90f;
+
+    /// <summary>Stored scores pack (wavesCleared * this) + peak in-wave standing progress.</summary>
+    public const int ScoreEncodeBase = 1000;
+
+    /// <summary>The live run's wave engine (the runtime CLONE - never the asset), published for
+    /// ClearWavesWinCondition and the results card. Null outside a wave-level run.</summary>
+    public static HeightLimitWavesModifier ActiveRun { get; private set; }
+
+    public static int DecodeWaves(int encodedScore) => Mathf.Max(0, encodedScore) / ScoreEncodeBase;
 
     private LevelModifierContext _context;
     private SpriteRenderer _line;
     private TextMeshPro _counter;
-    private int _waveIndex;
-    private int _blocksPlaced;
     private int _lastShownRemaining = -1;
     private float _floorY;
 
-    // Half a cell of leeway above the authored height; read live (not cached at OnLevelStart)
+    // Wave engine state. _currentWave is the 1-based wave being built; cleared waves are
+    // monotonic - the line never descends, a deficit reopens the CURRENT wave's counter.
+    private int _currentWave;
+    private int _wavesCleared;
+    private int _standing;
+    private int _peakStanding;
+    private readonly List<int> _cumulativeTargets = new List<int>();   // [n-1] = standing to clear wave n
+    private readonly List<float> _lineHeightsCells = new List<float>(); // [n-1] = line height while wave n runs
+    private readonly List<float> _columnTops = new List<float>();       // sorted, cells above the datum
+    private float _avgCellsPerPiece = FallbackCellsPerPiece;
+    private object _cachedSegments; // staleness guard: floor config can resolve after level start
+
+    // Half a cell of leeway above the solved height; read live (not cached at OnLevelStart)
     // because the active config can resolve after level start on some paths - the same
     // staleness AirPocketModifier guards against.
-    private float HalfCellGrace => 0.5f * (_context?.GameManager?.ActiveConfig != null
-        ? _context.GameManager.ActiveConfig.GridSpacing : 1f);
+    private float HalfCellGrace => 0.5f * GridSpacing;
+    private float GridSpacing => _context?.GameManager?.ActiveConfig != null
+        ? _context.GameManager.ActiveConfig.GridSpacing : 1f;
     private float _lineY;
     private float _lineTargetY;
     private float _zapCooldown;
     private float _flash;
-    private bool _finished;
 
     // Wave-transition spawn hold (WaveRevealGate -> GameManager spawn hold). While true the next piece is held until the
     // line has settled at its new height and the freshly revealed island band has finished
@@ -82,127 +130,173 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     private int _settledGenTick;
     private float _holdElapsed;
 
-    public int TotalBlockCount
+    // Clear-confirm gate. A wave must be SURVIVED, not merely touched: the standing-count signal
+    // fires inside BlockController.LockBlock (lock -> ledger -> here), strictly BEFORE the laser
+    // has ever looked at the block that reached the target, so advancing on it credited a wave to
+    // a block the line then zapped a frame later - and because cleared waves are monotonic, that
+    // credit could never be taken back (Nick, July 2026). Reaching the target now only ARMS the
+    // clear: the line stays put, and the advance lands only once the window has elapsed with the
+    // count still holding and NOTHING standing above the line. A zap/collapse inside the window
+    // cancels it and the wave simply stays open, which is what the honest bill already models.
+    private const float ClearConfirmSeconds = 0.35f;
+    private bool _clearPending;
+    private float _clearConfirmRemaining;
+
+    /// <summary>Standing-block count required to have CLEARED the given 1-based wave.</summary>
+    public int StandingTargetForWave(int waveNumber)
     {
-        get
+        if (waveNumber <= 0) return 0;
+        while (_cumulativeTargets.Count < waveNumber)
         {
-            int total = 0;
-            if (waves == null) return total;
-            for (int i = 0; i < waves.Length; i++) total += waves[i].blockCount;
-            return total;
+            int previous = _cumulativeTargets.Count > 0 ? _cumulativeTargets[_cumulativeTargets.Count - 1] : 0;
+            _cumulativeTargets.Add(previous + QuotaForWave(_cumulativeTargets.Count + 1));
         }
+        return _cumulativeTargets[waveNumber - 1];
     }
 
-    public int WaveCount => waves != null ? waves.Length : 0;
+    public int WavesCleared => _wavesCleared;
 
+    /// <summary>Highest standing count the run ever reached. MONOTONIC - rarity escalation
+    /// reads run progress from this, so a zap/collapse never de-escalates an earned offer
+    /// tier (BLOCKS.md: losing blocks must not rewind difficulty or revoke an earned picker).</summary>
+    public int PeakStanding => _peakStanding;
+
+    // ---- ILevelMenuProgressProvider: claim the type name only. The metric itself (menu
+    // progress, results card) lives on ClearWavesWinCondition, which decodes stored scores -
+    // one owner, so the two can never disagree. ---------------------------------------------
     public string MenuChallengeLabel => "PUZZLE WAVES";
+    public string MenuProgressLabel(LevelDefinition level, ProgressStore.LevelBest best, bool completed) => null;
+    public ResultMetric? EndOfRunMetric(LevelDefinition level, RunResult result, ProgressStore.LevelBest best) => null;
 
-    public string MenuProgressLabel(LevelDefinition level, ProgressStore.LevelBest best, bool completed)
-    {
-        int bestScore = best != null ? best.bestScore : 0;
-        int waveCount = Mathf.Max(1, WaveCount);
-        int reached = completed ? waveCount : CompletedWavesForBlockCount(bestScore);
-        return $"{reached} / {waveCount} Waves";
-    }
-
-    // The results card talks in waves, like the menu does: waves derive from the same
-    // cumulative block score the bests store, so the run/record comparison stays one metric.
-    public ResultMetric? EndOfRunMetric(LevelDefinition level, RunResult result, ProgressStore.LevelBest best)
-    {
-        int bestWaves = CompletedWavesForBlockCount(best != null ? best.bestScore : 0);
-        return new ResultMetric("WAVES CLEARED", CompletedWavesForBlockCount(result.Score), bestWaves,
-            isMeters: false, targetText: $"{WaveCount} WAVES");
-    }
-
-    public int CompletedWavesForBlockCount(int placedBlocks)
-    {
-        if (waves == null || waves.Length == 0) return 0;
-
-        int completed = 0;
-        int cumulative = 0;
-        for (int i = 0; i < waves.Length; i++)
-        {
-            cumulative += waves[i].blockCount;
-            if (placedBlocks < cumulative) break;
-            completed++;
-        }
-        return Mathf.Clamp(completed, 0, waves.Length);
-    }
+    /// <summary>Bests and boards store waves, not raw blocks: wavesCleared x 1000 plus the PEAK
+    /// standing progress inside the wave after it (monotonic, so a final collapse can't erase a
+    /// run's reach). Sub-wave granularity keeps board ties rare; displays decode via
+    /// <see cref="DecodeWaves"/>.</summary>
+    public override int? OverrideReportedScore(LevelModifierContext context, int rawScore)
+        => _wavesCleared * ScoreEncodeBase +
+           Mathf.Clamp(_peakStanding - StandingTargetForWave(_wavesCleared), 0, ScoreEncodeBase - 1);
 
     public override void OnLevelStart(LevelModifierContext context)
     {
         _context = context;
         _floorY = context.GameManager != null ? context.GameManager.floorOriginY : 0f;
-        _waveIndex = 0;
-        _blocksPlaced = 0; // ScriptableObject state survives scene reloads; a retry starts at wave 1
-        _finished = waves.Length == 0;
+        _currentWave = 1;
+        _wavesCleared = 0;
+        _standing = 0;
+        _peakStanding = 0;
+        _cumulativeTargets.Clear();
+        _lineHeightsCells.Clear();
         _waitingForReveal = false;
+        _clearPending = false;
+        _clearConfirmRemaining = 0f;
         WaveRevealGate.Reset(); // GameManager.Awake also clears it; belt-and-braces for a retry
 
-        // The win comes from the level's PlaceBlocks goal; catch a mismatched wiring early.
+        // The win comes from the level's ClearWaves goal; catch mismatched wiring early.
+        // Endless is a legal pairing (waves with no win - practice/daily material).
         if (context.Level != null &&
-            ((context.Level.TargetType != LevelTargetType.PlaceBlocks &&
-              context.Level.TargetType != LevelTargetType.TimedPlaceBlocks) ||
-             (int)context.Level.TargetValue != TotalBlockCount))
+            context.Level.TargetType != LevelTargetType.ClearWaves &&
+            context.Level.TargetType != LevelTargetType.Endless)
         {
             Debug.LogWarning(
                 $"[HeightLimitWaves] '{context.Level.DisplayName}' should use targetType " +
-                $"PlaceBlocks/TimedPlaceBlocks with targetValue {TotalBlockCount} (sum of wave block counts) " +
-                $"so the level completes when the last wave clears.", this);
+                $"ClearWaves (targetValue = waves to win) or Endless - waves keyed to a " +
+                $"'{context.Level.TargetType}' goal will fight over the standing count.", this);
         }
 
+        RebuildWaveMath();
         _lineY = _lineTargetY = CurrentLineWorldY();
         // Publish the build ceiling so support islands only generate below the line
         // (GameManager.Awake reset it to infinity at scene load). The ceiling gets the
-        // AUTHORED height (grace removed): the grace is zap/visual leeway only - letting it
+        // SOLVED height (grace removed): the grace is zap/visual leeway only - letting it
         // raise the island band could admit one extra row whose bricks sit flush with the line.
-        if (!_finished) TowerHeightLimit.Set(_lineY - HalfCellGrace);
+        TowerHeightLimit.Set(_lineY - HalfCellGrace);
         CreateLineVisual();
+        ActiveRun = this;
     }
 
-    public override void OnBlockLocked(LevelModifierContext context, int totalBlocksPlaced)
+    public override void OnLevelEnd(LevelModifierContext context)
     {
-        if (_finished) return;
+        if (ActiveRun == this) ActiveRun = null;
+    }
 
-        _blocksPlaced = totalBlocksPlaced;
+    // The wave engine's one input: the LIVE standing count (BLOCKS.md). A zapped, scrapped,
+    // sacrificed or fallen block lowers it, reopening its wave through the very same signal -
+    // no destruction path needs to know waves exist.
+    public override void OnStandingBlocksChanged(LevelModifierContext context, int standingBlocks)
+    {
+        _standing = standingBlocks;
+        if (standingBlocks > _peakStanding) _peakStanding = standingBlocks;
 
-        // Advance through every wave whose cumulative block count is reached.
-        int cumulative = 0;
-        int reachedWave = waves.Length;
-        for (int i = 0; i < waves.Length; i++)
+        // Reaching the target ARMS the clear; OnUpdate confirms it (see the clear-confirm gate).
+        // Arming must happen HERE, on the lock, because the spawn hold has to be raised before
+        // the imminent SpawnNextBlock - a hold raised a third of a second later would arrive
+        // after the next piece already dropped.
+        if (_standing >= StandingTargetForWave(_currentWave))
         {
-            cumulative += waves[i].blockCount;
-            if (totalBlocksPlaced < cumulative) { reachedWave = i; break; }
+            if (!_clearPending) BeginClearConfirm();
         }
-
-        if (reachedWave >= waves.Length)
+        else if (_clearPending)
         {
-            // All waves cleared: the limit disappears; the PlaceBlocks target completes the
-            // level, and "Keep Building" continues as a free endless run (islands resume
-            // following the camera once the ceiling lifts).
-            _finished = true;
-            TowerHeightLimit.Reset();
-            // The line is gone and the level's win flow (verification hold-steady) now owns
-            // spawning; never leave a wave-reveal hold dangling behind it.
-            EndRevealHold();
-            if (_line != null) _line.gameObject.SetActive(false);
-            if (_counter != null) _counter.gameObject.SetActive(false);
+            // The wave reopened mid-confirm - the laser zapped the very block that reached the
+            // target, or the tower shed one. No advance, no rise, and the next piece resumes.
+            CancelClearConfirm();
+        }
+        // On a decrease nothing else moves: the line never descends; the deficit simply shows in
+        // the counter (a "10 block" wave can owe 13 after losses - that's the honest bill).
+    }
+
+    // Target reached: freeze the transition until the block that reached it has proven it stands.
+    // The spawn hold goes up immediately (same instant the old code advanced), the line does NOT -
+    // violations must resolve against the wave the player is actually completing, and the zap
+    // check needs a frame with the line still at the old height to see the offender at all.
+    private void BeginClearConfirm()
+    {
+        _clearPending = true;
+        _clearConfirmRemaining = ClearConfirmSeconds;
+        WaveRevealGate.Hold();
+    }
+
+    // Confirmed only when the window has elapsed AND nothing landed sits above the line. The
+    // geometry check is deliberately independent of _zapCooldown: a violation still waiting out
+    // the cooldown must block the advance just as hard as one already zapped, or the cooldown
+    // becomes a hole to clear waves through. Nothing can spawn while the hold is up, so the
+    // offender always resolves (zapped within the cooldown, or the run ends on lives).
+    private void TickClearConfirm(float deltaTime)
+    {
+        if (_standing < StandingTargetForWave(_currentWave))
+        {
+            CancelClearConfirm();   // belt-and-braces: the count signal cancels this too
             return;
         }
 
-        if (reachedWave != _waveIndex)
+        _clearConfirmRemaining -= deltaTime;
+        if (_clearConfirmRemaining > 0f || FirstBlockAboveLine() != null) return;
+
+        _clearPending = false;
+        while (_standing >= StandingTargetForWave(_currentWave))
         {
-            _waveIndex = reachedWave;
-            _lineTargetY = CurrentLineWorldY();
-            BeginRevealHold();
+            _wavesCleared = Mathf.Max(_wavesCleared, _currentWave);
+            _currentWave++;
         }
+        // Mathf.Max, not a bare assign: a mid-run re-solve (procedural floors) can leave the
+        // live line ABOVE the next wave's solved height, and the laser must never descend into
+        // a standing tower - the tighter solve waits for a later wave to catch up.
+        _lineTargetY = Mathf.Max(_lineTargetY, CurrentLineWorldY());
+        BeginRevealHold();          // re-arms the reveal timers; the gate is already held
+    }
+
+    private void CancelClearConfirm()
+    {
+        _clearPending = false;
+        _clearConfirmRemaining = 0f;
+        if (!_waitingForReveal) WaveRevealGate.Release();
     }
 
     // A wave just cleared: hold the next piece until the line settles at the new height and the
     // band it reveals has popped in. SpawnNextBlock was about to run for this very lock (the lock
-    // raised BlockPlaced -> here -> the gate, all before BlockController fires OnBlockLocked ->
-    // Spawner), so setting the gate now suppresses that imminent spawn; releasing the hold
-    // raises spawn availability and the Spawner retries itself.
+    // raised BlockPlaced -> StandingBlocksChanged -> here -> the gate, all before BlockController
+    // fires OnBlockLocked -> Spawner), so setting the gate now suppresses that imminent spawn;
+    // releasing the hold raises spawn availability and the Spawner retries itself.
     private void BeginRevealHold()
     {
         _waitingForReveal = true;
@@ -213,12 +307,6 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
 
     private void EndRevealHold()
     {
-        if (!_waitingForReveal)
-        {
-            // Still clear the gate on the all-waves-cleared path even if no hold was pending.
-            WaveRevealGate.Release();
-            return;
-        }
         _waitingForReveal = false;
         WaveRevealGate.Release();
     }
@@ -253,20 +341,32 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
         }
     }
 
-    /// <summary>Blocks still to place before the current wave clears and the line rises.</summary>
-    private int BlocksRemainingInWave()
-    {
-        int cumulative = 0;
-        for (int i = 0; i <= Mathf.Min(_waveIndex, waves.Length - 1); i++)
-        {
-            cumulative += waves[i].blockCount;
-        }
-        return Mathf.Max(0, cumulative - _blocksPlaced);
-    }
+    /// <summary>Blocks still to STAND before the current wave clears and the line rises. Can
+    /// exceed the wave's own quota after losses - destroyed blocks reopen the bill.</summary>
+    private int BlocksRemainingInWave() => Mathf.Max(0, StandingTargetForWave(_currentWave) - _standing);
 
     public override void OnUpdate(LevelModifierContext context, float deltaTime)
     {
-        if (_line == null || _finished) return;
+        if (_line == null) return;
+
+        // Floor config can resolve after level start on some paths (procedural floors); the
+        // wave math must follow it or every solved height is wrong for the real terrain.
+        GameModeConfig config = context?.GameManager != null ? context.GameManager.ActiveConfig : null;
+        if (config != null && !ReferenceEquals(config.FloorSegments, _cachedSegments))
+        {
+            RebuildWaveMath();
+            // The line NEVER descends, even when the re-solve against the real floor comes
+            // out lower than the boot solve - a descending laser into a standing tower is a
+            // zap cascade. The tighter solve simply waits for the next wave to catch up.
+            _lineTargetY = Mathf.Max(_lineTargetY, CurrentLineWorldY());
+        }
+
+        // BEFORE the glide: a confirm raises _lineTargetY, and lineSettled below must already
+        // account for it. Ticked after the glide, the confirm frame would compute lineSettled
+        // against the OLD target (still true), and TickRevealHold would capture its "settled"
+        // island tick while the line had not started rising - releasing the next piece into a
+        // reveal that had not happened yet, the exact race the hold exists to prevent.
+        if (_clearPending) TickClearConfirm(deltaTime);
 
         // Glide toward the current wave's height, pulse, and track the camera horizontally.
         float riseSpeed = Mathf.Abs(_lineTargetY - _lineY) / Mathf.Max(0.05f, lineRiseSeconds);
@@ -274,7 +374,7 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
 
         // The ceiling follows the SETTLED line, so the freshly revealed island band pops
         // in after the rise completes, not while the line is still gliding through it.
-        // Authored height only - the half-cell grace never feeds the island ceiling (see OnLevelStart).
+        // Solved height only - the half-cell grace never feeds the island ceiling (see OnLevelStart).
         bool lineSettled = Mathf.Approximately(_lineY, _lineTargetY);
         if (lineSettled) TowerHeightLimit.Set(_lineY - HalfCellGrace);
 
@@ -300,6 +400,25 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     // the collapse caused by a zap can't instantly drain every life.
     private void CheckViolations()
     {
+        BlockController block = FirstBlockAboveLine();
+        if (block == null || !block.TryGetWorldBounds(out Bounds bounds)) return;
+
+        BlockShatterFx.Spawn(bounds, lineColor);
+        // The zapped block leaves the board - drop it from the live placed-block total
+        // (which reopens its wave's quota through the standing-count signal).
+        GameEvents.RaiseBlockDestroyed(block);
+        Object.Destroy(block.gameObject);
+        _zapCooldown = ZapCooldownSeconds;
+        _flash = 0.6f;
+        TowerCameraController.Impact(0.15f, 0.2f);
+        _context?.GameManager?.GameOver();
+    }
+
+    // The one definition of "in violation": a LANDED block whose top crosses the line (the
+    // falling piece passes freely - it spawns above it). Shared by the zap and the clear-confirm
+    // gate so a wave can never be credited past a block the laser is about to take.
+    private BlockController FirstBlockAboveLine()
+    {
         IReadOnlyList<BlockController> blocks = BlockController.AllBlocks;
         for (int i = 0; i < blocks.Count; i++)
         {
@@ -307,32 +426,188 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
             if (block == null || !block.HasLanded) continue;
             if (!block.TryGetWorldBounds(out Bounds bounds)) continue;
             if (bounds.max.y <= _lineY + 0.02f) continue;
-
-            BlockShatterFx.Spawn(bounds, lineColor);
-            // The zapped block leaves the board - drop it from the live placed-block total.
-            GameEvents.RaiseBlockDestroyed(block);
-            Object.Destroy(block.gameObject);
-            _zapCooldown = ZapCooldownSeconds;
-            _flash = 0.6f;
-            TowerCameraController.Impact(0.15f, 0.2f);
-            _context?.GameManager?.GameOver();
-            return;
+            return block;
         }
+        return null;
     }
 
-    // The line sits HALF A CELL above the authored height (draw, island ceiling and zap check all
-    // use this one value, so they can never disagree). Authored height = the rows that must fit;
-    // the grace means a tower that exactly fills them can wobble without grazing the laser, while
-    // one more full row still clearly crosses. Without it, a flush-full tower sat a hair under the
-    // line and any settle jiggle zapped it (Nick, July 2026).
-    private float CurrentLineWorldY()
+    // ---- Wave math ---------------------------------------------------------------------------
+
+    private int QuotaForWave(int waveNumber)
+        => Mathf.Min(QuotaCap, FirstWaveQuota + Mathf.RoundToInt(QuotaGrowthPerWave * (waveNumber - 1)));
+
+    private float DensityForWave(int waveNumber)
     {
-        if (waves.Length == 0) return _floorY;
-        return _floorY + waves[Mathf.Clamp(_waveIndex, 0, waves.Length - 1)].lineHeightAboveFloor + HalfCellGrace;
+        int rank = Mathf.Clamp(difficultyRank, 1, 5) - 1;
+        return Mathf.Min(DensityCapByRank[rank],
+            DensityStartByRank[rank] + DensityRampPerWave * (waveNumber - 1));
     }
 
-    // Countdown riding the right end of the line: blocks left until it rises. Sits just
-    // above the line, follows it as it moves, snaps to the next wave's count on advance.
+    /// <summary>Line height (cells above the datum) while the given 1-based wave runs: the
+    /// smallest h whose capacity, at the wave's required density, holds every block asked for
+    /// so far. Cached per wave; strictly rising by at least <see cref="MinRiseCells"/>.</summary>
+    private float LineHeightCellsForWave(int waveNumber)
+    {
+        while (_lineHeightsCells.Count < waveNumber)
+        {
+            int n = _lineHeightsCells.Count + 1;
+            float neededCells = StandingTargetForWave(n) * _avgCellsPerPiece / DensityForWave(n);
+            float solved = SolveHeightForCapacity(neededCells);
+            float previous = n > 1 ? _lineHeightsCells[n - 2] : 0f;
+            _lineHeightsCells.Add(Mathf.Max(solved, previous + MinRiseCells));
+        }
+        return _lineHeightsCells[waveNumber - 1];
+    }
+
+    // capacity(h) = sum over playable columns of max(0, h - columnTop): piecewise linear and
+    // increasing in h, so walk the sorted tops and solve the closing stretch exactly.
+    private float SolveHeightForCapacity(float neededCells)
+    {
+        if (_columnTops.Count == 0) return neededCells; // degenerate: one virtual column
+
+        float capacityAtStart = 0f;
+        for (int k = 1; k <= _columnTops.Count; k++)
+        {
+            float start = _columnTops[k - 1];
+            float end = k < _columnTops.Count ? _columnTops[k] : float.PositiveInfinity;
+            float capacityAtEnd = float.IsPositiveInfinity(end)
+                ? float.PositiveInfinity
+                : capacityAtStart + k * (end - start);
+            if (neededCells <= capacityAtEnd)
+            {
+                return start + (neededCells - capacityAtStart) / k;
+            }
+            capacityAtStart = capacityAtEnd;
+        }
+        return _columnTops[_columnTops.Count - 1]; // unreachable: last stretch is unbounded
+    }
+
+    // Rebuilds everything the solver depends on (column tops, cells-per-piece) and invalidates
+    // solved heights. Cleared-wave STATE survives - only geometry is recomputed.
+    private void RebuildWaveMath()
+    {
+        GameModeConfig config = _context?.GameManager != null ? _context.GameManager.ActiveConfig : null;
+        _cachedSegments = config != null ? config.FloorSegments : null;
+        // Magma inflates counted blocks x4 per piece (PROGRESSION.md: scale block targets by
+        // 1+3xrate) - the same physical cells produce more standing blocks, so each counted
+        // block occupies proportionally fewer cells in the solver.
+        float magmaRate = 0f;
+        IReadOnlyList<AmbientBlockVariantChance> chances = config != null ? config.AmbientBlockVariantChances : null;
+        if (chances != null)
+        {
+            for (int i = 0; i < chances.Count; i++)
+            {
+                if (chances[i] != null && chances[i].Variant is MagmaBlockData)
+                {
+                    magmaRate += chances[i].ChancePerBlock;
+                }
+            }
+        }
+        _avgCellsPerPiece = AverageCellsPerPiece(_context?.Spawner) / (1f + 3f * Mathf.Clamp01(magmaRate));
+        BuildColumnTops(config);
+        _lineHeightsCells.Clear();
+    }
+
+    // One entry per playable grid column, in CELLS above the datum, sorted ascending:
+    //  - covered columns at their real top height (base + steps);
+    //  - interior gap columns from the height they become bridgeable (the LOWER neighbouring
+    //    covered top - a brick can cantilever across once level with the shorter pillar);
+    //  - overhang columns outside the footprint from progressively higher up.
+    private void BuildColumnTops(GameModeConfig config)
+    {
+        _columnTops.Clear();
+
+        IReadOnlyList<FloorSegmentConfig> segments = config != null ? config.FloorSegments : null;
+        var covered = new SortedDictionary<int, float>();
+        if (segments != null)
+        {
+            for (int s = 0; s < segments.Count; s++)
+            {
+                FloorSegmentConfig segment = segments[s];
+                if (segment == null) continue;
+                for (int i = 0; i < segment.ColumnCount; i++)
+                {
+                    int column = segment.LeftColumn + i;
+                    float top = segment.GetColumnHeightCells(i);
+                    covered[column] = covered.TryGetValue(column, out float existing)
+                        ? Mathf.Max(existing, top)
+                        : top;
+                }
+            }
+        }
+        if (covered.Count == 0)
+        {
+            // No floor data (shouldn't happen): pretend the classic 9-column flat floor.
+            for (int i = 0; i < 9; i++) covered[i - 4] = 0f;
+        }
+
+        int left = int.MaxValue, right = int.MinValue;
+        foreach (KeyValuePair<int, float> entry in covered)
+        {
+            left = Mathf.Min(left, entry.Key);
+            right = Mathf.Max(right, entry.Key);
+        }
+
+        float previousCoveredTop = covered[left];
+        for (int column = left; column <= right; column++)
+        {
+            if (covered.TryGetValue(column, out float top))
+            {
+                _columnTops.Add(top);
+                previousCoveredTop = top;
+                continue;
+            }
+            // Gap: bridgeable from the lower of the two flanking covered tops.
+            float nextCoveredTop = previousCoveredTop;
+            for (int probe = column + 1; probe <= right; probe++)
+            {
+                if (covered.TryGetValue(probe, out float probeTop)) { nextCoveredTop = probeTop; break; }
+            }
+            _columnTops.Add(Mathf.Min(previousCoveredTop, nextCoveredTop));
+        }
+
+        for (int i = 1; i <= OverhangColumnsPerSide; i++)
+        {
+            _columnTops.Add(covered[left] + OverhangRiseCellsPerColumn * i);
+            _columnTops.Add(covered[right] + OverhangRiseCellsPerColumn * i);
+        }
+
+        _columnTops.Sort();
+    }
+
+    // Bag-weighted average cell count of the level's pieces, read straight off the prefabs
+    // (each cell is one SpriteRenderer child; the runtime skin child doesn't exist on the asset).
+    private static float AverageCellsPerPiece(Spawner spawner)
+    {
+        IReadOnlyList<BlockDefinition> bag = spawner != null ? spawner.ConfiguredBlockBag : null;
+        if (bag == null || bag.Count == 0) return FallbackCellsPerPiece;
+
+        float weightedCells = 0f;
+        int totalCopies = 0;
+        for (int i = 0; i < bag.Count; i++)
+        {
+            BlockDefinition definition = bag[i];
+            if (definition == null) continue;
+            int cells = definition.Prefab != null
+                ? definition.Prefab.GetComponentsInChildren<SpriteRenderer>(true).Length
+                : 0;
+            if (cells <= 0) cells = (int)FallbackCellsPerPiece;
+            weightedCells += cells * definition.BagCopies;
+            totalCopies += definition.BagCopies;
+        }
+        return totalCopies > 0 ? weightedCells / totalCopies : FallbackCellsPerPiece;
+    }
+
+    // The line sits HALF A CELL above the solved height (draw, island ceiling and zap check all
+    // use this one value, so they can never disagree). Solved height = the space that must fit
+    // the wave's blocks; the grace means a tower that exactly fills it can wobble without
+    // grazing the laser, while one more full row still clearly crosses. Without it, a flush-full
+    // tower sat a hair under the line and any settle jiggle zapped it (Nick, July 2026).
+    private float CurrentLineWorldY()
+        => _floorY + LineHeightCellsForWave(_currentWave) * GridSpacing + HalfCellGrace;
+
+    // Countdown riding the right end of the line: blocks still to STAND until it rises. Sits
+    // just above the line, follows it as it moves, and grows back when blocks are destroyed.
     private void UpdateCounter(Camera cam, float cameraX)
     {
         if (_counter == null) return;

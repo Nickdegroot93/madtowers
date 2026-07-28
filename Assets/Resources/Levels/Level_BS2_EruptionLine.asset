@@ -16,8 +16,8 @@ MonoBehaviour:
   menuThumbnail: {fileID: 21300000, guid: 28efa31c1113540109220f3e0f1082a6, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: 333de290b1a941699004878964c64f95, type: 2}
-  targetType: 1
-  targetValue: 91
-  instruction: Clear 5 waves - keep the tower under the eruption line!
+  targetType: 5
+  targetValue: 6
+  instruction: Clear 6 waves - keep the tower under the eruption line!
   modifiers:
   - {fileID: 11400000, guid: 67ecf83364a6480c9ec4cfed98d7dc9f, type: 2}

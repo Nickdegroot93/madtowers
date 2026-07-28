@@ -60,6 +60,7 @@ public class LevelDefinition : ScriptableObject
             new PlaceBlocksWinCondition(TargetValue), TimeLimitSeconds),
         LevelTargetType.TimedReachHeight => new TimedWinCondition(
             new ReachHeightWinCondition(TargetValue), TimeLimitSeconds),
+        LevelTargetType.ClearWaves => new ClearWavesWinCondition(TargetValue),
         _ => new EndlessWinCondition(),
     };
     public IReadOnlyList<LevelModifier> Modifiers => modifiers;
