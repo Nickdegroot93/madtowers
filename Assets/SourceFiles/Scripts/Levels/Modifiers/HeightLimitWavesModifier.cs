@@ -17,18 +17,11 @@ using UnityEngine;
 /// lands exactly when that wave clears (same standing-count signal, via ClearWavesWinCondition
 /// reading <see cref="ActiveRun"/>), and the waves simply continue as the endless score chase.
 ///
-/// WAVE MATH - nothing is hand-authored; every height is SOLVED from the floor:
-///   1. Each wave n asks for a quota q(n) of net new standing blocks (gentle growth, capped).
-///   2. The floor contributes capacity: for every playable grid column, the cells between its
-///      top surface and the line are buildable. Gap columns between segments count from the
-///      height they become bridgeable (the lower neighbouring top); overhang columns outside
-///      the footprint count from progressively higher up - building wider than the floor is
-///      part of the game, but walking an overhang staircase outward costs rise.
-///   3. The authored rank 1-5 sets the required packing density (occupied cells / available
-///      cells) the player must achieve, ramping slightly every wave toward the rank's cap.
-///   4. The line height for wave n is then the smallest h with
-///         capacity(h) * density(n) >= cumulativeQuota(n) * averageCellsPerPiece(shape bag).
-/// Deterministic per level (floor + bag + rank), so leaderboard runs race identical waves.
+/// WAVE MATH lives in <see cref="WaveSolver"/> (pure, shared with the editor's Puzzle Wave
+/// Report): nothing is hand-authored, every height is SOLVED from the floor, the shape bag and
+/// the asset's difficulty rank. Deterministic per level, so leaderboard runs race identical
+/// waves. Read WaveSolver's header before touching difficulty - in particular, quota and line
+/// height are coupled, so asking for MORE blocks per wave does not make a wave harder.
 ///
 /// Stored/board scores for wave levels are ENCODED: wavesCleared x 1000 + peak in-wave
 /// progress, so boards rank sub-wave granularity while every display decodes to waves.
@@ -39,7 +32,13 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     [Header("Difficulty")]
     [Tooltip("1 = loose (generous line rises, sloppy stacking passes) .. 5 = near-perfect packing required. Sets the packing density the wave math derives line heights from; every wave tightens slightly toward the rank's cap.")]
     [Range(1, 5)]
-    [SerializeField] private int difficultyRank = 2;
+    // Defaults to the SHIPPED tier: every campaign asset runs 5, and a new asset silently
+    // starting at the tier Nick rejected as far too easy is the wrong failure direction.
+    [SerializeField] private int difficultyRank = 5;
+
+    /// <summary>Authored rank, for the editor's Puzzle Wave Report (which solves the same math
+    /// over every level without entering play mode).</summary>
+    public int DifficultyRank => Mathf.Clamp(difficultyRank, 1, 5);
 
     [Tooltip("Seconds the line takes to glide to the next wave's height.")]
     [SerializeField] private float lineRiseSeconds = 1.2f;
@@ -54,29 +53,9 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     [SerializeField] private float linePulseAmount = 0.18f;
     [SerializeField] private float linePulseSpeed = 6f;
 
-    // ---- Wave-math tuning (code-owned, never serialized - SHOP.md's staleness rule) ----------
-    // Quotas: net new standing blocks per wave. Gentle growth keeps deep endless waves a
-    // session-sized ask, not an hour.
-    private const int FirstWaveQuota = 6;
-    private const float QuotaGrowthPerWave = 1.5f;
-    private const int QuotaCap = 24;
-    // Required packing density per rank (start -> cap, ramping per wave). Calibrated against
-    // Nick's July 2026 playtests: 0.72 start read as "could place 20 where 8 were asked" -
-    // the capacity model budgets overhang/gap columns a player isn't forced to use, so
-    // NOMINAL density must sit well above the experienced squeeze. Rank 5 (the shipped
-    // tier) runs 0.85 -> 0.90; 0.90 is PROGRESSION.md's achievability hard edge.
-    private static readonly float[] DensityStartByRank = { 0.45f, 0.55f, 0.65f, 0.75f, 0.85f };
-    private static readonly float[] DensityCapByRank = { 0.60f, 0.68f, 0.76f, 0.83f, 0.90f };
-    private const float DensityRampPerWave = 0.012f;
-    // Overhang: virtual columns outside the floor footprint, usable from progressively higher
-    // up (a stable overhang staircase costs rise to walk outward).
-    private const int OverhangColumnsPerSide = 3;
-    private const float OverhangRiseCellsPerColumn = 3f;
-    // The line always visibly moves between waves, whatever the math says. Kept at ONE cell:
-    // at shipped density a wave's solved rise can legitimately be tiny, and padding it to two
-    // cells was measurable free headroom (Nick's "way too easy" read, July 2026).
-    private const float MinRiseCells = 1f;
-    private const float FallbackCellsPerPiece = 4f;
+    // ---- Wave math lives in WaveSolver (pure, shared with the editor's Puzzle Wave Report so a
+    // printed table and a played run can never disagree). Code-owned constants, never
+    // serialized - SHOP.md's staleness rule. -------------------------------------------------
 
     private const float ZapCooldownSeconds = 0.75f; // a collapse can't chain-drain lives in one beat
     private const float LineLength = 90f;
@@ -102,10 +81,9 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     private int _wavesCleared;
     private int _standing;
     private int _peakStanding;
-    private readonly List<int> _cumulativeTargets = new List<int>();   // [n-1] = standing to clear wave n
     private readonly List<float> _lineHeightsCells = new List<float>(); // [n-1] = line height while wave n runs
     private readonly List<float> _columnTops = new List<float>();       // sorted, cells above the datum
-    private float _avgCellsPerPiece = FallbackCellsPerPiece;
+    private float _avgCellsPerPiece = WaveSolver.FallbackCellsPerPiece;
     private object _cachedSegments; // staleness guard: floor config can resolve after level start
 
     // Half a cell of leeway above the solved height; read live (not cached at OnLevelStart)
@@ -142,17 +120,11 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     private bool _clearPending;
     private float _clearConfirmRemaining;
 
-    /// <summary>Standing-block count required to have CLEARED the given 1-based wave.</summary>
+    /// <summary>Standing-block count required to have CLEARED the given 1-based wave. Straight
+    /// through to WaveSolver rather than a local running total - one owner for the quota rule
+    /// AND its summation, so the played run and the editor report can't drift apart.</summary>
     public int StandingTargetForWave(int waveNumber)
-    {
-        if (waveNumber <= 0) return 0;
-        while (_cumulativeTargets.Count < waveNumber)
-        {
-            int previous = _cumulativeTargets.Count > 0 ? _cumulativeTargets[_cumulativeTargets.Count - 1] : 0;
-            _cumulativeTargets.Add(previous + QuotaForWave(_cumulativeTargets.Count + 1));
-        }
-        return _cumulativeTargets[waveNumber - 1];
-    }
+        => waveNumber <= 0 ? 0 : WaveSolver.CumulativeQuota(waveNumber);
 
     public int WavesCleared => _wavesCleared;
 
@@ -184,7 +156,6 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
         _wavesCleared = 0;
         _standing = 0;
         _peakStanding = 0;
-        _cumulativeTargets.Clear();
         _lineHeightsCells.Clear();
         _waitingForReveal = false;
         _clearPending = false;
@@ -431,55 +402,20 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
         return null;
     }
 
-    // ---- Wave math ---------------------------------------------------------------------------
-
-    private int QuotaForWave(int waveNumber)
-        => Mathf.Min(QuotaCap, FirstWaveQuota + Mathf.RoundToInt(QuotaGrowthPerWave * (waveNumber - 1)));
-
-    private float DensityForWave(int waveNumber)
-    {
-        int rank = Mathf.Clamp(difficultyRank, 1, 5) - 1;
-        return Mathf.Min(DensityCapByRank[rank],
-            DensityStartByRank[rank] + DensityRampPerWave * (waveNumber - 1));
-    }
+    // ---- Wave math (delegated to WaveSolver - one implementation, shared with the editor
+    // report so a printed table and a played run can never disagree) --------------------------
 
     /// <summary>Line height (cells above the datum) while the given 1-based wave runs: the
     /// smallest h whose capacity, at the wave's required density, holds every block asked for
-    /// so far. Cached per wave; strictly rising by at least <see cref="MinRiseCells"/>.</summary>
+    /// so far. Cached per wave; strictly rising by at least WaveSolver.MinRiseCells.</summary>
     private float LineHeightCellsForWave(int waveNumber)
     {
-        while (_lineHeightsCells.Count < waveNumber)
+        if (_lineHeightsCells.Count < waveNumber)
         {
-            int n = _lineHeightsCells.Count + 1;
-            float neededCells = StandingTargetForWave(n) * _avgCellsPerPiece / DensityForWave(n);
-            float solved = SolveHeightForCapacity(neededCells);
-            float previous = n > 1 ? _lineHeightsCells[n - 2] : 0f;
-            _lineHeightsCells.Add(Mathf.Max(solved, previous + MinRiseCells));
+            WaveSolver.SolveLineHeights(_columnTops, _avgCellsPerPiece, difficultyRank,
+                waveNumber, _lineHeightsCells);
         }
         return _lineHeightsCells[waveNumber - 1];
-    }
-
-    // capacity(h) = sum over playable columns of max(0, h - columnTop): piecewise linear and
-    // increasing in h, so walk the sorted tops and solve the closing stretch exactly.
-    private float SolveHeightForCapacity(float neededCells)
-    {
-        if (_columnTops.Count == 0) return neededCells; // degenerate: one virtual column
-
-        float capacityAtStart = 0f;
-        for (int k = 1; k <= _columnTops.Count; k++)
-        {
-            float start = _columnTops[k - 1];
-            float end = k < _columnTops.Count ? _columnTops[k] : float.PositiveInfinity;
-            float capacityAtEnd = float.IsPositiveInfinity(end)
-                ? float.PositiveInfinity
-                : capacityAtStart + k * (end - start);
-            if (neededCells <= capacityAtEnd)
-            {
-                return start + (neededCells - capacityAtStart) / k;
-            }
-            capacityAtStart = capacityAtEnd;
-        }
-        return _columnTops[_columnTops.Count - 1]; // unreachable: last stretch is unbounded
     }
 
     // Rebuilds everything the solver depends on (column tops, cells-per-piece) and invalidates
@@ -488,114 +424,11 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     {
         GameModeConfig config = _context?.GameManager != null ? _context.GameManager.ActiveConfig : null;
         _cachedSegments = config != null ? config.FloorSegments : null;
-        // Magma inflates counted blocks x4 per piece (PROGRESSION.md: scale block targets by
-        // 1+3xrate) - the same physical cells produce more standing blocks, so each counted
-        // block occupies proportionally fewer cells in the solver.
-        float magmaRate = 0f;
-        IReadOnlyList<AmbientBlockVariantChance> chances = config != null ? config.AmbientBlockVariantChances : null;
-        if (chances != null)
-        {
-            for (int i = 0; i < chances.Count; i++)
-            {
-                if (chances[i] != null && chances[i].Variant is MagmaBlockData)
-                {
-                    magmaRate += chances[i].ChancePerBlock;
-                }
-            }
-        }
-        _avgCellsPerPiece = AverageCellsPerPiece(_context?.Spawner) / (1f + 3f * Mathf.Clamp01(magmaRate));
-        BuildColumnTops(config);
+        _avgCellsPerPiece = WaveSolver.AverageCellsPerPiece(
+            _context?.Spawner != null ? _context.Spawner.ConfiguredBlockBag : null,
+            WaveSolver.MagmaRate(config));
+        WaveSolver.BuildColumnTops(config != null ? config.FloorSegments : null, _columnTops);
         _lineHeightsCells.Clear();
-    }
-
-    // One entry per playable grid column, in CELLS above the datum, sorted ascending:
-    //  - covered columns at their real top height (base + steps);
-    //  - interior gap columns from the height they become bridgeable (the LOWER neighbouring
-    //    covered top - a brick can cantilever across once level with the shorter pillar);
-    //  - overhang columns outside the footprint from progressively higher up.
-    private void BuildColumnTops(GameModeConfig config)
-    {
-        _columnTops.Clear();
-
-        IReadOnlyList<FloorSegmentConfig> segments = config != null ? config.FloorSegments : null;
-        var covered = new SortedDictionary<int, float>();
-        if (segments != null)
-        {
-            for (int s = 0; s < segments.Count; s++)
-            {
-                FloorSegmentConfig segment = segments[s];
-                if (segment == null) continue;
-                for (int i = 0; i < segment.ColumnCount; i++)
-                {
-                    int column = segment.LeftColumn + i;
-                    float top = segment.GetColumnHeightCells(i);
-                    covered[column] = covered.TryGetValue(column, out float existing)
-                        ? Mathf.Max(existing, top)
-                        : top;
-                }
-            }
-        }
-        if (covered.Count == 0)
-        {
-            // No floor data (shouldn't happen): pretend the classic 9-column flat floor.
-            for (int i = 0; i < 9; i++) covered[i - 4] = 0f;
-        }
-
-        int left = int.MaxValue, right = int.MinValue;
-        foreach (KeyValuePair<int, float> entry in covered)
-        {
-            left = Mathf.Min(left, entry.Key);
-            right = Mathf.Max(right, entry.Key);
-        }
-
-        float previousCoveredTop = covered[left];
-        for (int column = left; column <= right; column++)
-        {
-            if (covered.TryGetValue(column, out float top))
-            {
-                _columnTops.Add(top);
-                previousCoveredTop = top;
-                continue;
-            }
-            // Gap: bridgeable from the lower of the two flanking covered tops.
-            float nextCoveredTop = previousCoveredTop;
-            for (int probe = column + 1; probe <= right; probe++)
-            {
-                if (covered.TryGetValue(probe, out float probeTop)) { nextCoveredTop = probeTop; break; }
-            }
-            _columnTops.Add(Mathf.Min(previousCoveredTop, nextCoveredTop));
-        }
-
-        for (int i = 1; i <= OverhangColumnsPerSide; i++)
-        {
-            _columnTops.Add(covered[left] + OverhangRiseCellsPerColumn * i);
-            _columnTops.Add(covered[right] + OverhangRiseCellsPerColumn * i);
-        }
-
-        _columnTops.Sort();
-    }
-
-    // Bag-weighted average cell count of the level's pieces, read straight off the prefabs
-    // (each cell is one SpriteRenderer child; the runtime skin child doesn't exist on the asset).
-    private static float AverageCellsPerPiece(Spawner spawner)
-    {
-        IReadOnlyList<BlockDefinition> bag = spawner != null ? spawner.ConfiguredBlockBag : null;
-        if (bag == null || bag.Count == 0) return FallbackCellsPerPiece;
-
-        float weightedCells = 0f;
-        int totalCopies = 0;
-        for (int i = 0; i < bag.Count; i++)
-        {
-            BlockDefinition definition = bag[i];
-            if (definition == null) continue;
-            int cells = definition.Prefab != null
-                ? definition.Prefab.GetComponentsInChildren<SpriteRenderer>(true).Length
-                : 0;
-            if (cells <= 0) cells = (int)FallbackCellsPerPiece;
-            weightedCells += cells * definition.BagCopies;
-            totalCopies += definition.BagCopies;
-        }
-        return totalCopies > 0 ? weightedCells / totalCopies : FallbackCellsPerPiece;
     }
 
     // The line sits HALF A CELL above the solved height (draw, island ceiling and zap check all

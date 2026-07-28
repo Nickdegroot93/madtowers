@@ -180,34 +180,57 @@ touch engine code.
   `HeightLimitWavesModifier.ActiveRun`), and "Keep Playing" continues INTO the wave chase —
   the line keeps rising; there is no fallback to a plain endless run. A console warning
   fires at level start for any other goal pairing.
-- **Nothing is hand-authored — every height is SOLVED from the floor** (the wave engine, all
-  code-owned constants in the modifier):
+- **Nothing is hand-authored — every height is SOLVED from the floor** (all code-owned
+  constants live in `WaveSolver`, a pure class shared with the editor report below, so a
+  printed table and a played run can never disagree):
   1. Wave `n` asks a quota `q(n)` of net new standing blocks: `6 + 1.5·(n−1)`, capped at 24.
+     **Quota and line height are COUPLED** — the line is solved from the cumulative ask, so
+     asking for more blocks per wave lengthens waves at identical tightness. It is *not* a
+     difficulty dial (Nick's instinct, July 2026; worth re-reading before tuning).
   2. Capacity: per playable grid column, the cells between its top and the line. Interior gap
-     columns count from the height they become bridgeable (the lower flanking top); **overhang
-     columns** outside the footprint (3 per side) count from `edgeTop + 3·i` cells — building
-     wider than the floor is part of the game, but walking outward costs rise.
+     columns count from the height they become bridgeable (the lower flanking top).
+     **Cantilever columns** outside the footprint are *not* a fixed allowance: reach already
+     ratchets outward from every landed block plus a 4-column buffer
+     (`BlockController.Placement`), so what bounds outward building is SUPPORT, not reach.
+     Each row of rise buys `CantileverColumnsPerStep` (= 1) more supported column per side —
+     a 1×4 laid flat with ~25% overhanging is stable, 50% is the tipping point. Capacity
+     therefore grows ~quadratically with height, like a real pyramid.
   3. The asset's **`difficultyRank` 1–5** sets the required packing density
-     (start 0.45/0.55/0.65/0.75/0.85 by rank, +0.012 per wave, capped 0.60/0.68/0.76/0.83/0.90).
-     Densities are NOMINAL against a capacity model that budgets overhang/gap columns the
-     player isn't forced to use, so they sit well above the experienced squeeze (0.72 nominal
-     played as "could place 20 where 8 were asked" — Nick). Rank 5's 0.90 cap is
-     PROGRESSION.md's achievability hard edge.
+     (start 0.48/0.54/0.60/0.66/0.72 by rank, +0.012 per wave, capped 0.56/0.62/0.68/0.74/0.80).
+     These are close to TRUE fractions of buildable space, because the capacity they multiply
+     is no longer a large underestimate.
   4. Line height for wave `n` = smallest `h` with `capacity(h) · density(n) ≥ cumQuota(n) ·
      avgCellsPerBlock`, min rise 1 cell (the solver's tiny late-wave rises are the squeeze —
      never pad them). `avgCellsPerBlock` comes from the level's shape bag
      (bag-weighted prefab cell count) **divided by the magma inflation** `1 + 3·magmaRate`
      (PROGRESSION.md's ×4-counted-blocks rule, read off the mode's ambient variant chances).
   Deterministic per level (floor + bag + rank), so leaderboard runs race identical waves. The
-  engine re-solves if the floor config resolves late (procedural floors).
-- **Per-level difficulty = `difficultyRank` on the per-chapter modifier asset** — but ALL
-  shipped assets run rank 5 (Nick, 2026-07-26: rank 2 played far too easy — "needed 8, could
-  have placed 20"; puzzle chapters differentiate by brick variants + per-chapter speed
-  instead, the squeeze stays uniformly tight). Waves-to-win stays 5/6/7 by chapter third.
-  Lower ranks remain in the code for a future easier mode. Style knobs stay per asset:
+  engine re-solves if the floor config resolves late (procedural floors) and never lets the
+  line descend as a result.
+- **The capacity model IS the difficulty** (rebuilt 2026-07-29). The first version priced
+  outward building at 3 columns per side, each costing 3 cells of rise. That understated
+  reachable space badly, so the solver pushed the line HIGH to find enough capacity and every
+  puzzle level played loose — "needed 8, could have placed 20" (Nick). Making the model honest
+  lowers the line with no fudge factor: on the standard 9-wide flat floor, wave 5 went 15.7 →
+  11.8 cells (−25%) while wave 1 stayed put (3.1 → 3.0), so openings are unchanged and the
+  squeeze arrives where it was missing. `CantileverColumnsPerStep` is THE calibration constant
+  — raising it to 2 models a tipping-point stack and drops every line another ~20%.
+- **Per-level difficulty = `difficultyRank` on the per-chapter modifier asset**; all shipped
+  assets run rank 5 (also the code default — a new asset must not silently start easy).
+  Waves-to-win stays 5/6/7 by chapter third; that is the honest per-chapter *length* dial.
+  Prefer differentiating chapters by **shape bag** (an S/Z/T-heavy bag with few 1×4s makes the
+  same density far harder) and per-chapter speed over varying tightness — the squeeze is the
+  mode's identity. Lower ranks are the future easy-mode range. Style knobs stay per asset:
   `lineRiseSeconds`, `lineColor`, `lineThickness`, `lineBaseAlpha`, `linePulseAmount`,
   `linePulseSpeed`. Mode dials and other modifiers stack on top. The old flat-rise principle
   is subsumed: density ramping per wave makes rise-per-block naturally non-growing.
+- **Tune from the table, not from replays**: `Tools/MadTowers/Puzzle Wave Report` (editor-only)
+  solves every authored puzzle level with the same `WaveSolver` and writes
+  `PuzzleWaveReport.md` at the repo root — per wave: quota, cumulative, density, solved line,
+  rise, capacity, and **`outward`** (block cells ÷ what fits inside the floor footprint at that
+  line; below 1.0 the wave fits over the floor, above 1.0 the player is forced to cantilever).
+  Calibrate on one or two playtests, then read the table to confirm the other fourteen.
+  Current shipped curve: `outward` runs ~0.87 at wave 1 and 1.56–2.22 at the win wave.
 - **Scores are ENCODED**: bests and leaderboards store `wavesCleared × 1000 + peak in-wave
   progress` (`HeightLimitWavesModifier.OverrideReportedScore`; every display — menu, results,
   RANKS rows, the modal's BOOSTED BEST caption — decodes through
