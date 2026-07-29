@@ -9,8 +9,6 @@
   "abilities": [
     {"name": "AirBrake", "display": "Air Brake", "icon": "icon_air_brake", "hue": "cyan",
      "subject": "a single falling rectangular block with two air-brake drag flaps deployed open on its sides, soft easing motion lines above it"},
-    {"name": "CubeSupply", "display": "Cube Supply", "icon": "icon_cube_supply", "hue": "amber",
-     "subject": "a dispenser hopper releasing a row of identical square blocks, one square dropping out"},
     {"name": "Domino", "display": "Domino", "icon": "icon_domino", "hue": "violet",
      "subject": "two small 1x2 domino bricks side by side, one tipping over against the other"},
     {"name": "EdgePortal", "display": "Edge Portal", "icon": "icon_edge_portal", "hue": "violet",
@@ -35,8 +33,6 @@
      "subject": "a falling block passing through horizontal slow-motion interference bars, a small clock face beside it"},
     {"name": "SlowTime", "display": "Slow Time", "icon": "icon_slow_time", "hue": "cyan",
      "subject": "an hourglass with sand frozen mid-pour, standing between two stacked blocks"},
-    {"name": "SpikeSupply", "display": "Spike Supply", "icon": "icon_spike_supply", "hue": "amber",
-     "subject": "a dispenser hopper releasing long straight one-cell-wide line bricks, one sliding out"},
     {"name": "VectorGuide", "display": "Vector Guide", "icon": "icon_vector_guide", "hue": "green",
      "subject": "a falling block above a dashed vertical guide line ending in a glowing landing-target outline on a tower top"},
     {"name": "Ward", "display": "Ward", "icon": "icon_ward", "hue": "green",

@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Contact sheet of all 55 new ability icons, grouped by rarity, for Nick's review."""
+"""Contact sheet of every ability icon in the roster, grouped by rarity, for Nick's review.
+
+The count comes from abilities_authoritative.txt, never a hardcoded number - the roster shrinks
+when an ability is removed (Cube/Spike Supply, 2026-07-29) and grows when one is added."""
 import base64, json, pathlib
 
 ROOT = pathlib.Path(__file__).parent
@@ -20,6 +23,7 @@ for e in manifest["abilities"]:
     groups[r].append((e["display"], e["hue"], b64))
 
 sections = ""
+icon_total = sum(len(g) for g in groups.values())
 for rarity in ["Common", "Rare", "Epic"]:
     cells = "".join(
         f'<figure><img src="data:image/png;base64,{b64}" alt="{d}" loading="lazy">'
@@ -27,7 +31,7 @@ for rarity in ["Common", "Rare", "Epic"]:
         for d, hue, b64 in groups[rarity])
     sections += f'<h2>{rarity} <span class="count">{len(groups[rarity])}</span></h2><div class="grid">{cells}</div>'
 
-html = f'''<title>MadTowers — New Ability Icons (all 55)</title>
+html = f'''<title>MadTowers — Ability Icons (all {icon_total})</title>
 <style>
   :root {{ --bg:#0b0e13; --panel:#11151d; --edge:#1d2430; --ink:#e9edf4; --muted:#8b94a5; --cyan:#4ddbff; }}
   body {{ background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,sans-serif;
@@ -47,7 +51,7 @@ html = f'''<title>MadTowers — New Ability Icons (all 55)</title>
 </style>
 <header>
   <div class="eyebrow">MadTowers · icon set v1</div>
-  <h1>All 55 ability icons, neon-glow style</h1>
+  <h1>All {icon_total} ability icons, neon-glow style</h1>
   <p class="lede">Generated with the locked template in five thematic accent hues.
   They are already installed in the game — open the Vault (everything is unlocked) to see them
   on real cards. Name any you dislike and those get regenerated.</p>

@@ -594,9 +594,9 @@ list (front first), so the data layer supports any depth; the HUD renders up to
 `Spawner.MaxVisibleQueueDepth` slots. The NEXT card grows **downward** to a smaller,
 dimmer second slot — the top slot is byte-identical to the single-preview layout, and the
 relayout only fires when the slot count actually changes (`UIManager.EnsureSlotLayout`).
-`unique = true`; resets per run with the fresh Spawner. Note: a Spike/Cube Supply picked
-*after* a shape is already queued won't bias that already-locked shape (the bias applies
-going forward) — acceptable.
+`unique = true`; resets per run with the fresh Spawner. Note for any future shape-bias ability:
+one picked up *after* a shape is already queued won't bias that already-locked shape (the bias
+applies going forward) — acceptable.
 
 ### Flip (Common, consumable, max stack 1)
 `FlipAbility` swaps the active falling shape with the front of the Spawner's stable
@@ -621,19 +621,15 @@ preview uses the active block's real colliders and the same landing-support filt
 controlled landing, but it is visual-only and intentionally does not simulate
 post-contact tipping. `unique = true`, so the picker filters it out after one pickup.
 
-### Spike Supply (Common, passive)
-`BlockDefinitionChancePowerUp` asset targeting `Block_I`. The first pickup registers
-a stronger run-local definition chance with `Spawner.AddDefinitionChance`; later
-stacks add smaller deltas. This injects extra straight pieces before the normal
-authored shape bag is drawn. It never mutates `BlockDefinition.bagCopies`, so authored
-mode data stays immutable. `maxStacks = 5`, so the picker filters it out after the
-fifth pickup.
-
-### Cube Supply (Common, passive)
-Same `BlockDefinitionChancePowerUp` pattern as Spike Supply, targeting `Block_O`.
-The first pickup adds the larger run-local definition chance and later stacks add
-smaller deltas, making square pieces appear more often without mutating authored
-shape-bag assets. `maxStacks = 5`.
+### ~~Spike Supply~~ / ~~Cube Supply~~ — REMOVED (2026-07-29)
+Two `BlockDefinitionChancePowerUp` assets (targeting `Block_I` and `Block_O`) that nudged the
+shape odds a few percent per stack. **Deleted at Nick's call: "really stupid"** — a passive
++8%/+5% shape bias is invisible in play, so the card read as a wasted pick in a 3-card offer.
+Gone are the assets, their icons, and their entries in every `powerUpChoicePool`, the
+`ContentManifest` and the icon-gen roster. The `BlockDefinitionChancePowerUp` **class survives**
+(and `Spawner.AddDefinitionChance` with it) — it is a sound mechanism, just not at that
+magnitude; any future shape-bias ability should be a big, legible effect rather than a nudge.
+Do not re-add either card without a much stronger dose.
 
 ### Shrink (Common, consumable)
 `TransmuteAbility` with `targetShape` = the **Pip** (1×1) `BlockDefinition`. Activating

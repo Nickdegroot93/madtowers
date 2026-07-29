@@ -5,7 +5,9 @@ look identical. Follow this exactly when adding abilities — the set only reads
 style because every image came out of the same locked recipe. The runnable pipeline lives in
 `Tools/icon-gen/`; this file is the contract behind it.
 
-The current 55-icon set (v1, July 2026) was generated in one batch from `Tools/icon-gen/manifest.json`.
+The current icon set (v1, July 2026) was generated in one batch of 55 from
+`Tools/icon-gen/manifest.json`; it now holds **53** — Cube Supply and Spike Supply were removed
+as abilities on 2026-07-29 (ABILITIES.md), and their icons and manifest entries went with them.
 
 ## Model and API
 
@@ -48,7 +50,7 @@ retry. Keep it.
 ### Writing a subject clause
 
 One sentence, concrete and visual, using the game's vocabulary. Look at
-`Tools/icon-gen/manifest.json` for all 55 examples. Rules of thumb:
+`Tools/icon-gen/manifest.json` for all 53 examples. Rules of thumb:
 
 - Describe **blocks, bricks, towers, stacks** — the icon should read as this game, not generic fantasy.
 - Name one clear focal action or object ("a molten glowing brick pouring streams of lava that
@@ -64,7 +66,7 @@ One sentence, concrete and visual, using the game's vocabulary. Look at
 | Hue | Label in prompt | Hex | Used for |
 |---|---|---|---|
 | cyan | `electric cyan` | `#4DDBFF` | ice, time, slowing, wind, lasers-as-safety (Freeze, Slo-Mo, Updraft, Hardline, Anchor…) |
-| amber | `molten amber` | `#FFAA33` | heat, weight, friction, supply/industrial (Magma, Titan, Bedrock, Locksmith, Cube Supply…) |
+| amber | `molten amber` | `#FFAA33` | heat, weight, friction, supply/industrial (Magma, Titan, Bedrock, Locksmith…) |
 | violet | `neon violet` | `#B067FF` | queue tricks, teleport/space magic (Flip, Edge Portal, Overdraw, Fission, Suspension…) |
 | green | `acid green` | `#58F58B` | vines, cleansing, protection, guides (Overgrowth, Sanitize, Ward, Guardian, Vector Guide…) |
 | red | `hot red` | `#FF5566` | lives, destruction, bombs, lasers-as-danger (Extra Life, Scrap, Sacrifice, Zap, Iron Will…) |

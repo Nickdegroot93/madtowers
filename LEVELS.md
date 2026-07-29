@@ -192,13 +192,14 @@ touch engine code.
      **Cantilever columns** outside the footprint are *not* a fixed allowance: reach already
      ratchets outward from every landed block plus a 4-column buffer
      (`BlockController.Placement`), so what bounds outward building is SUPPORT, not reach.
-     Each row of rise buys `CantileverColumnsPerStep` (= 1) more supported column per side —
-     a 1×4 laid flat with ~25% overhanging is stable, 50% is the tipping point. Capacity
-     therefore grows ~quadratically with height, like a real pyramid.
+     Every `CantileverRowsPerStepFor(rank)` rows of rise buy `CantileverColumnsPerStep` (= 1)
+     more supported column per side — the **flank slope**, which is per rank (3/2.5/2/1.5/1 rows
+     per column for ranks 1→5). Capacity therefore grows ~quadratically with height, like a real
+     pyramid, and a shallower credited slope is what makes a rank easier.
   3. The asset's **`difficultyRank` 1–5** sets the required packing density
-     (start 0.48/0.54/0.60/0.66/0.72 by rank, +0.012 per wave, capped 0.56/0.62/0.68/0.74/0.80).
-     These are close to TRUE fractions of buildable space, because the capacity they multiply
-     is no longer a large underestimate.
+     (start 0.48/0.54/0.60/0.66/0.72 by rank, +0.012 per wave, capped 0.56/0.62/0.68/0.74/0.80)
+     **and** the flank slope above. These are close to TRUE fractions of buildable space,
+     because the capacity they multiply is no longer a large underestimate.
   4. Line height for wave `n` = smallest `h` with `capacity(h) · density(n) ≥ cumQuota(n) ·
      avgCellsPerBlock`, min rise 1 cell (the solver's tiny late-wave rises are the squeeze —
      never pad them). `avgCellsPerBlock` comes from the level's shape bag
@@ -213,33 +214,75 @@ touch engine code.
   puzzle level played loose — "needed 8, could have placed 20" (Nick). Making the model honest
   lowers the line with no fudge factor: on the standard 9-wide flat floor, wave 5 went 15.7 →
   11.8 cells (−25%) while wave 1 stayed put (3.1 → 3.0), so openings are unchanged and the
-  squeeze arrives where it was missing. `CantileverColumnsPerStep` is THE calibration constant
-  — raising it to 2 models a tipping-point stack and drops every line another ~20%.
-- **Per-level difficulty = `difficultyRank` on the per-chapter modifier asset**; all shipped
-  assets run rank 5 (also the code default — a new asset must not silently start easy).
-  Waves-to-win stays 5/6/7 by chapter third; that is the honest per-chapter *length* dial.
-  Prefer differentiating chapters by **shape bag** (an S/Z/T-heavy bag with few 1×4s makes the
-  same density far harder) and per-chapter speed over varying tightness — the squeeze is the
-  mode's identity. Lower ranks are the future easy-mode range. Style knobs stay per asset:
+  squeeze arrives where it was missing.
+- **The flank slope is the difficulty ladder** (2026-07-29, second pass). The honest-capacity
+  rebuild above credited **1 column of outward width per row of rise** for every rank — a perfect
+  ~25%-overhang pyramid. Geometrically defensible, humanly unreachable with random shapes: on
+  chapter 1's flat 9-wide floor that put wave 5's laser at 12 rows with 45 blocks to stand, of
+  which **36 cells per side** had to hang past the floor edge (a sustained 3-column overhang) at
+  77% fill. Nick, playtesting: *"around wave 5 they become nearly impossible"*. The slope is now
+  per rank, paired with the density table, so the rank is one honest dial. On that floor at wave 5:
+
+  | rank | density | flank slope | laser | flank/side | shipped on |
+  |---:|---|---|---:|---:|---|
+  | 3 | 0.60→0.68 | 1 col / 2 rows | 17 rows | 14 cells | **chapters 1–4** — the on-ramp |
+  | 4 | 0.66→0.74 | 1 col / 1.5 rows | 14 rows | 27 cells | **chapters 5–14** — the standard |
+  | 5 | 0.72→0.80 | 1 col / 1 row | 12 rows | 36 cells | **chapter 15** — brutal (the pre-ladder math) |
+
+  Ranks 1–2 (3 / 2.5 rows per column) are the easy-mode tail. **Relief arrives as tower HEIGHT,
+  not as outward reach** — which is both what the mode is about and free on screen, since
+  `TowerCameraController` frames horizontal span only: forced cantilevering zooms the player out,
+  a taller narrower tower does not. **Quotas are not a dial**: they are coupled to the line, so
+  asking for fewer blocks lowers the line to match and changes nothing about tightness.
+- **Per-level difficulty = `difficultyRank` on the per-chapter modifier asset**, and the rank now
+  CLIMBS with the campaign (Nick's ladder, 2026-07-29): **chapters 1–4 rank 3** (Jungle Depths,
+  Sakura Ridge, Neon Nightfall, Frozen Peaks), **chapters 5–14 rank 4**, **chapter 15 (Crimson
+  Core) rank 5** — the brutal tier lands exactly once, on the last chapter. `HeightLimitWaves_
+  Standard` (non-chapter / Custom Game) runs 4, as does the code default: a new chapter should
+  start at the standard tier, never at the on-ramp or the wall.
+  Raising a late chapter is a one-field edit on its `HeightLimitWaves_<Chapter>` asset; confirm
+  with the wave report rather than a replay. Waves-to-win stays 5/6/7 by chapter third; that is
+  the honest per-chapter *length* dial, and dropping chapter 1 to 4 is the next lever if wave 5
+  still walls at rank 3. Prefer differentiating chapters by **shape bag** (an S/Z/T-heavy bag
+  with few 1×4s makes the same density far harder) and per-chapter speed over varying tightness
+  — the squeeze is the mode's identity. Style knobs stay per asset:
   `lineRiseSeconds`, `lineColor`, `lineThickness`, `lineBaseAlpha`, `linePulseAmount`,
   `linePulseSpeed`. Mode dials and other modifiers stack on top. The old flat-rise principle
   is subsumed: density ramping per wave makes rise-per-block naturally non-growing.
 - **Tune from the table, not from replays**: `Tools/MadTowers/Puzzle Wave Report` (editor-only)
   solves every authored puzzle level with the same `WaveSolver` and writes
   `PuzzleWaveReport.md` at the repo root — per wave: quota, cumulative, density, solved line,
-  rise, capacity, and **`outward`** (block cells ÷ what fits inside the floor footprint at that
-  line; below 1.0 the wave fits over the floor, above 1.0 the player is forced to cantilever).
-  Calibrate on one or two playtests, then read the table to confirm the other fourteen.
-  Current shipped curve: `outward` runs ~0.87 at wave 1 and 1.56–2.22 at the win wave.
+  drawn laser height, rise, capacity, `outward` (block cells ÷ what fits inside the floor
+  footprint at that line; below 1.0 the wave fits over the floor, above 1.0 the player is forced
+  to cantilever) and **`flank/side`** — the same bill in absolute cells, split over the two sides,
+  counting whole rows under the laser (on a stepped or gapped floor that split is an average, not a
+  per-side guarantee). **`flank/side` is the playability number**: at the win wave, 36 played as
+  impossible and ~27 as tight-but-fair, so the campaign ramps 14 → 27 → 36 across the three tiers.
+  Beware judging a tier from waves 1–3: they are nearly identical across ranks and the tiers only
+  separate at wave 4–5 (that read cost one round of retuning). Calibrate on one or two playtests, then
+  read the table to confirm the other fourteen. Regenerate it after any rank or bag change — it is
+  committed.
 - **Scores are ENCODED**: bests and leaderboards store `wavesCleared × 1000 + peak in-wave
   progress` (`HeightLimitWavesModifier.OverrideReportedScore`; every display — menu, results,
   RANKS rows, the modal's BOOSTED BEST caption — decodes through
   `ClearWavesWinCondition.FormatBoardScore`/`DecodeWaves`).
   Sub-wave granularity keeps board ties rare. Pre-rebuild block-count bests decode as garbage
   waves; dev saves only (nothing shipped).
-- **Half-cell grace (code)**: the line renders and zaps **half a cell above** the solved
-  height — a tower that exactly fills the solved rows can wobble without grazing the laser,
-  but one more full row still crosses. The grace never feeds the island ceiling.
+- **Half-cell grace, snapped to the row (code)**: the laser renders and zaps half a cell above
+  the **nearest row boundary** to the solved height (`WaveSolver.LaserCellsForSolvedHeight` =
+  `floor(solved + 0.5) + 0.5`, so a laser height always reads `x.5`) — never half a cell above
+  the raw solved height. Blocks and floor tops are whole cells, so a tower can only top out on
+  a row boundary: the clearance is then always exactly half a cell — a flush-full tower can
+  settle and wobble without grazing the laser, and one more full row still clearly crosses.
+  Without the snap the clearance was `1 − frac(solved)`: 0.08–0.34 cells on the shipped 9-wide
+  flat floor, and **zero** whenever a solve ended in ~`x.5`, putting the laser exactly on the
+  top of the block that legally filled that row so the slightest jiggle zapped it (Nick,
+  2026-07-29 — the same trap the hand-authored era dodged by authoring integer heights only).
+  Snapping to the NEAREST row is deliberate: `floor(solved + 0.5)` is exactly the row count that
+  fit under the old laser, so **usable capacity and difficulty are untouched** — only the margin
+  changes. Rounding up instead would gift a whole free row wherever a solve ends in ~`x.0`
+  (wave 1 everywhere, which lands at 3.02). The grace never feeds the island ceiling — that gets
+  the row boundary.
 - A countdown rides the right end of the line showing blocks left to STAND until it rises.
 - Laser **art** follows the active chapter automatically: drop a `laser.png` into
   `Resources/Skins/<Chapter>/` (see ART.md) and every laser level in that chapter uses it;
@@ -413,7 +456,7 @@ genuinely hard puzzle.
 | Level | Mode | Goal | Notes |
 |---|---|---|---|
 | The Waterfront | GameMode_NeonVoidZones | Place 100 | **Void Zones debut** (`VoidZones_NeonDebut`: first zone at 12m, every 11m, 65% chance — roughly half the standard asset's exposure; `VoidZones_Standard` stays the recurring-level tuning). Flat 9 floor. 2.3→4.6 @ +0.026/blk (×0.85 hard-mode multiplier). |
-| Voltage Line | GameMode_NeonLaserLimit | Place 60 | **Hard puzzle**: 5 waves 7@4 · 9@7 · 12@10 · 14@13 · 18@18 (integer heights only — a .5 height plus the half-cell grace would land the line back on a row boundary) (`HeightLimitWaves_NeonNightfall`) — low opening line, tight rises; final squeeze needs ~13.5 of the 15 reachable columns (Jungle-endgame density, verified by cell math). 2.4→4.75 @ +0.044/blk. |
+| Voltage Line | GameMode_NeonLaserLimit | Place 60 | **Puzzle**: 5 waves, `HeightLimitWaves_NeonNightfall` (rank 3). Quotas and line heights are SOLVED, not authored — see the wave report; the old hand-authored curve (7@4 · 9@7 · 12@10 · 14@13 · 18@18) is kept only as a note on design intent. 2.4→4.75 @ +0.044/blk. |
 | Penthouse Run | GameMode_NeonNarrowTrio | Reach 60m | **Two rooftop pillars** (w2 @ +2 low, w1 spire @ +7, 1-col gap — iterated down from trio; three pillars played too easy, Nick's call). The 2-wide sits under the spawn. 2.55→5.15 @ +0.031/blk. |
 
 **Chapter: Frozen Peaks (sortOrder 40)** — imported Winter Mountain Landscape gameplay

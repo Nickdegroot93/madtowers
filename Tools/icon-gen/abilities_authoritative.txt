@@ -1,5 +1,4 @@
 AirBrake|Air Brake|Common|Assets/Art/Abilities/icon_air_brake.png|Assets/Data/PowerUps/Common/AirBrake.asset
-CubeSupply|Cube Supply|Common|Assets/Art/Abilities/icon_cube_supply.png|Assets/Data/PowerUps/Common/CubeSupply.asset
 Domino|Domino|Common|Assets/Art/Abilities/icon_domino.png|Assets/Data/PowerUps/Common/Domino.asset
 EdgePortal|Edge Portal|Common|Assets/Art/Abilities/icon_edge_portal.png|Assets/Data/PowerUps/Common/EdgePortal.asset
 ExtraLife|Extra Life|Common|NONE|Assets/Data/PowerUps/Common/ExtraLife.asset
@@ -12,7 +11,6 @@ RecoveryWindow|Recovery|Common|Assets/Art/Abilities/icon_recovery.png|Assets/Dat
 Shrink|Shrink|Common|Assets/Art/Abilities/icon_shrink.png|Assets/Data/PowerUps/Common/Shrink.asset
 SloMo|Slo-Mo|Common|Assets/Art/Abilities/icon_slomo.png|Assets/Data/PowerUps/Common/SloMo.asset
 SlowTime|Slow Time|Common|Assets/Art/Abilities/icon_slow_time.png|Assets/Data/PowerUps/Common/SlowTime.asset
-SpikeSupply|Spike Supply|Common|Assets/Art/Abilities/icon_spike_supply.png|Assets/Data/PowerUps/Common/SpikeSupply.asset
 VectorGuide|Vector Guide|Common|Assets/Art/Abilities/icon_vector_guide.png|Assets/Data/PowerUps/Common/VectorGuide.asset
 Ward|Ward|Common|NONE|Assets/Data/PowerUps/Common/Ward.asset
 Zap|Zap|Common|NONE|Assets/Data/PowerUps/Common/Zap.asset

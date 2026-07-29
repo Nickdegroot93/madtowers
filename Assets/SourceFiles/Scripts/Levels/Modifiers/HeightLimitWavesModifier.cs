@@ -30,11 +30,16 @@ using UnityEngine;
 public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvider
 {
     [Header("Difficulty")]
-    [Tooltip("1 = loose (generous line rises, sloppy stacking passes) .. 5 = near-perfect packing required. Sets the packing density the wave math derives line heights from; every wave tightens slightly toward the rank's cap.")]
+    [Tooltip("The one difficulty dial. 4 = the shipped standard (tight but human). 3 = a clear " +
+             "step easier. 5 = brutal - near-perfect packing AND a sustained 3-column overhang " +
+             "from wave 5 on; reserve it for late chapters. 1-2 = easy-mode tail. Sets BOTH the " +
+             "required packing density and the flank slope the wave math believes you can build, " +
+             "so a lower rank raises the line rather than shrinking the ask.")]
     [Range(1, 5)]
-    // Defaults to the SHIPPED tier: every campaign asset runs 5, and a new asset silently
-    // starting at the tier Nick rejected as far too easy is the wrong failure direction.
-    [SerializeField] private int difficultyRank = 5;
+    // Defaults to the SHIPPED STANDARD tier (4, set by the 2026-07-29 playtests: rank 5 walls at
+    // wave 5 even on chapter 1's flat floor, rank 3 read as too easy). Raise to 5 per chapter for
+    // the late campaign.
+    [SerializeField] private int difficultyRank = 4;
 
     /// <summary>Authored rank, for the editor's Puzzle Wave Report (which solves the same math
     /// over every level without entering play mode).</summary>
@@ -86,10 +91,10 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     private float _avgCellsPerPiece = WaveSolver.FallbackCellsPerPiece;
     private object _cachedSegments; // staleness guard: floor config can resolve after level start
 
-    // Half a cell of leeway above the solved height; read live (not cached at OnLevelStart)
-    // because the active config can resolve after level start on some paths - the same
-    // staleness AirPocketModifier guards against.
-    private float HalfCellGrace => 0.5f * GridSpacing;
+    // Half a cell of leeway above the topmost full row that fits (WaveSolver.LaserGraceCells);
+    // read live (not cached at OnLevelStart) because the active config can resolve after level
+    // start on some paths - the same staleness AirPocketModifier guards against.
+    private float LaserGraceWorld => WaveSolver.LaserGraceCells * GridSpacing;
     private float GridSpacing => _context?.GameManager?.ActiveConfig != null
         ? _context.GameManager.ActiveConfig.GridSpacing : 1f;
     private float _lineY;
@@ -177,10 +182,10 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
         RebuildWaveMath();
         _lineY = _lineTargetY = CurrentLineWorldY();
         // Publish the build ceiling so support islands only generate below the line
-        // (GameManager.Awake reset it to infinity at scene load). The ceiling gets the
-        // SOLVED height (grace removed): the grace is zap/visual leeway only - letting it
-        // raise the island band could admit one extra row whose bricks sit flush with the line.
-        TowerHeightLimit.Set(_lineY - HalfCellGrace);
+        // (GameManager.Awake reset it to infinity at scene load). The ceiling gets the ROW
+        // BOUNDARY under the laser (grace removed): the grace is zap/visual leeway only -
+        // letting it raise the island band could admit an island sitting flush with the line.
+        TowerHeightLimit.Set(_lineY - LaserGraceWorld);
         CreateLineVisual();
         ActiveRun = this;
     }
@@ -345,9 +350,9 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
 
         // The ceiling follows the SETTLED line, so the freshly revealed island band pops
         // in after the rise completes, not while the line is still gliding through it.
-        // Solved height only - the half-cell grace never feeds the island ceiling (see OnLevelStart).
+        // Row boundary only - the half-cell grace never feeds the island ceiling (see OnLevelStart).
         bool lineSettled = Mathf.Approximately(_lineY, _lineTargetY);
-        if (lineSettled) TowerHeightLimit.Set(_lineY - HalfCellGrace);
+        if (lineSettled) TowerHeightLimit.Set(_lineY - LaserGraceWorld);
 
         if (_waitingForReveal) TickRevealHold(deltaTime, lineSettled);
 
@@ -412,7 +417,7 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     {
         if (_lineHeightsCells.Count < waveNumber)
         {
-            WaveSolver.SolveLineHeights(_columnTops, _avgCellsPerPiece, difficultyRank,
+            WaveSolver.SolveLineHeights(_columnTops, _avgCellsPerPiece, DifficultyRank,
                 waveNumber, _lineHeightsCells);
         }
         return _lineHeightsCells[waveNumber - 1];
@@ -427,17 +432,22 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
         _avgCellsPerPiece = WaveSolver.AverageCellsPerPiece(
             _context?.Spawner != null ? _context.Spawner.ConfiguredBlockBag : null,
             WaveSolver.MagmaRate(config));
-        WaveSolver.BuildColumnTops(config != null ? config.FloorSegments : null, _columnTops);
+        WaveSolver.BuildColumnTops(config != null ? config.FloorSegments : null, _columnTops,
+            DifficultyRank);
         _lineHeightsCells.Clear();
     }
 
-    // The line sits HALF A CELL above the solved height (draw, island ceiling and zap check all
-    // use this one value, so they can never disagree). Solved height = the space that must fit
-    // the wave's blocks; the grace means a tower that exactly fills it can wobble without
-    // grazing the laser, while one more full row still clearly crosses. Without it, a flush-full
-    // tower sat a hair under the line and any settle jiggle zapped it (Nick, July 2026).
+    // The line hangs half a cell above the NEAREST ROW BOUNDARY to the solved height (draw,
+    // island ceiling and zap check all use this one value, so they can never disagree). Blocks
+    // only ever top out on row boundaries, so the clearance is always exactly half a cell: a
+    // flush-full tower can settle and wobble without grazing the laser, and one more full row
+    // still clearly crosses. See WaveSolver.LaserCellsForSolvedHeight for why the snap matters -
+    // a bare `solved + 0.5` left as little as 0.08 cells of clearance, and none at all whenever
+    // a solve ended in ~.5: the laser then sat exactly on the top of the block that legally
+    // filled that row, and any settle jiggle zapped it (Nick, July 2026). The snap never changes
+    // how many rows fit - only the margin above them.
     private float CurrentLineWorldY()
-        => _floorY + LineHeightCellsForWave(_currentWave) * GridSpacing + HalfCellGrace;
+        => _floorY + WaveSolver.LaserCellsForSolvedHeight(LineHeightCellsForWave(_currentWave)) * GridSpacing;
 
     // Countdown riding the right end of the line: blocks still to STAND until it rises. Sits
     // just above the line, follows it as it moves, and grows back when blocks are destroyed.
