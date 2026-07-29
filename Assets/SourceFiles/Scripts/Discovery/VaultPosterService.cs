@@ -4,25 +4,44 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Renders and caches the Vault grid's static brick showcases ("posters"): one small
-/// RenderTexture per discovered variant, captured from a BlockDemoStage pose. BLOCKPREVIEWS.md's
-/// codex-performance answer - pre-baked first frames instead of live demos per card.
+/// Supplies the Vault grid's static brick showcases ("posters"). TWO paths, in this order:
 ///
-/// The wrinkle this service exists for: the menu holds Time.timeScale = 0, and skins animate on
-/// SCALED time (BLOCKVARIANTS.md rule), so time-driven looks (Vine's grow-in, the Maw's waking
-/// grin) would render half-born in a same-frame capture. Each capture therefore gets a short
-/// scaled-time warm-up window (timeScale briefly 1 - safe: the menu only exists while level
-/// selection is pending, and it covers the whole screen), after which the frame is detached and
-/// the diorama destroyed. Requesting RawImages pop in as their posters land.
+/// 1. BAKED (the shipping path): a committed PNG per variant under Resources/VaultPosters,
+///    produced by Tools > MadTowers > Bake Vault Posters (VaultPosterBaker). Assigning one is a
+///    Resources.Load - the grid fills in the same frame it is built, with no cameras, no render
+///    textures and no timeScale games.
+/// 2. LIVE (the fallback): render the pose on the spot from a BlockDemoStage, as this service
+///    always used to. Kept so a newly added variant is never a blank card before someone
+///    re-bakes - it just costs what it always cost, and says so in the editor log.
+///
+/// The live path is what made the Vault feel broken (Nick, 2026-07-29: "it takes quite a while...
+/// it seems like it's generated on the spot"). It is genuinely expensive: one diorama per
+/// discovered variant, each with its own camera and 360x360 RenderTexture, ~14 of them at once on
+/// a full save, and a hard warm-up window before ANY of them can be captured - the menu holds
+/// Time.timeScale = 0 while skins animate on SCALED time (BLOCKVARIANTS.md), so a same-frame
+/// capture renders Vine half-grown and the Maw mid-blink. Worse, the cache is released with the
+/// menu, so every run paid it again. The warm-up also has to flip timeScale to 1, which lurches
+/// any scaled-time menu animation (unlock reveals, the chapter cross-fade) that happens to be
+/// mid-flight. Baking exists to keep all of that off the player's path.
 /// </summary>
 public sealed class VaultPosterService : MonoBehaviour
 {
     private const int PosterPixels = 360;
     private const float WarmUpSeconds = 0.65f;
 
+    /// <summary>Where baked posters live, Resources-relative. Declared HERE, not on the editor-only
+    /// baker: runtime code cannot see the Editor assembly, so the runtime side has to own the
+    /// contract and VaultPosterBaker reads it from us.</summary>
+    public const string BakedResourceFolder = "VaultPosters";
+    public const string BakedFilePrefix = "poster_";
+
     // Keyed by variant id alone: posters are chapter-INDEPENDENT studio shots (neutral backdrop,
     // Classic brick skin - see BlockDemoStage.OpenPose), so one render serves every chapter.
     private static readonly Dictionary<string, RenderTexture> Cache = new Dictionary<string, RenderTexture>();
+
+    // Baked lookups, including the misses (a null value means "asked Resources, not there") so a
+    // grid rebuild cannot re-probe the same absent poster on every card.
+    private static readonly Dictionary<string, Texture2D> Baked = new Dictionary<string, Texture2D>();
 
     private static VaultPosterService _instance;
 
@@ -37,6 +56,14 @@ public sealed class VaultPosterService : MonoBehaviour
     {
         if (target == null) return;
         string key = ProgressStore.BlockId(variant);
+
+        Texture2D baked = BakedPoster(key);
+        if (baked != null)
+        {
+            target.texture = baked;
+            target.color = Color.white;
+            return;
+        }
 
         if (Cache.TryGetValue(key, out RenderTexture cached) && cached != null)
         {
@@ -60,7 +87,29 @@ public sealed class VaultPosterService : MonoBehaviour
         if (!_instance._working) _instance.StartCoroutine(_instance.Work());
     }
 
-    /// <summary>Free every cached poster (menu teardown - mirrors the menu's video texture).</summary>
+    /// <summary>The baked PNG for a variant id, or null when none is committed yet. Resources
+    /// caches the load itself; the local dictionary only exists to remember the MISSES.</summary>
+    private static Texture2D BakedPoster(string key)
+    {
+        if (string.IsNullOrEmpty(key)) return null;
+        if (Baked.TryGetValue(key, out Texture2D known)) return known;
+
+        var loaded = Resources.Load<Texture2D>($"{BakedResourceFolder}/{BakedFilePrefix}{key}");
+        Baked[key] = loaded;
+#if UNITY_EDITOR
+        if (loaded == null)
+        {
+            Debug.LogWarning($"[VaultPoster] No baked poster for '{key}' - falling back to a live " +
+                             "render (slow, and it flips timeScale). Run Tools > MadTowers > " +
+                             "Bake Vault Posters in Play mode.");
+        }
+#endif
+        return loaded;
+    }
+
+    /// <summary>Free every LIVE-RENDERED poster (menu teardown - mirrors the menu's video
+    /// texture). Baked posters are project assets: they are never released here, only forgotten,
+    /// because releasing one would destroy the asset itself.</summary>
     public static void ReleaseAll()
     {
         foreach (RenderTexture rt in Cache.Values)
@@ -70,6 +119,7 @@ public sealed class VaultPosterService : MonoBehaviour
             Destroy(rt);
         }
         Cache.Clear();
+        Baked.Clear();
         if (_instance != null)
         {
             Destroy(_instance.gameObject);

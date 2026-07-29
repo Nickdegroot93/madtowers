@@ -28,7 +28,8 @@ a fallback for a behaviour too messy to script — none of the current bricks ne
 | `BlockDemoScenarios` | One demo per variant, built as a **TEMPLATE + REAL PHYSICS** (Nick's rule): an exact starting structure of physical puppets (spawned asleep at their poses), ONE dropped variant piece, and the simulation plays out the consequences — weight, balance, sliding, toppling are genuine Box2D, never animated. Only the variant MOMENT is a small shim doing what the real behaviour does, minus game-state writes: Anchor → body Static on contact; Vine → `FixedJoint2D` welds + `GrowFrom`; Bomb → fuse then blast-radius removal (survivors fall by physics); Tremor → radial velocity kicks; Maw → devour on prey contact; Magma → cells replaced by real stone pips that pour into the hollow. Boulder/Feather/Ice need NO shim — mass and friction do it — and Pyramid needs none at all (its slope IS the behaviour: an O tips off the peak, a bridged I see-saws away) (the Feather demo is an A/B on the same rig: a normal brick tips the cantilever, the feather doesn't — same drop, only the mass differs). Vortex/Locked stay scripted (they teach an INPUT rule). Skins' real cue methods carry the drama plus the game's own FX. |
 | `BlockDiscoveryController` | Installed by `GameSystemsInstaller`. Watches `GameEvents.BlockSpawned` (+ `Spawner.ApplyVariantToNextBlock`'s direct-apply notify) for never-seen demo-worthy variants, waits until the piece is in view (viewport y ≤ 0.75 **and** ≥0.35s old, else a 2.5s timeout / already-landed), then freezes and presents. Marks discovery **at modal-open** (quit-safe). FIFO queue for multiple debuts; tears down instantly on GameOver. |
 | `BlockDebutModal` | The debut card: `GameMenuStyle`-styled panel, rounded RawImage demo, name + description (authored `vaultDescription`, catalog caption fallback), one Continue. Sort 6100 (above the ability offer). |
-| `VaultPosterService` | Caches one ~360² RT poster per discovered variant for the Vault grid (BLOCKPREVIEWS' "pre-bake first frames as posters"). Captures in **batches**: every queued request opens its stage at once (slots keep the physics apart) and they all share ONE warm-up window — a full grid lands in ~0.7s; sequential capture read like a slow web page (Nick, July 2026). See §4 for the timeScale wrinkle. Released in the menu's `TearDownRoot`. |
+| `VaultPosterService` | Supplies the Vault grid's posters, **baked first**: a committed `Resources/VaultPosters/poster_<id>.png` (see §4a) assigned in the same frame the card is built. Falls back to the old live capture when a poster is missing — one ~360² RT per variant, all stages opened at once sharing ONE warm-up window (slots keep the physics apart). Live RTs are released in the menu's `TearDownRoot`; baked textures are assets and are only forgotten there, never destroyed. |
+| `VaultPosterBaker` | Editor-only, **Play mode required**: renders every variant's pose once and writes the committed PNGs the service loads (§4a). Re-run it after skin/shader/pose changes or a new variant; it reports posters that match no current variant instead of deleting them. |
 
 ## 3. The freeze (debut modal) — world-alive, NOT timeScale 0
 
@@ -45,9 +46,31 @@ it; the piece resumes falling instantly.
 The main menu idles at `Time.timeScale = 0`, and skins animate on scaled time — so:
 - the **Vault brick detail modal** sets `timeScale = 1` for its lifetime (safe: the menu only
   exists while level selection is pending and covers the whole screen) and restores 0 on close;
-- **posters** are captured by `VaultPosterService` inside the same short scaled-time window
-  (~0.65s warm-up so grow-in looks — Vine, the Maw's waking grin — settle before the frame is
-  detached and the diorama destroyed).
+- **posters** no longer pay this at runtime at all — they are **baked** (below). The live capture
+  survives only as a fallback, and it still needs the same short scaled-time window (~0.65s
+  warm-up so grow-in looks — Vine, the Maw's waking grin — settle before the frame is detached
+  and the diorama destroyed).
+
+### 4a. Vault posters are BAKED (2026-07-29)
+
+`Tools ▸ MadTowers ▸ Bake Vault Posters` (`VaultPosterBaker`, editor-only) renders every variant's
+pose once and commits a PNG to `Assets/Resources/VaultPosters/poster_<id>.png`. `VaultPosterService`
+loads those, so the Vault grid fills **in the frame it is built** — no cameras, no render textures,
+no timeScale flip. **Requires Play mode**: the poses must animate before capture (the Maw's grin,
+Vine's grow-in, the time-driven shaders) and `Update` does not tick in edit mode — the tool says so
+if you forget.
+
+**Why it exists.** The live path rendered one diorama *per discovered variant* — on a full save ~14
+cameras and ~7 MB of render textures built at once, gated behind a hard warm-up, all popping in the
+same frame, and re-paid after every run because the cache is released with the menu. It read as a
+broken image, not as loading (Nick, 2026-07-29: *"it takes quite a while… it seems like it's
+generated on the spot"*). The `timeScale = 1` warm-up was a second hazard: any scaled-time menu
+animation mid-flight (unlock reveals, the chapter cross-fade) lurched forward during the window.
+
+**Re-run the tool** when a variant's skin, shader or `PosterPose` changes, or when a variant is
+added — the same discipline the ability icons have (ICONS.md). Forgetting is not fatal: a variant
+with no baked poster falls back to the live render and the editor logs which ids are missing.
+Baked posters are project assets, so `ReleaseAll` must never destroy them — it only forgets them.
 
 ## 5. Adding a demo for a new brick (the recipe)
 
@@ -91,9 +114,11 @@ author the demo when ready.
    scripted steering instead.
 2. **Register it** in `BlockDemoCatalog` with a one-line fallback caption (this gates the debut
    modal).
-3. **Poster**: automatic. The pose is always a resting T and the skin attaches by the
-   `<Name>BlockSkin` naming convention — a new brick's poster needs zero code. Touch
-   `PosterPose` only for an extra cue (the Maw poses with its grin awake).
+3. **Poster**: automatic, then BAKE it. The pose is always a resting T and the skin attaches by
+   the `<Name>BlockSkin` naming convention — a new brick's poster needs zero code. Touch
+   `PosterPose` only for an extra cue (the Maw poses with its grin awake). Then run
+   `Tools ▸ MadTowers ▸ Bake Vault Posters` in Play mode (§4a) and commit the PNG, or that one
+   brick makes the Vault slow again.
 4. **Copy**: author `behaviourSummary` + `vaultDescription` on the variant's `.asset`.
 5. **Verify**: play mode → `BlockDemoStage.Open(variant, chapter, 700, 700)` via MCP
    `execute_code` with a debug `RawImage`, watch two loops; or unlock it and open the Vault
