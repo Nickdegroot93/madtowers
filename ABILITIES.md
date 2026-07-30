@@ -244,6 +244,10 @@ roll. The default enforces, in order:
 1. `unique` and already owned → out (uniques are pickable exactly once).
 2. `maxStacks` reached → out (0 = unlimited; unique implies 1).
 3. Level bans (`LevelDefinition.bannedAbilities`) → out. **Manual** design lockouts.
+   The same check also consults every modifier's `LevelModifier.BansAbility` — a game
+   TYPE's lockouts ride the modifier into all its levels with no per-level authoring
+   (Height-Limit Waves bans every ability granting an `AnchorBlockData` variant: a brick
+   that freezes into permanent terrain wherever it lands collapses the wave puzzle).
 4. `requiresVariantsInLevel`: every listed `BlockData` must exist in the mode's spawn
    tables (ambient chances or fallback variants) → **automatic** content conditions
    ("no Vortex bricks in this level → don't offer the anti-Vortex ability").

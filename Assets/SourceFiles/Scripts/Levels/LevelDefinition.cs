@@ -84,11 +84,24 @@ public class LevelDefinition : ScriptableObject
 
     public bool IsAbilityBanned(AbilityDefinition ability)
     {
-        if (bannedAbilities == null || ability == null) return false;
+        if (ability == null) return false;
 
-        for (int i = 0; i < bannedAbilities.Length; i++)
+        if (bannedAbilities != null)
         {
-            if (bannedAbilities[i] == ability) return true;
+            for (int i = 0; i < bannedAbilities.Length; i++)
+            {
+                if (bannedAbilities[i] == ability) return true;
+            }
+        }
+
+        // Game-type lockouts ride the modifier (LevelModifier.BansAbility), so every level
+        // running that mode inherits them without per-level authoring.
+        if (modifiers != null)
+        {
+            for (int i = 0; i < modifiers.Length; i++)
+            {
+                if (modifiers[i] != null && modifiers[i].BansAbility(ability)) return true;
+            }
         }
         return false;
     }

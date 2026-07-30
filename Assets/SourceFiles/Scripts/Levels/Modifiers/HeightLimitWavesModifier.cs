@@ -45,6 +45,23 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     /// over every level without entering play mode).</summary>
     public int DifficultyRank => Mathf.Clamp(difficultyRank, 1, 5);
 
+    /// <summary>Anchor sources are never offered in wave mode: a brick that freezes into
+    /// permanent terrain wherever it lands collapses the packing puzzle - one anchor dropped
+    /// at the line is a free wave. Trait-driven (any ability granting an
+    /// <see cref="AnchorBlockData"/> variant), so the ambient dropper, the on-demand anchor
+    /// consumable and any future anchor ability are all covered in every per-chapter copy of
+    /// this modifier with no per-asset authoring.</summary>
+    public override bool BansAbility(AbilityDefinition ability)
+    {
+        BlockData granted = ability switch
+        {
+            BlockVariantChancePowerUp chance => chance.Variant,
+            ApplyVariantConsumable apply => apply.Variant,
+            _ => null,
+        };
+        return granted is AnchorBlockData;
+    }
+
     [Tooltip("Seconds the line takes to glide to the next wave's height.")]
     [SerializeField] private float lineRiseSeconds = 1.2f;
 

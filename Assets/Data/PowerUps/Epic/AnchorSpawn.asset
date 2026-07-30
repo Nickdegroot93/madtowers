@@ -27,4 +27,4 @@ MonoBehaviour:
   minChapterNumber: 0
   charges: 0
   variant: {fileID: 11400000, guid: c4613f6d44bf411baf2a43b963f291ce, type: 2}
-  chancePerBlock: 0.05
+  chancePerBlock: 0.02

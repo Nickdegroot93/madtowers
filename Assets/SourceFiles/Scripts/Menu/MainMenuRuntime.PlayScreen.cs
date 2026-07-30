@@ -309,10 +309,7 @@ public static partial class MainMenuRuntime
             sprite = MenuSprites.Background(top, bottom, chapter.MenuAccentColor);
         }
 
-        Image image = CreateImage(track, "NeighborBackground", sprite, Color.white);
-        Stretch(image.rectTransform);
-        image.preserveAspect = false;
-        return image.rectTransform;
+        return CreateTrackBackdrop(track, "NeighborBackground", sprite);
     }
 
     private static void BuildNextChapterCard(Transform parent, ChapterDefinition current, int chapterIndex)

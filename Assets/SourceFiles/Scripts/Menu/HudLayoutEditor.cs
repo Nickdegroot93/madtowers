@@ -107,6 +107,7 @@ public class HudLayoutEditor : MonoBehaviour
 
         Image image = CreateImage(transform, "Backdrop", bg, Color.white);
         Stretch(image.rectTransform);
+        FitToCover(image, SpriteAspect(bg));
         Image wash = CreateImage(transform, "Wash", null, new Color(0.02f, 0.03f, 0.04f, 0.62f));
         Stretch(wash.rectTransform);
     }

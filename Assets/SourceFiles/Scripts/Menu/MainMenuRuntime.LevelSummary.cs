@@ -29,7 +29,7 @@ public static partial class MainMenuRuntime
         {
             Image blur = CreateImage(overlay.transform, "BlurBackdrop", backdropSprite, Color.white);
             Stretch(blur.rectTransform);
-            blur.preserveAspect = false;
+            FitToCover(blur, SpriteAspect(backdropSprite));
             UIEffect blurFx = blur.gameObject.AddComponent<UIEffect>();
             blurFx.samplingFilter = SamplingFilter.BlurFast;
             blurFx.samplingScale = 7f;

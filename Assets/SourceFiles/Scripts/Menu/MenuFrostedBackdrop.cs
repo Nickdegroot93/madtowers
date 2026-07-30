@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Keeps this RectTransform covering the whole root canvas in screen space, no matter where its
@@ -12,10 +13,12 @@ public sealed class MenuFrostedBackdrop : MonoBehaviour
 {
     private RectTransform _rect;
     private RectTransform _canvas;
+    private Image _image;
 
     private void OnEnable()
     {
         _rect = (RectTransform)transform;
+        _image = GetComponent<Image>();
         _rect.anchorMin = new Vector2(0.5f, 0.5f);
         _rect.anchorMax = new Vector2(0.5f, 0.5f);
         _rect.pivot = new Vector2(0.5f, 0.5f);
@@ -42,6 +45,17 @@ public sealed class MenuFrostedBackdrop : MonoBehaviour
         float sx = Mathf.Approximately(localScale.x, 0f) ? 1f : canvasScale.x / localScale.x;
         float sy = Mathf.Approximately(localScale.y, 0f) ? 1f : canvasScale.y / localScale.y;
         Vector2 size = _canvas.rect.size;
+        // The real backdrop cover-fits the screen (aspect preserved, overflow cropped) rather
+        // than stretching to it; envelope this copy the same way so the frosted slice stays
+        // registered with what is actually behind the card. Sprite read per-frame, not cached:
+        // chrome-blend twins swap it to the incoming chapter's art after cloning.
+        Sprite sprite = _image != null ? _image.sprite : null;
+        if (sprite != null && sprite.rect.height > 0f && size.x > 0f && size.y > 0f)
+        {
+            float aspect = sprite.rect.width / sprite.rect.height;
+            if (aspect > size.x / size.y) size.x = size.y * aspect;
+            else size.y = size.x / aspect;
+        }
         _rect.sizeDelta = new Vector2(size.x * sx, size.y * sy);
     }
 }

@@ -22,6 +22,10 @@ public class ApplyVariantConsumable : ConsumableAbility
     [Min(1)]
     [SerializeField] private int count = 1;
 
+    /// <summary>The variant this ability grants - lets game types ban abilities by what
+    /// they grant (Height-Limit Waves bans all anchor sources).</summary>
+    public BlockData Variant => variant;
+
     [Header("Transform FX (swappable)")]
     [Tooltip("Plays on the piece as it transforms (a CFXR transform/poof effect). Null-safe.")]
     [SerializeField] private GameObject transformEffect;

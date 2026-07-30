@@ -51,4 +51,10 @@ public abstract class LevelModifier : ScriptableObject
     /// should not stack its own goal banner on top (the first-run tutorial shows the goal
     /// itself when its lessons end).</summary>
     public virtual bool SuppressesGoalBanner => false;
+
+    /// <summary>Game-type design lockout: abilities that must never be OFFERED while this
+    /// modifier runs the level (e.g. anchor sources trivialize the wave puzzle). Consulted by
+    /// <see cref="LevelDefinition.IsAbilityBanned"/> alongside the level's own banned list, so
+    /// the ban rides the modifier into every level that uses it - no per-level authoring.</summary>
+    public virtual bool BansAbility(AbilityDefinition ability) => false;
 }

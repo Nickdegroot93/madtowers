@@ -162,6 +162,26 @@ public static partial class RuntimeUiKit
         return frame;
     }
 
+    // object-fit: cover for stretch-sized containers: keeps `graphic` at `aspect` while always
+    // fully covering its parent (AspectRatioFitter.EnvelopeParent), cropping the overflow -
+    // never squashing the art. For containers whose size isn't fixed at build time (full-screen
+    // backdrops that must survive rotation/resize); the fixed-size slot variant is
+    // CreateCoverImage above. Clipping is the caller's concern: overflow past the screen edge
+    // is harmless, overflow into a sibling's window (the menu's swipe track) needs a RectMask2D.
+    public static void FitToCover(Graphic graphic, float aspect)
+    {
+        AspectRatioFitter fit = graphic.gameObject.AddComponent<AspectRatioFitter>();
+        fit.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+        fit.aspectRatio = aspect > 0f ? aspect : 1f;
+    }
+
+    public static float SpriteAspect(Sprite sprite, float fallback = 1f)
+    {
+        return sprite != null && sprite.rect.height > 0f
+            ? sprite.rect.width / sprite.rect.height
+            : fallback;
+    }
+
     // Turns `target` into a rounded clip region: a RoundedPanel stencil (invisible) under a Mask,
     // so its children are clipped to the panel's corner radius. Shared by cover-images and the
     // menu's frosted-glass panels so both pick up the exact same rounding.

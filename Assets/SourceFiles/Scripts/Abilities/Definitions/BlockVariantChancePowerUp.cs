@@ -13,6 +13,10 @@ public class BlockVariantChancePowerUp : PassiveAbility
     [Range(0f, 1f)]
     [SerializeField] private float chancePerBlock = 0.2f;
 
+    /// <summary>The variant this ability injects - lets game types ban abilities by what
+    /// they grant (Height-Limit Waves bans all anchor sources).</summary>
+    public BlockData Variant => variant;
+
     public override void OnAcquired(AbilityContext context, int stacks)
     {
         AddChance(context);

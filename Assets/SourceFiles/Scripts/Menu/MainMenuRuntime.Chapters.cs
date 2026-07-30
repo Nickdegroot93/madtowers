@@ -303,9 +303,7 @@ public static partial class MainMenuRuntime
 
         Image art = CreateImage(artFrame, "Image", sprite, Color.white);
         Stretch(art.rectTransform);
-        AspectRatioFitter fit = art.gameObject.AddComponent<AspectRatioFitter>();
-        fit.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
-        fit.aspectRatio = sprite.rect.height > 0f ? sprite.rect.width / sprite.rect.height : 1f;
+        FitToCover(art, SpriteAspect(sprite));
 
         // Two stacked bottom-up fades: a tall soft veil plus a denser lower band, so the text
         // block reads on the brightest art (Sakura's pink sky) without flattening the card's

@@ -13,25 +13,35 @@ using UnityEngine;
 public static partial class RuntimeSprites
 {
     // ---- placement beam -----------------------------------------------------------------
-    // Subtle guide column: a faint borderless wash fading out toward the top, so the
-    // landing end (texture bottom) reads strongest. Stretch via SpriteRenderer.size.
+    // Subtle guide column: a faint white wash fading out toward the top, so the landing
+    // end (texture bottom) reads strongest, plus a hairline near-black rail down each
+    // long edge. The wash carries the beam on dark backdrops where the rails vanish;
+    // on light backdrops (ch2/4/6 skies) the wash washes out and the rails carry it.
+    // Stretch via SpriteRenderer.size: the renderer draws Sliced, and the sprite border
+    // keeps the rails at RailPx/PPU world width regardless of brick width.
     private static Sprite _placementBeam;
 
     public static Sprite PlacementBeam()
     {
         if (_placementBeam != null) return _placementBeam;
 
-        const int W = 8, H = 256;
+        const int W = 32, H = 256;
+        const int RailPx = 2;
+        const float FillAlpha = 0.05f;
+        const float RailAlpha = 0.20f;
         Texture2D tex = NewTexture(W, H);
         for (int y = 0; y < H; y++)
         {
             float fade = Mathf.Lerp(1f, 0.25f, (float)y / (H - 1));
             for (int x = 0; x < W; x++)
             {
-                tex.SetPixel(x, y, new Color(1f, 1f, 1f, 0.05f * fade));
+                bool rail = x < RailPx || x >= W - RailPx;
+                tex.SetPixel(x, y, rail
+                    ? new Color(0f, 0f, 0f, RailAlpha * fade)
+                    : new Color(1f, 1f, 1f, FillAlpha * fade));
             }
         }
-        return _placementBeam = Finish(tex, 64f);
+        return _placementBeam = Finish(tex, 64f, new Vector4(RailPx, 0f, RailPx, 0f));
     }
 
     // ---- HUD heart ----------------------------------------------------------------------
