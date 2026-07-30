@@ -340,14 +340,41 @@ public static partial class MainMenuRuntime
         }
 
         // The meter only speaks up when it actually blocks play (its home is the top bar).
-        // (The Hour Pass buy that used to sit here was cut by Nick 2026-07-20 - waiting or
-        // the rewarded ad, once ads ship, are the only refills.)
+        // (The Hour Pass buy that used to sit here was cut by Nick 2026-07-20 - waiting and
+        // the rewarded ad are the only refills.) The WATCH AD button is the game's single ad
+        // placement (SHOP.md §7): opt-in, explicit "+2" copy, and only rendered when an ad
+        // can actually show AND pay out (no SDK / rate-limited = the row is countdown-only).
         if (AttemptsService.MeterActive && !AttemptsService.CanStartRun)
         {
+            bool adOffer = AttemptsService.AdRefillAvailable;
             TimeSpan regen = AttemptsService.NextRegenIn;
-            return CreateTmp(zone, "Blocked", $"OUT OF ATTEMPTS - NEXT IN {(int)regen.TotalMinutes:00}:{regen.Seconds:00}",
+            TextMeshProUGUI blocked = CreateTmp(zone, "Blocked",
+                $"OUT OF ATTEMPTS - NEXT IN {(int)regen.TotalMinutes:00}:{regen.Seconds:00}",
                 18, LockedColor, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-                new Vector2(4f, 0f), new Vector2(ui.ContentW - 8f, 30f), new Vector2(0f, 0.5f));
+                new Vector2(4f, 0f), new Vector2(ui.ContentW - (adOffer ? 250f : 8f), 30f),
+                new Vector2(0f, 0.5f));
+            if (adOffer)
+            {
+                Button watch = CreateSupplyButton(zone, "WatchAd", "WATCH AD  +2", 236f,
+                    new Vector2(0f, 0f), enabled: true, gold: true);
+                watch.onClick.AddListener(() =>
+                {
+                    SfxPlayer.Play("ui-button-click");
+                    RewardedAds.Show(earned =>
+                    {
+                        // Refresh even on a skip: a mid-ad rebuild (online meter events fire
+                        // any time) renders the row WITHOUT the button - Available is false
+                        // while an ad shows - so the close must always re-evaluate the row.
+                        void RefreshIfAlive()
+                        {
+                            if (ui.Panel != null && !ui.StartPending) RefreshSuppliesSection(ui);
+                        }
+                        if (earned) AttemptsService.RequestAdRefill(ok => RefreshIfAlive());
+                        else RefreshIfAlive();
+                    });
+                });
+            }
+            return blocked;
         }
 
         // TOTAL [coin]n — WALLET [coin]n, in fixed slots (amounts stay well under the slot

@@ -330,6 +330,10 @@ every `start_run`/`finish_run`. It is never authoritative.
   path: the ad network's **server-side verification callback** (e.g. AdMob SSV) hits an Edge
   Function which grants the +2. Acceptable v1 fallback until SSV is wired: a
   `grant_ad_refill` function with a hard server-side rate limit (e.g. max 3/day).
+  **As built (2026-07-30):** the client is wired to the v1 fallback —
+  `AttemptsService.RequestAdRefill` calls `grant_ad_refill` after the ad reports
+  watched-to-end (`RewardedAds` provider facade; simulated ad in the editor, no provider in
+  device builds yet). Full remaining-work list: SHOP.md §7.3.
 - **Premium unlock ($3.99 "MadTowers Unlimited"):** an Edge Function verifies the purchase
   receipt with Apple/Google, then sets `attempts.premium = true`. `start_run` reads the
   flag; the client never declares itself premium.

@@ -22,9 +22,14 @@ public static class AttemptsService
     public const int RegenSeconds = 600;       // +1 per 10 min, full 0→5 in 50 min
     public const int AdRefillAmount = 2;
 
-    /// <summary>Rewarded ads are designed (SHOP.md §7) but no ad SDK is integrated; the ad
-    /// refill button stays hidden until this flips.</summary>
-    public const bool AdsEnabled = false;
+    /// <summary>May the "watch an ad → +2" button show? Requires a showable ad (no provider
+    /// installed = no ad SDK yet = hidden) and no denied grant this session: the server
+    /// rate-limits refills to 3/day (grant_ad_refill), and once it says no we stop pointing
+    /// players at ads that pay nothing. TODO before ads ship for real: mirror the 3/day
+    /// budget client-side so the CAP hides the button BEFORE a wasted watch, not after.</summary>
+    public static bool AdRefillAvailable => RewardedAds.Available && !_adRefillDenied;
+
+    private static bool _adRefillDenied;
 
     /// <summary>Online layer enabled but not (yet) connected: campaign runs cannot start
     /// (BACKEND.md §5.1) and the UI should say OFFLINE rather than show meter numbers.</summary>
@@ -119,14 +124,58 @@ public static class AttemptsService
         Persist(current + 1);
     }
 
-    /// <summary>Rewarded-ad refill (+2, capped). Callable only once AdsEnabled ships. Online
-    /// this must become the server's grant_ad_refill / SSV path (BACKEND.md §6.4) - the
-    /// client never grants itself attempts.</summary>
-    public static void GrantAdRefill()
+    /// <summary>Rewarded-ad refill (+2, capped), called AFTER the ad reports watched-to-end.
+    /// Online the grant is the server's (grant_ad_refill RPC - the client never grants itself
+    /// attempts; SSV replaces this claim path before launch, BACKEND.md §6.4); offline it is
+    /// the local wall-clock meter. onDone(true) = the meter moved (AttemptsSync.Changed /
+    /// the local count carries the new value).</summary>
+    public static void RequestAdRefill(Action<bool> onDone)
     {
-        if (!AdsEnabled) return;
-        if (OnlineService.Enabled) return; // server-granted only (BACKEND.md §6.4)
+        if (OnlineService.Enabled)
+        {
+            OnlineService.RpcObject<AdRefillDto>("grant_ad_refill", "{}",
+                dto =>
+                {
+                    if (dto.ok)
+                    {
+                        AttemptsSync.ApplyServer(dto.attempts, dto.seconds_until_next,
+                            dto.premium, AttemptsSync.MeterCharged);
+                    }
+                    else
+                    {
+                        // rate_limited / premium / attempts_full: none heal within this
+                        // session's out-of-attempts moment - stop offering.
+                        _adRefillDenied = true;
+                        UnityEngine.Debug.Log($"[Ads] grant_ad_refill denied: {dto.reason}");
+                    }
+                    onDone?.Invoke(dto.ok);
+                },
+                err =>
+                {
+                    UnityEngine.Debug.LogWarning($"[Ads] grant_ad_refill failed: {err}");
+                    onDone?.Invoke(false);
+                });
+            return;
+        }
+
+        if (!MeterActive)
+        {
+            onDone?.Invoke(false);
+            return;
+        }
         Persist(Math.Min(MaxAttempts, Count + AdRefillAmount));
+        onDone?.Invoke(true);
+    }
+
+    /// <summary>grant_ad_refill reply (JSON key names are the server contract - never rename).</summary>
+    [Serializable]
+    private class AdRefillDto
+    {
+        public bool ok;
+        public string reason;
+        public int attempts;
+        public bool premium;
+        public int seconds_until_next;
     }
 
     // Persist "count as of now" - regen derives from this timestamp. A naive NowUnix() stamp
@@ -146,4 +195,7 @@ public static class AttemptsService
     }
 
     private static long NowUnix() => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+    [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetForPlayMode() => _adRefillDenied = false;
 }

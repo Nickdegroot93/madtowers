@@ -194,7 +194,17 @@ meter, so victories feel free and failures create the decision point).
   wall-clock model survives only as the `SupabaseConfig.Enabled=false` offline fallback.
 - **Watch an ad → +2 attempts** (cap 5). The only ad placement in the game, opt-in
   rewarded video with explicit copy ("+2 attempts"). No forced ads, no
-  interstitials — ads exist purely as the free player's refill lever.
+  interstitials — ads exist purely as the free player's refill lever. **As built
+  (2026-07-30):** the out-of-attempts status row grows a gold **WATCH AD +2**
+  button; the placement talks to `RewardedAds` (provider facade,
+  `Scripts/Shop/RewardedAds.cs`) — no provider installed (all device builds today)
+  = no button, ever; in the editor a simulated 5-second TEST AD overlay exercises
+  both the skip-forfeits and watched-to-end paths. The grant is
+  `AttemptsService.RequestAdRefill`: online it calls the server's `grant_ad_refill`
+  (rate-limited 3/day; a denial hides the button for the session); offline it
+  feeds the local wall-clock meter. **Ad SDK decision (2026-07-30): Unity LevelPlay
+  mediation with AdMob as a bidder** — integrated near release, NOT now.
+  Everything still needed to make ads real: **§7.3**.
 - **No Hour Pass.** A coin-priced "unlimited attempts for an hour" was designed,
   built, and CUT by Nick 2026-07-20 ("we don't buy the hour pass — it's not part of
   it anymore"). The only refills are waiting and, once ads ship, the rewarded ad.
@@ -222,6 +232,35 @@ After **3 consecutive losses on the same level**, the level modal opens its
 boost tray automatically once (per level, per streak). No popup, no discount timer,
 no currency upsell; the tray is simply already open. Research basis: the moment of
 difficulty is when help lands as help, not as a sales pitch.
+
+### 7.3 Shipping real ads — remaining work (checklist, near release)
+
+The client flow is fully built and playtestable (§7 as-built: `RewardedAds` facade,
+WATCH AD button, `RequestAdRefill` online/offline grant, simulated editor ad). What
+turns it into real revenue, in order — none of it before the game is near a store
+listing (AdMob deactivates accounts with 6 idle months, so **don't create accounts
+early**):
+
+1. ⬜ **Accounts**: Unity Ads Monetization (LevelPlay dashboard) + Google AdMob.
+   AdMob app approval needs a published/registered store listing. All free, ever —
+   ad networks pay out, never charge.
+2. ⬜ **SDK**: install the Unity LevelPlay package, add AdMob as a bidding network,
+   create the one rewarded placement ("attempts_refill").
+3. ⬜ **Adapter**: implement `IRewardedAdProvider` over LevelPlay (preload on boot,
+   `IsReady` from the SDK, watched-to-end → `onFinished(true)`), install it via
+   `RewardedAds.Install` at boot on device; the simulated editor provider stays.
+4. ⬜ **Consent/privacy**: iOS App Tracking Transparency prompt + Google UMP consent
+   flow (GDPR — required, not optional); store-listing data-safety /
+   ads-declaration forms; kids-policy check (ads are opt-in rewarded only, §8).
+5. ⬜ **Server**: replace the client-claimed `grant_ad_refill` path with **AdMob SSV**
+   (server-side verification callback → Edge Function grants the +2, BACKEND.md
+   §6.4); until then the 3/day server rate limit is the only defense.
+6. ⬜ **Daily-budget mirror**: surface the server's 3/day refill budget client-side
+   so the button hides BEFORE a wasted watch (today a denial hides it only for the
+   rest of the session, after the player already watched).
+7. ⬜ **Premium ships in the same release** (§12: the meter without its escape
+   valves is pure friction — ads and the $3.99 unlock launch together, receipt
+   validation per BACKEND.md §6.4).
 
 ---
 
@@ -348,8 +387,10 @@ spending supplies (JUICE.md principle 1).
    PlayerPrefs migration); `PlayerProfileStore` stays as the facade.
 5. ✅ **Attempts system offline part** (`AttemptsService`: meter, rolling regen,
    win-refund; soft-landing gate; top-bar chip; Profile tab per §9.2 — the Hour
-   Pass and the Shop tab were both cut). Ad refill is coded behind
-   `AdsEnabled = false`; premium IAP is a shelf-slot card only.
+   Pass and the Shop tab were both cut). Ad-refill client flow is fully wired
+   (§7: `RewardedAds` facade + WATCH AD button + `RequestAdRefill` online/offline
+   grant; simulated ad in the editor, real SDK = LevelPlay near release); premium
+   IAP is a shelf-slot card only.
 6. ⬜ Leaderboard server split lands with BACKEND.md Phase E (schema designed, §5).
 
 ---
