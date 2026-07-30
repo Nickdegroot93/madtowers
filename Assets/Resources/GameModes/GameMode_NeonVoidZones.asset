@@ -34,7 +34,7 @@ MonoBehaviour:
   spawnDelay: 0
   gridSpacing: 1
   horizontalPlacementBufferColumns: 3
-  powerUpChoiceEveryBlocks: 10
+  powerUpChoiceEveryBlocks: 20
   powerUpChoicePool:
   - {fileID: 11400000, guid: 0dca35f837a34a25996ebab97183f7aa, type: 2}
   - {fileID: 11400000, guid: 7b487e5f478044db94d833da9f8ab16d, type: 2}
@@ -122,6 +122,9 @@ MonoBehaviour:
   floorSegments:
   - centerColumn: 0
     columnCount: 9
+    baseHeightCells: 0
+    columnHeightSteps: 
+    pockets: []
   minimumCameraY: 0
   towerPeakScreenY: 0.5
   spawnPointScreenY: 0.9

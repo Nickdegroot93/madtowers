@@ -36,7 +36,7 @@ public class GameModeConfig : ScriptableObject
     [Header("Power Up Choices")]
     [Tooltip("Every this many placed blocks the game pauses and offers a pick of power-ups. 0 disables choices for this mode.")]
     [Min(0)]
-    [SerializeField] private int powerUpChoiceEveryBlocks = 10;
+    [SerializeField] private int powerUpChoiceEveryBlocks = 20;
     [Tooltip("Abilities that can appear in choice offers. Rarity weighting comes from each definition; availability conditions filter per level/run.")]
     [SerializeField] private AbilityDefinition[] powerUpChoicePool;
     [SerializeField] private float slowMotionScale = 0.5f;

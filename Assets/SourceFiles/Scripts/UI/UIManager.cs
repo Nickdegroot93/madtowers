@@ -17,11 +17,11 @@ public class UIManager : MonoBehaviour
 
     // Style values are code-owned (not serialized) so tweaks always take effect —
     // serialized defaults go stale in Unity's import caches (see memory/PHYSICS.md §2).
-    private static readonly Color HeartColor = new Color(0.93f, 0.29f, 0.34f, 1f);
     private static readonly Color NextPreviewTint = new Color(1f, 1f, 1f, 0.6f);
     private static readonly Color NextSecondaryTint = new Color(1f, 1f, 1f, 0.32f); // dimmer next-next slot
-    // Top bar: one dark rounded master card, two darker stat cards inside it, and a
-    // taller NEXT card vertically centered on it (equal overhang above and below).
+    // Top bar: one dark rounded master card with the OBJECTIVE card on the left ("62/100",
+    // "WAVE 3/5", "12.4/30m" - what you're chasing and how far you are), the lives sockets +
+    // pause on the right, and a taller NEXT card vertically centered between them.
     // Pure greyscale: near-opaque black tones so translucent layers stacking over each
     // other don't read as "weird lines" - each layer barely lets the one below through.
     private static readonly Color BarColor = new Color(0f, 0f, 0f, 0.62f);
@@ -56,7 +56,9 @@ public class UIManager : MonoBehaviour
     private const float BarSeamTuck = 1f;
     private const float HeartSize = 44f;
     private const float HeartGap = 10f;
-    private const int MaxHearts = 12;
+    private const int MaxHearts = RunState.MaxLives; // three fixed sockets, empty ones stay visible
+    // The "/target" tail of the objective value, tinted down so the live number leads.
+    private static readonly string TargetSuffixHex = ColorUtility.ToHtmlStringRGBA(StatLabelColor);
     private static readonly Color NudgePillColor = new Color(1f, 1f, 1f, 0.09f);
     private static readonly Color NudgeChevronColor = new Color(0.95f, 0.98f, 1f, 0.32f);
     private const float NudgeChevronSize = 30f;
@@ -100,6 +102,7 @@ public class UIManager : MonoBehaviour
             return;
         }
 
+        ResolveObjective();
         ConfigureHudStyle();
         _spawner = Object.FindAnyObjectByType<Spawner>();
 
@@ -157,50 +160,89 @@ public class UIManager : MonoBehaviour
         if (_spawner != null) HandleNextBlockChanged(_spawner.GetUpcomingBlockNames());
     }
 
+    // ---- objective readout (the left card) -----------------------------------------------
+    // What this run is chasing and how far along it is, in the win condition's OWN metric:
+    // PlaceBlocks counts STANDING blocks (BLOCKS.md - the live count IS the goal's numerator),
+    // waves come from the live modifier, height from the same signal the HUD always showed.
+    // Resolved once from the selected level; the captions are baked into the bar at build time.
+
+    private LevelTargetType _objectiveType = LevelTargetType.Endless;
+    private bool _waveObjective;
+    private int _targetBlocks;
+    private int _targetWaves;
+    private int _targetHeightMeters;
+    private int _shownWaveNumber = -1;
+
+    private bool IsHeightObjective =>
+        _objectiveType == LevelTargetType.ReachHeight || _objectiveType == LevelTargetType.TimedReachHeight;
+
+    private void ResolveObjective()
+    {
+        LevelDefinition level = LevelSelectionState.SelectedLevel;
+        _objectiveType = level != null ? level.TargetType : LevelTargetType.Endless;
+        if (level == null) return;
+
+        // Endless levels running the wave modifier still get the wave counter - just unsuffixed.
+        _waveObjective = _objectiveType == LevelTargetType.ClearWaves;
+        if (!_waveObjective && level.Modifiers != null)
+        {
+            for (int i = 0; i < level.Modifiers.Count; i++)
+            {
+                if (level.Modifiers[i] is HeightLimitWavesModifier) _waveObjective = true;
+            }
+        }
+
+        int target = Mathf.RoundToInt(level.TargetValue);
+        switch (_objectiveType)
+        {
+            case LevelTargetType.PlaceBlocks:
+            case LevelTargetType.TimedPlaceBlocks: _targetBlocks = target; break;
+            case LevelTargetType.ReachHeight:
+            case LevelTargetType.TimedReachHeight: _targetHeightMeters = target; break;
+            case LevelTargetType.ClearWaves: _targetWaves = target; break;
+        }
+    }
+
+    private static string WithTarget(string current, string target) =>
+        string.IsNullOrEmpty(target) ? current : $"{current}<color=#{TargetSuffixHex}>/{target}</color>";
+
     // The HUD total is the LIVE count of placed blocks still standing (drops when a block
     // is destroyed or falls off), not the cumulative progression score.
     private void HandleStandingBlocksChanged(int placedBlocks)
     {
-        if (scoreText != null) scoreText.text = placedBlocks.ToString();
+        if (scoreText == null || _waveObjective || IsHeightObjective) return;
+        scoreText.text = WithTarget(placedBlocks.ToString(),
+            _targetBlocks > 0 ? _targetBlocks.ToString() : null);
     }
 
     private void HandleHeightChanged(float height)
     {
-        if (heightText != null) heightText.text = $"{height:F1}m";
+        if (scoreText == null || !IsHeightObjective) return;
+        scoreText.text = WithTarget($"{height:F1}", $"{_targetHeightMeters}m");
     }
 
     private int _shownLives = -1;
-    private int _maxLivesSeen;
     private bool[] _heartFull;
 
-    // Two-state hearts (SHOP.md §2): a held life is the FULL heart, a lost life leaves an
-    // EMPTY socket behind - the row's length is the run's high-water mark, so losses read
-    // as "a slot went dark", never "a heart vanished".
+    // Two-state hearts (SHOP.md §2) in three FIXED sockets (RunState.MaxLives): a held life
+    // is the FULL heart, a missing one stays visible as the dark socket. Runs start at ZERO
+    // lives (lives are bought supplies), so the row must read as "empty slots to fill" from
+    // the first frame - never as UI that appears only once a life exists.
     private void HandleLivesChanged(int lives)
     {
-        EnsureHearts();
         if (_heartsContainer == null) return;
 
+        lives = Mathf.Min(lives, _hearts.Length);
         int previous = _shownLives < 0 ? lives : _shownLives;
         _shownLives = lives;
-        _maxLivesSeen = Mathf.Max(_maxLivesSeen, lives);
 
         for (int i = 0; i < _hearts.Length; i++)
         {
             if (_hearts[i] == null) continue;
-            bool inRow = i < _maxLivesSeen;
             bool full = i < lives;
-
-            if (!inRow)
-            {
-                _hearts[i].enabled = false;
-                _heartFull[i] = false;
-                continue;
-            }
-
-            bool wasFull = _heartFull[i] && _hearts[i].enabled;
+            bool wasFull = _heartFull[i];
             _heartFull[i] = full;
-            _hearts[i].enabled = true;
+
             if (full)
             {
                 SetHeartState(_hearts[i], full: true);
@@ -415,6 +457,9 @@ public class UIManager : MonoBehaviour
 
         if (livesText != null) livesText.gameObject.SetActive(false);
         if (nextBlockText != null) nextBlockText.gameObject.SetActive(false);
+        // Legacy too since the lives took its card: height now shows on the LEFT when (and
+        // only when) it is the objective - "in most cases height is completely irrelevant".
+        if (heightText != null) heightText.gameObject.SetActive(false);
 
         EnsureNudgeButtons();
     }
@@ -454,8 +499,8 @@ public class UIManager : MonoBehaviour
         _barRight.anchorMin = new Vector2(0.5f, 1f);
         _barRight.anchorMax = new Vector2(1f, 1f);
 
-        BuildBlocksCard(_barLeft);
-        BuildHeightCard(_barRight);
+        BuildObjectiveCard(_barLeft);
+        BuildLivesCard(_barRight);
         BuildNextCard(root);
 
         ApplyTopBarPosition();
@@ -519,38 +564,61 @@ public class UIManager : MonoBehaviour
         return rect;
     }
 
-    // Left segment's inset card: fully rounded inside the segment (visible corners and
-    // padding on every side - it never tucks under the NEXT card).
-    private void BuildBlocksCard(RectTransform barSegment)
+    // Left segment's inset card: THE OBJECTIVE - fully rounded inside the segment (visible
+    // corners and padding on every side - it never tucks under the NEXT card). The caption
+    // names the metric ("BLOCKS" / "WAVE" / "HEIGHT"); the value carries current/target.
+    private void BuildObjectiveCard(RectTransform barSegment)
     {
-        RectTransform card = CreateBarCard(barSegment, "BlocksCard", BarInsetColor);
+        RectTransform card = CreateBarCard(barSegment, "ObjectiveCard", BarInsetColor);
         card.anchorMin = Vector2.zero;
         card.anchorMax = Vector2.one;
         card.offsetMin = new Vector2(BarCardInset, BarCardInset);
         card.offsetMax = new Vector2(-BarCardInset, -BarCardInset);
 
-        // Icon + caption + value as one center-anchored group.
-        RectTransform group = CreateCenteredGroup(card, new Vector2(186f, 60f), 0f);
-        CreateBarIcon(group, RuntimeSprites.CubeGlyph(), new Vector2(24f, 0f), 42f,
+        if (_waveObjective || IsHeightObjective)
+        {
+            RectTransform group = CreateCenteredGroup(card, new Vector2(150f, 60f), 0f);
+            CreateBarCaption(group, _waveObjective ? "WAVE" : "HEIGHT", new Vector2(0f, 16f));
+            if (scoreText != null) PlaceBarValue(scoreText, group, new Vector2(0f, -12f));
+            return;
+        }
+
+        // Block goals keep the cube glyph; icon + caption + value as one center-anchored group.
+        RectTransform iconGroup = CreateCenteredGroup(card, new Vector2(186f, 60f), 0f);
+        CreateBarIcon(iconGroup, RuntimeSprites.CubeGlyph(), new Vector2(24f, 0f), 42f,
             new Color(0.90f, 0.90f, 0.90f, 0.85f));
-        CreateBarCaption(group, "BLOCKS", new Vector2(60f, 16f));
-        if (scoreText != null) PlaceBarValue(scoreText, group, new Vector2(60f, -12f));
+        CreateBarCaption(iconGroup, "BLOCKS", new Vector2(60f, 16f));
+        if (scoreText != null) PlaceBarValue(scoreText, iconGroup, new Vector2(60f, -12f));
     }
 
-    // Right segment's inset card: height value with the pause button at its right edge.
-    private void BuildHeightCard(RectTransform barSegment)
+    // Right segment's inset card: the run's three life sockets and the pause glyph as ONE
+    // centered cluster (mirrors the objective card's centered group). Lives took the old
+    // HEIGHT slot: the left card owns the objective (height shows there when it IS the
+    // objective), and the ever-visible dark sockets are what a zero-lives run has to offer
+    // the shop to fill. The WHOLE card is the pause hitbox - the glyph is small and a
+    // mid-run tap must not need precision, so a tap on the hearts pauses too.
+    private void BuildLivesCard(RectTransform barSegment)
     {
-        RectTransform card = CreateBarCard(barSegment, "HeightCard", BarInsetColor);
+        RectTransform card = CreateBarCard(barSegment, "LivesCard", BarInsetColor);
         card.anchorMin = Vector2.zero;
         card.anchorMax = Vector2.one;
         card.offsetMin = new Vector2(BarCardInset, BarCardInset);
         card.offsetMax = new Vector2(-BarCardInset, -BarCardInset);
 
-        RectTransform group = CreateCenteredGroup(card, new Vector2(130f, 60f), -30f);
-        CreateBarCaption(group, "HEIGHT", new Vector2(0f, 16f));
-        if (heightText != null) PlaceBarValue(heightText, group, new Vector2(0f, -12f));
+        Image cardImage = card.GetComponent<Image>();
+        cardImage.raycastTarget = true;
+        Button cardButton = card.gameObject.AddComponent<Button>();
+        cardButton.targetGraphic = cardImage;
+        cardButton.transition = Selectable.Transition.None;
+        cardButton.onClick.AddListener(OpenPauseMenu);
 
-        BuildPauseButton(card);
+        float heartsWidth = MaxHearts * HeartSize + (MaxHearts - 1) * HeartGap;
+        const float pauseGap = 18f;
+        const float pauseSize = 54f;
+        RectTransform group = CreateCenteredGroup(card,
+            new Vector2(heartsWidth + pauseGap + pauseSize, 60f), 0f);
+        BuildHearts(group, heartsWidth);
+        BuildPauseButton(group);
     }
 
     private static RectTransform CreateCenteredGroup(RectTransform parent, Vector2 size, float xOffset)
@@ -616,17 +684,33 @@ public class UIManager : MonoBehaviour
         text.enableAutoSizing = false;
         text.fontSize = 33f;
         text.raycastTarget = false;
+        // "62/100" must never wrap inside the fixed value box; overflow spills right instead.
+        text.textWrappingMode = TextWrappingModes.NoWrap;
+        text.overflowMode = TextOverflowModes.Overflow;
     }
 
-    // Pause lives inside the right card: darker than its card, warm pause bars.
-    private void BuildPauseButton(RectTransform card)
+    // Shared by the glyph and the whole-card hitbox. Guarded on availability: the glyph
+    // hides itself when pausing is off the table, but the card stays tappable and must
+    // quietly do nothing then.
+    private void OpenPauseMenu()
+    {
+        if (!PauseMenuController.PauseAvailable) return;
+        if (_pauseMenu == null && GameManager.Instance != null)
+        {
+            _pauseMenu = GameManager.Instance.GetComponent<PauseMenuController>();
+        }
+        if (_pauseMenu != null) _pauseMenu.ShowPauseMenu();
+    }
+
+    // The pause glyph at the right end of the lives cluster: darker than its card, warm bars.
+    private void BuildPauseButton(RectTransform group)
     {
         GameObject buttonObject = new GameObject("PauseButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         RectTransform rect = (RectTransform)buttonObject.transform;
-        rect.SetParent(card, false);
+        rect.SetParent(group, false);
         rect.anchorMin = rect.anchorMax = new Vector2(1f, 0.5f);
         rect.pivot = new Vector2(1f, 0.5f);
-        rect.anchoredPosition = new Vector2(-12f, 0f);
+        rect.anchoredPosition = Vector2.zero;
         rect.sizeDelta = new Vector2(54f, 54f);
 
         Image fill = buttonObject.GetComponent<Image>();
@@ -636,14 +720,7 @@ public class UIManager : MonoBehaviour
 
         Button button = buttonObject.AddComponent<Button>();
         button.targetGraphic = fill;
-        button.onClick.AddListener(() =>
-        {
-            if (_pauseMenu == null && GameManager.Instance != null)
-            {
-                _pauseMenu = GameManager.Instance.GetComponent<PauseMenuController>();
-            }
-            if (_pauseMenu != null) _pauseMenu.ShowPauseMenu();
-        });
+        button.onClick.AddListener(OpenPauseMenu);
 
         for (int i = 0; i < 2; i++)
         {
@@ -804,8 +881,21 @@ public class UIManager : MonoBehaviour
         {
             _topBarPositioned = true;
             _lastScreenState = screenState;
-            ApplyTopBarPosition();
-            if (_heartsContainer != null) _heartsContainer.anchoredPosition = HeartsAnchoredPosition();
+            ApplyTopBarPosition(); // the hearts ride the bar card, no separate reposition
+        }
+
+        // Wave objective: the wave number advances from a timed confirm (no HUD event fires
+        // at that moment), so the readout polls the live modifier - a comparison per frame.
+        if (_waveObjective && scoreText != null)
+        {
+            HeightLimitWavesModifier run = HeightLimitWavesModifier.ActiveRun;
+            int wave = (run != null ? run.WavesCleared : 0) + 1;
+            if (wave != _shownWaveNumber)
+            {
+                _shownWaveNumber = wave;
+                scoreText.text = WithTarget(wave.ToString(),
+                    _targetWaves > 0 ? _targetWaves.ToString() : null);
+            }
         }
 
         // The bar's pause button only shows during live play (same predicate the old
@@ -918,26 +1008,19 @@ public class UIManager : MonoBehaviour
         return _hudRoot;
     }
 
-    // Bottom-left lives indicator, lifted clear of the home indicator (bottom safe inset) and any
-    // rounded/cutout left edge (left safe inset); 24/22 are the base margins on a clean screen.
-    private Vector2 HeartsAnchoredPosition()
+    // The three life sockets, filling the left side of the centered lives cluster (they ride
+    // the bar's safe-area offset - no separate positioning). All sockets render from the
+    // first frame: full hearts fill in as lives are bought or earned.
+    private void BuildHearts(RectTransform group, float heartsWidth)
     {
-        Vector4 inset = RuntimeUiKit.SafeAreaInsets(HudCanvas()); // (left, right, top, bottom)
-        return new Vector2(24f + inset.x, 22f + inset.w);
-    }
-
-    private void EnsureHearts()
-    {
-        if (_heartsContainer != null || HudRoot() == null) return;
-
         GameObject container = new GameObject("Hearts", typeof(RectTransform));
         _heartsContainer = (RectTransform)container.transform;
-        _heartsContainer.SetParent(HudRoot(), false);
-        _heartsContainer.anchorMin = Vector2.zero;
-        _heartsContainer.anchorMax = Vector2.zero;
-        _heartsContainer.pivot = Vector2.zero;
-        _heartsContainer.anchoredPosition = HeartsAnchoredPosition();
-        _heartsContainer.sizeDelta = new Vector2(MaxHearts * (HeartSize + HeartGap), HeartSize);
+        _heartsContainer.SetParent(group, false);
+        _heartsContainer.anchorMin = new Vector2(0f, 0.5f);
+        _heartsContainer.anchorMax = new Vector2(0f, 0.5f);
+        _heartsContainer.pivot = new Vector2(0f, 0.5f);
+        _heartsContainer.anchoredPosition = Vector2.zero;
+        _heartsContainer.sizeDelta = new Vector2(heartsWidth, HeartSize);
 
         _hearts = new Image[MaxHearts];
         _heartFull = new bool[MaxHearts];
@@ -953,11 +1036,10 @@ public class UIManager : MonoBehaviour
             heartRect.sizeDelta = new Vector2(HeartSize, HeartSize);
 
             Image image = heart.GetComponent<Image>();
-            image.sprite = HeartSprites.Full();
             image.color = Color.white;
             image.raycastTarget = false;
-            image.enabled = false;
             _hearts[i] = image;
+            SetHeartState(image, full: false);
         }
     }
 

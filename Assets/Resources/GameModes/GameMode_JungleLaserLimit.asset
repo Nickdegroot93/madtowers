@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0fe95161ec248308119ac199c73fdda, type: 3}
   m_Name: GameMode_JungleLaserLimit
   m_EditorClassIdentifier: 
-  startingLives: 1
+  startingLives: 0
   initialFallSpeed: 2.2
   maxFallSpeed: 4.4
   difficultyScalingMode: 1
@@ -36,7 +36,7 @@ MonoBehaviour:
   spawnDelay: 0
   gridSpacing: 1
   horizontalPlacementBufferColumns: 2
-  powerUpChoiceEveryBlocks: 10
+  powerUpChoiceEveryBlocks: 0
   powerUpChoicePool:
   - {fileID: 11400000, guid: 0dca35f837a34a25996ebab97183f7aa, type: 2}
   - {fileID: 11400000, guid: 7b487e5f478044db94d833da9f8ab16d, type: 2}
@@ -124,6 +124,9 @@ MonoBehaviour:
   floorSegments:
   - centerColumn: 0
     columnCount: 9
+    baseHeightCells: 0
+    columnHeightSteps: 
+    pockets: []
   minimumCameraY: 0
   towerPeakScreenY: 0.5
   spawnPointScreenY: 0.9

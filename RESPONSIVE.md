@@ -103,7 +103,7 @@ Two things you **must** get right with the offset path:
 | Main menu bottom nav | bottom | `SafeAreaFitter` (menu safe layer) |
 | Main menu chapter content | all | `SafeAreaFitter` (menu safe layer) |
 | In-game top HUD bar + NEXT card | top | `SafeAreaTopInset` + `TopMarginBelowSafeArea`, re-applied in `UIManager.Update` |
-| In-game hearts (lives) | bottom-left | `SafeAreaInsets`, re-applied in `UIManager.Update` |
+| In-game hearts (lives) | top (inside the bar's right card) | ride the bar card - covered by the bar's own inset handling |
 | Ability/consumable slots | bottom-center | `SafeAreaBottomInset`, re-applied in `AbilityHud.Update`; gesture-exclusion rect extended to match |
 | Hold (pocket cache) bubble | left | `SafeAreaLeftInset`, re-applied in `HoldButton.Update` |
 | Menu background art | — | intentionally **full-screen**, bleeds behind the notch |

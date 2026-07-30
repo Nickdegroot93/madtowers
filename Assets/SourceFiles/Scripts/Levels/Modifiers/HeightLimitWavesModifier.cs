@@ -271,6 +271,14 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
             _wavesCleared = Mathf.Max(_wavesCleared, _currentWave);
             _currentWave++;
         }
+        // One ability offer per cleared wave (wave modes run no block-count cadence - their
+        // configs author powerUpChoiceEveryBlocks 0). Queued, not shown: the controller's own
+        // gates present it once the line has risen and nothing more important is on screen.
+        if (GameManager.Instance != null &&
+            GameManager.Instance.TryGetComponent(out AbilityChoiceController choices))
+        {
+            choices.QueueOffer();
+        }
         // Mathf.Max, not a bare assign: a mid-run re-solve (procedural floors) can leave the
         // live line ABOVE the next wave's solved height, and the laser must never descend into
         // a standing tower - the tighter solve waits for a later wave to catch up.

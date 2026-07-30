@@ -418,6 +418,12 @@ dispatched event (e.g. spawn a piece) without corrupting the in-flight loop.
   weights, then 3 uniform picks without replacement within it. An offer earned during
   a pause/win-verification is deferred, not dropped; the milestone check is
   crossing-based so bonus score can't skip one.
+- **Offer cadence** (2026-07-30, "abilities are a fun little extra"): every 20 placed
+  blocks (`GameModeConfig.powerUpChoiceEveryBlocks`, all non-wave configs). Wave modes
+  author it 0 (no block cadence) and instead grant ONE offer per cleared wave —
+  `HeightLimitWavesModifier` calls `AbilityChoiceController.QueueOffer()` on the
+  confirmed clear, presented under the same gates as milestone offers. Quick Study's
+  early-offer threshold still fires when the cadence is 0.
 - **Consumable gates** (blanket, before per-ability `CanActivate`): `GameManager.CurrentPhase == Playing`,
   not paused, and no active-piece session owns the field.
 - All ability components live on the GameManager's object (added in `GameManager.Awake`,

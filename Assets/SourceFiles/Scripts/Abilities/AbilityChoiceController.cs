@@ -54,12 +54,14 @@ public class AbilityChoiceController : MonoBehaviour
         if (_panelRoot != null || score <= 0 || score <= _lastHandledScore) return;
 
         GameModeConfig config = GameManager.Instance.ActiveConfig;
-        if (config == null || config.PowerUpChoiceEveryBlocks <= 0) return;
+        if (config == null) return;
 
         // Crossing-based: did this score change pass a milestone? (score can jump by
         // more than 1 under a ScorePerBlockBonus state - modulo would skip the offer.)
+        // interval 0 = no block-count cadence (wave modes offer per cleared wave instead,
+        // via QueueOffer) - but Quick Study below still honours its own early threshold.
         int interval = config.PowerUpChoiceEveryBlocks;
-        bool crossedMilestone = score / interval > _lastHandledScore / interval;
+        bool crossedMilestone = interval > 0 && score / interval > _lastHandledScore / interval;
         // The Quick Study supply (SHOP.md §3.2) front-loads ONE extra-early offer: the first
         // crossing of its own small threshold. Later milestones are untouched - the regular
         // interval crossings still fire from wherever the score is.
@@ -74,6 +76,11 @@ public class AbilityChoiceController : MonoBehaviour
 
         _offerPending = true;
     }
+
+    /// <summary>Queue an offer from outside the block-count cadence (Height-Limit Waves grants
+    /// one per cleared wave). Presented by Update under the same gates as milestone offers -
+    /// it waits out pauses, transitions and win verification rather than interrupting them.</summary>
+    public void QueueOffer() => _offerPending = true;
 
     private void Update()
     {

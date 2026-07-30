@@ -34,17 +34,7 @@ MonoBehaviour:
   spawnDelay: 0
   gridSpacing: 1
   horizontalPlacementBufferColumns: 3
-  groundedCheckDistance: 0.03
-  maxLandingImpactSpeed: 2
-  settleLinearThreshold: 0.08
-  settleAngularThreshold: 8
-  settleTime: 0.35
-  sleepSettledBlocksOnLock: 1
-  microAlignSettledBlocks: 1
-  microAlignMaxColumnFraction: 0.08
-  microAlignMaxRotationDegrees: 4
-  maxControlTime: 12
-  powerUpChoiceEveryBlocks: 10
+  powerUpChoiceEveryBlocks: 20
   powerUpChoicePool:
   - {fileID: 11400000, guid: 0dca35f837a34a25996ebab97183f7aa, type: 2}
   - {fileID: 11400000, guid: b3f17664730f4d1da698648589ef9fa0, type: 2}
@@ -102,6 +92,9 @@ MonoBehaviour:
   floorSegments:
   - centerColumn: 0
     columnCount: 9
+    baseHeightCells: 0
+    columnHeightSteps: 
+    pockets: []
   minimumCameraY: 0
   towerPeakScreenY: 0.5
   spawnPointScreenY: 0.9

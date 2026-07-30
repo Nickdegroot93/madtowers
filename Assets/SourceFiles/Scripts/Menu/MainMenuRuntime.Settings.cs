@@ -319,7 +319,7 @@ public static partial class MainMenuRuntime
         const float buttonsH = 108f;
         bool restoreOn = PremiumStore.HasStore;
         bool deleteOn = OnlineService.Enabled;   // no server account = nothing to delete
-        float blockH = identityH + buttonsH + 34f + ToggleRowH
+        float blockH = identityH + buttonsH + 34f + 2f * ToggleRowH
             + (restoreOn ? ToggleRowH : 0f) + (deleteOn ? ToggleRowH : 0f);
         RectTransform rows = NewCenteredRowsBlock(panel, blockH);
 
@@ -478,20 +478,45 @@ public static partial class MainMenuRuntime
         // -- delete account: store-required (BACKEND.md §3.7), styled as the danger it is.
         // The row only opens the confirm sheet - the real deletion lives behind an explicit
         // second step that spells out what dies.
+        Color dangerColor = new Color(0.86f, 0.32f, 0.26f, 1f);
         if (deleteOn)
         {
-            Color danger = new Color(0.86f, 0.32f, 0.26f, 1f);
             RectTransform delete = NewSettingsRow(rows, "DeleteAccount", rowTop, ToggleRowH);
+            rowTop -= ToggleRowH;
             BuildRowLabel(delete, MenuSprites.Person, "DELETE ACCOUNT",
-                "Erase your account and progress everywhere.", danger);
+                "Erase your account and progress everywhere.", dangerColor);
 
-            (Button deleteClick, _) = BuildRowActionButton(delete, "DeleteButton", "DELETE", danger, danger);
+            (Button deleteClick, _) = BuildRowActionButton(delete, "DeleteButton", "DELETE", dangerColor, dangerColor);
             deleteClick.onClick.AddListener(() =>
             {
                 SfxPlayer.Play("ui-button-click");
-                OpenDeleteAccountConfirm(danger);
+                OpenDeleteAccountConfirm(dangerColor);
             });
         }
+
+        // -- start over: the device-local factory reset (FactoryReset.EraseAllAndQuit) -
+        // everything back to a fresh install, including a new anonymous account next boot.
+        // Unlike DELETE ACCOUNT it needs no server and touches nothing server-side, so it
+        // works offline; the app closes itself as the confirmation. Two-tap confirm in the
+        // button itself (the row pattern), not a sheet - the quit is loud enough.
+        RectTransform startOver = NewSettingsRow(rows, "StartOver", rowTop, ToggleRowH);
+        BuildRowLabel(startOver, MenuSprites.Info, "START OVER",
+            "Wipe this device and restart as a fresh install.", dangerColor);
+
+        (Button eraseClick, TextMeshProUGUI eraseLabel) =
+            BuildRowActionButton(startOver, "EraseButton", "ERASE", dangerColor, dangerColor);
+        bool armed = false;
+        eraseClick.onClick.AddListener(() =>
+        {
+            SfxPlayer.Play("ui-button-click");
+            if (!armed)
+            {
+                armed = true;
+                eraseLabel.text = "TAP TO CONFIRM";
+                return;
+            }
+            FactoryReset.EraseAllAndQuit();
+        });
     }
 
     // ---- About / Legal tab --------------------------------------------------------------
