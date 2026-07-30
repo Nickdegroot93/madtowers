@@ -253,10 +253,23 @@ mobile-first, two full-width card rows with ≥80px buttons, prices ON the butto
 
 - **RUN LIVES row**: heart icon + "Survive a topple. Max 3." + three heart pips
   showing the current pick, and a big **[+ LIFE 40 $]** stepper button (plus [−]
-  once any are picked). The next pip's price always rides the + button.
-- **BOOSTS row**: shows the picked boost names (or "None picked.") + a big
-  **CHOOSE** button opening the boost tray — a bottom sheet listing the
-  level-relevant boosts as tall cards (name, one-line effect, price; tap toggles).
+  once any are picked). The next pip's price always rides the + button. (A
+  tappable-hearts direct-manipulation version was built and reverted the same day,
+  2026-07-29 — Nick prefers the stepper; don't reopen without asking.)
+- **BOOSTS row**: picked boosts render as **gold pill chips** (they should read as
+  equipment, echoing the picker cards), or "NONE PICKED"; plus a big
+  **CHOOSE/CHANGE** button opening the boost picker — a **centered modal** (the
+  bottom sheet was cut the same day: small text, flickery destroy-reopen refresh)
+  of full-width neon-edged toggle cards in the ability-picker chrome
+  (CardGradient + CardNeonRing): equipped = gold ring + halo + check badge +
+  EQUIPPED tag, available = quiet neutral ring with price, locked-out = dimmed
+  with SLOTS FULL. Card name + blurb centre vertically in the card. A slot
+  counter (n / 2) sits in the header; cards rebuild in place on toggle (the panel
+  never blinks); one big gold **DONE** closes — it confirms nothing, the cards
+  already did the work. The picker panel is EXACTLY the level modal's frame
+  (`ModalHeightWithSupplies`, shared constant) — a smaller panel lets the modal
+  underneath peek out around the edges; the card block centres in the leftover
+  space.
 - **Status line**: running TOTAL + WALLET. The attempts meter does NOT appear in
   the modal (its home is the top-bar chip) — except when it actually blocks play,
   when the status line becomes "OUT OF ATTEMPTS — NEXT IN mm:ss" (no buy-out —

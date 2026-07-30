@@ -82,6 +82,10 @@ public static partial class MainMenuRuntime
     private const float SupplyStatusH = 88f;    // total line / out-of-attempts row
     /// <summary>Extra modal height the section needs (LevelSummary adds this to H).</summary>
     private const float SuppliesSectionHeight = 2f * SupplyRowH + 2f * SupplyRowGap + SupplyStatusH + 26f;
+    /// <summary>The level modal's full height once supplies are on - shared with the boost
+    /// picker, which must be EXACTLY this tall: a shorter overlay panel lets the modal underneath
+    /// peek out above and below it, which reads as broken borders (Nick, 2026-07-29).</summary>
+    private const float ModalHeightWithSupplies = 768f + SuppliesSectionHeight;
 
     private static string CoinText(int amount) => amount.ToString("N0", CultureInfo.InvariantCulture);
 
@@ -189,6 +193,8 @@ public static partial class MainMenuRuntime
     }
 
     // ---- RUN LIVES: hearts + one big +/- stepper ----------------------------------------------
+    // (A tappable-hearts version was tried 2026-07-29 and reverted same day - Nick preferred the
+    // stepper; the hearts stay display-only.)
 
     private static void BuildLivesRow(SuppliesUi ui, RectTransform section, int wallet, float y)
     {
@@ -256,35 +262,46 @@ public static partial class MainMenuRuntime
         }
     }
 
-    // ---- BOOSTS: one big row, the tray does the choosing ----------------------------------------
+    // ---- BOOSTS: one big row, the picker does the choosing --------------------------------------
 
     private static void BuildBoostsRow(SuppliesUi ui, RectTransform section, float y)
     {
         RectTransform row = CreateSupplyCard(section, "BoostsRow", y, ui.ContentW);
 
-        CreateTmp(row, "Label", "BOOSTS", 21, TextPrimary, TextAnchor.UpperLeft,
+        CreateTmp(row, "Label", "BOOSTS", 22, TextPrimary, TextAnchor.UpperLeft,
             FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(24f, -20f), new Vector2(300f, 28f), new Vector2(0f, 1f));
+            new Vector2(24f, -24f), new Vector2(300f, 30f), new Vector2(0f, 1f));
 
-        string picked;
+        // Picked boosts render as gold pill CHIPS, not a text list - the equipped state should
+        // look like equipment, and the chips echo the picker cards the player just chose from.
         if (ui.Selection.Boosts.Count == 0)
         {
-            picked = "None picked.";
+            CreateTmp(row, "Picked", "NONE PICKED", 16, WithAlpha(TextMuted, 0.9f),
+                TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
+                new Vector2(24f, -60f), new Vector2(ui.ContentW - 300f, 24f), new Vector2(0f, 1f));
         }
         else
         {
-            var names = new List<string>();
+            float chipX = 24f;
             for (int i = 0; i < ui.Selection.Boosts.Count; i++)
             {
                 SupplyCatalog.BoostInfo info = SupplyCatalog.Info(ui.Selection.Boosts[i]);
-                if (info != null) names.Add(info.DisplayName);
+                if (info == null) continue;
+                string name = info.DisplayName.ToUpperInvariant();
+                float chipW = name.Length * 10.5f + 40f;
+                Image chip = CreateImage(row, $"Chip{i}", RuntimeSprites.RoundedPanel(),
+                    new Color(0.17f, 0.14f, 0.07f, 1f));
+                chip.type = Image.Type.Sliced;
+                chip.pixelsPerUnitMultiplier = 1.6f;
+                SetRect(chip.rectTransform, new Vector2(chipX, -56f), new Vector2(chipW, 40f), new Vector2(0f, 1f));
+                RuntimeUiKit.AddOutline(chip.rectTransform, WithAlpha(GoldBase, 0.6f));
+                TextMeshProUGUI chipText = CreateTmp(chip.transform, "Name", name, 16, GoldBase,
+                    TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+                chipText.characterSpacing = 1f;
+                AutoSize(chipText, 11f, 16f);
+                chipX += chipW + 12f;
             }
-            picked = string.Join("  +  ", names);
         }
-        CreateTmp(row, "Picked", picked, 15,
-            ui.Selection.Boosts.Count > 0 ? WithAlpha(GoldBase, 0.9f) : WithAlpha(TextMuted, 0.9f),
-            TextAnchor.UpperLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont,
-            new Vector2(24f, -52f), new Vector2(ui.ContentW - 280f, 22f), new Vector2(0f, 1f));
 
         Button choose = CreateSupplyButton(row, "Choose",
             ui.Selection.Boosts.Count > 0 ? "CHANGE" : "CHOOSE", 220f,
@@ -442,29 +459,34 @@ public static partial class MainMenuRuntime
             new Vector2(28f, 28f), new Vector2(1f, 0.5f));
     }
 
-    // ---- the boost tray -------------------------------------------------------------------------
+    // ---- the boost picker -------------------------------------------------------------------
+    // A centered modal of neon-edged toggle cards - the same CardGradient + CardNeonRing chrome
+    // as the in-run ability picker, the game's flagship surface, so pre-run and in-run choices
+    // read as one system. Replaced the bottom sheet (Nick, 2026-07-29: "the list that pops up
+    // from the bottom looks bad... text way too small... a bit buggy"): cards toggle IN PLACE
+    // (no destroy-and-reopen overlay, which flickered for a deferred-destroy frame), the
+    // equipped state is a gold ring + check badge readable at arm's length, and every card is a
+    // 148px full-width target. This is the pattern the genre trains: tile = toggle, price on
+    // the tile, no confirm step - DONE just closes.
 
     private static void OpenBoostTray(SuppliesUi ui)
     {
         if (ui.TrayOverlay != null) return;
 
-        GameObject overlay = RuntimeUiKit.CreateOverlayCanvas("Boost Tray", 5600);
+        GameObject overlay = RuntimeUiKit.CreateOverlayCanvas("Boost Picker", 5600);
         ui.TrayOverlay = overlay;
-        void CloseTray()
+        void ClosePicker()
         {
-            // Only release the state slot if WE still own it: the equip-reopen pattern
-            // replaces the tray, and a click on the dying tray's backdrop (alive for one
-            // deferred-destroy frame) must not orphan its successor.
             if (ui.TrayOverlay == overlay) ui.TrayOverlay = null;
             UnityEngine.Object.Destroy(overlay);
         }
 
-        Image backdrop = CreateImage(overlay.transform, "Backdrop", null, new Color(0f, 0f, 0f, 0.55f));
+        Image backdrop = CreateImage(overlay.transform, "Backdrop", null, new Color(0f, 0f, 0f, 0.6f));
         Stretch(backdrop.rectTransform);
         backdrop.raycastTarget = true;
         Button backdropButton = backdrop.gameObject.AddComponent<Button>();
         backdropButton.transition = Selectable.Transition.None;
-        backdropButton.onClick.AddListener(CloseTray);
+        backdropButton.onClick.AddListener(ClosePicker);
 
         // Which boosts exist for THIS level (irrelevant ones aren't shown at all, SHOP.md §3.2).
         var relevant = new List<SupplyCatalog.BoostInfo>();
@@ -473,102 +495,192 @@ public static partial class MainMenuRuntime
             if (SupplyCatalog.IsRelevant(SupplyCatalog.Boosts[i], ui.Level)) relevant.Add(SupplyCatalog.Boosts[i]);
         }
 
+        // EXACTLY the level modal's frame: same width, same height, same center - a smaller
+        // panel lets the modal underneath peek out around the edges (Nick, 2026-07-29). The
+        // cards centre themselves in whatever space the fixed frame leaves.
         const float W = 880f;
-        const float rowH = 108f;
-        const float headH = 92f;
-        float H = headH + 28f + relevant.Count * (rowH + 12f);
+        const float pad = 44f;
+        float contentW = W - pad * 2f;
+        const float cardH = 148f;
+        const float cardGap = 16f;
+        const float headH = 116f;
+        const float doneH = 96f;
+        float H = ModalHeightWithSupplies;
 
-        RectTransform sheet = CreateRect(overlay.transform, "Sheet",
-            new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(0f, 24f), new Vector2(W, H));
-        Image sheetImage = sheet.gameObject.AddComponent<Image>();
-        sheetImage.sprite = RuntimeSprites.RoundedPanel();
-        sheetImage.type = Image.Type.Sliced;
-        sheetImage.color = new Color(0.075f, 0.065f, 0.058f, 1f);
-        sheetImage.raycastTarget = true;
-        RuntimeUiKit.AddOutline(sheet, GoldOutline(0.22f));
+        RectTransform panel = CreateRect(overlay.transform, "Panel",
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+            Vector2.zero, new Vector2(W, H));
+        Image panelImage = panel.gameObject.AddComponent<Image>();
+        panelImage.sprite = RuntimeSprites.RoundedPanel();
+        panelImage.type = Image.Type.Sliced;
+        panelImage.color = new Color(0.075f, 0.065f, 0.058f, 1f);
+        panelImage.raycastTarget = true;
+        RuntimeUiKit.AddOutline(panel, GoldOutline(0.22f));
 
-        TextMeshProUGUI title = CreateTmp(sheet, "Title", "BOOSTS", 30, TextPrimary,
+        TextMeshProUGUI title = CreateTmp(panel, "Title", "BOOSTS", 36, TextPrimary,
             TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(40f, -26f), new Vector2(400f, 40f), new Vector2(0f, 1f));
+            new Vector2(pad, -34f), new Vector2(400f, 46f), new Vector2(0f, 1f));
         title.characterSpacing = 4f;
-        CreateTmp(sheet, "Sub", $"PICK UP TO {SupplyCatalog.MaxBoostsPerRun} - THIS RUN ONLY", 15,
+        CreateTmp(panel, "Sub", "THIS RUN ONLY - TAP TO EQUIP", 16,
             WithAlpha(TextMuted, 0.85f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(40f, -64f), new Vector2(600f, 20f), new Vector2(0f, 1f));
+            new Vector2(pad, -82f), new Vector2(600f, 22f), new Vector2(0f, 1f));
 
-        Image closeBg = CreateImage(sheet, "Close", MenuSprites.CircleBadge(
-            new Color(0.03f, 0.03f, 0.04f, 0.55f), new Color(0.03f, 0.03f, 0.04f, 0.55f)), Color.white);
+        // The slot counter tells the player where the cap lives before they hit it.
+        TextMeshProUGUI slots = CreateTmp(panel, "Slots", "", 26, GoldBase, TextAnchor.UpperRight,
+            FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(-pad - 76f, -38f), new Vector2(160f, 34f), new Vector2(1f, 1f));
+        slots.characterSpacing = 2f;
+
+        Color closeFill = new Color(0.03f, 0.03f, 0.04f, 0.55f);
+        Image closeBg = CreateImage(panel, "Close", MenuSprites.CircleBadge(closeFill, closeFill), Color.white);
         SetRect(closeBg.rectTransform, new Vector2(-20f, -20f), new Vector2(64f, 64f), new Vector2(1f, 1f));
         closeBg.raycastTarget = true;
         CreateTmp(closeBg.transform, "X", "X", 26, TextPrimary, TextAnchor.MiddleCenter,
             FontStyle.Bold, RuntimeUiKit.TitleFont);
         Button closeButton = closeBg.gameObject.AddComponent<Button>();
         closeButton.targetGraphic = closeBg;
-        closeButton.onClick.AddListener(CloseTray);
+        closeButton.onClick.AddListener(ClosePicker);
 
-        int wallet = PlayerProfileStore.Coins;
-        for (int i = 0; i < relevant.Count; i++)
+        // Cards live in their own container so a toggle rebuilds ONLY the cards, in place -
+        // the panel, header and backdrop never blink. The block centres vertically in the
+        // fixed frame's space between the header and the DONE button, so a level with three
+        // relevant boosts doesn't leave all its slack piled at the bottom.
+        float cardsBlockH = relevant.Count * (cardH + cardGap) - cardGap;
+        float availableH = H - headH - (40f + doneH + 24f);
+        float cardsTop = -headH - Mathf.Max(0f, (availableH - cardsBlockH) * 0.5f);
+        RectTransform cardsRoot = CreateRect(panel, "Cards",
+            new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
+            new Vector2(pad, cardsTop), new Vector2(contentW, cardsBlockH));
+
+        void RebuildCards()
         {
-            BuildBoostTrayRow(ui, sheet, relevant[i], wallet,
-                new Vector2(28f, -(headH + 16f) - i * (rowH + 12f)), W - 56f, rowH,
-                () => { CloseTray(); OpenBoostTray(ui); });
+            foreach (Transform child in cardsRoot) UnityEngine.Object.Destroy(child.gameObject);
+            slots.text = $"{ui.Selection.Boosts.Count} / {SupplyCatalog.MaxBoostsPerRun}";
+            int wallet = PlayerProfileStore.Coins;
+            for (int i = 0; i < relevant.Count; i++)
+            {
+                BuildBoostCard(ui, cardsRoot, relevant[i], wallet,
+                    new Vector2(0f, -i * (cardH + cardGap)), contentW, cardH, RebuildCards);
+            }
         }
+        RebuildCards();
+
+        // DONE: one big gold exit. Nothing to confirm - the cards already did the work and the
+        // modal's TOTAL line carries the bill; this is just "back", styled like a primary.
+        Image doneBg = CreateImage(panel, "Done", MenuSprites.RoundedGradient(
+            Color.Lerp(GoldBase, Color.white, 0.12f), Color.Lerp(GoldBase, Color.black, 0.22f)), Color.white);
+        doneBg.type = Image.Type.Sliced;
+        SetRect(doneBg.rectTransform, new Vector2(pad, 40f), new Vector2(contentW, doneH), new Vector2(0f, 0f));
+        doneBg.raycastTarget = true;
+        TextMeshProUGUI doneLabel = CreateTmp(doneBg.transform, "Label", "DONE", 30,
+            new Color(0.10f, 0.08f, 0.03f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        doneLabel.characterSpacing = 3f;
+        Button doneButton = doneBg.gameObject.AddComponent<Button>();
+        doneButton.targetGraphic = doneBg;
+        doneButton.onClick.AddListener(() =>
+        {
+            SfxPlayer.Play("ui-button-click");
+            ClosePicker();
+        });
     }
 
-    private static void BuildBoostTrayRow(SuppliesUi ui, RectTransform sheet, SupplyCatalog.BoostInfo boost,
-        int wallet, Vector2 position, float width, float height, Action reopen)
+    private static void BuildBoostCard(SuppliesUi ui, RectTransform cardsRoot, SupplyCatalog.BoostInfo boost,
+        int wallet, Vector2 position, float width, float height, Action refresh)
     {
         bool selected = ui.Selection.Boosts.Contains(boost.Id);
         bool slotsFull = !selected && ui.Selection.Boosts.Count >= SupplyCatalog.MaxBoostsPerRun;
         bool affordable = selected || ui.Selection.Total() + boost.Price <= wallet;
         bool interactable = selected || (!slotsFull && affordable);
 
-        Image card = CreateImage(sheet, $"Boost{boost.Id}", RuntimeSprites.RoundedPanel(),
-            selected ? new Color(0.15f, 0.12f, 0.08f, 1f) : new Color(0.10f, 0.09f, 0.08f, 1f));
-        card.type = Image.Type.Sliced;
-        SetRect(card.rectTransform, position, new Vector2(width, height), new Vector2(0f, 1f));
-        card.raycastTarget = true;
-        RuntimeUiKit.AddOutline(card.rectTransform,
-            selected ? WithAlpha(GoldBase, 0.85f) : WithAlpha(TextMuted, interactable ? 0.35f : 0.15f));
+        RectTransform card = CreateRect(cardsRoot, $"Boost{boost.Id}",
+            new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
+            position, new Vector2(width, height));
 
-        float alpha = interactable ? 1f : 0.45f;
-        CreateTmp(card.transform, "Name", boost.DisplayName, 22, WithAlpha(TextPrimary, alpha),
-            TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(28f, -18f), new Vector2(width - 260f, 28f), new Vector2(0f, 1f));
-        CreateTmp(card.transform, "Blurb", boost.Blurb, 17, WithAlpha(TextMuted, alpha),
-            TextAnchor.UpperLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont,
-            new Vector2(28f, -52f), new Vector2(width - 260f, 40f), new Vector2(0f, 1f));
+        // The ability-card chrome: near-black gradient slab, all the accent in the neon edge.
+        // Equipped = gold ring + soft halo; available = quiet neutral ring; locked-out = barely
+        // there. Padded past the card rect so the ring's outer bloom has room (AbilityCardView).
+        Color bodyTop = selected ? new Color(0.16f, 0.13f, 0.06f, 0.985f) : new Color(0.10f, 0.095f, 0.085f, 0.985f);
+        Color bodyBottom = selected ? new Color(0.075f, 0.06f, 0.03f, 0.985f) : new Color(0.055f, 0.05f, 0.045f, 0.985f);
+        Image body = CreateImage(card, "Body", RuntimeSprites.CardGradient(bodyTop, bodyBottom), Color.white);
+        body.type = Image.Type.Sliced;
+        StretchPadded(body.rectTransform, RuntimeSprites.CardSpritePad);
+        body.raycastTarget = true;
 
         if (selected)
         {
-            CreateTmp(card.transform, "Tag", "EQUIPPED", 20, GoldBase, TextAnchor.MiddleRight,
+            Image halo = CreateImage(card, "Halo", MenuSprites.GlowFrame(), WithAlpha(GoldBase, 0.20f));
+            halo.type = Image.Type.Sliced;
+            StretchPadded(halo.rectTransform, RuntimeSprites.CardSpritePad + 10f);
+            halo.raycastTarget = false;
+        }
+        Image ring = CreateImage(card, "Ring", RuntimeSprites.CardNeonRing(), selected
+            ? WithAlpha(Color.Lerp(GoldBase, Color.white, 0.15f), 0.95f)
+            : WithAlpha(TextMuted, interactable ? 0.30f : 0.12f));
+        ring.type = Image.Type.Sliced;
+        StretchPadded(ring.rectTransform, RuntimeSprites.CardSpritePad);
+        ring.raycastTarget = false;
+
+        // Name + blurb as one block, vertically centred in the card (they sat high with the
+        // slack piled below the blurb - Nick, 2026-07-29): both anchored to the card's middle,
+        // name resting its baseline just above the midline, blurb just below it.
+        float alpha = interactable ? 1f : 0.45f;
+        CreateTmp(card, "Name", boost.DisplayName.ToUpperInvariant(), 25, WithAlpha(TextPrimary, alpha),
+            TextAnchor.LowerLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(32f, 20f), new Vector2(width - 280f, 32f), new Vector2(0f, 0.5f));
+        CreateTmp(card, "Blurb", boost.Blurb, 18, WithAlpha(TextMuted, alpha),
+            TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont,
+            new Vector2(32f, -16f), new Vector2(width - 280f, 24f), new Vector2(0f, 0.5f));
+
+        if (selected)
+        {
+            // The check badge is the selected state's anchor - colour alone is not enough at a
+            // glance (and never on a colour-blind player's screen).
+            Image badge = CreateImage(card, "CheckBadge", MenuSprites.CircleBadge(GoldBase, GoldBase), Color.white);
+            SetCenteredAt(badge.rectTransform, new Vector2(1f, 0.5f), new Vector2(-64f, 14f), new Vector2(52f, 52f));
+            badge.raycastTarget = false;
+            Image check = CreateImage(badge.transform, "Check",
+                MenuSprites.CheckMark(new Color(0.10f, 0.08f, 0.03f, 1f)), Color.white);
+            check.preserveAspect = true;
+            SetCenteredAt(check.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(30f, 30f));
+            check.raycastTarget = false;
+            CreateTmp(card, "Tag", "EQUIPPED", 14, GoldBase, TextAnchor.MiddleCenter,
                 FontStyle.Bold, RuntimeUiKit.TitleFont,
-                new Vector2(width - 220f - 28f, 0f), new Vector2(220f, 30f), new Vector2(0f, 0.5f));
+                new Vector2(-64f, -32f), new Vector2(140f, 20f), new Vector2(1f, 0.5f));
         }
         else
         {
-            CreateCoinAmount(card.transform, boost.Price, 20, WithAlpha(TextPrimary, alpha), -28f);
-        }
-
-        if (slotsFull && !selected)
-        {
-            CreateTmp(card.transform, "Full", "MAX 2", 13, WithAlpha(LockedColor, 0.8f),
-                TextAnchor.LowerRight, FontStyle.Bold, RuntimeUiKit.TitleFont,
-                new Vector2(width - 220f - 28f, 10f), new Vector2(220f, 16f), new Vector2(0f, 0f));
+            CreateCoinAmount(card, boost.Price, 22,
+                affordable ? WithAlpha(TextPrimary, alpha) : WithAlpha(LockedColor, 0.8f), -32f);
+            if (slotsFull)
+            {
+                CreateTmp(card, "Full", "SLOTS FULL", 13, WithAlpha(LockedColor, 0.85f),
+                    TextAnchor.MiddleRight, FontStyle.Bold, RuntimeUiKit.TitleFont,
+                    new Vector2(-32f, -34f), new Vector2(160f, 18f), new Vector2(1f, 0.5f));
+            }
         }
 
         if (!interactable) return;
 
         Button button = card.gameObject.AddComponent<Button>();
-        button.targetGraphic = card;
+        button.targetGraphic = body;
         button.onClick.AddListener(() =>
         {
             SfxPlayer.Play("ui-button-click");
             if (selected) ui.Selection.Boosts.Remove(boost.Id);
             else ui.Selection.Boosts.Add(boost.Id);
-            RefreshSuppliesSection(ui);
-            reopen(); // rebuild the tray in place so tags/affordability update
+            RefreshSuppliesSection(ui);   // the modal's chips + TOTAL follow live
+            refresh();                    // cards rebuild in place - no overlay blink
         });
+    }
+
+    /// <summary>Stretch a child rect <paramref name="pad"/> past its parent on every side -
+    /// the padded-canvas pattern the neon chrome needs for its outer bloom.</summary>
+    private static void StretchPadded(RectTransform rect, float pad)
+    {
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = new Vector2(-pad, -pad);
+        rect.offsetMax = new Vector2(pad, pad);
     }
 
     // ---- the play button truth -------------------------------------------------------------

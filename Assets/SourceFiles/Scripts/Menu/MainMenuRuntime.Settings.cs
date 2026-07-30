@@ -228,19 +228,20 @@ public static partial class MainMenuRuntime
     private static void BuildSoundSettings(RectTransform panel, Color accent)
     {
         Color track = WithAlpha(TextPrimary, 0.16f);
-        float y = -150f; // first row top, just below the header hairline
+        RectTransform rows = NewCenteredRowsBlock(panel, 2f * SliderRowH + ToggleRowH);
+        float y = 0f;
 
-        y = BuildSliderRow(panel, MenuSprites.Note, "MUSIC VOLUME", "Adjust the background music volume.",
+        y = BuildSliderRow(rows, MenuSprites.Note, "MUSIC VOLUME", "Adjust the background music volume.",
             SettingsService.MusicVolume, accent, track, y,
             v => SettingsService.MusicVolume = v,
             SettingsService.Save);
 
-        y = BuildSliderRow(panel, MenuSprites.Speaker, "SOUND EFFECTS", "Adjust the game sound effects volume.",
+        y = BuildSliderRow(rows, MenuSprites.Speaker, "SOUND EFFECTS", "Adjust the game sound effects volume.",
             SettingsService.SfxVolume, accent, track, y,
             v => SettingsService.SfxVolume = v,
             CommitSetting); // the click on release doubles as a preview of the new SFX level
 
-        BuildToggleRow(panel, MenuSprites.SpeakerOff, "MUTE ALL", "Turn off all sounds.",
+        BuildToggleRow(rows, MenuSprites.SpeakerOff, "MUTE ALL", "Turn off all sounds.",
             SettingsService.MuteAll, accent, y,
             on => { SettingsService.MuteAll = on; CommitSetting(); });
     }
@@ -253,16 +254,17 @@ public static partial class MainMenuRuntime
         int selected = Array.IndexOf(rates, SettingsService.TargetFrameRate);
         if (selected < 0) selected = Array.IndexOf(rates, 60); // fall back to 60
 
-        float y = -150f;
-        y = BuildSegmentedRow(panel, MenuSprites.Monitor, "FRAME RATE", "Higher is smoother; lower saves battery.",
+        RectTransform rows = NewCenteredRowsBlock(panel, SegmentedRowH + 2f * ToggleRowH);
+        float y = 0f;
+        y = BuildSegmentedRow(rows, MenuSprites.Monitor, "FRAME RATE", "Higher is smoother; lower saves battery.",
             rateLabels, selected, accent, y,
             i => { SettingsService.TargetFrameRate = rates[i]; CommitSetting(); });
 
-        y = BuildToggleRow(panel, MenuSprites.Sparkle, "VISUAL EFFECTS", "Bloom, glow and particle effects.",
+        y = BuildToggleRow(rows, MenuSprites.Sparkle, "VISUAL EFFECTS", "Bloom, glow and particle effects.",
             SettingsService.VisualEffects, accent, y,
             on => { SettingsService.VisualEffects = on; CommitSetting(); });
 
-        BuildToggleRow(panel, MenuSprites.Shake, "SCREEN SHAKE", "Camera shake on impacts.",
+        BuildToggleRow(rows, MenuSprites.Shake, "SCREEN SHAKE", "Camera shake on impacts.",
             SettingsService.ScreenShake, accent, y,
             on => { SettingsService.ScreenShake = on; CommitSetting(); });
     }
@@ -273,7 +275,7 @@ public static partial class MainMenuRuntime
     {
         RectTransform button = CreateRect(panel, "CustomizeButton",
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            new Vector2(0f, 26f), new Vector2(440f, 176f));
+            new Vector2(0f, 26f), new Vector2(520f, 196f));
         Image image = button.gameObject.AddComponent<Image>();
         image.sprite = RuntimeSprites.RoundedPanel();
         image.type = Image.Type.Sliced;
@@ -290,56 +292,156 @@ public static partial class MainMenuRuntime
 
         Image icon = CreateImage(button, "Icon", MenuSprites.NavGrid(accent), Color.white);
         icon.preserveAspect = true;
-        SetCenteredAt(icon.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -44f), new Vector2(62f, 62f));
-        CreateTmp(button, "Label", "CUSTOMIZE LAYOUT", 28, TextPrimary, TextAnchor.MiddleCenter, FontStyle.Bold,
-            RuntimeUiKit.TitleFont, new Vector2(0f, -118f), new Vector2(420f, 40f), new Vector2(0.5f, 1f));
+        SetCenteredAt(icon.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -52f), new Vector2(70f, 70f));
+        CreateTmp(button, "Label", "CUSTOMIZE LAYOUT", 30, TextPrimary, TextAnchor.MiddleCenter, FontStyle.Bold,
+            RuntimeUiKit.TitleFont, new Vector2(0f, -132f), new Vector2(490f, 42f), new Vector2(0.5f, 1f));
 
         TextMeshProUGUI desc = CreateTmp(panel, "CustomizeDesc",
-            "Move & resize the consumable slots and set the nudge-guide visibility.", 18, SettingsDescColor,
-            TextAnchor.UpperCenter, FontStyle.Normal, RuntimeUiKit.TitleFont, new Vector2(0f, -104f),
-            new Vector2(560f, 60f), new Vector2(0.5f, 0.5f));
+            "Move & resize the consumable slots and set the nudge-guide visibility.", 20, SettingsDescColor,
+            TextAnchor.UpperCenter, FontStyle.Normal, RuntimeUiKit.TitleFont, new Vector2(0f, -116f),
+            new Vector2(600f, 60f), new Vector2(0.5f, 0.5f));
         desc.textWrappingMode = TextWrappingModes.Normal;
     }
 
     // ---- Account tab ------------------------------------------------------------------------
-    // Only a testing/replay affordance for now: a small button that clears the one-shot tutorial
-    // flag so the first-run walkthrough plays again. Leaves level progress untouched.
+    // Who you are, where you'd sign in (v2, 2026-07-29 - the tab held only the tutorial reset
+    // and read as empty; Nick: it should show what the Profile page shows). The same live
+    // identity as the Profile card - avatar, server name, guest/signed-in status, CHANGE NAME +
+    // SIGN IN - then the tutorial reset as a normal settings row. Deliberately NOT the whole
+    // Profile page: the Unlimited pitch and the online-play promo are storefront, not settings.
+    // Still to come per SETTINGS.md §4: delete account (server RPC exists, client flow doesn't),
+    // language.
     private static void BuildAccountSettings(RectTransform panel, Color accent)
     {
-        TextMeshProUGUI desc = CreateTmp(panel, "ResetTutorialDesc",
-            "Play the first-time controls walkthrough again on your next level.", 18, SettingsDescColor,
-            TextAnchor.UpperCenter, FontStyle.Normal, RuntimeUiKit.TitleFont, new Vector2(0f, 118f),
-            new Vector2(520f, 48f), new Vector2(0.5f, 0.5f));
-        desc.textWrappingMode = TextWrappingModes.Normal;
+        const float identityH = 168f;
+        const float buttonsH = 108f;
+        float blockH = identityH + buttonsH + ToggleRowH + 34f;
+        RectTransform rows = NewCenteredRowsBlock(panel, blockH);
 
-        RectTransform button = CreateRect(panel, "ResetTutorialButton",
-            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            new Vector2(0f, 40f), new Vector2(360f, 84f));
-        Image image = button.gameObject.AddComponent<Image>();
-        image.sprite = RuntimeSprites.RoundedPanel();
-        image.type = Image.Type.Sliced;
-        image.color = WithAlpha(accent, 0.14f);
-        RuntimeUiKit.AddOutline(button, WithAlpha(accent, 0.55f));
+        bool guest = !OnlineService.IsLinked;
 
-        CreateTmp(button, "Label", "RESET TUTORIAL", 24, TextPrimary, TextAnchor.MiddleCenter, FontStyle.Bold,
-            RuntimeUiKit.TitleFont, Vector2.zero, new Vector2(340f, 40f), new Vector2(0.5f, 0.5f));
+        // -- identity: avatar + live name + honest status (mirrors BuildProfileIdentityCard) --
+        RectTransform identity = NewSettingsRow(rows, "Identity", 0f, identityH);
 
-        // Confirmation line, hidden until the button is pressed.
-        TextMeshProUGUI confirm = CreateTmp(panel, "ResetTutorialConfirm", "", 18, WithAlpha(accent, 0.95f),
-            TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -34f),
-            new Vector2(520f, 44f), new Vector2(0.5f, 0.5f));
-        confirm.textWrappingMode = TextWrappingModes.Normal;
+        Image ring = CreateImage(identity, "AvatarRing", MenuSprites.CircleBadge(
+            new Color(0.12f, 0.11f, 0.09f, 1f), WithAlpha(accent, 0.55f)), Color.white);
+        SetRect(ring.rectTransform, new Vector2(10f, 0f), new Vector2(132f, 132f), new Vector2(0f, 0.5f));
+        Image person = CreateImage(ring.transform, "Person", MenuSprites.Person(WithAlpha(accent, 0.85f)), Color.white);
+        person.preserveAspect = true;
+        SetCenteredAt(person.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(64f, 64f));
 
-        Button click = button.gameObject.AddComponent<Button>();
-        click.targetGraphic = image;
-        click.transition = Selectable.Transition.None;
-        click.onClick.AddListener(() =>
+        TextMeshProUGUI name = CreateTmp(identity, "Name", OnlineService.DisplayName, 40, TextPrimary,
+            TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(172f, -26f), new Vector2(520f, 48f), new Vector2(0f, 1f));
+        TextMeshProUGUI status = CreateTmp(identity, "Status",
+            guest ? "GUEST ACCOUNT" : "SIGNED IN", 19,
+            guest ? WithAlpha(TextMuted, 0.9f) : WithAlpha(GoldBase, 0.9f),
+            TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(172f, -84f), new Vector2(520f, 26f), new Vector2(0f, 1f));
+        TextMeshProUGUI detail = CreateTmp(identity, "Detail",
+            guest ? "UNINSTALLING LOSES YOUR PROGRESS" : "YOUR PROGRESS IS SAFE ON EVERY DEVICE", 16,
+            WithAlpha(TextMuted, 0.65f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(172f, -116f), new Vector2(520f, 24f), new Vector2(0f, 1f));
+
+        // Same live-refresh + eager-unhook pattern as the Profile card (menu rebuilds are
+        // constant, auth changes are rare - never leave dead closures on the static event).
+        TextMeshProUGUI nameButtonLabel = null;
+        void RefreshIdentity()
+        {
+            if (name == null)
+            {
+                OnlineService.StateChanged -= RefreshIdentity;
+                return;
+            }
+            bool g = !OnlineService.IsLinked;
+            name.text = OnlineService.DisplayName;
+            status.text = g ? "GUEST ACCOUNT" : "SIGNED IN";
+            status.color = g ? WithAlpha(TextMuted, 0.9f) : WithAlpha(GoldBase, 0.9f);
+            detail.text = g ? "UNINSTALLING LOSES YOUR PROGRESS" : "YOUR PROGRESS IS SAFE ON EVERY DEVICE";
+            if (nameButtonLabel != null)
+                nameButtonLabel.text = HasClaimedName ? "CHANGE NAME" : "CLAIM YOUR NAME";
+        }
+        OnlineService.StateChanged += RefreshIdentity;
+        identity.gameObject.AddComponent<UnhookOnDestroy>().Unhook =
+            () => OnlineService.StateChanged -= RefreshIdentity;
+
+        // -- the identity actions: CHANGE NAME (dark) + SIGN IN (gold CTA) for guests ----------
+        RectTransform buttons = NewSettingsRow(rows, "IdentityButtons", -identityH, buttonsH);
+
+        RectTransform BuildIdentityButton(string goName, string label, bool gold, float minX, float maxX, Action onClick)
+        {
+            Image bg;
+            if (gold)
+            {
+                bg = CreateImage(buttons, goName, MenuSprites.RoundedGradient(
+                    new Color(1f, 0.86f, 0.45f, 1f), new Color(0.82f, 0.58f, 0.18f, 1f)), Color.white);
+            }
+            else
+            {
+                bg = CreateImage(buttons, goName, RuntimeSprites.RoundedPanel(), new Color(0.13f, 0.12f, 0.10f, 1f));
+                RuntimeUiKit.AddOutline(bg.transform, GoldOutline(0.35f));
+            }
+            bg.type = Image.Type.Sliced;
+            RectTransform rt = bg.rectTransform;
+            rt.anchorMin = new Vector2(minX, 0.5f);
+            rt.anchorMax = new Vector2(maxX, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.offsetMin = new Vector2(minX <= 0f ? 10f : 12f, -44f);
+            rt.offsetMax = new Vector2(maxX >= 1f ? -10f : -12f, 44f);
+            bg.raycastTarget = true;
+            CreateTmp(bg.transform, "Label", label, 24,
+                gold ? new Color(0.16f, 0.11f, 0.04f, 1f) : TextPrimary,
+                TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+            Button button = bg.gameObject.AddComponent<Button>();
+            button.targetGraphic = bg;
+            button.onClick.AddListener(() => { SfxPlayer.Play("ui-button-click"); onClick?.Invoke(); });
+            return rt;
+        }
+
+        string nameLabel = HasClaimedName ? "CHANGE NAME" : "CLAIM YOUR NAME";
+        RectTransform nameButton;
+        if (guest)
+        {
+            nameButton = BuildIdentityButton("ChangeName", nameLabel, false, 0f, 0.5f,
+                () => OpenClaimNameModal(RefreshIdentity));
+            BuildIdentityButton("SignIn", "SIGN IN", true, 0.5f, 1f, OpenSignInSheet);
+        }
+        else
+        {
+            nameButton = BuildIdentityButton("ChangeName", nameLabel, false, 0f, 1f,
+                () => OpenClaimNameModal(RefreshIdentity));
+        }
+        nameButtonLabel = nameButton.GetComponentInChildren<TextMeshProUGUI>();
+        AddRowDivider(buttons);
+
+        // -- tutorial replay, as a normal settings row (label cluster + right-edge action) -----
+        RectTransform reset = NewSettingsRow(rows, "ResetTutorial", -(identityH + buttonsH + 34f), ToggleRowH);
+        BuildRowLabel(reset, MenuSprites.Info, "RESET TUTORIAL",
+            "Replay the first-time controls walkthrough.", accent);
+
+        Image resetBg = CreateImage(reset, "ResetButton", RuntimeSprites.RoundedPanel(), WithAlpha(accent, 0.14f));
+        resetBg.type = Image.Type.Sliced;
+        SetRect(resetBg.rectTransform, new Vector2(0f, -36f), new Vector2(190f, 72f), new Vector2(1f, 1f));
+        RuntimeUiKit.AddOutline(resetBg.rectTransform, WithAlpha(accent, 0.55f));
+        resetBg.raycastTarget = true;
+        TextMeshProUGUI resetLabel = CreateTmp(resetBg.transform, "Label", "RESET", 22, TextPrimary,
+            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        Button resetClick = resetBg.gameObject.AddComponent<Button>();
+        resetClick.targetGraphic = resetBg;
+        resetClick.onClick.AddListener(() =>
         {
             ProgressStore.ResetTutorial();
             SfxPlayer.Play("ui-button-click");
-            confirm.text = "Done - the tutorial will replay on your next level.";
+            resetLabel.text = "DONE";   // the button itself confirms - no floating status line
         });
     }
+
+    // Row heights, one place: sized for phone thumbs (Apple 44pt / Material 48dp are MINIMUMS -
+    // AAA mobile settings run comfortably past them; the old 44px segments and 66x36 toggle
+    // read as desktop-web, Nick 2026-07-29).
+    private const float SliderRowH = 176f;
+    private const float ToggleRowH = 140f;
+    private const float SegmentedRowH = 208f;
 
     // A full-width row anchored under the header, inset by the row padding. Children anchor to its
     // top-left. Returns the row so callers can populate it.
@@ -352,16 +454,28 @@ public static partial class MainMenuRuntime
         return row;
     }
 
+    /// <summary>A container for a tab's rows, vertically CENTRED in the panel's space below the
+    /// header (biased slightly up for the footer). Rows top-aligned under the header left the
+    /// rest of the panel as a sea of empty glass - "not really game-like" (Nick, 2026-07-29).
+    /// Rows build into it top-down from y = 0.</summary>
+    private static RectTransform NewCenteredRowsBlock(RectTransform panel, float blockHeight)
+    {
+        RectTransform block = CreateRect(panel, "Rows",
+            new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 1f),
+            new Vector2(0f, blockHeight * 0.5f - 30f), new Vector2(0f, blockHeight));
+        return block;
+    }
+
     // Shared left cluster for every row: accent icon + name on one line, muted description below.
     private static void BuildRowLabel(RectTransform row, Func<Color, Sprite> icon, string name, string description, Color accent)
     {
         Image glyph = CreateImage(row, "RowIcon", icon(accent), Color.white);
         glyph.preserveAspect = true;
-        SetCenteredAt(glyph.rectTransform, new Vector2(0f, 1f), new Vector2(16f, -23f), new Vector2(32f, 32f));
-        CreateTmp(row, "RowName", name, 26, TextPrimary, TextAnchor.MiddleLeft, FontStyle.Bold,
-            RuntimeUiKit.TitleFont, new Vector2(46f, -6f), new Vector2(440f, 36f), new Vector2(0f, 1f));
-        CreateTmp(row, "RowDesc", description, 20, SettingsDescColor, TextAnchor.MiddleLeft, FontStyle.Normal,
-            RuntimeUiKit.TitleFont, new Vector2(0f, -48f), new Vector2(540f, 30f), new Vector2(0f, 1f));
+        SetCenteredAt(glyph.rectTransform, new Vector2(0f, 1f), new Vector2(18f, -25f), new Vector2(36f, 36f));
+        CreateTmp(row, "RowName", name, 28, TextPrimary, TextAnchor.MiddleLeft, FontStyle.Bold,
+            RuntimeUiKit.TitleFont, new Vector2(52f, -6f), new Vector2(460f, 38f), new Vector2(0f, 1f));
+        CreateTmp(row, "RowDesc", description, 21, SettingsDescColor, TextAnchor.MiddleLeft, FontStyle.Normal,
+            RuntimeUiKit.TitleFont, new Vector2(0f, -52f), new Vector2(560f, 30f), new Vector2(0f, 1f));
     }
 
     private static void AddRowDivider(RectTransform row)
@@ -379,24 +493,24 @@ public static partial class MainMenuRuntime
     private static float BuildSliderRow(RectTransform panel, Func<Color, Sprite> icon, string name, string description,
         float value01, Color accent, Color track, float top, UnityEngine.Events.UnityAction<float> onChanged, Action onCommit)
     {
-        const float height = 150f;
+        float height = SliderRowH;
         RectTransform row = NewSettingsRow(panel, $"{name}Row", top, height);
         BuildRowLabel(row, icon, name, description, accent);
 
-        TextMeshProUGUI pct = CreateTmp(row, "Pct", $"{Mathf.RoundToInt(value01 * 100f)}%", 24, TextPrimary,
-            TextAnchor.MiddleRight, FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -98f), new Vector2(130f, 36f),
+        TextMeshProUGUI pct = CreateTmp(row, "Pct", $"{Mathf.RoundToInt(value01 * 100f)}%", 27, TextPrimary,
+            TextAnchor.MiddleRight, FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -106f), new Vector2(130f, 40f),
             new Vector2(1f, 1f));
 
         RectTransform sliderArea = CreateRect(row, "SliderArea", new Vector2(0f, 1f), new Vector2(1f, 1f),
             new Vector2(0.5f, 1f), Vector2.zero, Vector2.zero);
-        sliderArea.offsetMin = new Vector2(0f, -136f);   // band bottom
-        sliderArea.offsetMax = new Vector2(-140f, -96f); // band top; right inset leaves room for "%"
+        sliderArea.offsetMin = new Vector2(0f, -156f);   // band bottom
+        sliderArea.offsetMax = new Vector2(-146f, -100f); // band top; right inset leaves room for "%"
 
         Slider slider = CreateSlider(sliderArea, "Slider", value01, accent, track, v =>
         {
             pct.text = $"{Mathf.RoundToInt(v * 100f)}%";
             onChanged?.Invoke(v);
-        });
+        }, trackThickness: 18f, handleSize: 54f);
         slider.gameObject.AddComponent<PointerUpProxy>().OnRelease = onCommit;
 
         AddRowDivider(row);
@@ -408,11 +522,13 @@ public static partial class MainMenuRuntime
     private static float BuildToggleRow(RectTransform panel, Func<Color, Sprite> icon, string name, string description,
         bool value, Color accent, float top, UnityEngine.Events.UnityAction<bool> onChanged)
     {
-        const float height = 116f;
+        float height = ToggleRowH;
         RectTransform row = NewSettingsRow(panel, $"{name}Row", top, height);
         BuildRowLabel(row, icon, name, description, accent);
+        // 104x56: a real console-style switch, not a web checkbox - the row's one control
+        // should look grabbable from arm's length.
         RectTransform pill = CreateRect(row, "Toggle", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
-            new Vector2(0f, -40f), new Vector2(66f, 36f));
+            new Vector2(0f, -36f), new Vector2(104f, 56f));
         CreatePillToggle(pill, value, accent, onChanged);
         return top - height;
     }
@@ -421,15 +537,18 @@ public static partial class MainMenuRuntime
     private static float BuildSegmentedRow(RectTransform panel, Func<Color, Sprite> icon, string name, string description,
         string[] options, int selectedIndex, Color accent, float top, UnityEngine.Events.UnityAction<int> onSelect)
     {
-        const float height = 150f;
+        float height = SegmentedRowH;
         RectTransform row = NewSettingsRow(panel, $"{name}Row", top, height);
         BuildRowLabel(row, icon, name, description, accent);
 
+        // An 84px band: each segment is a full-size button (the 44px v1 was the "way too
+        // small" poster child - a frame-rate picker is tapped once ever, but it sets the
+        // quality bar for the whole screen).
         RectTransform band = CreateRect(row, "Segments", new Vector2(0f, 1f), new Vector2(1f, 1f),
             new Vector2(0.5f, 1f), Vector2.zero, Vector2.zero);
-        band.offsetMin = new Vector2(0f, -140f);
-        band.offsetMax = new Vector2(0f, -96f);
-        CreateSegmentedControl(band, options, selectedIndex, accent, onSelect);
+        band.offsetMin = new Vector2(0f, -184f);
+        band.offsetMax = new Vector2(0f, -100f);
+        CreateSegmentedControl(band, options, selectedIndex, accent, onSelect, fontSize: 26);
 
         AddRowDivider(row);
         return top - height;
@@ -443,20 +562,20 @@ public static partial class MainMenuRuntime
     {
         const float pad = 34f;
 
-        // Icon and title share one line (matched vertical centres at y = -46).
+        // Icon and title share one line (matched vertical centres at y = -48).
         Image headerIcon = CreateImage(panel, "PanelIcon", icon(accent), Color.white);
         headerIcon.preserveAspect = true;
-        SetCenteredAt(headerIcon.rectTransform, new Vector2(0f, 1f), new Vector2(pad + 20f, -47f), new Vector2(40f, 40f));
-        CreateTmp(panel, "PanelTitle", title, 33, TextPrimary, TextAnchor.MiddleLeft, FontStyle.Bold,
-            RuntimeUiKit.TitleFont, new Vector2(pad + 52f, -23f), new Vector2(560f, 48f), new Vector2(0f, 1f));
+        SetCenteredAt(headerIcon.rectTransform, new Vector2(0f, 1f), new Vector2(pad + 22f, -49f), new Vector2(44f, 44f));
+        CreateTmp(panel, "PanelTitle", title, 36, TextPrimary, TextAnchor.MiddleLeft, FontStyle.Bold,
+            RuntimeUiKit.TitleFont, new Vector2(pad + 58f, -23f), new Vector2(560f, 52f), new Vector2(0f, 1f));
 
         // Description on the line below, left-aligned under the icon.
-        CreateTmp(panel, "PanelDesc", description, 20, SettingsDescColor, TextAnchor.MiddleLeft, FontStyle.Normal,
-            RuntimeUiKit.TitleFont, new Vector2(pad, -86f), new Vector2(580f, 30f), new Vector2(0f, 1f));
+        CreateTmp(panel, "PanelDesc", description, 21, SettingsDescColor, TextAnchor.MiddleLeft, FontStyle.Normal,
+            RuntimeUiKit.TitleFont, new Vector2(pad, -90f), new Vector2(580f, 30f), new Vector2(0f, 1f));
 
         // Hairline under the whole header, stretched to (near) the full panel width.
         RectTransform divider = CreateRect(panel, "PanelDivider",
-            new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -124f), new Vector2(0f, 2f));
+            new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -128f), new Vector2(0f, 2f));
         divider.offsetMin = new Vector2(pad - 6f, divider.offsetMin.y);
         divider.offsetMax = new Vector2(-(pad - 6f), divider.offsetMax.y);
         Image dividerImage = divider.gameObject.AddComponent<Image>();
@@ -469,7 +588,7 @@ public static partial class MainMenuRuntime
     {
         RectTransform rect = CreateRect(panel, "CustomGameButton",
             new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(0f, 20f), new Vector2(360f, 58f));
+            new Vector2(0f, 20f), new Vector2(380f, 72f));
         Image image = rect.gameObject.AddComponent<Image>();
         image.sprite = RuntimeSprites.RoundedPanel();
         image.type = Image.Type.Sliced;

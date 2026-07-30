@@ -54,7 +54,8 @@ public static partial class MainMenuRuntime
         bool suppliesOn = AttemptsService.MetaEnabled && ProgressStore.LevelId(level) != null;
         // 768 not 840: the description is one line, so the supplies section moves up into
         // the slack instead of floating below dead space (Nick's whitespace note).
-        float H = suppliesOn ? 768f + SuppliesSectionHeight : 840f;
+        // ModalHeightWithSupplies is shared with the boost picker, which must match exactly.
+        float H = suppliesOn ? ModalHeightWithSupplies : 840f;
         Color panelColor = new Color(0.075f, 0.065f, 0.058f, 1f);
         RectTransform panel = CreateRect(overlay.transform, "Panel",
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),

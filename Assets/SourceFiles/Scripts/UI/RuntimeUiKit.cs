@@ -402,11 +402,9 @@ public static partial class RuntimeUiKit
     /// parent rect. <paramref name="onChanged"/> fires continuously while dragging - add a
     /// <c>PointerUpProxy</c> to the returned slider for a commit-on-release hook.</summary>
     public static Slider CreateSlider(Transform parent, string name, float value,
-        Color fillColor, Color trackColor, UnityEngine.Events.UnityAction<float> onChanged)
+        Color fillColor, Color trackColor, UnityEngine.Events.UnityAction<float> onChanged,
+        float trackThickness = 14f, float handleSize = 44f) // handle >= 44pt-equivalent minimum; callers on roomy screens pass bigger
     {
-        const float trackThickness = 14f;
-        const float handleSize = 44f; // >= 44pt-equivalent so it's a comfortable touch grab
-
         RectTransform root = CreateRect(parent, name, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
         Slider slider = root.gameObject.AddComponent<Slider>();
 

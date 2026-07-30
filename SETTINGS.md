@@ -1,14 +1,28 @@
 # SETTINGS.md — Settings screen design spec
 
-**Status:** binding. **Sound & Haptics and Graphics are implemented; Controls is
-in progress** — `MainMenuRuntime.Settings.cs` builds the chapter-themed rail and
+**Status:** binding. **Sound & Haptics, Graphics, Controls and Account are
+implemented** — `MainMenuRuntime.Settings.cs` builds the chapter-themed rail and
 panels (wired into `BuildMenu` under `MenuTab.Settings`), `SettingsService`
 persists settings. Sound has Music / SFX sliders + Mute-all; Graphics has frame
 rate / visual effects / screen shake (central gates — see
 [GRAPHICS.md](GRAPHICS.md)); Controls launches a full-screen **HUD layout editor**
 (`HudLayoutEditor`) — drag/resize the two consumable slots (independently or
-linked), set the nudge-guide opacity in context, reset to default. Notifications /
-Account / About still show the empty placeholder (§4). Pairs with
+linked), set the nudge-guide opacity in context, reset to default. **Account**
+(v2, 2026-07-29 — it held only the tutorial reset and read as empty) carries the
+same live identity as the Profile card: avatar + server name + guest/signed-in
+status with CHANGE NAME / SIGN IN (reusing `OpenClaimNameModal` /
+`OpenSignInSheet`, refresh + eager-unhook on `OnlineService.StateChanged`), then
+RESET TUTORIAL as a normal row — deliberately NOT the Unlimited pitch or the
+online promo (storefront, not settings). Notifications / About still show the
+empty placeholder (§4).
+
+**Mobile sizing pass (2026-07-29, binding):** the v1 controls read as desktop-web
+("way too small", Nick). Floor rules now: segmented bands **84px** tall (font 26),
+toggles **104×56**, slider track 18 / handle 54, row names 28 / descriptions 21,
+row heights 176 (slider) / 140 (toggle) / 208 (segmented) — hold this bar for
+every future row; Apple 44pt / Material 48dp are minimums, not targets. Each
+tab's rows build into `NewCenteredRowsBlock`, vertically centred in the panel
+below the header — top-aligned rows left the panel a sea of empty glass. Pairs with
 [RESPONSIVE.md](RESPONSIVE.md) for layout and the chapter theming in `MainMenuRuntime`.
 
 This doc covers **structure + theming + the tab set**. Individual per-tab
@@ -115,7 +129,7 @@ Listed so we can judge whether each tab earns its place. Tagged by readiness:
 | **Graphics** | ✅ **implemented:** frame-rate cap (30/60/120) · visual effects (bloom/post + prefab VFX) · screen shake. Enforced via central gates — see [GRAPHICS.md](GRAPHICS.md). Quality preset / render-scale can layer in later. |
 | **Sound & Haptics** | ✅ **implemented:** music volume · SFX volume · mute all. Vibration on/off (+ intensity) deferred — no haptics layer yet. |
 | **Notifications** | daily-reward / lives-refilled / events push toggles — **infra** (push, Phase E backend) |
-| **Account** | sign in (Apple/Google, BACKEND.md §3) · cloud save · linked accounts · restore purchases · **delete account** (store-required, BACKEND.md §3.7 — server RPC built + smoke-tested, client button NOT built yet) · language — backend live since 2026-07-23 (anonymous accounts, cloud sync; sign-in surfaces live in the Profile tab + link prompt, BACKEND.md §10.5); this Settings tab itself is still unbuilt |
+| **Account** | ✅ **implemented (v2):** identity block (avatar · live server name · guest/signed-in status · CHANGE NAME · SIGN IN) + reset tutorial. Still to come: **delete account** (store-required, BACKEND.md §3.7 — server RPC built + smoke-tested, client button NOT built yet) · restore purchases · language |
 | **About / Legal** | version + build · privacy policy · terms · support / contact · rate the app · credits — **now**, store-required, static |
 
 ---
