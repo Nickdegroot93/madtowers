@@ -270,9 +270,18 @@ public static class ProgressStore
         Save();
     }
 
-    /// <summary>The one-time premium unlock ("MadTowers Unlimited"). Setter exists for the
-    /// future IAP path only - nothing in the game calls it yet.</summary>
+    /// <summary>The one-time premium unlock ("MadTowers Unlimited"). This save flag is the
+    /// OFFLINE ENTITLEMENT CACHE - what makes airplane-mode play work. Only PremiumStore
+    /// writes it (purchase / restore / server sync-down); the server's attempts.premium
+    /// stays the online authority (BACKEND.md §6.4).</summary>
     public static bool IsPremium => Data.premiumUnlocked;
+
+    public static void SetPremium(bool premium)
+    {
+        if (Data.premiumUnlocked == premium) return;
+        Data.premiumUnlocked = premium;
+        Save();
+    }
 
     /// <summary>Has the one-time post-chapter-1 "sign in" card been shown (BACKEND.md §3.4)?</summary>
     public static bool WasLinkPromptShown() => Data.linkPromptShownAtUnixUtc > 0;
@@ -281,6 +290,16 @@ public static class ProgressStore
     {
         if (Data.linkPromptShownAtUnixUtc > 0) return;
         Data.linkPromptShownAtUnixUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        Save();
+    }
+
+    /// <summary>Account deletion (BACKEND.md §3.7): a TOTAL wipe - progress, wallet, premium,
+    /// everything. Unlike ResetAll below this spares nothing: the player asked for their data
+    /// to be erased, and the local save IS their data. Premium comes back via the store's
+    /// RESTORE PURCHASES, never from a leftover flag.</summary>
+    public static void WipeForAccountDeletion()
+    {
+        _data = new PlayerProgress();
         Save();
     }
 

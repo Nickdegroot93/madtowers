@@ -86,6 +86,9 @@ public static class AttemptsSync
         _meterCharged = meterCharged;
         _fetchedAtRealtime = Time.realtimeSinceStartup;
         HasServerState = true;
+        // Direct call, not a Changed subscriber: writing the offline entitlement cache is
+        // part of applying a server verdict (see PremiumStore.CacheServerVerdict for why).
+        PremiumStore.CacheServerVerdict();
         Changed?.Invoke();
     }
 

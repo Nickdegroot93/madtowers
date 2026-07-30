@@ -85,18 +85,29 @@ public static class RunGate
             done?.Invoke(new GateResult { Allowed = true });
             return;
         }
-        if (!OnlineService.IsReady)
-        {
-            done?.Invoke(new GateResult { Offline = true });
-            return;
-        }
         // One grant in flight, ever: a second BeginRun during the window (close the modal,
         // reopen, tap PLAY again on a slow connection) would charge a second attempt and
         // whichever grant landed last would reload the scene over the other's run. Callers
         // treat "busy" as a quiet no-op; the pending grant still launches when it lands.
+        // Checked BEFORE the offline fallback: the premium local-allow below is synchronous,
+        // and letting it race a pending grant would double-launch (review 2026-07-30).
         if (_grantPending)
         {
             done?.Invoke(new GateResult { DeniedReason = "busy" });
+            return;
+        }
+        if (!OnlineService.IsReady)
+        {
+            // Premium owns offline play (SHOP.md §7, Nick 2026-07-30): the run starts
+            // locally and UNRANKED - no server run_id means ReportFinish no-ops, so the
+            // score can never reach a leaderboard. Free players stay online-required.
+            if (PremiumStore.IsPremium)
+            {
+                ClearActiveRun();
+                done?.Invoke(new GateResult { Allowed = true });
+                return;
+            }
+            done?.Invoke(new GateResult { Offline = true });
             return;
         }
 
@@ -133,6 +144,11 @@ public static class RunGate
             err =>
             {
                 _grantPending = false;
+                // No premium local-allow HERE, deliberately (review 2026-07-30): callers
+                // launch on Allowed even after the modal closed - correct for a charged
+                // grant, a surprise scene-load for an uncharged local run that can arrive
+                // ~10s after the player walked away. Premium answers Offline like everyone;
+                // the NEXT tap lands in the synchronous offline branch above and plays.
                 done?.Invoke(new GateResult { Offline = true });
             });
     }

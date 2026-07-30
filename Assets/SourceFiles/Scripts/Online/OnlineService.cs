@@ -216,6 +216,34 @@ public class OnlineService : MonoBehaviour
     public static void LinkWithGoogle(Action<bool, string> done) =>
         done?.Invoke(false, "Sign-in arrives with the mobile build");
 
+    /// <summary>Store-required account deletion (BACKEND.md §3.7). The server RPC deletes
+    /// the auth user (FK cascades wipe profiles/progress/scores/attempts/runs/ad_grants);
+    /// on its ok the client factory-resets - dead session dropped, local save wiped - and
+    /// boots a fresh anonymous account, exactly like a first launch. On failure NOTHING is
+    /// touched: deletion is all-or-nothing from the player's view. Premium is deliberately
+    /// wiped with the rest (it's account data); the store purchase itself survives and
+    /// RESTORE PURCHASES brings it back.</summary>
+    public static void DeleteAccount(Action<bool, string> done)
+    {
+        if (!Enabled || !IsReady || _instance == null)
+        {
+            done?.Invoke(false, "offline");
+            return;
+        }
+        RpcRaw("delete_account", "{}",
+            _ =>
+            {
+                SupabaseSession.Clear();
+                ProgressStore.WipeForAccountDeletion();
+                _displayName = null;
+                IsLinked = false;
+                _failedBoots = 0;
+                _instance.StartCoroutine(_instance.BootCo());   // fresh anonymous account
+                done?.Invoke(true, null);
+            },
+            err => done?.Invoke(false, err));
+    }
+
     // ---- boot ---------------------------------------------------------------------------
 
     private IEnumerator BootCo()

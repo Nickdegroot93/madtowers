@@ -195,6 +195,7 @@ public static partial class MainMenuRuntime
         else if (tab == SettingsTab.Graphics) BuildGraphicsSettings(panel, light);
         else if (tab == SettingsTab.Controls) BuildControlsSettings(panel, chapter, light);
         else if (tab == SettingsTab.Account) BuildAccountSettings(panel, light);
+        else if (tab == SettingsTab.About) BuildAboutSettings(panel, light);
         else BuildEmptyState(panel, icon, light);
     }
 
@@ -307,7 +308,8 @@ public static partial class MainMenuRuntime
     // Who you are, where you'd sign in (v2, 2026-07-29 - the tab held only the tutorial reset
     // and read as empty; Nick: it should show what the Profile page shows). The same live
     // identity as the Profile card - avatar, server name, guest/signed-in status, CHANGE NAME +
-    // SIGN IN - then the tutorial reset as a normal settings row. Deliberately NOT the whole
+    // SIGN IN - then RESTORE PURCHASES (store-connected builds only; Apple mandates the
+    // affordance) and the tutorial reset as normal settings rows. Deliberately NOT the whole
     // Profile page: the Unlimited pitch and the online-play promo are storefront, not settings.
     // Still to come per SETTINGS.md §4: delete account (server RPC exists, client flow doesn't),
     // language.
@@ -315,7 +317,10 @@ public static partial class MainMenuRuntime
     {
         const float identityH = 168f;
         const float buttonsH = 108f;
-        float blockH = identityH + buttonsH + ToggleRowH + 34f;
+        bool restoreOn = PremiumStore.HasStore;
+        bool deleteOn = OnlineService.Enabled;   // no server account = nothing to delete
+        float blockH = identityH + buttonsH + 34f + ToggleRowH
+            + (restoreOn ? ToggleRowH : 0f) + (deleteOn ? ToggleRowH : 0f);
         RectTransform rows = NewCenteredRowsBlock(panel, blockH);
 
         bool guest = !OnlineService.IsLinked;
@@ -330,18 +335,27 @@ public static partial class MainMenuRuntime
         person.preserveAspect = true;
         SetCenteredAt(person.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(64f, 64f));
 
+        // Identity texts stretch from the avatar to the row's right edge (fixed 520px
+        // overflowed the panel on narrow aspects) - ellipsis over overlap, always.
         TextMeshProUGUI name = CreateTmp(identity, "Name", OnlineService.DisplayName, 40, TextPrimary,
             TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(172f, -26f), new Vector2(520f, 48f), new Vector2(0f, 1f));
+            new Vector2(172f, -22f), new Vector2(520f, 56f), new Vector2(0f, 1f));
+        // Box must clear the 40pt line HEIGHT (~46px): Ellipsis truncates whole lines, and a
+        // line that misses vertically renders as NOTHING, not as overflow. Autosize is the
+        // second belt for long claimed names.
+        StretchIdentityText(name, -22f, 56f);
+        AutoSize(name, 24f, 40f);
         TextMeshProUGUI status = CreateTmp(identity, "Status",
             guest ? "GUEST ACCOUNT" : "SIGNED IN", 19,
             guest ? WithAlpha(TextMuted, 0.9f) : WithAlpha(GoldBase, 0.9f),
             TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(172f, -84f), new Vector2(520f, 26f), new Vector2(0f, 1f));
+        StretchIdentityText(status, -84f, 26f);
         TextMeshProUGUI detail = CreateTmp(identity, "Detail",
             guest ? "UNINSTALLING LOSES YOUR PROGRESS" : "YOUR PROGRESS IS SAFE ON EVERY DEVICE", 16,
             WithAlpha(TextMuted, 0.65f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(172f, -116f), new Vector2(520f, 24f), new Vector2(0f, 1f));
+        StretchIdentityText(detail, -116f, 24f);
 
         // Same live-refresh + eager-unhook pattern as the Profile card (menu rebuilds are
         // constant, auth changes are rare - never leave dead closures on the static event).
@@ -415,24 +429,224 @@ public static partial class MainMenuRuntime
         AddRowDivider(buttons);
 
         // -- tutorial replay, as a normal settings row (label cluster + right-edge action) -----
-        RectTransform reset = NewSettingsRow(rows, "ResetTutorial", -(identityH + buttonsH + 34f), ToggleRowH);
+        float rowTop = -(identityH + buttonsH + 34f);
+        RectTransform reset = NewSettingsRow(rows, "ResetTutorial", rowTop, ToggleRowH);
+        rowTop -= ToggleRowH;
         BuildRowLabel(reset, MenuSprites.Info, "RESET TUTORIAL",
             "Replay the first-time controls walkthrough.", accent);
 
-        Image resetBg = CreateImage(reset, "ResetButton", RuntimeSprites.RoundedPanel(), WithAlpha(accent, 0.14f));
-        resetBg.type = Image.Type.Sliced;
-        SetRect(resetBg.rectTransform, new Vector2(0f, -36f), new Vector2(190f, 72f), new Vector2(1f, 1f));
-        RuntimeUiKit.AddOutline(resetBg.rectTransform, WithAlpha(accent, 0.55f));
-        resetBg.raycastTarget = true;
-        TextMeshProUGUI resetLabel = CreateTmp(resetBg.transform, "Label", "RESET", 22, TextPrimary,
-            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
-        Button resetClick = resetBg.gameObject.AddComponent<Button>();
-        resetClick.targetGraphic = resetBg;
+        (Button resetClick, TextMeshProUGUI resetLabel) =
+            BuildRowActionButton(reset, "ResetButton", "RESET", accent, TextPrimary);
         resetClick.onClick.AddListener(() =>
         {
             ProgressStore.ResetTutorial();
             SfxPlayer.Play("ui-button-click");
             resetLabel.text = "DONE";   // the button itself confirms - no floating status line
+        });
+
+        // -- restore purchases: new phone / reinstall recovers Unlimited from the store's
+        // purchase history (Apple mandates a visible affordance). The button speaks its own
+        // verdict, same pattern as RESET.
+        if (restoreOn)
+        {
+            RectTransform restore = NewSettingsRow(rows, "RestorePurchases", rowTop, ToggleRowH);
+            rowTop -= ToggleRowH;
+            BuildRowLabel(restore, MenuSprites.Sparkle, "RESTORE PURCHASES",
+                "Bought Unlimited before? Get it back on this device.", accent);
+
+            (Button restoreClick, TextMeshProUGUI restoreLabel) =
+                BuildRowActionButton(restore, "RestoreButton", "RESTORE", accent, TextPrimary);
+            restoreClick.onClick.AddListener(() =>
+            {
+                SfxPlayer.Play("ui-button-click");
+                restoreClick.interactable = false;
+                restoreLabel.text = "...";
+                PremiumStore.Restore(result =>
+                {
+                    if (restoreLabel == null) return;   // tab switched while in flight
+                    restoreClick.interactable = true;
+                    restoreLabel.text = result switch
+                    {
+                        PremiumStoreResult.Restored => "RESTORED",
+                        PremiumStoreResult.NothingToRestore => "NOTHING FOUND",
+                        _ => "FAILED - RETRY",
+                    };
+                });
+            });
+        }
+
+        // -- delete account: store-required (BACKEND.md §3.7), styled as the danger it is.
+        // The row only opens the confirm sheet - the real deletion lives behind an explicit
+        // second step that spells out what dies.
+        if (deleteOn)
+        {
+            Color danger = new Color(0.86f, 0.32f, 0.26f, 1f);
+            RectTransform delete = NewSettingsRow(rows, "DeleteAccount", rowTop, ToggleRowH);
+            BuildRowLabel(delete, MenuSprites.Person, "DELETE ACCOUNT",
+                "Erase your account and progress everywhere.", danger);
+
+            (Button deleteClick, _) = BuildRowActionButton(delete, "DeleteButton", "DELETE", danger, danger);
+            deleteClick.onClick.AddListener(() =>
+            {
+                SfxPlayer.Play("ui-button-click");
+                OpenDeleteAccountConfirm(danger);
+            });
+        }
+    }
+
+    // ---- About / Legal tab --------------------------------------------------------------
+    // Store-required (SETTINGS.md §4): version, privacy policy, terms, support, credits.
+    // The URLs are PLACEHOLDERS until the policy is written and hosted - GOLIVE.md §6 tracks
+    // replacing them; shipping with these live would 404.
+    private const string PrivacyPolicyUrl = "https://madtowers.app/privacy";   // TODO(go-live)
+    private const string TermsUrl = "https://madtowers.app/terms";             // TODO(go-live)
+    private const string SupportEmail = "support@madtowers.app";               // TODO(go-live)
+
+    private static void BuildAboutSettings(RectTransform panel, Color accent)
+    {
+        float blockH = 4f * ToggleRowH + 60f;
+        RectTransform rows = NewCenteredRowsBlock(panel, blockH);
+        float rowTop = 0f;
+
+        // Version: informational row, value where the control would sit.
+        RectTransform version = NewSettingsRow(rows, "Version", rowTop, ToggleRowH);
+        rowTop -= ToggleRowH;
+        BuildRowLabel(version, MenuSprites.Info, "VERSION", "Game build you are playing.", accent);
+        CreateTmp(version, "Value", $"v{Application.version}", 24, WithAlpha(TextPrimary, 0.9f),
+            TextAnchor.MiddleRight, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(0f, -36f), new Vector2(190f, 34f), new Vector2(1f, 1f));
+
+        rowTop = BuildLinkRow(rows, rowTop, "PrivacyPolicy", "PRIVACY POLICY",
+            "What we store and how to delete it.", accent, () => Application.OpenURL(PrivacyPolicyUrl));
+        rowTop = BuildLinkRow(rows, rowTop, "Terms", "TERMS OF SERVICE",
+            "The rules of playing MadTowers.", accent, () => Application.OpenURL(TermsUrl));
+        rowTop = BuildLinkRow(rows, rowTop, "Support", "SUPPORT",
+            "Stuck or found a bug? Write to us.", accent,
+            () => Application.OpenURL($"mailto:{SupportEmail}"));
+
+        CreateTmp(rows, "Credits", "MADE BY NICK DE GROOT  -  © 2026", 16,
+            WithAlpha(TextMuted, 0.7f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(0f, rowTop - 16f), new Vector2(600f, 24f), new Vector2(0.5f, 1f));
+    }
+
+    /// <summary>A row whose action opens an external link (browser / mail). Same anatomy as
+    /// every settings row: label cluster + right-edge button.</summary>
+    private static float BuildLinkRow(RectTransform rows, float top, string goName, string name,
+        string description, Color accent, Action onOpen)
+    {
+        RectTransform row = NewSettingsRow(rows, goName, top, ToggleRowH);
+        BuildRowLabel(row, MenuSprites.Info, name, description, accent);
+
+        (Button button, _) = BuildRowActionButton(row, "OpenButton", "OPEN", accent, TextPrimary);
+        button.onClick.AddListener(() =>
+        {
+            SfxPlayer.Play("ui-button-click");
+            onOpen?.Invoke();
+        });
+        return top - ToggleRowH;
+    }
+
+    /// <summary>The standard right-edge action for a settings row: 190x72 accent-tinted
+    /// pill + outline, autosized label. Returns the button UNWIRED (callers add their own
+    /// onClick) and the label so verdicts can be spoken on it (DONE / RESTORED / ...).</summary>
+    private static (Button button, TextMeshProUGUI label) BuildRowActionButton(
+        RectTransform row, string goName, string label, Color accent, Color textColor)
+    {
+        Image bg = CreateImage(row, goName, RuntimeSprites.RoundedPanel(), WithAlpha(accent, 0.14f));
+        bg.type = Image.Type.Sliced;
+        SetRect(bg.rectTransform, new Vector2(0f, -36f), new Vector2(190f, 72f), new Vector2(1f, 1f));
+        RuntimeUiKit.AddOutline(bg.rectTransform, WithAlpha(accent, 0.55f));
+        bg.raycastTarget = true;
+        TextMeshProUGUI text = CreateTmp(bg.transform, "Label", label, 22, textColor,
+            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        AutoSize(text, 14f, 22f);
+        Button button = bg.gameObject.AddComponent<Button>();
+        button.targetGraphic = bg;
+        return (button, text);
+    }
+
+    /// <summary>The all-or-nothing confirm sheet for account deletion. CANCEL is the big
+    /// easy target; the destructive button is explicit about permanence. Success rebuilds
+    /// the menu over the fresh anonymous account; failure speaks on the sheet and leaves
+    /// everything untouched.</summary>
+    private static void OpenDeleteAccountConfirm(Color danger)
+    {
+        GameObject overlay = RuntimeUiKit.CreateOverlayCanvas("Delete Account Confirm", 5800);
+
+        Image backdrop = CreateImage(overlay.transform, "Backdrop", null, new Color(0f, 0f, 0f, 0.72f));
+        Stretch(backdrop.rectTransform);
+        backdrop.raycastTarget = true;
+        Button backdropClose = backdrop.gameObject.AddComponent<Button>();
+        backdropClose.transition = Selectable.Transition.None;
+        backdropClose.onClick.AddListener(() => UnityEngine.Object.Destroy(overlay));
+
+        Image panel = CreateImage(overlay.transform, "Panel", RuntimeSprites.RoundedPanel(),
+            new Color(0.075f, 0.065f, 0.058f, 1f));
+        panel.type = Image.Type.Sliced;
+        SetRect(panel.rectTransform, Vector2.zero, new Vector2(760f, 560f), new Vector2(0.5f, 0.5f));
+        panel.raycastTarget = true;
+        RuntimeUiKit.AddOutline(panel.rectTransform, WithAlpha(danger, 0.5f));
+
+        TextMeshProUGUI title = CreateTmp(panel.transform, "Title", "DELETE YOUR ACCOUNT?", 34, danger,
+            TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(0f, -44f), new Vector2(680f, 44f), new Vector2(0.5f, 1f));
+        title.characterSpacing = 2f;
+        TextMeshProUGUI body = CreateTmp(panel.transform, "Body",
+            "This permanently erases your account, progress, scores and coins on every device. " +
+            "It cannot be undone.\n\nPurchases can be restored from the app store afterwards.",
+            21, WithAlpha(TextPrimary, 0.9f), TextAnchor.UpperLeft, FontStyle.Normal,
+            RuntimeUiKit.TitleFont, new Vector2(0f, -112f), new Vector2(640f, 190f), new Vector2(0.5f, 1f));
+        body.textWrappingMode = TextWrappingModes.Normal;
+
+        // CANCEL: the big, bright, easy choice.
+        Image cancelBg = CreateImage(panel.transform, "Cancel", MenuSprites.RoundedGradient(
+            Color.Lerp(GoldBase, Color.white, 0.12f), Color.Lerp(GoldBase, Color.black, 0.22f)), Color.white);
+        cancelBg.type = Image.Type.Sliced;
+        SetRect(cancelBg.rectTransform, new Vector2(0f, 130f), new Vector2(640f, 96f), new Vector2(0.5f, 0f));
+        cancelBg.raycastTarget = true;
+        CreateTmp(cancelBg.transform, "Label", "KEEP MY ACCOUNT", 26, new Color(0.10f, 0.08f, 0.03f, 1f),
+            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        Button cancel = cancelBg.gameObject.AddComponent<Button>();
+        cancel.targetGraphic = cancelBg;
+        cancel.onClick.AddListener(() =>
+        {
+            SfxPlayer.Play("ui-button-click");
+            UnityEngine.Object.Destroy(overlay);
+        });
+
+        // The destructive choice: quiet, outlined, explicit.
+        Image confirmBg = CreateImage(panel.transform, "Confirm", RuntimeSprites.RoundedPanel(),
+            WithAlpha(danger, 0.12f));
+        confirmBg.type = Image.Type.Sliced;
+        SetRect(confirmBg.rectTransform, new Vector2(0f, 36f), new Vector2(640f, 78f), new Vector2(0.5f, 0f));
+        RuntimeUiKit.AddOutline(confirmBg.rectTransform, WithAlpha(danger, 0.6f));
+        confirmBg.raycastTarget = true;
+        TextMeshProUGUI confirmLabel = CreateTmp(confirmBg.transform, "Label", "DELETE FOREVER", 23, danger,
+            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        Button confirm = confirmBg.gameObject.AddComponent<Button>();
+        confirm.targetGraphic = confirmBg;
+        confirm.onClick.AddListener(() =>
+        {
+            SfxPlayer.Play("ui-button-click");
+            confirm.interactable = false;
+            cancel.interactable = false;
+            backdropClose.interactable = false;   // no half-cancelled deletions
+            confirmLabel.text = "DELETING...";
+            OnlineService.DeleteAccount((ok, reason) =>
+            {
+                if (ok)
+                {
+                    // Fresh anonymous account is booting; rebuild over the clean slate.
+                    UnityEngine.Object.Destroy(overlay);
+                    BuildMenu();
+                    return;
+                }
+                if (confirmLabel == null) return;
+                confirm.interactable = true;
+                cancel.interactable = true;
+                backdropClose.interactable = true;
+                confirmLabel.text = reason == "offline" ? "OFFLINE - TRY LATER" : "FAILED - TRY AGAIN";
+            });
         });
     }
 
@@ -466,16 +680,53 @@ public static partial class MainMenuRuntime
         return block;
     }
 
+    /// <summary>Right-edge space every row label must keep clear: the widest row control
+    /// (190px action button / 104px toggle) plus a margin. Labels STRETCH to this, never a
+    /// fixed pixel width - fixed 560px descriptions ran straight under the buttons on
+    /// narrow aspects (Nick's screenshot, 2026-07-30; RESPONSIVE.md).</summary>
+    private const float RowControlReserve = 216f;
+
     // Shared left cluster for every row: accent icon + name on one line, muted description below.
     private static void BuildRowLabel(RectTransform row, Func<Color, Sprite> icon, string name, string description, Color accent)
     {
         Image glyph = CreateImage(row, "RowIcon", icon(accent), Color.white);
         glyph.preserveAspect = true;
         SetCenteredAt(glyph.rectTransform, new Vector2(0f, 1f), new Vector2(18f, -25f), new Vector2(36f, 36f));
-        CreateTmp(row, "RowName", name, 28, TextPrimary, TextAnchor.MiddleLeft, FontStyle.Bold,
+        TextMeshProUGUI rowName = CreateTmp(row, "RowName", name, 28, TextPrimary, TextAnchor.MiddleLeft, FontStyle.Bold,
             RuntimeUiKit.TitleFont, new Vector2(52f, -6f), new Vector2(460f, 38f), new Vector2(0f, 1f));
-        CreateTmp(row, "RowDesc", description, 21, SettingsDescColor, TextAnchor.MiddleLeft, FontStyle.Normal,
+        StretchRowText(rowName, 52f, -6f, 38f);
+        TextMeshProUGUI rowDesc = CreateTmp(row, "RowDesc", description, 21, SettingsDescColor, TextAnchor.MiddleLeft, FontStyle.Normal,
             RuntimeUiKit.TitleFont, new Vector2(0f, -52f), new Vector2(560f, 30f), new Vector2(0f, 1f));
+        StretchRowText(rowDesc, 0f, -52f, 30f);
+    }
+
+    /// <summary>Identity-block variant: stretch from the avatar column (x = 172) to the
+    /// row's right edge, ellipsis on overflow.</summary>
+    private static void StretchIdentityText(TextMeshProUGUI text, float top, float height)
+    {
+        RectTransform rect = text.rectTransform;
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(1f, 1f);
+        rect.pivot = new Vector2(0f, 1f);
+        rect.offsetMin = new Vector2(172f, top - height);
+        rect.offsetMax = new Vector2(-4f, top);
+        // Truncate, not Ellipsis: Archivo Black has no '…' glyph, so Ellipsis just logs a
+        // warning and falls back to Truncate anyway.
+        text.overflowMode = TextOverflowModes.Truncate;
+    }
+
+    /// <summary>Re-anchor a row label to stretch from <paramref name="left"/> to the row's
+    /// right edge minus the control reserve, truncating with an ellipsis rather than
+    /// running under the control.</summary>
+    private static void StretchRowText(TextMeshProUGUI text, float left, float top, float height)
+    {
+        RectTransform rect = text.rectTransform;
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(1f, 1f);
+        rect.pivot = new Vector2(0f, 1f);
+        rect.offsetMin = new Vector2(left, top - height);
+        rect.offsetMax = new Vector2(-RowControlReserve, top);
+        text.overflowMode = TextOverflowModes.Truncate;   // see StretchIdentityText
     }
 
     private static void AddRowDivider(RectTransform row)

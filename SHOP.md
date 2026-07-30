@@ -211,9 +211,23 @@ meter, so victories feel free and failures create the decision point).
   Don't re-add without him.
 - **Premium unlock — one-time IAP at $3.99/€3.99 ("MadTowers Unlimited"): attempts
   system removed forever.** Pitched on the Profile page as "the full game, forever —
-  no ads, unlimited lives, one purchase". This is "buying the game." It never touches run
-  supplies, boosts, coins, or leaderboards — premium players and free players
-  compete identically. Receipt validation per BACKEND.md §6.4 when it ships.
+  no ads, unlimited lives, **offline play**, one purchase". This is "buying the game." It
+  never touches run supplies, boosts, coins, or leaderboards — premium players and free
+  players compete identically. Receipt validation per BACKEND.md §6.4 when it ships.
+  **Offline play rule (Nick, 2026-07-30, binding):** free players need a connection to
+  start campaign runs (BACKEND.md §5.1); premium players play offline, but those runs are
+  **UNRANKED** — no server run, no leaderboard submission, local bests only (the modal
+  says so: "OFFLINE — RUNS WON'T RANK ON THE LEADERBOARDS"). **As built (2026-07-30):**
+  the whole client flow is live — `PremiumStore` (provider facade, `Scripts/Shop/`,
+  mirrors `RewardedAds`: no provider on device = COMING SOON CTA; simulated store sheet
+  in the editor, with an EditorPrefs-backed "purchase history" so restore is honestly
+  testable), BUY on the Profile card (localized price via `PriceText`), owned state,
+  RESTORE PURCHASES row in Settings → Account, local save flag as the **offline
+  entitlement cache** (synced down from the server verdict), premium offline unranked
+  runs via `RunGate`. The top-bar attempts chip flips to **heart + ∞, no "+"** for
+  premium (Nick 2026-07-30) — it outranks the OFFLINE chip (unlimited is true either
+  way; the modal carries the unranked warning). Remaining to make it real money:
+  **GOLIVE.md §3** (Unity IAP adapter, store products, `validate_receipt`).
 - Attempts gate **campaign runs only**. Custom Game (editor-only today) and any
   future practice mode don't spend attempts.
 
@@ -389,8 +403,10 @@ spending supplies (JUICE.md principle 1).
    win-refund; soft-landing gate; top-bar chip; Profile tab per §9.2 — the Hour
    Pass and the Shop tab were both cut). Ad-refill client flow is fully wired
    (§7: `RewardedAds` facade + WATCH AD button + `RequestAdRefill` online/offline
-   grant; simulated ad in the editor, real SDK = LevelPlay near release); premium
-   IAP is a shelf-slot card only.
+   grant; simulated ad in the editor, real SDK = LevelPlay near release). Premium
+   client flow is fully wired too (§7: `PremiumStore` facade, Profile BUY, Settings
+   restore, offline entitlement cache, premium offline unranked runs; real SDK =
+   Unity IAP near release, GOLIVE.md §3).
 6. ⬜ Leaderboard server split lands with BACKEND.md Phase E (schema designed, §5).
 
 ---

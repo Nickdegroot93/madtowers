@@ -113,11 +113,20 @@ public static partial class MainMenuRuntime
         BuildCurrencyCard(bar, statBackground, "$", profile.Coins.ToString("N0", CultureInfo.InvariantCulture), null);
 
         // The attempts chip (SHOP.md §7): real meter once the meta systems unlock, absent
-        // before that (soft landing) and absent for premium (the meter doesn't exist for
-        // them). While the online layer is enabled but unreachable the chip says OFFLINE -
-        // campaign runs can't start (BACKEND.md §5.1) and that's the top bar's job to admit.
+        // before that (soft landing). PREMIUM outranks everything (Nick 2026-07-30): the
+        // chip stays, showing heart + ∞ with no "+" - unlimited is true online AND offline,
+        // so it even outranks the OFFLINE chip (the modal carries the unranked warning).
+        // While the online layer is enabled but unreachable (free players) the chip says
+        // OFFLINE - campaign runs can't start (BACKEND.md §5.1) and the top bar admits it.
         RectTransform attemptsCard = null;
-        if (AttemptsService.OnlineBlocked)
+        if (PremiumStore.IsPremium && AttemptsService.MetaEnabled)
+        {
+            attemptsCard = BuildCurrencyCard(bar, statBackground, null, "∞", null, addButton: false);
+            TextMeshProUGUI infinity = FindTmp(attemptsCard, "Primary");
+            infinity.enableAutoSizing = false;   // the glyph is the whole message - let it be big
+            infinity.fontSize = 44f;
+        }
+        else if (AttemptsService.OnlineBlocked)
         {
             attemptsCard = BuildCurrencyCard(bar, statBackground, null, "OFFLINE", null);
         }
@@ -145,9 +154,12 @@ public static partial class MainMenuRuntime
         return child != null ? child.GetComponent<TextMeshProUGUI>() : null;
     }
 
-    // Which attempts chip the bar would build right now (hidden / OFFLINE / meter). A live
-    // bar whose mode drifts from what it built rebuilds the menu section once.
-    private static int ChipMode() => AttemptsService.OnlineBlocked ? 1 : AttemptsService.MeterActive ? 2 : 0;
+    // Which attempts chip the bar would build right now (hidden / OFFLINE / meter / ∞). A
+    // live bar whose mode drifts from what it built rebuilds the menu section once.
+    private static int ChipMode() =>
+        PremiumStore.IsPremium && AttemptsService.MetaEnabled ? 3
+        : AttemptsService.OnlineBlocked ? 1
+        : AttemptsService.MeterActive ? 2 : 0;
 
     /// <summary>Keeps the built top bar truthful between rebuilds: re-renders the player
     /// name on online-state changes, ticks the regen countdown once a second (unscaled -
@@ -167,12 +179,16 @@ public static partial class MainMenuRuntime
         {
             OnlineService.StateChanged += HandleChanged;
             AttemptsSync.Changed += HandleChanged;
+            // A purchase/restore flips the chip to ∞ without any online event (the local
+            // entitlement is the trigger) - the bar must hear about it directly.
+            PremiumStore.Changed += HandleChanged;
         }
 
         private void OnDisable()
         {
             OnlineService.StateChanged -= HandleChanged;
             AttemptsSync.Changed -= HandleChanged;
+            PremiumStore.Changed -= HandleChanged;
         }
 
         private void HandleChanged()
@@ -237,7 +253,8 @@ public static partial class MainMenuRuntime
         Stretch(wash.rectTransform);
     }
 
-    private static RectTransform BuildCurrencyCard(Transform parent, Sprite background, string coinGlyph, string primary, string secondary)
+    private static RectTransform BuildCurrencyCard(Transform parent, Sprite background, string coinGlyph, string primary, string secondary,
+        bool addButton = true)
     {
         RectTransform card = CreateRect(parent, "StatusCard",
             Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f),
@@ -300,11 +317,15 @@ public static partial class MainMenuRuntime
         // Divider + add button, pinned to the card's RIGHT edge (pivot-centred) rather than a
         // fixed left offset. Both cards then match exactly and the "+" keeps an even margin from
         // the edge instead of overflowing it - independent of the card's laid-out width.
-        Image divider = CreateImage(card, "Divider", RuntimeSprites.Square(), WithAlpha(TextPrimary, 0.28f));
-        SetCenteredAt(divider.rectTransform, new Vector2(1f, 0.5f), new Vector2(-52f, 0f), new Vector2(1.5f, 38f));
-        TextMeshProUGUI plus = CreateTmp(card, "Plus", "+", 32, TextPrimary, TextAnchor.MiddleCenter,
-            FontStyle.Normal, RuntimeUiKit.DefaultFont);
-        SetCenteredAt(plus.rectTransform, new Vector2(1f, 0.5f), new Vector2(-26f, 0f), new Vector2(44f, 44f));
+        // Omitted for the premium ∞ chip: unlimited has nothing to add to.
+        if (addButton)
+        {
+            Image divider = CreateImage(card, "Divider", RuntimeSprites.Square(), WithAlpha(TextPrimary, 0.28f));
+            SetCenteredAt(divider.rectTransform, new Vector2(1f, 0.5f), new Vector2(-52f, 0f), new Vector2(1.5f, 38f));
+            TextMeshProUGUI plus = CreateTmp(card, "Plus", "+", 32, TextPrimary, TextAnchor.MiddleCenter,
+                FontStyle.Normal, RuntimeUiKit.DefaultFont);
+            SetCenteredAt(plus.rectTransform, new Vector2(1f, 0.5f), new Vector2(-26f, 0f), new Vector2(44f, 44f));
+        }
         return card;
     }
 

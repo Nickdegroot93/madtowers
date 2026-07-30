@@ -324,13 +324,19 @@ public static partial class MainMenuRuntime
         // Campaign runs need the server's start_run grant (BACKEND.md §5.1): when the online
         // layer can't reach it, say so honestly instead of showing meter numbers we can't
         // vouch for. RETRY kicks the reconnect; the SuppliesLive watcher rebuilds on Ready.
+        // PREMIUM plays through it (offline play is what they bought, SHOP.md §7) - for them
+        // the line is a warning, not a wall: the run starts, it just won't rank.
         if (AttemptsService.OnlineBlocked)
         {
-            CreateTmp(zone, "Offline", "YOU'RE OFFLINE - CONNECTION\nNEEDED FOR RANKED LEVELS",
-                17, LockedColor, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            bool premium = PremiumStore.IsPremium;
+            CreateTmp(zone, "Offline", premium
+                    ? "OFFLINE - RUNS WON'T RANK\nON THE LEADERBOARDS"
+                    : "YOU'RE OFFLINE - CONNECTION\nNEEDED FOR RANKED LEVELS",
+                17, premium ? WithAlpha(TextMuted, 0.9f) : LockedColor,
+                TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(4f, 0f), new Vector2(ui.ContentW - 210f, 52f), new Vector2(0f, 0.5f));
             Button retry = CreateSupplyButton(zone, "Retry", "RETRY", 170f,
-                new Vector2(0f, 0f), enabled: true, gold: true);
+                new Vector2(0f, 0f), enabled: true, gold: !premium);
             retry.onClick.AddListener(() =>
             {
                 SfxPlayer.Play("ui-button-click");
@@ -718,8 +724,14 @@ public static partial class MainMenuRuntime
         if (ui.StartPending) return;   // the in-flight start_run owns the button right now
 
         bool boosted = ui.Selection.Boosted;
-        bool offline = AttemptsService.OnlineBlocked;
-        bool canStart = !offline && AttemptsService.CanStartRun;
+        // Premium plays offline (unranked, RunGate falls back locally) - only free players
+        // are walled by connectivity (BACKEND.md §5.1 / SHOP.md §7). Offline premium also
+        // outranks a STALE server meter: with the link down the local run has no meter at
+        // all, so a session-cached "out of attempts" verdict must not disable the button
+        // the status row just promised would work (review 2026-07-30).
+        bool premiumOffline = AttemptsService.OnlineBlocked && PremiumStore.IsPremium;
+        bool offline = AttemptsService.OnlineBlocked && !PremiumStore.IsPremium;
+        bool canStart = premiumOffline || (!offline && AttemptsService.CanStartRun);
 
         // Plain "PLAY" for a clean run (labelling it CLEAN read as noise - Nick); the boosted
         // state keeps its word + gold edge, that's the honesty tag. OFFLINE outranks the

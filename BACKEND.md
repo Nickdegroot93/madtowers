@@ -251,8 +251,12 @@ Enforcement lives at exactly **two moments**: run **start** (server must grant a
 and run **end** (server must accept the result). The minutes in between can happen in a
 tunnel — the run was already paid for. No heartbeat, no per-frame checks.
 
-- **Campaign requires a connection to START a run.** No `start_run` grant → no run, with an
-  honest message ("You're offline — MadTowers needs a connection to play ranked levels").
+- **Campaign requires a connection to START a run** — for FREE players. No `start_run`
+  grant → no run, with an honest message ("You're offline — MadTowers needs a connection to
+  play ranked levels"). **Premium exception (Nick, 2026-07-30): Unlimited owners play
+  offline, UNRANKED** — `RunGate.BeginRun` falls back to a local, non-server-backed run (no
+  `run_id` → the finish report no-ops, the score can never reach a leaderboard; local bests
+  still record). Offline play is one of the three things the purchase buys (SHOP.md §7).
 - **`finish_run` failures are queued and retried** with the same `run_id` — a dropped
   connection at the results screen never loses the attempt refund or the score.
 - **Offline grace runs were considered and REJECTED** (2026-07-22): reconciling
@@ -336,7 +340,13 @@ every `start_run`/`finish_run`. It is never authoritative.
   device builds yet). Full remaining-work list: SHOP.md §7.3.
 - **Premium unlock ($3.99 "MadTowers Unlimited"):** an Edge Function verifies the purchase
   receipt with Apple/Google, then sets `attempts.premium = true`. `start_run` reads the
-  flag; the client never declares itself premium.
+  flag; the client never declares itself premium — **for the meter/leaderboard side.** The
+  LOCAL save flag (`ProgressStore.IsPremium`) is deliberately client-held: it is the
+  **offline entitlement cache** that makes airplane-mode play work, refreshed from the
+  server verdict whenever one arrives, and worst-case it only self-grants what money can't
+  buy twice (offline unranked play + no meter locally). **As built (2026-07-30):** client
+  purchase/restore flow is fully wired through `PremiumStore` (simulated store in the
+  editor, Unity IAP adapter at go-live); `validate_receipt` is NOT built. GOLIVE.md §3.
 
 ---
 

@@ -147,7 +147,7 @@ public static partial class MainMenuRuntime
     private static void BuildProfileUnlimitedCard(Transform content)
     {
         const float heroH = 170f;
-        RectTransform card = CreateProfileCard(content, 520f);
+        RectTransform card = CreateProfileCard(content, 560f); // 4 benefit lines since offline play joined the pitch
         // The pitch card carries the gold edge - the single accent on this page.
         RuntimeUiKit.AddOutline(card, WithAlpha(GoldBase, 0.55f));
 
@@ -190,7 +190,8 @@ public static partial class MainMenuRuntime
             new Vector2(0f, -heroH - 74f), new Vector2(720f, 24f), new Vector2(0.5f, 1f));
 
         // Benefits, one per line with the shared checkmark - benefits, not features.
-        string[] benefits = { "NO ADS, EVER", "UNLIMITED LIVES - NEVER WAIT TO PLAY", "ONE PURCHASE, YOURS FOREVER" };
+        string[] benefits = { "NO ADS, EVER", "UNLIMITED LIVES - NEVER WAIT TO PLAY",
+            "PLAY OFFLINE - EVEN ON A PLANE", "ONE PURCHASE, YOURS FOREVER" };
         for (int i = 0; i < benefits.Length; i++)
         {
             float y = -heroH - 116f - i * 36f;
@@ -202,23 +203,95 @@ public static partial class MainMenuRuntime
                 new Vector2(188f, y), new Vector2(540f, 24f), new Vector2(0f, 1f));
         }
 
-        // The CTA: full-width, 92px, gold gradient - a real button, not a chip. Disabled
-        // until the IAP path ships, and it says so ON the button.
-        Image cta = CreateImage(card, "Cta", MenuSprites.RoundedGradient(
+        // The CTA slot: full-width, 92px, rebuilt in place as ownership/state changes -
+        // owned banner, live BUY button (through PremiumStore), or the dimmed COMING SOON
+        // (no store provider - all device builds until Unity IAP ships, GOLIVE.md §3).
+        RectTransform ctaSlot = CreateRect(card, "CtaSlot",
+            new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f),
+            new Vector2(0f, 26f), new Vector2(-56f, 92f));
+        void RenderCta()
+        {
+            if (ctaSlot == null) return;
+            foreach (Transform child in ctaSlot) UnityEngine.Object.Destroy(child.gameObject);
+            BuildUnlimitedCta(ctaSlot, RenderCta);
+        }
+        RenderCta();
+
+        // Ownership can flip from elsewhere (Settings restore, server sync-down on sign-in) -
+        // same live-refresh + eager-unhook pattern as the identity card.
+        void OnPremiumChanged()
+        {
+            if (ctaSlot == null) { PremiumStore.Changed -= OnPremiumChanged; return; }
+            RenderCta();
+        }
+        PremiumStore.Changed += OnPremiumChanged;
+        card.gameObject.AddComponent<UnhookOnDestroy>().Unhook =
+            () => PremiumStore.Changed -= OnPremiumChanged;
+    }
+
+    /// <summary>One CTA render into the (cleared) slot. <paramref name="rerender"/> rebuilds
+    /// the slot - used to restore the button after a cancelled/failed store exchange.</summary>
+    private static void BuildUnlimitedCta(RectTransform slot, Action rerender)
+    {
+        if (PremiumStore.IsPremium)
+        {
+            // Owned: a quiet gold-edged banner in the button's slot - state, not a button.
+            Image owned = CreateImage(slot, "Owned", RuntimeSprites.RoundedPanel(),
+                new Color(0.13f, 0.11f, 0.06f, 1f));
+            owned.type = Image.Type.Sliced;
+            Stretch(owned.rectTransform);
+            RuntimeUiKit.AddOutline(owned.rectTransform, WithAlpha(GoldBase, 0.75f));
+            Image check = CreateImage(owned.transform, "Check", MenuSprites.CheckMark(GoldBase), Color.white);
+            check.preserveAspect = true;
+            SetCenteredAt(check.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(-170f, 0f), new Vector2(34f, 34f));
+            CreateTmp(owned.transform, "Label", "UNLIMITED - ACTIVE", 26, GoldBase,
+                TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+                new Vector2(24f, 0f), new Vector2(440f, 34f), new Vector2(0.5f, 0.5f));
+            return;
+        }
+
+        bool purchasable = PremiumStore.Available;
+        Image cta = CreateImage(slot, "Cta", MenuSprites.RoundedGradient(
             new Color(1f, 0.86f, 0.45f, 1f), new Color(0.82f, 0.58f, 0.18f, 1f)), Color.white);
         cta.type = Image.Type.Sliced;
-        cta.rectTransform.anchorMin = new Vector2(0f, 0f);
-        cta.rectTransform.anchorMax = new Vector2(1f, 0f);
-        cta.rectTransform.pivot = new Vector2(0.5f, 0f);
-        cta.rectTransform.offsetMin = new Vector2(28f, 26f);
-        cta.rectTransform.offsetMax = new Vector2(-28f, 26f + 92f);
-        cta.color = new Color(0.75f, 0.75f, 0.75f, 1f); // dimmed: not purchasable yet
-        CreateTmp(cta.transform, "Label", "GET UNLIMITED - $3.99", 26,
-            new Color(0.16f, 0.11f, 0.04f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, 10f), new Vector2(600f, 34f), new Vector2(0.5f, 0.5f));
-        CreateTmp(cta.transform, "Soon", "COMING SOON", 13,
-            new Color(0.24f, 0.17f, 0.07f, 0.9f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, -22f), new Vector2(600f, 18f), new Vector2(0.5f, 0.5f));
+        Stretch(cta.rectTransform);
+        cta.raycastTarget = purchasable;
+
+        if (!purchasable)
+        {
+            cta.color = new Color(0.75f, 0.75f, 0.75f, 1f); // dimmed: no store yet
+            CreateTmp(cta.transform, "Label", $"GET UNLIMITED - {PremiumStore.PriceText}", 26,
+                new Color(0.16f, 0.11f, 0.04f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+                new Vector2(0f, 10f), new Vector2(600f, 34f), new Vector2(0.5f, 0.5f));
+            CreateTmp(cta.transform, "Soon", "COMING SOON", 13,
+                new Color(0.24f, 0.17f, 0.07f, 0.9f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+                new Vector2(0f, -22f), new Vector2(600f, 18f), new Vector2(0.5f, 0.5f));
+            return;
+        }
+
+        TextMeshProUGUI label = CreateTmp(cta.transform, "Label",
+            $"GET UNLIMITED - {PremiumStore.PriceText}", 26,
+            new Color(0.16f, 0.11f, 0.04f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        Button buy = cta.gameObject.AddComponent<Button>();
+        buy.targetGraphic = cta;
+        buy.onClick.AddListener(() =>
+        {
+            SfxPlayer.Play("ui-button-click");
+            buy.interactable = false;
+            label.text = "CONTACTING STORE...";
+            PremiumStore.Purchase(result =>
+            {
+                // Purchased/Restored re-render through PremiumStore.Changed; only the
+                // no-sale outcomes need the button back. A destroyed slot skips quietly.
+                if (label == null) return;
+                if (result == PremiumStoreResult.Cancelled) rerender();
+                else if (result == PremiumStoreResult.Failed)
+                {
+                    label.text = "STORE UNAVAILABLE";
+                    buy.interactable = true;
+                }
+            });
+        });
     }
 
     // 3. The locked door players should SEE: online play is on the way.

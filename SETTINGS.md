@@ -12,9 +12,27 @@ linked), set the nudge-guide opacity in context, reset to default. **Account**
 same live identity as the Profile card: avatar + server name + guest/signed-in
 status with CHANGE NAME / SIGN IN (reusing `OpenClaimNameModal` /
 `OpenSignInSheet`, refresh + eager-unhook on `OnlineService.StateChanged`), then
-RESET TUTORIAL as a normal row — deliberately NOT the Unlimited pitch or the
-online promo (storefront, not settings). Notifications / About still show the
-empty placeholder (§4).
+RESET TUTORIAL, — when a store is connected (`PremiumStore.HasStore`; today
+that's the editor's simulated store, at go-live the Unity IAP adapter) —
+**RESTORE PURCHASES**, and **DELETE ACCOUNT** (store-required, BACKEND.md §3.7)
+as normal rows; the buttons speak their own verdicts (RESTORED / NOTHING FOUND /
+OFFLINE - TRY LATER). Delete is danger-styled and opens an all-or-nothing
+confirm sheet (gold KEEP MY ACCOUNT is the big target; DELETE FOREVER calls
+`OnlineService.DeleteAccount` → server RPC, then session clear + TOTAL local
+wipe incl. wallet/premium + fresh anonymous boot; failure changes nothing).
+Deliberately NOT the Unlimited pitch or the online promo (storefront, not
+settings — the BUY lives on the Profile card). **About/Legal is implemented**
+(§4): version, privacy policy / terms / support link rows (**placeholder URLs —
+GOLIVE.md §6 tracks replacing them**), credits. Notifications still shows the
+empty placeholder.
+
+**Row-label layout rule (2026-07-30, binding):** row names/descriptions STRETCH
+to the row width minus `RowControlReserve` (216px for the right-edge control) and
+Truncate on overflow — never fixed pixel widths, which ran under the buttons on
+narrow aspects. (Truncate, not Ellipsis: Archivo Black has no '…' glyph.) Same
+for the account identity texts. TMP trap: a label whose box is shorter than its
+LINE height renders as nothing under truncating overflow modes — the 40pt
+identity name needs its 56px box.
 
 **Mobile sizing pass (2026-07-29, binding):** the v1 controls read as desktop-web
 ("way too small", Nick). Floor rules now: segmented bands **84px** tall (font 26),
@@ -129,8 +147,8 @@ Listed so we can judge whether each tab earns its place. Tagged by readiness:
 | **Graphics** | ✅ **implemented:** frame-rate cap (30/60/120) · visual effects (bloom/post + prefab VFX) · screen shake. Enforced via central gates — see [GRAPHICS.md](GRAPHICS.md). Quality preset / render-scale can layer in later. |
 | **Sound & Haptics** | ✅ **implemented:** music volume · SFX volume · mute all. Vibration on/off (+ intensity) deferred — no haptics layer yet. |
 | **Notifications** | daily-reward / lives-refilled / events push toggles — **infra** (push, Phase E backend) |
-| **Account** | ✅ **implemented (v2):** identity block (avatar · live server name · guest/signed-in status · CHANGE NAME · SIGN IN) + reset tutorial. Still to come: **delete account** (store-required, BACKEND.md §3.7 — server RPC built + smoke-tested, client button NOT built yet) · restore purchases · language |
-| **About / Legal** | version + build · privacy policy · terms · support / contact · rate the app · credits — **now**, store-required, static |
+| **Account** | ✅ **implemented (v3):** identity block (avatar · live server name · guest/signed-in status · CHANGE NAME · SIGN IN) + reset tutorial + **restore purchases** (store-connected builds; `PremiumStore.Restore`) + **delete account** (confirm sheet → `delete_account` RPC → full local wipe + fresh anonymous boot). Still to come: language |
+| **About / Legal** | ✅ **implemented:** version · privacy policy / terms / support link rows · credits — **URLs are placeholders** (`madtowers.app/*`, GOLIVE.md §6 tracks hosting the real pages). Rate-the-app deferred to store integration. |
 
 ---
 
