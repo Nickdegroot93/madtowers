@@ -29,6 +29,14 @@ public sealed class ClearWavesWinCondition : WinCondition
         return Mathf.Clamp01((float)run.PeakStanding / run.StandingTargetForWave(_wavesToWin));
     }
 
+    // Same peak-standing ratio, unclamped: solved waves past the win target keep counting.
+    public override float RunProgressRaw(GameManager gameManager)
+    {
+        HeightLimitWavesModifier run = HeightLimitWavesModifier.ActiveRun;
+        if (run == null || gameManager == null) return 0f;
+        return (float)run.PeakStanding / run.StandingTargetForWave(_wavesToWin);
+    }
+
     public override ResultMetric EndOfRunMetric(RunResult result, ProgressStore.LevelBest best)
     {
         HeightLimitWavesModifier run = HeightLimitWavesModifier.ActiveRun;

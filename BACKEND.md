@@ -420,10 +420,12 @@ The Phase E core is IMPLEMENTED against a local Supabase stack. What exists:
   Project config in `supabase/config.toml` — **ports shifted to 55321/55322/… because another
   project's stack (TradeParley) owns the 54321 defaults on this Mac.** Anonymous sign-ins
   enabled in config. Start: `Tools/bin/supabase start`; apply schema: `Tools/bin/supabase db
-  reset`; smoke-test: `bash supabase/tests/smoke.sh` (17 checks, must be all-PASS).
-- **Schema:** one migration `supabase/migrations/20260722000001_core.sql` (tables, RLS,
-  trigger, all RPCs, soft-landing config table) + `..._get_profile.sql`. The client DTO key
-  names are load-bearing contracts — comments in the SQL mark them.
+  reset`; smoke-test: `bash supabase/tests/smoke.sh` (must be all-PASS).
+- **Schema:** migrations `supabase/migrations/20260722000001_core.sql` (tables, RLS,
+  trigger, all RPCs, soft-landing config table) + `..._get_profile.sql` +
+  `20260801000003_xp.sql` (account XP on `profiles.xp`, paid inside `finish_run`; XP.md
+  owns that design). The client DTO key names are load-bearing contracts — comments in
+  the SQL mark them.
 - **Unity layer:** `Assets/SourceFiles/Scripts/Online/` — SupabaseConfig (URL/anon key,
   code-owned statics; local dev values, replace for production), SupabaseHttp, SupabaseSession
   (atomic file store), OnlineService (host + facade; boot/refresh single-flight; mid-session

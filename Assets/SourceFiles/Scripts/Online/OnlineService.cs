@@ -66,6 +66,7 @@ public class OnlineService : MonoBehaviour
     {
         public string display_name;
         public bool is_linked;
+        public long xp;
     }
 
     [Serializable]
@@ -293,6 +294,8 @@ public class OnlineService : MonoBehaviour
                 if (dto == null || string.IsNullOrEmpty(dto.display_name)) return;
                 _displayName = dto.display_name;
                 IsLinked = dto.is_linked;
+                // Cross-device XP display: the server total is the authority (XP.md).
+                XpSystem.ApplyServerTotal(dto.xp);
                 profileOk = true;
             },
             null);

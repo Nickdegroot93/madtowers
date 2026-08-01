@@ -10,13 +10,17 @@ REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 # --- resolve URL + anon key -------------------------------------------------
 DEMO_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
 if [ -z "${SUPABASE_URL:-}" ] || [ -z "${ANON_KEY:-}" ]; then
-  if command -v supabase >/dev/null 2>&1; then
-    STATUS_ENV="$(cd "$REPO_ROOT" && supabase status -o env 2>/dev/null || true)"
+  # Prefer the repo-local CLI (Tools/bin) - the PATH one may belong to another project's
+  # stack, and the bare-port fallback below once smoke-tested TradeParley by accident.
+  SUPA_BIN="$REPO_ROOT/Tools/bin/supabase"
+  command -v supabase >/dev/null 2>&1 && [ ! -x "$SUPA_BIN" ] && SUPA_BIN="supabase"
+  if [ -x "$SUPA_BIN" ] || command -v "$SUPA_BIN" >/dev/null 2>&1; then
+    STATUS_ENV="$(cd "$REPO_ROOT" && "$SUPA_BIN" status -o env 2>/dev/null || true)"
     [ -z "${SUPABASE_URL:-}" ] && SUPABASE_URL="$(echo "$STATUS_ENV" | sed -n 's/^API_URL="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' | head -1)"
     [ -z "${ANON_KEY:-}" ]     && ANON_KEY="$(echo "$STATUS_ENV" | sed -n 's/^ANON_KEY="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' | head -1)"
   fi
 fi
-SUPABASE_URL="${SUPABASE_URL:-http://127.0.0.1:54321}"
+SUPABASE_URL="${SUPABASE_URL:-http://127.0.0.1:55321}"
 ANON_KEY="${ANON_KEY:-$DEMO_ANON}"
 
 PASS=0; FAIL=0
@@ -124,13 +128,31 @@ if [ "$(jget "$REFUSED" reason)" = "out_of_attempts" ] && [ -n "$SECS" ] && [ "$
   ok "d2) 6th start refused with seconds_until_next=$SECS"
 else bad "d2) refusal malformed: $REFUSED"; fi
 
-# --- e) finish_run win refund -------------------------------------------------
+# --- e) finish_run win refund + XP award ---------------------------------------
 sleep 6  # runs must be >=5s old to be plausible
-F="$(rpc finish_run "$TOK" "{\"p_run_id\":\"$RUN1\",\"p_won\":true,\"p_score\":42,\"p_height\":7.5}")"
+F="$(rpc finish_run "$TOK" "{\"p_run_id\":\"$RUN1\",\"p_won\":true,\"p_score\":42,\"p_height\":7.5,\"p_progress\":1.2}")"
 [ "$(jget "$F" accepted)" = "true" ] && ok "e1) finish_run(won) accepted" || bad "e1) finish_run: $F"
 A="$(rpc get_attempts "$TOK" '{}')"
 AT="$(jget "$A" count)"
 if [ -n "$AT" ] && [ "$AT" -ge 1 ] 2>/dev/null; then ok "e2) win refunded an attempt (now $AT)"; else bad "e2) no refund visible: $A"; fi
+# XP constants (XpSystem.cs / migration #3): won @ 1.2 progress = 10 + 40 + round(10*0.2) + 25 = 77
+if [ "$(jget "$F" xp_gained)" = "77" ] && [ "$(jget "$F" xp_total)" = "77" ]; then
+  ok "e3) win @1.2 progress paid 77 XP"; else bad "e3) xp award: $F"; fi
+
+# --- e4) a LOSS with partial progress still pays participation + progress ------
+S2="$(rpc start_run "$TOK" "{\"p_level_id\":\"$LEVEL\",\"p_board\":\"clean\",\"p_loadout\":null}")"
+RUN2="$(jget "$S2" run_id)"
+if [ -z "$RUN2" ]; then bad "e4) second start refused: $S2"; else
+  sleep 6
+  F3="$(rpc finish_run "$TOK" "{\"p_run_id\":\"$RUN2\",\"p_won\":false,\"p_score\":20,\"p_height\":3.0,\"p_progress\":0.5}")"
+  # loss @ 0.5 progress = 10 + round(40*0.5) = 30; lifetime total 77 + 30 = 107
+  if [ "$(jget "$F3" xp_gained)" = "30" ] && [ "$(jget "$F3" xp_total)" = "107" ]; then
+    ok "e4) loss @0.5 progress paid 30 XP (total 107)"; else bad "e4) loss xp: $F3"; fi
+fi
+
+# --- e5) get_profile carries the XP total ---------------------------------------
+GP="$(rpc get_profile "$TOK" '{}')"
+[ "$(jget "$GP" xp)" = "107" ] && ok "e5) get_profile xp=107" || bad "e5) get_profile: $GP"
 
 # --- f) double-finish rejected -------------------------------------------------
 F2="$(rpc finish_run "$TOK" "{\"p_run_id\":\"$RUN1\",\"p_won\":true,\"p_score\":42,\"p_height\":7.5}")"
@@ -143,13 +165,20 @@ CODE="$(curl -s -o /dev/null -w "%{http_code}" -m 20 -X PATCH \
   -H "apikey: $ANON_KEY" -H "Authorization: Bearer $TOK" \
   -H "Content-Type: application/json" -H "Prefer: return=representation" -d '{"count":99}')"
 A="$(rpc get_attempts "$TOK" '{}')"
-[ "$(jget "$A" attempts)" != "99" ] && ok "g1) direct PATCH attempts blocked (http $CODE, count unchanged)" \
+[ "$(jget "$A" count)" != "99" ] && ok "g1) direct PATCH attempts blocked (http $CODE, count unchanged)" \
   || bad "g1) direct PATCH mutated attempts! $A"
 CODE2="$(curl -s -o /dev/null -w "%{http_code}" -m 20 -X POST "$SUPABASE_URL/rest/v1/scores" \
   -H "apikey: $ANON_KEY" -H "Authorization: Bearer $TOK" \
   -H "Content-Type: application/json" -d "{\"user_id\":\"$UID1\",\"level_id\":\"$LEVEL\",\"board\":\"clean\",\"best_score\":999999}")"
 [ "$CODE2" -ge 400 ] 2>/dev/null && ok "g2) direct INSERT scores rejected (http $CODE2)" \
   || bad "g2) direct INSERT scores returned http $CODE2"
+CODE3="$(curl -s -o /dev/null -w "%{http_code}" -m 20 -X PATCH \
+  "$SUPABASE_URL/rest/v1/profiles?user_id=eq.$UID1" \
+  -H "apikey: $ANON_KEY" -H "Authorization: Bearer $TOK" \
+  -H "Content-Type: application/json" -d '{"xp":999999999}')"
+GP2="$(rpc get_profile "$TOK" '{}')"
+[ "$(jget "$GP2" xp)" = "107" ] && ok "g3) direct PATCH profiles.xp blocked (http $CODE3, xp unchanged)" \
+  || bad "g3) direct PATCH mutated xp! $GP2"
 
 # --- h) leaderboard ------------------------------------------------------------
 LB="$(rpc get_leaderboard "$TOK" "{\"p_level_id\":\"$LEVEL\",\"p_board\":\"clean\"}")"

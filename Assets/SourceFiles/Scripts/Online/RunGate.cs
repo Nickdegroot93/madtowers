@@ -47,6 +47,8 @@ public static class RunGate
         public string reason;
         public int attempts;
         public bool new_best;
+        public int xp_gained;
+        public long xp_total;
     }
 
     [Serializable]
@@ -56,6 +58,7 @@ public static class RunGate
         public bool won;
         public int score;
         public float height;
+        public float progress;   // unclamped goal progress for the XP award (XP.md); pre-XP queue files default to 0
     }
 
     [Serializable]
@@ -153,10 +156,11 @@ public static class RunGate
             });
     }
 
-    /// <summary>Report the active run's outcome (win refund + score submission happen
-    /// server-side in one exchange). Fire-and-forget: network failures queue to disk and
-    /// retry; the run_id makes retries idempotent.</summary>
-    public static void ReportFinish(bool won, int score, float height)
+    /// <summary>Report the active run's outcome (win refund + score submission + the XP award
+    /// happen server-side in one exchange). <paramref name="progress"/> is the run's peak
+    /// unclamped goal progress (1 = at target; XP.md). Fire-and-forget: network failures
+    /// queue to disk and retry; the run_id makes retries idempotent.</summary>
+    public static void ReportFinish(bool won, int score, float height, float progress)
     {
         if (!ActiveRunServerBacked || string.IsNullOrEmpty(ActiveRunId)) return;
 
@@ -166,6 +170,7 @@ public static class RunGate
             won = won,
             score = score,
             height = height,
+            progress = Mathf.Clamp(progress, 0f, 2f),
         };
         ClearActiveRun();
 
@@ -206,7 +211,8 @@ public static class RunGate
         string body = $"{{\"p_run_id\":\"{SupabaseHttp.JsonEscape(finish.runId)}\"," +
                       $"\"p_won\":{(finish.won ? "true" : "false")}," +
                       $"\"p_score\":{finish.score}," +
-                      "\"p_height\":" + finish.height.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "}";
+                      "\"p_height\":" + finish.height.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "," +
+                      "\"p_progress\":" + finish.progress.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "}";
 
         OnlineService.RpcObject<FinishRunDto>("finish_run", body,
             dto =>
@@ -215,7 +221,11 @@ public static class RunGate
                 // Any server verdict - accepted or rejected - is final; only network
                 // failures stay queued.
                 RemoveQueued(finish.runId);
-                if (dto.accepted) AttemptsSync.ApplyFinishCounts(dto.attempts);
+                if (dto.accepted)
+                {
+                    AttemptsSync.ApplyFinishCounts(dto.attempts);
+                    XpSystem.ApplyServerTotal(dto.xp_total);
+                }
                 else Debug.LogWarning($"[Online] finish_run rejected: {dto.reason}");
             },
             err => _inFlight.Remove(finish.runId));

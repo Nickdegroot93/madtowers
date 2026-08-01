@@ -15,6 +15,11 @@ public sealed class PlaceBlocksWinCondition : WinCondition
     public override float RunProgress01(GameManager gameManager)
         => gameManager != null ? Mathf.Clamp01(gameManager.score / _target) : 0f;
 
+    // Cumulative placement score over the target, unclamped - Keep Playing past the goal
+    // keeps counting, and a collapse never rewinds it (matches the reported metric below).
+    public override float RunProgressRaw(GameManager gameManager)
+        => gameManager != null ? gameManager.score / _target : 0f;
+
     // "Blocks we've had": the cumulative placement score, matching what the menu shows as the
     // level's best - not the live standing count, which a collapse rewinds right before the end.
     public override ResultMetric EndOfRunMetric(RunResult result, ProgressStore.LevelBest best)

@@ -47,6 +47,17 @@ public class LevelRuntimeController : MonoBehaviour
     private RectTransform _timerRect;
     private Text _timerLabel;
     private int _timerShownSecond = -1;
+    // XP (XP.md): the run's peak unclamped goal progress, sampled on every progress signal
+    // (a collapse right before the end must not erase what the run reached), and a latch so
+    // the win -> game-over and win -> quit sequences award exactly once.
+    private float _xpPeakProgress;
+    private bool _xpAwarded;
+    private static readonly EndlessWinCondition XpFallbackCondition = new EndlessWinCondition();
+
+    /// <summary>The live controller of the current run, for callers outside the scene wiring
+    /// (the pause menu's quit/restart). Published here, never via Find - a rebuild frame's
+    /// Find can grab a dying instance.</summary>
+    public static LevelRuntimeController Active { get; private set; }
 
     private void Start()
     {
@@ -132,6 +143,7 @@ public class LevelRuntimeController : MonoBehaviour
 
     private void OnEnable()
     {
+        Active = this;
         GameEvents.BlockPlaced += HandleBlockPlaced;
         GameEvents.StandingBlocksChanged += HandleStandingBlocksChanged;
         GameEvents.HeightChanged += HandleHeightChanged;
@@ -140,6 +152,7 @@ public class LevelRuntimeController : MonoBehaviour
 
     private void OnDisable()
     {
+        if (Active == this) Active = null;
         GameEvents.BlockPlaced -= HandleBlockPlaced;
         GameEvents.StandingBlocksChanged -= HandleStandingBlocksChanged;
         GameEvents.HeightChanged -= HandleHeightChanged;
@@ -166,10 +179,26 @@ public class LevelRuntimeController : MonoBehaviour
         ShowGameOverScreen();
         int reportedScore = ReportedScore(finalScore);
         if (_level != null) ProgressStore.ReportResult(_level, reportedScore, maxHeightMeters, RunSuppliesState.ActiveRunBoosted);
-        // Server finish (BACKEND.md §6.2): score submission rides the same exchange. A
-        // game over AFTER a completion no-ops - the win's ReportFinish already consumed
-        // the run_id. Local bests above stay local-first regardless.
-        RunGate.ReportFinish(won: false, reportedScore, maxHeightMeters);
+        AwardRunXp(won: false);
+        // Server finish (BACKEND.md §6.2): score submission and the XP award ride the same
+        // exchange. A game over AFTER a completion no-ops - the win's ReportFinish already
+        // consumed the run_id. Local bests above stay local-first regardless.
+        RunGate.ReportFinish(won: false, reportedScore, maxHeightMeters, XpProgressForReport());
+    }
+
+    /// <summary>Pause-menu quit or restart: the run ends without a game over, but it still
+    /// HAPPENED - bank the bests and report the finish so the abandon pays its participation
+    /// + progress XP (Nick 2026-08-01) exactly like a loss at the same point would. No-ops
+    /// after a completion or game over (those paths already reported), so quitting out of a
+    /// post-win Keep Playing session never double-reports.</summary>
+    public void ReportAbandonedRun()
+    {
+        if (_completed || GameManager.Instance == null || GameManager.Instance.isGameOver) return;
+        RunResult result = GameManager.Instance.CurrentRunResult;
+        int reportedScore = ReportedScore(result.Score);
+        if (_level != null) ProgressStore.ReportResult(_level, reportedScore, result.MaxHeight, RunSuppliesState.ActiveRunBoosted);
+        AwardRunXp(won: false);
+        RunGate.ReportFinish(won: false, reportedScore, result.MaxHeight, XpProgressForReport());
     }
 
     private void ShowGameOverScreen()
@@ -602,6 +631,37 @@ public class LevelRuntimeController : MonoBehaviour
         {
             _activeModifiers[i].OnBlockLocked(_modifierContext, totalBlocksPlaced);
         }
+        SampleXpProgress();
+    }
+
+    // ---- XP (XP.md) ---------------------------------------------------------------------
+
+    // Peak, not final: goal progress can rewind (collapses, destroyed blocks), and the XP
+    // award honors what the run reached, not what survived the last second.
+    private void SampleXpProgress()
+    {
+        WinCondition condition = _winCondition ?? XpFallbackCondition;
+        float progress = condition.RunProgressRaw(GameManager.Instance);
+        if (progress > _xpPeakProgress) _xpPeakProgress = progress;
+    }
+
+    private float XpProgressForReport() => Mathf.Clamp(_xpPeakProgress, 0f, 2f);
+
+    /// <summary>Award the run's XP exactly once, on its FIRST reported outcome (win, game
+    /// over, or pause-menu abandon - later outcomes for the same run are latched out; a win
+    /// therefore reports at verification, progress 1.0, and post-win Keep Playing never adds
+    /// overshoot - deliberate, XP.md §1: the refund/score must not wait for it to end).
+    /// Custom Game runs have no level identity and never earn. Online the server pays inside
+    /// finish_run (the ReportFinish alongside this call carries the progress); the local
+    /// grant only exists for online-layer-disabled play. Premium-offline runs are unranked
+    /// and deliberately earn nothing - the next server verdict would visibly rewind a local
+    /// grant (see XpSystem).</summary>
+    private void AwardRunXp(bool won)
+    {
+        if (_xpAwarded || ProgressStore.LevelId(_level) == null) return;
+        _xpAwarded = true;
+        SampleXpProgress();
+        if (!OnlineService.Enabled) XpSystem.ReportLocalRun(XpProgressForReport(), won);
     }
 
     // PlaceBlocks/ClearWaves win on the LIVE standing count, not cumulative score - so destroying
@@ -621,9 +681,14 @@ public class LevelRuntimeController : MonoBehaviour
             try { _activeModifiers[i].OnStandingBlocksChanged(_modifierContext, placedBlocks); }
             catch (System.Exception e) { Debug.LogException(e); }
         }
+        SampleXpProgress();
         TryArmFromProgress();
     }
-    private void HandleHeightChanged(float height) => TryArmFromProgress();
+    private void HandleHeightChanged(float height)
+    {
+        SampleXpProgress();
+        TryArmFromProgress();
+    }
 
     private bool GoalMetNow() => _winCondition != null && _winCondition.IsMet(BuildWinContext());
 
@@ -654,9 +719,10 @@ public class LevelRuntimeController : MonoBehaviour
         if (firstCompletion) UnlockRevealPending.RecordFirstCompletion(_level);
         int reportedScore = ReportedScore(result.Score);
         ProgressStore.ReportResult(_level, reportedScore, result.MaxHeight, RunSuppliesState.ActiveRunBoosted);
+        AwardRunXp(won: true);
         // Server finish (BACKEND.md §6.2): the win refunds the attempt and submits the
-        // score in one exchange, against the run_id granted at start.
-        RunGate.ReportFinish(won: true, reportedScore, result.MaxHeight);
+        // score + XP in one exchange, against the run_id granted at start.
+        RunGate.ReportFinish(won: true, reportedScore, result.MaxHeight, XpProgressForReport());
         GameEvents.RaiseLevelCompleted(_level, result);
 
         if (GameManager.Instance.IsGamePaused)

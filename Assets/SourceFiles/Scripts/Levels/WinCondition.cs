@@ -96,6 +96,12 @@ public abstract class WinCondition
     /// goal are spicier than offers at the start).</summary>
     public abstract float RunProgress01(GameManager gameManager);
 
+    /// <summary>UNCLAMPED progress toward the goal in target units (1 = at the goal, >1 = past it -
+    /// replays of a completed level, or play continuing past the goal). Feeds the XP award's
+    /// progress + overshoot components (XP.md) - the controller tracks its peak over the run.
+    /// Defaults to the clamped rarity progress for conditions with no meaningful overshoot.</summary>
+    public virtual float RunProgressRaw(GameManager gameManager) => RunProgress01(gameManager);
+
     /// <summary>The ONE stat the end-of-run card leads with, in this goal's own unit - the run's
     /// value plus the stored best for the record comparison. Callers must resolve this BEFORE
     /// reporting the run to ProgressStore (reporting overwrites the best being compared against).</summary>

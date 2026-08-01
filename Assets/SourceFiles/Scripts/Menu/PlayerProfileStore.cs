@@ -5,8 +5,8 @@ using UnityEngine;
 /// Account/economy facade for the menus. Since the SHOP.md v4 fold the balance itself lives in
 /// ProgressStore as monotonic earned/spent counters (DATA.md rule 3, cloud-merge ready); this
 /// class stays the single call-site gameplay/UI use (CoinLedger banks here, the shop charges
-/// here, the top bar listens here) so the fold changed no callers. Name/level/XP remain
-/// placeholders until the online identity phase (BACKEND.md).
+/// here, the top bar listens here) so the fold changed no callers. The name is the live server
+/// identity and level/XP derive from XpSystem (XP.md) - nothing here is a placeholder anymore.
 /// </summary>
 public static class PlayerProfileStore
 {
@@ -50,8 +50,8 @@ public static class PlayerProfileStore
 
     public static Snapshot Current => new Snapshot(
         OnlineService.DisplayName,
-        24,
-        0.48f,
+        XpSystem.Level,
+        XpSystem.Fraction01,
         Coins,
         AttemptsService.Count,
         AttemptsService.MaxAttempts,

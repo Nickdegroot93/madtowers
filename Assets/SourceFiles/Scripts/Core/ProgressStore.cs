@@ -54,6 +54,11 @@ public static class ProgressStore
         // The post-chapter-1 "sign in" card has been shown once (BACKEND.md §3.4). Monotonic
         // timestamp: 0 = never shown; merge = max.
         public long linkPromptShownAtUnixUtc;
+        // Lifetime XP (XP.md, added 2026-08-01; additive field, no schema bump - JsonUtility
+        // defaults old saves to 0). ONLINE this is a display cache of the server's
+        // profiles.xp (LWW overwrite, like the attempts fields; merge_progress strips it);
+        // with the online layer disabled it is the local accumulator itself.
+        public long xpEarned;
     }
 
     [Serializable]
@@ -283,6 +288,30 @@ public static class ProgressStore
         Save();
     }
 
+    // ---- account XP (XP.md; only XpSystem writes these) --------------------------------------
+
+    /// <summary>Lifetime XP as last known - the server's total when online, the local
+    /// accumulator when the online layer is disabled. Read through XpSystem for level math.</summary>
+    public static long XpEarned => Data.xpEarned;
+
+    /// <summary>Local accrual (online-layer-disabled play only; see XpSystem.ReportLocalRun).</summary>
+    public static void AddXp(int amount)
+    {
+        if (amount <= 0) return;
+        Data.xpEarned += amount;
+        Save();
+    }
+
+    /// <summary>Cache a server XP verdict (LWW overwrite - the server total is authoritative
+    /// and may legitimately be anything). Returns whether the stored value changed.</summary>
+    public static bool SetXpFromServer(long total)
+    {
+        if (total < 0 || Data.xpEarned == total) return false;
+        Data.xpEarned = total;
+        Save();
+        return true;
+    }
+
     /// <summary>Has the one-time post-chapter-1 "sign in" card been shown (BACKEND.md §3.4)?</summary>
     public static bool WasLinkPromptShown() => Data.linkPromptShownAtUnixUtc > 0;
 
@@ -342,6 +371,17 @@ public static class ProgressStore
         if (merged == null) return;
 
         merged.schemaVersion = CurrentSchemaVersion;
+        // Server-owned display caches never round-trip through the payload (merge_progress
+        // strips them), so the merged document carries their field DEFAULTS - applying it
+        // wholesale would wipe the caches (review finding 2026-08-01: the XP badge dropped
+        // to level 1 seconds after every boot). Carry the live values across.
+        merged.xpEarned = _data != null ? _data.xpEarned : merged.xpEarned;
+        merged.premiumUnlocked = merged.premiumUnlocked || (_data != null && _data.premiumUnlocked);
+        if (_data != null)
+        {
+            merged.attemptsCount = _data.attemptsCount;
+            merged.attemptsUpdatedAtUnixUtc = _data.attemptsUpdatedAtUnixUtc;
+        }
         _data = merged;
         _suppressSavedEvent = true;
         try { Save(); }

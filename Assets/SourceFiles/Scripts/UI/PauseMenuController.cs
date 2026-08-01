@@ -153,13 +153,41 @@ public class PauseMenuController : MonoBehaviour
 
     private void RestartLevel()
     {
+        // YES is the point of no return: the abandon report below consumes the server run
+        // synchronously, but the fresh start_run grant is an async round trip - so the
+        // confirm sheet must die FIRST, or a "No, keep playing" tapped during the wait
+        // would resume a run whose finish the server already accepted (review 2026-08-01).
+        // The pending panel is deliberately button-less; the grant's landing decides what
+        // happens next (reload, or back to the menu on a denial - same as Try Again).
+        BuildPending("Restarting...");
+        // Abandoning still reports the run (bests, server finish, XP - XP.md). The retry is
+        // then a NEW run and must win its own start_run grant, so route through RestartGame
+        // like the game-over Try Again - a bare scene reload here would orphan the retry
+        // from the server (the abandon consumed the run_id: no score/refund/XP at its end).
+        if (LevelRuntimeController.Active != null) LevelRuntimeController.Active.ReportAbandonedRun();
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.RestartGame();
+            return;
+        }
         Time.timeScale = 1f;
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    private void BuildPending(string message)
+    {
+        DestroyMenu();
+        _menuCanvas = RuntimeUiKit.CreateOverlayCanvas("Pause Pending", 7000);
+        CreateShroud(_menuCanvas.transform);
+        GameObject panel = RuntimeUiKit.CreateCenteredPanel(_menuCanvas.transform, new Vector2(560f, 200f));
+        GameMenuStyle.StylePanel(panel);
+        RuntimeUiKit.CreateLabel(panel.transform, message, 36, 96f, FontStyle.Bold, GameMenuStyle.Accent);
     }
 
     private void ReturnToMenu()
     {
         SfxPlayer.Play("ui-leave-game");
+        if (LevelRuntimeController.Active != null) LevelRuntimeController.Active.ReportAbandonedRun();
         MainMenuRuntime.ReturnToMenu();
     }
 
