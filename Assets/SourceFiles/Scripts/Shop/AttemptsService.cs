@@ -143,9 +143,12 @@ public static class AttemptsService
                     }
                     else
                     {
-                        // rate_limited / premium / attempts_full: none heal within this
-                        // session's out-of-attempts moment - stop offering.
-                        _adRefillDenied = true;
+                        // rate_limited / premium don't heal within this session - stop
+                        // offering. attempts_full DOES heal (the next spent attempt makes
+                        // room): the top-bar "+" can race regen to a full meter during the
+                        // ad itself (tap at 4/5, regen ticks mid-video - review 2026-08-01),
+                        // and that near-miss must not kill the refill for the whole session.
+                        if (dto.reason != "attempts_full") _adRefillDenied = true;
                         UnityEngine.Debug.Log($"[Ads] grant_ad_refill denied: {dto.reason}");
                     }
                     onDone?.Invoke(dto.ok);

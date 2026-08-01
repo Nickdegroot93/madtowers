@@ -212,6 +212,10 @@ public static partial class MainMenuRuntime
     // ---- Sound & Haptics tab ----------------------------------------------------------------
     private const float SettingsRowPad = 34f;
 
+    // Where tab content starts inside the panel: the header hairline sits at y = -128 (see
+    // BuildPanelHeader), plus a breathing gap so the first row doesn't crowd it.
+    private const float SettingsRowsTop = 158f;
+
     // Description tone for headers/rows: lifted off plain TextMuted so the small print stays
     // readable on the frosted panel (older eyes on a phone) without competing with the titles.
     // A property, not a static field: TextMuted/TextPrimary live in another partial file and a
@@ -229,7 +233,7 @@ public static partial class MainMenuRuntime
     private static void BuildSoundSettings(RectTransform panel, Color accent)
     {
         Color track = WithAlpha(TextPrimary, 0.16f);
-        RectTransform rows = NewCenteredRowsBlock(panel, 2f * SliderRowH + ToggleRowH);
+        RectTransform rows = NewRowsBlock(panel);
         float y = 0f;
 
         y = BuildSliderRow(rows, MenuSprites.Note, "MUSIC VOLUME", "Adjust the background music volume.",
@@ -255,7 +259,7 @@ public static partial class MainMenuRuntime
         int selected = Array.IndexOf(rates, SettingsService.TargetFrameRate);
         if (selected < 0) selected = Array.IndexOf(rates, 60); // fall back to 60
 
-        RectTransform rows = NewCenteredRowsBlock(panel, SegmentedRowH + 2f * ToggleRowH);
+        RectTransform rows = NewRowsBlock(panel);
         float y = 0f;
         y = BuildSegmentedRow(rows, MenuSprites.Monitor, "FRAME RATE", "Higher is smoother; lower saves battery.",
             rateLabels, selected, accent, y,
@@ -271,12 +275,13 @@ public static partial class MainMenuRuntime
     }
 
     // ---- UI / Controls tab ------------------------------------------------------------------
-    // The tab's only action is opening the layout editor, so it's one prominent centred button.
+    // The tab's only action is opening the layout editor: one prominent button, top-anchored
+    // under the header like every other tab's content so switching tabs doesn't jump.
     private static void BuildControlsSettings(RectTransform panel, ChapterDefinition chapter, Color accent)
     {
         RectTransform button = CreateRect(panel, "CustomizeButton",
-            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            new Vector2(0f, 26f), new Vector2(520f, 196f));
+            new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+            new Vector2(0f, -SettingsRowsTop - 12f), new Vector2(520f, 196f));
         Image image = button.gameObject.AddComponent<Image>();
         image.sprite = RuntimeSprites.RoundedPanel();
         image.type = Image.Type.Sliced;
@@ -299,8 +304,8 @@ public static partial class MainMenuRuntime
 
         TextMeshProUGUI desc = CreateTmp(panel, "CustomizeDesc",
             "Move & resize the consumable slots and set the nudge-guide visibility.", 20, SettingsDescColor,
-            TextAnchor.UpperCenter, FontStyle.Normal, RuntimeUiKit.TitleFont, new Vector2(0f, -116f),
-            new Vector2(600f, 60f), new Vector2(0.5f, 0.5f));
+            TextAnchor.UpperCenter, FontStyle.Normal, RuntimeUiKit.TitleFont,
+            new Vector2(0f, -SettingsRowsTop - 230f), new Vector2(600f, 60f), new Vector2(0.5f, 1f));
         desc.textWrappingMode = TextWrappingModes.Normal;
     }
 
@@ -319,9 +324,7 @@ public static partial class MainMenuRuntime
         const float buttonsH = 108f;
         bool restoreOn = PremiumStore.HasStore;
         bool deleteOn = OnlineService.Enabled;   // no server account = nothing to delete
-        float blockH = identityH + buttonsH + 34f + 2f * ToggleRowH
-            + (restoreOn ? ToggleRowH : 0f) + (deleteOn ? ToggleRowH : 0f);
-        RectTransform rows = NewCenteredRowsBlock(panel, blockH);
+        RectTransform rows = NewRowsBlock(panel);
 
         bool guest = !OnlineService.IsLinked;
 
@@ -529,8 +532,7 @@ public static partial class MainMenuRuntime
 
     private static void BuildAboutSettings(RectTransform panel, Color accent)
     {
-        float blockH = 4f * ToggleRowH + 60f;
-        RectTransform rows = NewCenteredRowsBlock(panel, blockH);
+        RectTransform rows = NewRowsBlock(panel);
         float rowTop = 0f;
 
         // Version: informational row, value where the control would sit.
@@ -693,15 +695,17 @@ public static partial class MainMenuRuntime
         return row;
     }
 
-    /// <summary>A container for a tab's rows, vertically CENTRED in the panel's space below the
-    /// header (biased slightly up for the footer). Rows top-aligned under the header left the
-    /// rest of the panel as a sea of empty glass - "not really game-like" (Nick, 2026-07-29).
-    /// Rows build into it top-down from y = 0.</summary>
-    private static RectTransform NewCenteredRowsBlock(RectTransform panel, float blockHeight)
+    /// <summary>A container for a tab's rows, anchored snug under the panel header's divider.
+    /// Rows build into it top-down from y = 0. History: top-aligned v1 → centred 2026-07-29
+    /// ("sea of empty glass") → back to top-aligned 2026-08-01 (the centred block orphaned the
+    /// header and read as floating, which was worse). If the glass below feels too empty again,
+    /// fix THAT (hug the panel to its content / bottom watermark), not the row anchor.</summary>
+    private static RectTransform NewRowsBlock(RectTransform panel)
     {
         RectTransform block = CreateRect(panel, "Rows",
-            new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 1f),
-            new Vector2(0f, blockHeight * 0.5f - 30f), new Vector2(0f, blockHeight));
+            Vector2.zero, Vector2.one, new Vector2(0.5f, 1f), Vector2.zero, Vector2.zero);
+        block.offsetMin = Vector2.zero;
+        block.offsetMax = new Vector2(0f, -SettingsRowsTop);
         return block;
     }
 

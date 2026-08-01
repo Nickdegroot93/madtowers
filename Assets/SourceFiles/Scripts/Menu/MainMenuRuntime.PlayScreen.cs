@@ -387,10 +387,8 @@ public static partial class MainMenuRuntime
                 FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -22f), new Vector2(180f, 26f), new Vector2(0f, 1f));
             CreateTmp(content, "NextTitle", next.DisplayName.ToUpperInvariant(), 21, TextPrimary, TextAnchor.MiddleLeft,
                 FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -50f), new Vector2(206f, 34f), new Vector2(0f, 1f));
-
-            Image nextArrow = CreateImage(content, "NextArrow", MenuSprites.Chevron(TextPrimary), Color.white);
-            nextArrow.preserveAspect = true;
-            SetCentered(nextArrow.rectTransform, new Vector2(258f, -75f), new Vector2(40f, 40f));
+            // No chevron on the unlocked face (Nick 2026-08-01): the preview + title carry
+            // the invitation; the locked face keeps its padlock (state, not decoration).
             return;
         }
 
@@ -430,16 +428,12 @@ public static partial class MainMenuRuntime
                 Vector2.zero, new Vector2(300f, 160f), new Vector2(0.5f, 0.5f));
         }
 
-        // Mirrored layout: texts hug the RIGHT edge, the (flipped) chevron sits bottom-left.
+        // Mirrored layout: texts hug the RIGHT edge. (No chevron - Nick 2026-08-01, matches
+        // the next-chapter card.)
         CreateTmp(card, "PrevLabel", "PREVIOUS", 15, TextMuted, TextAnchor.MiddleRight,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(-28f, -22f), new Vector2(180f, 26f), new Vector2(1f, 1f));
         CreateTmp(card, "PrevTitle", prev.DisplayName.ToUpperInvariant(), 21, TextPrimary, TextAnchor.MiddleRight,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(-28f, -50f), new Vector2(206f, 34f), new Vector2(1f, 1f));
-
-        Image prevArrow = CreateImage(card, "PrevArrow", MenuSprites.Chevron(TextPrimary), Color.white);
-        prevArrow.preserveAspect = true;
-        SetCentered(prevArrow.rectTransform, new Vector2(42f, -75f), new Vector2(40f, 40f));
-        prevArrow.rectTransform.localEulerAngles = new Vector3(0f, 0f, 180f);
 
         Button button = card.gameObject.AddComponent<Button>();
         button.targetGraphic = cardImage;

@@ -157,7 +157,7 @@ public static partial class MainMenuRuntime
     }
 
     // Same idea for the next-chapter card: built as the locked mystery, animated open into the
-    // preview + name + chevron, with the preview swept in radially (the "paint reveal").
+    // preview + name, with the preview swept in radially (the "paint reveal").
     private static void AttachChapterReveal(Transform screenRoot, RectTransform card,
         RectTransform content, ChapterDefinition current, ChapterDefinition next, Button button)
     {

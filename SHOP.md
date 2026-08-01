@@ -192,12 +192,15 @@ meter, so victories feel free and failures create the decision point).
   (2026-07-23) the meter is server-authoritative** — regen computed lazily on server time
   via `start_run`/`finish_run`, `AttemptsService` is a display cache (BACKEND.md §6); the
   wall-clock model survives only as the `SupabaseConfig.Enabled=false` offline fallback.
-- **Watch an ad → +2 attempts** (cap 5). The only ad placement in the game, opt-in
-  rewarded video with explicit copy ("+2 attempts"). No forced ads, no
-  interstitials — ads exist purely as the free player's refill lever. **As built
-  (2026-07-30):** the out-of-attempts status row grows a gold **WATCH AD +2**
-  button; the placement talks to `RewardedAds` (provider facade,
-  `Scripts/Shop/RewardedAds.cs`) — no provider installed (all device builds today)
+- **Watch an ad → +2 attempts** (cap 5). The only ad SURFACE in the game (the same
+  opt-in rewarded refill, reachable from two spots), explicit copy where there is
+  room. No forced ads, no interstitials — ads exist purely as the free player's
+  refill lever. **As built (2026-07-30, second entry 2026-08-01):** the
+  out-of-attempts status row grows a gold **WATCH AD +2** button, and the top bar's
+  meter chip carries a **"+"** that runs the same flow (visible only below 5/5 with
+  a showable, non-rate-limited ad — Nick 2026-08-01); both talk to `RewardedAds`
+  (provider facade, `Scripts/Shop/RewardedAds.cs`) — no provider installed (all
+  device builds today)
   = no button, ever; in the editor a simulated 5-second TEST AD overlay exercises
   both the skip-forfeits and watched-to-end paths. The grant is
   `AttemptsService.RequestAdRefill`: online it calls the server's `grant_ad_refill`

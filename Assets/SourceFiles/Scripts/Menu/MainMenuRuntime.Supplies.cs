@@ -347,9 +347,10 @@ public static partial class MainMenuRuntime
 
         // The meter only speaks up when it actually blocks play (its home is the top bar).
         // (The Hour Pass buy that used to sit here was cut by Nick 2026-07-20 - waiting and
-        // the rewarded ad are the only refills.) The WATCH AD button is the game's single ad
-        // placement (SHOP.md §7): opt-in, explicit "+2" copy, and only rendered when an ad
-        // can actually show AND pay out (no SDK / rate-limited = the row is countdown-only).
+        // the rewarded ad are the only refills.) The WATCH AD button is one of the two entries
+        // to the game's single ad surface (the other is the top-bar meter chip's "+",
+        // SHOP.md §7): opt-in, explicit "+2" copy, and only rendered when an ad can actually
+        // show AND pay out (no SDK / rate-limited = the row is countdown-only).
         if (AttemptsService.MeterActive && !AttemptsService.CanStartRun)
         {
             bool adOffer = AttemptsService.AdRefillAvailable;

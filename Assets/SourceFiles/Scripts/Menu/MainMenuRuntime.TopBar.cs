@@ -47,7 +47,7 @@ public static partial class MainMenuRuntime
         LayoutElement badgeLayout = badge.gameObject.AddComponent<LayoutElement>();
         badgeLayout.preferredWidth = 82f;
         badgeLayout.preferredHeight = 82f;
-        CreateTmp(badge.transform, "LevelText", profile.PlayerLevel.ToString(), 30, TextPrimary,
+        TextMeshProUGUI levelText = CreateTmp(badge.transform, "LevelText", profile.PlayerLevel.ToString(), 30, TextPrimary,
             TextAnchor.MiddleCenter, FontStyle.Normal, RuntimeUiKit.DefaultFont);
 
         RectTransform profileColumn = CreateRect(bar, "ProfileInfo",
@@ -69,11 +69,14 @@ public static partial class MainMenuRuntime
         // The server identity (auto "Builder-XXXX" until claimed, BACKEND.md §3.2); falls
         // back to the placeholder while offline/disabled. TopBarLive re-renders it when the
         // online state or profile changes (name claim, boot completing after the bar built).
-        TextMeshProUGUI playerName = CreateTmp(profileColumn, "PlayerName", OnlineService.DisplayName, 18, TextPrimary,
+        // 26pt with a 20pt autosize floor: the old 18/14 was unreadable on a phone (Nick
+        // 2026-08-01) - names are identity, not fine print. The taller line box (34px) plus
+        // stack padding+spacing+bar still lands exactly on the column's 82px.
+        TextMeshProUGUI playerName = CreateTmp(profileColumn, "PlayerName", OnlineService.DisplayName, 26, TextPrimary,
             TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont,
-            Vector2.zero, new Vector2(0f, 27f), new Vector2(0f, 1f));
-        AutoSize(playerName, 14, 18);
-        playerName.gameObject.AddComponent<LayoutElement>().preferredHeight = 27f;
+            Vector2.zero, new Vector2(0f, 34f), new Vector2(0f, 1f));
+        AutoSize(playerName, 20, 26);
+        playerName.gameObject.AddComponent<LayoutElement>().preferredHeight = 34f;
 
         // Tapping your name opens the claim flow (BACKEND.md §3.4 prompt #2). The whole
         // profile column is the target so the tap area clears the 64px contract.
@@ -110,7 +113,10 @@ public static partial class MainMenuRuntime
         spacerLayout.minWidth = 24f;
         spacerLayout.flexibleWidth = 1f;
 
-        BuildCurrencyCard(bar, statBackground, "$", profile.Coins.ToString("N0", CultureInfo.InvariantCulture), null);
+        // No "+" on the wallet: coins are earned in play, never bought (SHOP.md), so an add
+        // affordance would be a lie (Nick 2026-08-01 - it did nothing).
+        BuildCurrencyCard(bar, statBackground, "$", profile.Coins.ToString("N0", CultureInfo.InvariantCulture), null,
+            addButton: false);
 
         // The attempts chip (SHOP.md §7): real meter once the meta systems unlock, absent
         // before that (soft landing). PREMIUM outranks everything (Nick 2026-07-30): the
@@ -119,16 +125,21 @@ public static partial class MainMenuRuntime
         // While the online layer is enabled but unreachable (free players) the chip says
         // OFFLINE - campaign runs can't start (BACKEND.md §5.1) and the top bar admits it.
         RectTransform attemptsCard = null;
+        GameObject adRefillSlot = null;
         if (PremiumStore.IsPremium && AttemptsService.MetaEnabled)
         {
             attemptsCard = BuildCurrencyCard(bar, statBackground, null, "∞", null, addButton: false);
             TextMeshProUGUI infinity = FindTmp(attemptsCard, "Primary");
             infinity.enableAutoSizing = false;   // the glyph is the whole message - let it be big
             infinity.fontSize = 44f;
+            // ∞ is an x-height glyph (visual centre ~0.27em vs the line centre ~0.35em), so
+            // Middle alignment renders it visibly LOW next to the dead-centred heart at this
+            // size - lift the box to put the loops back on the icon's midline (Nick 2026-08-01).
+            infinity.rectTransform.anchoredPosition += new Vector2(0f, 4f);
         }
         else if (AttemptsService.OnlineBlocked)
         {
-            attemptsCard = BuildCurrencyCard(bar, statBackground, null, "OFFLINE", null);
+            attemptsCard = BuildCurrencyCard(bar, statBackground, null, "OFFLINE", null, addButton: false);
         }
         else if (AttemptsService.MeterActive)
         {
@@ -137,16 +148,52 @@ public static partial class MainMenuRuntime
             attemptsCard = BuildCurrencyCard(bar, statBackground, null,
                 $"{AttemptsService.Count}/{AttemptsService.MaxAttempts}",
                 showTimer ? $"{(int)regen.TotalMinutes:00}:{regen.Seconds:00}" : null);
+            adRefillSlot = WireAdRefillPlus(attemptsCard);
         }
 
         // Live refresh: name + meter numbers change underneath the bar (boot completing,
         // name claim, regen ticking). The bar is otherwise a build-time snapshot.
         TopBarLive live = bar.gameObject.AddComponent<TopBarLive>();
         live.PlayerName = playerName;
+        live.LevelText = levelText;
+        live.ExpFill = expFillRect;
         live.AttemptsPrimary = attemptsCard != null ? FindTmp(attemptsCard, "Primary") : null;
         live.AttemptsSecondary = attemptsCard != null ? FindTmp(attemptsCard, "Secondary") : null;
+        live.AdRefillSlot = adRefillSlot;
         live.BuiltMode = ChipMode();
     }
+
+    /// <summary>Make the meter chip's "+" a live rewarded-ad refill (Nick 2026-08-01): tap →
+    /// watch → +2 attempts (capped at 5, server-granted online - SHOP.md §7.3). The whole
+    /// divider+plus slot is the 64px-wide tap target, and it only SHOWS while an ad could
+    /// actually pay out: meter below max and a showable, non-rate-limited ad (TopBarLive
+    /// re-evaluates every tick, so the plus vanishes at 5/5 and returns as regen spends).</summary>
+    private static GameObject WireAdRefillPlus(RectTransform attemptsCard)
+    {
+        Transform slot = attemptsCard.Find("AddSlot");
+        if (slot == null) return null;
+
+        Image hit = slot.gameObject.AddComponent<Image>();
+        hit.color = Color.clear;
+        hit.raycastTarget = true;
+        Button button = slot.gameObject.AddComponent<Button>();
+        button.targetGraphic = hit;
+        button.onClick.AddListener(() =>
+        {
+            SfxPlayer.Play("ui-button-click");
+            RewardedAds.Show(earned =>
+            {
+                // The meter events / next tick redraw the chip; nothing to refresh here.
+                if (earned) AttemptsService.RequestAdRefill(null);
+            });
+        });
+
+        slot.gameObject.SetActive(AdRefillPlusShouldShow());
+        return slot.gameObject;
+    }
+
+    private static bool AdRefillPlusShouldShow() =>
+        AttemptsService.Count < AttemptsService.MaxAttempts && AttemptsService.AdRefillAvailable;
 
     private static TextMeshProUGUI FindTmp(RectTransform card, string name)
     {
@@ -168,8 +215,11 @@ public static partial class MainMenuRuntime
     private sealed class TopBarLive : MonoBehaviour
     {
         public TextMeshProUGUI PlayerName;
+        public TextMeshProUGUI LevelText;
+        public RectTransform ExpFill;
         public TextMeshProUGUI AttemptsPrimary;
         public TextMeshProUGUI AttemptsSecondary;
+        public GameObject AdRefillSlot;
         public int BuiltMode;
 
         private float _nextTick;
@@ -182,6 +232,9 @@ public static partial class MainMenuRuntime
             // A purchase/restore flips the chip to ∞ without any online event (the local
             // entitlement is the trigger) - the bar must hear about it directly.
             PremiumStore.Changed += HandleChanged;
+            // XP verdicts land after the bar built (a queued finish_run retry, the boot
+            // profile answering late) - keep the badge and bar truthful (XP.md).
+            XpSystem.Changed += HandleChanged;
         }
 
         private void OnDisable()
@@ -189,12 +242,15 @@ public static partial class MainMenuRuntime
             OnlineService.StateChanged -= HandleChanged;
             AttemptsSync.Changed -= HandleChanged;
             PremiumStore.Changed -= HandleChanged;
+            XpSystem.Changed -= HandleChanged;
         }
 
         private void HandleChanged()
         {
             if (_consumed) return;
             if (PlayerName != null) PlayerName.text = OnlineService.DisplayName;
+            if (LevelText != null) LevelText.text = XpSystem.Level.ToString();
+            if (ExpFill != null) ExpFill.anchorMax = new Vector2(Mathf.Clamp01(XpSystem.Fraction01), 1f);
             if (ChipMode() != BuiltMode)
             {
                 // One-shot: the rebuild replaces this bar (and this component) wholesale.
@@ -212,6 +268,10 @@ public static partial class MainMenuRuntime
 
             int count = AttemptsService.Count;
             AttemptsPrimary.text = $"{count}/{AttemptsService.MaxAttempts}";
+            // The ad-refill "+" tracks the same tick: gone at 5/5 or when no ad can pay out
+            // (no SDK, rate-limited, one already showing), back as spending makes room.
+            if (AdRefillSlot != null && AdRefillSlot.activeSelf != AdRefillPlusShouldShow())
+                AdRefillSlot.SetActive(AdRefillPlusShouldShow());
             if (AttemptsSecondary == null) return;
             System.TimeSpan regen = AttemptsService.NextRegenIn;
             AttemptsSecondary.text = count < AttemptsService.MaxAttempts
@@ -315,16 +375,21 @@ public static partial class MainMenuRuntime
         }
 
         // Divider + add button, pinned to the card's RIGHT edge (pivot-centred) rather than a
-        // fixed left offset. Both cards then match exactly and the "+" keeps an even margin from
-        // the edge instead of overflowing it - independent of the card's laid-out width.
-        // Omitted for the premium ∞ chip: unlimited has nothing to add to.
+        // fixed left offset so the "+" keeps an even margin from the edge - independent of the
+        // card's laid-out width. Only the attempts meter chip requests it (the ad-refill
+        // entry, wired + visibility-managed by WireAdRefillPlus); wallet/OFFLINE/∞ chips
+        // have nothing to add to. Grouped under one "AddSlot" so it toggles atomically.
         if (addButton)
         {
-            Image divider = CreateImage(card, "Divider", RuntimeSprites.Square(), WithAlpha(TextPrimary, 0.28f));
-            SetCenteredAt(divider.rectTransform, new Vector2(1f, 0.5f), new Vector2(-52f, 0f), new Vector2(1.5f, 38f));
-            TextMeshProUGUI plus = CreateTmp(card, "Plus", "+", 32, TextPrimary, TextAnchor.MiddleCenter,
+            RectTransform slot = CreateRect(card, "AddSlot",
+                new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f),
+                Vector2.zero, new Vector2(64f, 0f));
+            Image divider = CreateImage(slot, "Divider", RuntimeSprites.Square(), WithAlpha(TextPrimary, 0.28f));
+            SetCenteredAt(divider.rectTransform, new Vector2(0f, 0.5f), new Vector2(12f, 0f), new Vector2(1.5f, 38f));
+            TextMeshProUGUI plus = CreateTmp(slot, "Plus", "+", 32, TextPrimary, TextAnchor.MiddleCenter,
                 FontStyle.Normal, RuntimeUiKit.DefaultFont);
             SetCenteredAt(plus.rectTransform, new Vector2(1f, 0.5f), new Vector2(-26f, 0f), new Vector2(44f, 44f));
+            plus.raycastTarget = false; // the slot itself is the tap target
         }
         return card;
     }
