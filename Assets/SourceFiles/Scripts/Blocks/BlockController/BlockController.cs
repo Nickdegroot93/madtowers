@@ -70,7 +70,7 @@ public partial class BlockController : MonoBehaviour
     // Code-owned (not serialized) so it can't go stale in prefab import caches.
     private const int PlacementBeamSortingOrder = -52;
     private const int VectorGuideGhostSortingOrder = -5;
-    // Run-local ability toggles (Vector Guide, Edge Portal, ...). One bitfield instead of a named
+    // Run-local ability toggles (Vector Guide, ...). One bitfield instead of a named
     // static per ability - see BlockFeature. Reset with the rest of the static state below.
     private static BlockFeature _features;
 

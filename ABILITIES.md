@@ -324,7 +324,6 @@ when unusable, same affordance as the nudge pills.
    | `ReboundAbility` | Passive (unique) | saveChance (+ cellBurstEffect) | "% chance a lost landed block is saved back to the queue" |
    | `BlockDropChancePowerUp` | Passive (unique) | definition, dropChance | "introduce an out-of-bag brick at a rare drop rate" |
    | `QueueVisibilityPowerUp` | Passive (unique) | visibleDepth | "see N upcoming shapes instead of 1" |
-   | `EdgePortalAbility` | Passive (unique) | — | "active pieces wrap across screen edges" |
    | `PocketCacheAbility` | Passive (unique) | — | "unlocks a Tetris-style hold/swap cache" |
    | `RerollPowerUp` | Passive (unique) | rerollCharges | "banks N rerolls; a Reroll button on the choice panel redraws all three cards" |
    | `HardlineAbility` | Passive (unique, charges = 1) | laserColor, laserYOffset, settleSeconds | "first lost landed block becomes an airborne platform" |
@@ -509,14 +508,12 @@ then gamma-lifted, so cell seams survive while it reads white — with a very sl
 `unique = true`, charges 0. The circular button uses a reusable, theme-neutral `RuntimeSprites.Bubble()`
 (glassy disc + thin rim).
 
-### Edge Portal (Common, passive, unique)
-`EdgePortalAbility` toggles run-local horizontal wrapping on `BlockController`. While a
-piece is still actively controlled (not touched down, not landed, not flick-dropping),
-a sideways step that crosses the current camera edge wraps the target column to the
-opposite camera edge. The wrapped target is then classified through the normal
-side-step collision checks, so the portal cannot intentionally place the piece inside
-blocks or static islands. The camera bounds are live, so the portal width follows the
-current zoom. `unique = true`.
+### Edge Portal — REMOVED (Nick 2026-08-01)
+Edge Portal (active pieces wrap across the camera's horizontal edges) was cut from the
+game entirely — "incredibly annoying, never found a use." Asset, script, the
+`BlockFeature.EdgePortal` bit and the camera-bounds wrap path in
+`BlockController.Placement` are all gone; 57 game-mode ability pools were stripped.
+Don't re-add without Nick.
 
 ### Sacrifice (Rare, one-shot passive, unique)
 `SacrificeAbility` uses the intercepting `TryInterceptLoss` hook: the first **landed**

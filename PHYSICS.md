@@ -157,13 +157,9 @@ Code-level details that are part of the contract (not inspector values):
   zoom-out. When the content is wider than `MaximumCameraSize` can show, the centre is biased to keep
   the **active piece** fully framed (the far tower side crops, never the piece being steered), so a
   reachable column is never off-screen. Framing is snapped on the first frame that has content (held
-  at Awake values until then) so the first piece causes no zoom pop. The only camera-bounded movement
-  is **Edge Portal**, which wraps targets across the *visible* screen edges
-  (`TryGetCameraHorizontalBounds`, gameplay bounds excluded for it).
-- The Edge Portal ability may override horizontal placement bounds for the active
-  falling piece only. It wraps target columns across the current camera bounds, snaps
-  them back onto the placement grid, then runs the normal side-step collision
-  classification; landed blocks are never moved.
+  at Awake values until then) so the first piece causes no zoom pop. No movement is
+  camera-bounded anymore (the Edge Portal ability, which wrapped targets across the
+  visible screen edges, was removed from the game entirely — Nick 2026-08-01).
 - The Fission ability (and the first-run tutorial's lesson hover — TUTORIAL.md) may **suspend
   the controlled descent** of the active piece
   (`BlockController.SetDescentSuspended`): while suspended, `SteerWhileFalling` still runs
@@ -171,7 +167,7 @@ Code-level details that are part of the contract (not inspector values):
   shard hovers and is steerable but does not fall. Any descent intent (flick / held fast-drop /
   down) auto-clears it, so the normal commit gesture starts the drop. The body stays Kinematic
   and never-landed throughout — this only **defers** first contact (I5), it never writes a
-  transform on a landed block (I1). Active-piece-only, like Edge Portal.
+  transform on a landed block (I1). Active-piece-only.
 - `Physics2D.SyncTransforms()` is called before every landing cast (`SteerWhileFalling`,
   `SettleOntoContact`) because **AutoSyncTransforms is off** project-wide. Without it,
   casts see last step's collider poses → landings measured at the wrong X.

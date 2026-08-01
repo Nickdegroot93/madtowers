@@ -1,6 +1,5 @@
 AirBrake|Air Brake|Common|Assets/Art/Abilities/icon_air_brake.png|Assets/Data/PowerUps/Common/AirBrake.asset
 Domino|Domino|Common|Assets/Art/Abilities/icon_domino.png|Assets/Data/PowerUps/Common/Domino.asset
-EdgePortal|Edge Portal|Common|Assets/Art/Abilities/icon_edge_portal.png|Assets/Data/PowerUps/Common/EdgePortal.asset
 ExtraLife|Extra Life|Common|NONE|Assets/Data/PowerUps/Common/ExtraLife.asset
 Flip|Flip|Common|Assets/Art/Abilities/icon_flip.png|Assets/Data/PowerUps/Common/Flip.asset
 Foresight|Foresight|Common|Assets/Art/Abilities/icon_foresight.png|Assets/Data/PowerUps/Common/Foresight.asset

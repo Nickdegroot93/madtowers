@@ -452,27 +452,6 @@ def render_icon_domino(path):
     write_png(path, S, S, c.to_bytes())
 
 
-def render_icon_edge_portal(path):
-    """Card artwork: side portals with a block entering left and exiting right."""
-    S = 512
-    c = Canvas(S, S)
-    pearl = (224, 232, 235)
-    rail = (248, 252, 255)
-    draw_glow(c, S / 2, S / 2, 210, (232, 238, 240), peak=0.24)
-
-    for lx in (118, 394):
-        draw_speed_line(c, lx, 80, 432, 12, rail, alpha=0.58)
-        draw_speed_line(c, lx + (10 if lx < S / 2 else -10), 106, 406, 5, rail, alpha=0.28)
-
-    draw_square_piece(c, 76, 174, 78, pearl, outline_px=13, bevel_px=18)
-    draw_square_piece(c, 436, 338, 78, pearl, outline_px=13, bevel_px=18)
-
-    for sx, sy, sz in ((156, 144, 20), (356, 368, 22), (348, 150, 14)):
-        draw_sparkle(c, sx, sy, sz, color=(252, 255, 255), alpha=0.88)
-
-    write_png(path, S, S, c.to_bytes())
-
-
 def _heart_inside(nx, ny):
     # classic heart implicit (nx,ny normalized, y up); inside when <= 0
     v = nx * nx + ny * ny - 1.0
@@ -667,7 +646,6 @@ ARTWORK = {
     "icon_shrink.png": render_icon_shrink,
     "icon_pip.png": render_icon_pip,
     "icon_domino.png": render_icon_domino,
-    "icon_edge_portal.png": render_icon_edge_portal,
     "icon_recovery.png": render_icon_recovery,
     "icon_slomo.png": render_icon_slomo,
     "icon_sacrifice.png": render_icon_sacrifice,

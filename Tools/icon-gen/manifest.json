@@ -11,8 +11,6 @@
      "subject": "a single falling rectangular block with two air-brake drag flaps deployed open on its sides, soft easing motion lines above it"},
     {"name": "Domino", "display": "Domino", "icon": "icon_domino", "hue": "violet",
      "subject": "two small 1x2 domino bricks side by side, one tipping over against the other"},
-    {"name": "EdgePortal", "display": "Edge Portal", "icon": "icon_edge_portal", "hue": "violet",
-     "subject": "a rectangular block passing halfway through a glowing vertical portal slit on one side and re-emerging from a matching portal on the opposite side"},
     {"name": "ExtraLife", "display": "Extra Life", "icon": "icon_extra_life", "hue": "red",
      "subject": "a bold heart built from small stacked square blocks with a small plus symbol beside it"},
     {"name": "Flip", "display": "Flip", "icon": "icon_flip", "hue": "violet",

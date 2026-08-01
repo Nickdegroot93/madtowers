@@ -18,12 +18,7 @@ public partial class BlockController
         if (_autoDrop) return ColumnStepResult.Gated;
 
         float candidate = _targetColumnX + direction * gridSpacing;
-        bool edgePortal = HasFeature(BlockFeature.EdgePortal);
-        if (edgePortal && TryWrapColumnTarget(candidate, out float wrappedCandidate))
-        {
-            candidate = wrappedCandidate;
-        }
-        else if (!IsColumnTargetWithinBounds(candidate, includeGameplayBounds: !edgePortal))
+        if (!IsColumnTargetWithinBounds(candidate))
         {
             return ColumnStepResult.OutOfBounds;
         }
@@ -151,7 +146,7 @@ public partial class BlockController
         return false;
     }
 
-    private bool IsColumnTargetWithinBounds(float candidateColumnX, bool includeGameplayBounds = true)
+    private bool IsColumnTargetWithinBounds(float candidateColumnX)
     {
         if (!_cellGeometry.TryGetWorldBounds(out Bounds bounds)) return true;
 
@@ -164,81 +159,17 @@ public partial class BlockController
         // Movement is gated by the gameplay REACH bounds (obstacles + the widest-block margin),
         // never by the camera - the camera is now a follow camera that pans/zooms to keep the
         // piece in view, so clamping to it would re-introduce the "walled off at the screen edge"
-        // bug this whole change set exists to kill. The only camera-bounded path is Edge Portal,
-        // which wraps targets across the *visible* screen edges (gameplay bounds excluded there).
-        if (includeGameplayBounds)
+        // bug this whole change set exists to kill. (Edge Portal, the one camera-bounded path,
+        // was removed from the game entirely - Nick 2026-08-01.)
+        if (TryGetGameplayHorizontalBounds(out float gameplayMinX, out float gameplayMaxX))
         {
-            if (TryGetGameplayHorizontalBounds(out float gameplayMinX, out float gameplayMaxX))
-            {
-                minX = gameplayMinX;
-                maxX = gameplayMaxX;
-            }
-        }
-        else if (TryGetCameraHorizontalBounds(out float cameraMinX, out float cameraMaxX))
-        {
-            minX = cameraMinX;
-            maxX = cameraMaxX;
+            minX = gameplayMinX;
+            maxX = gameplayMaxX;
         }
 
         const float tolerance = 0.001f;
         return candidateColumnX - leftReach >= minX - tolerance &&
                candidateColumnX + rightReach <= maxX + tolerance;
-    }
-
-    private bool TryWrapColumnTarget(float candidateColumnX, out float wrappedColumnX)
-    {
-        wrappedColumnX = candidateColumnX;
-        if (!_cellGeometry.TryGetWorldBounds(out Bounds bounds)) return false;
-        if (!TryGetCameraHorizontalBounds(out float cameraMinX, out float cameraMaxX)) return false;
-
-        float primaryX = _cellGeometry.GetPrimaryWorldX(transform.position.x);
-        float leftReach = primaryX - bounds.min.x;
-        float rightReach = bounds.max.x - primaryX;
-        float candidateMinX = candidateColumnX - leftReach;
-        float candidateMaxX = candidateColumnX + rightReach;
-        float minPrimaryX = cameraMinX + leftReach;
-        float maxPrimaryX = cameraMaxX - rightReach;
-        if (minPrimaryX > maxPrimaryX) return false;
-
-        const float tolerance = 0.001f;
-        if (candidateMaxX < cameraMinX - tolerance)
-        {
-            return TryGetRightmostVisibleGridColumn(minPrimaryX, maxPrimaryX, out wrappedColumnX);
-        }
-        if (candidateMinX > cameraMaxX + tolerance)
-        {
-            return TryGetLeftmostVisibleGridColumn(minPrimaryX, maxPrimaryX, out wrappedColumnX);
-        }
-        if (candidateMinX < cameraMinX - tolerance)
-        {
-            return TryGetRightmostVisibleGridColumn(minPrimaryX, maxPrimaryX, out wrappedColumnX);
-        }
-        if (candidateMaxX > cameraMaxX + tolerance)
-        {
-            return TryGetLeftmostVisibleGridColumn(minPrimaryX, maxPrimaryX, out wrappedColumnX);
-        }
-
-        return false;
-    }
-
-    private bool TryGetRightmostVisibleGridColumn(float minPrimaryX, float maxPrimaryX, out float columnX)
-    {
-        columnX = maxPrimaryX;
-        if (gridSpacing <= 0f) return minPrimaryX <= maxPrimaryX;
-
-        const float tolerance = 0.001f;
-        columnX = Mathf.Floor((maxPrimaryX + tolerance) / gridSpacing) * gridSpacing;
-        return columnX >= minPrimaryX - tolerance;
-    }
-
-    private bool TryGetLeftmostVisibleGridColumn(float minPrimaryX, float maxPrimaryX, out float columnX)
-    {
-        columnX = minPrimaryX;
-        if (gridSpacing <= 0f) return minPrimaryX <= maxPrimaryX;
-
-        const float tolerance = 0.001f;
-        columnX = Mathf.Ceil((minPrimaryX - tolerance) / gridSpacing) * gridSpacing;
-        return columnX <= maxPrimaryX + tolerance;
     }
 
     // Cached against the placed-geometry version: the reach bounds only change when a block lands
@@ -306,24 +237,6 @@ public partial class BlockController
     {
         if (!StaticSupportIslandManager.TryGetWorldHorizontalExtent(out float islandMinX, out float islandMaxX)) return;
         HorizontalBounds.Encapsulate(islandMinX, islandMaxX, ref minX, ref maxX, ref hasBounds);
-    }
-
-    private bool TryGetCameraHorizontalBounds(out float minX, out float maxX)
-    {
-        minX = 0f;
-        maxX = 0f;
-
-        if (_mainCamera == null)
-        {
-            _mainCamera = Camera.main;
-        }
-
-        if (_mainCamera == null || !_mainCamera.orthographic) return false;
-
-        float halfWidth = _mainCamera.orthographicSize * _mainCamera.aspect;
-        minX = _mainCamera.transform.position.x - halfWidth;
-        maxX = _mainCamera.transform.position.x + halfWidth;
-        return true;
     }
 
 }

@@ -67,7 +67,7 @@ One sentence, concrete and visual, using the game's vocabulary. Look at
 |---|---|---|---|
 | cyan | `electric cyan` | `#4DDBFF` | ice, time, slowing, wind, lasers-as-safety (Freeze, Slo-Mo, Updraft, Hardline, Anchor…) |
 | amber | `molten amber` | `#FFAA33` | heat, weight, friction, supply/industrial (Magma, Titan, Bedrock, Locksmith…) |
-| violet | `neon violet` | `#B067FF` | queue tricks, teleport/space magic (Flip, Edge Portal, Overdraw, Fission, Suspension…) |
+| violet | `neon violet` | `#B067FF` | queue tricks, teleport/space magic (Flip, Overdraw, Fission, Suspension…) |
 | green | `acid green` | `#58F58B` | vines, cleansing, protection, guides (Overgrowth, Sanitize, Ward, Guardian, Vector Guide…) |
 | red | `hot red` | `#FF5566` | lives, destruction, bombs, lasers-as-danger (Extra Life, Scrap, Sacrifice, Zap, Iron Will…) |
 
