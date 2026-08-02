@@ -173,6 +173,20 @@ SOUNDS = {
         "pulled inward, muffled and round, ending in a soft deep sub-bass swallow like a "
         "distant underwater gulp. Warm, dark, organic, smooth - absolutely no screech, no "
         "electronic glitch, no distortion, no harsh high frequencies, no metallic tones.", 1.3, 0.75),
+    # ---- Curse brick (BLOCKVARIANTS.md; same no-STYLE rule as the hazards above) ---------
+    "curse_fire": ("A dark curse detonating and stealing a life: one deep concussive occult "
+        "BOOM wrapped in a ghostly wailing exhale rushing upward and away, ending in a "
+        "hollow dark after-ring. Supernatural, ominous, punchy, high quality - no metal "
+        "clang, no chimes, no music, no voice words.", 1.4, 0.75),
+    # v2 prompt (Nick 2026-08-02): "crackle-hiss" produced an open hi-hat - the polarity
+    # lesson again: describe the low knock, ban the highs outright.
+    "curse_tick": ("A dark curse tightening its grip: one low muffled ominous heartbeat "
+        "THUMP with a very short deep breathy moan underneath, soft, dark and unsettling. "
+        "Absolutely no hiss, no cymbals, no high-pitched tones, no chime, no metal, "
+        "no music.", 0.7, 0.75),
+    "curse_seal": ("An evil eye entombed under a stone slab: one heavy muffled stone thud, "
+        "then a stifled ghostly breath fading quickly to silence as the haunting is "
+        "smothered. Dark, muffled, final. No music, no chime.", 1.1, 0.7),
 }
 
 

@@ -72,11 +72,17 @@ public class VineBlockBehaviour : MonoBehaviour
     }
 
     // Phase 2: creep vines onto a welded block from the contact side. Only real blocks (BlockController)
-    // get vined - the floor and static islands are skipped. Idempotent per block (one already vined -
-    // another vine, or a previous weld - keeps its existing vines via VineBlockSkin's own guard).
+    // get vined - the floor and static islands are skipped, and so is any fixed-look identity
+    // brick (Maw, Curse, Bomb, ... - BlocksForeignOverlays): the WELD still holds, but vines
+    // must never grow over the face/fuse/eye those bricks exist to show. Idempotent per block
+    // (one already vined - another vine, or a previous weld - keeps its existing vines via
+    // VineBlockSkin's own guard).
     private void SpreadVineTo(Rigidbody2D otherBody)
     {
         if (otherBody == null || !otherBody.TryGetComponent(out BlockController _)) return;
+        BlockVariantSkin[] skins = otherBody.GetComponents<BlockVariantSkin>();
+        for (int i = 0; i < skins.Length; i++)
+            if (skins[i] != null && skins[i].BlocksForeignOverlays) return;
 
         if (!otherBody.TryGetComponent(out VineBlockSkin skin))
             skin = otherBody.gameObject.AddComponent<VineBlockSkin>();

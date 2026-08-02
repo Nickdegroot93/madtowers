@@ -558,6 +558,45 @@ public static class BlockDemoScenarios
         yield return stage.Hold(1.2f);
     }
 
+    public static IEnumerator Curse(BlockDemoStage stage)
+    {
+        // A landed curse counting down: each placement while it sits exposed burns one sigil; at
+        // zero it FIRES and takes a life, then re-arms. Then the counter-move: a brick placed ON
+        // TOP entombs it - smoke snuffed, sigils dimmed, safe. (Skin props are driven directly -
+        // puppet rule, no real behaviour on the demo stage.)
+        yield return stage.Reveal();
+        GameObject curse = DropIn(stage, "O", stage.Variant, new Vector2(-1.5f, 5.4f)); // cols -3..-1
+        CurseBlockSkin skin = Dress<CurseBlockSkin>(curse);
+        skin.Apply();
+        BlockDemoPuppet.Relayer(curse);
+        yield return stage.WaitForLand(curse);
+        FreezeSquare(curse);
+        skin.Activate();
+        skin.SetDemoExposure(true);
+        skin.SetCountdown(2, 4);   // join the story near the end: two sigils left
+        yield return stage.Hold(0.8f);
+
+        // A brick lands BESIDE it - not on it - and a sigil still burns: distance doesn't help.
+        GameObject side1 = DropIn(stage, "O", null, new Vector2(1.5f, 5.8f)); // cols 0..2
+        yield return stage.WaitForLand(side1);
+        skin.PlaySigilBurn(1, 4);
+        yield return stage.Hold(0.7f);
+
+        // Another lands - the last sigil dies and the curse fires: a life is taken, and it re-arms.
+        GameObject side2 = DropIn(stage, "O", null, new Vector2(1.5f, 6.4f));
+        yield return stage.WaitForLand(side2);
+        skin.PlayFire(4, 4);
+        stage.CameraKick(0.09f);
+        stage.StartCoroutine(LifeCostPulse(stage, new Vector2(-1.5f, 2f)));
+        yield return stage.Hold(1f);
+
+        // The counter-move: bury it. A brick ON TOP snuffs the smoke and closes the eye - safe.
+        GameObject cap = DropIn(stage, "O", null, new Vector2(-1.5f, 6.2f));
+        yield return stage.WaitForLand(cap);
+        skin.SetDemoExposure(false);
+        yield return stage.Hold(1.3f);
+    }
+
     // ---- control-story demos (scripted steering; these teach an INPUT rule, so the descent is
     // staged like the tutorial rather than simulated) ---------------------------------------------
 

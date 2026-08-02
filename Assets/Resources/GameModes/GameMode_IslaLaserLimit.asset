@@ -32,7 +32,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d47f69c0549f64a78b7a3dde80d0f06a, type: 2}
   ambientBlockVariantChances:
   - variant: {fileID: 11400000, guid: c4613f6d44bf411baf2a43b963f291ce, type: 2}
-    chancePerBlock: 0.03
+    chancePerBlock: 0.02
+  - variant: {fileID: 11400000, guid: 252aa4982fbfb401cb3efeb5a9eeecbe, type: 2}
+    chancePerBlock: 0.04
   spawnDelay: 0
   gridSpacing: 1
   horizontalPlacementBufferColumns: 3

@@ -54,6 +54,12 @@ public abstract class BlockVariantSkin : MonoBehaviour
     /// <summary>Whether the overlays have been built (idempotency guard for subclasses).</summary>
     protected bool IsBuilt => Cells.Count > 0;
 
+    /// <summary>Fixed-look identity bricks (replace-mode: Maw, Bomb, Curse, ...) refuse foreign
+    /// cosmetic creep - a vine growing over the Curse's eye or the Bomb's fuse hides exactly
+    /// the signal the brick exists to show (Nick 2026-08-02). Overlay-mode skins (Vine, Ice)
+    /// keep accepting. Checked by whatever spreads looks onto neighbours (VineBlockBehaviour).</summary>
+    public bool BlocksForeignOverlays => HidesChapterArt;
+
     /// <summary>Optional hook to set per-cell material properties at build time. <paramref name="col"/>/
     /// <paramref name="row"/> are the cell's position in the piece's local grid (stable under movement and
     /// 90 deg rotation - for checkerboard-style variation); <paramref name="index"/> is build order.</summary>

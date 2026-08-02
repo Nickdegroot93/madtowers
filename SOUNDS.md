@@ -160,6 +160,18 @@ The forbidden-sky-rectangle hazard (LEVELS.md "Void Zones details"). Prompts in
 **Should be:** a low fabric-of-space rip settling into a whirl (open); an accelerating
 spiral whoosh ending in a deep gulp-thud (suck).
 
+### `curse_fire`, `curse_tick`, `curse_seal` — Curse brick · *generated (ElevenLabs)*
+The bury-me countdown brick (BLOCKVARIANTS.md catalog). Prompts in
+`Tools/generate_elevenlabs_sfx.py` (no house STYLE prefix, like the other supernatural
+hazards). All three fire from [CurseBlockBehaviour.cs](Assets/SourceFiles/Scripts/Blocks/Variants/CurseBlockBehaviour.cs).
+- `curse_fire` — the curse detonates and takes a life (`Fire`). Replaced the `void_suck`
+  reuse Nick rejected (2026-08-02).
+- `curse_tick` — a placement burns one sigil while the curse is exposed (`HandleBlockLocked`).
+- `curse_seal` — every top cell covered: the hex is smothered (`RefreshExposure`).
+
+**Should be:** a deep occult boom with a ghostly exhale rushing away (fire); a short hot
+rune-searing crackle (tick); a muffled thud and a stifled breath dying (seal).
+
 ### `sandstone_crack`, `sandstone_burst` — Sandstone brick · *generated (ElevenLabs)*
 The load-bearing-limit brick (BLOCKVARIANTS.md catalog). Prompts in
 `Tools/generate_elevenlabs_sfx.py` (no house STYLE prefix — it turned the crack into a low

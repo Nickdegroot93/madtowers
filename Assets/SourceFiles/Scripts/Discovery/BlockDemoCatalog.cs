@@ -54,6 +54,8 @@ public static class BlockDemoCatalog
             "It cracks under the weight it carries - watch the fractures grow with every brick. The third one is one too many."),
         ["Pyramid"] = new Entry(BlockDemoScenarios.Pyramid,
             "No flat top - whatever lands on its slopes slides away. It stacks proudly on anything; build beside it, never on it."),
+        ["Curse"] = new Entry(BlockDemoScenarios.Curse,
+            "Bury it. While its sigils burn in the open, every brick you place costs it one - at zero it takes a life and starts counting again."),
     };
 
     public static bool HasDemo(BlockData variant) =>
