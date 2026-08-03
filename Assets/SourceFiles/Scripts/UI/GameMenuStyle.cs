@@ -33,7 +33,14 @@ public static class GameMenuStyle
     {
         if (panel == null) return;
         Image image = panel.GetComponent<Image>();
-        if (image != null) image.color = PanelColor;
+        if (image != null)
+        {
+            // The fill must share the outline's rounded geometry: a plain square Image under
+            // the RoundedOutline border left dark square corners poking past the radius.
+            image.sprite = RuntimeSprites.RoundedPanel();
+            image.type = Image.Type.Sliced;
+            image.color = PanelColor;
+        }
         RuntimeUiKit.AddOutline(panel.transform, WithAlpha(Accent, 0.55f));
     }
 

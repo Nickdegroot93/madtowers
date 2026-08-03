@@ -303,8 +303,11 @@ public class AbilityChoiceController : MonoBehaviour
         _panelRoot = RuntimeUiKit.CreateModal("Ability Swap", 6000);
 
         Color accent = AbilityRarityInfo.GetColor(incoming.Rarity);
+        // 620: room for the honored child heights (64+46+60+2x80+74 + spacing + padding = 586)
+        // - at 560 the buttons kissed the panel edge once the kit stopped rendering every child
+        // 100 tall (the childControlHeight=false rect fix in RuntimeUiKit.Legacy).
         GameObject panel = RuntimeUiKit.CreateCenteredPanel(
-            _panelRoot.transform, new Vector2(640f, 560f), drawBackground: false);
+            _panelRoot.transform, new Vector2(640f, 620f), drawBackground: false);
         AbilityCardView.StyleModalPanel(panel, accent);
 
         Text swapTitle = RuntimeUiKit.CreateLabel(panel.transform, "SLOTS ARE FULL", 40, 64f,

@@ -106,6 +106,11 @@ public static partial class RuntimeUiKit
 
         LayoutElement layout = labelObject.AddComponent<LayoutElement>();
         layout.preferredHeight = height;
+        // The centered/scroll panels run childControlHeight = false, which sizes children by
+        // their own rect (a fresh RectTransform's default 100), NOT the LayoutElement - so the
+        // rect must carry the height too or every label renders 100 tall and overflows the panel.
+        RectTransform labelRect = (RectTransform)labelObject.transform;
+        labelRect.sizeDelta = new Vector2(labelRect.sizeDelta.x, height);
         return label;
     }
 
@@ -116,6 +121,8 @@ public static partial class RuntimeUiKit
         buttonObject.transform.SetParent(parent, false);
 
         Image image = buttonObject.AddComponent<Image>();
+        image.sprite = RuntimeSprites.RoundedPanel(); // corners match the rounded panels these sit in
+        image.type = Image.Type.Sliced;
         image.color = ButtonColor;
 
         Button button = buttonObject.AddComponent<Button>();
@@ -136,6 +143,9 @@ public static partial class RuntimeUiKit
 
         LayoutElement buttonLayout = buttonObject.AddComponent<LayoutElement>();
         buttonLayout.preferredHeight = height;
+        // Same childControlHeight=false rect rule as CreateLabel: the rect IS the layout height.
+        RectTransform buttonRect = (RectTransform)buttonObject.transform;
+        buttonRect.sizeDelta = new Vector2(buttonRect.sizeDelta.x, height);
 
         GameObject textObject = new GameObject("Text");
         textObject.transform.SetParent(buttonObject.transform, false);
@@ -166,6 +176,9 @@ public static partial class RuntimeUiKit
         GameObject row = new GameObject("Row", typeof(RectTransform));
         row.transform.SetParent(parent, false);
         row.AddComponent<LayoutElement>().preferredHeight = height;
+        // Same childControlHeight=false rect rule as CreateLabel: the rect IS the layout height.
+        RectTransform rowRect = (RectTransform)row.transform;
+        rowRect.sizeDelta = new Vector2(rowRect.sizeDelta.x, height);
         HorizontalLayoutGroup layout = row.AddComponent<HorizontalLayoutGroup>();
         layout.spacing = 10f;
         layout.childAlignment = TextAnchor.MiddleLeft;
