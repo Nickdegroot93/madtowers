@@ -63,8 +63,8 @@ hot violet edge + extra halo + slow shine sweep; legendary = gold, breathing hal
 warm sweep. Sweeps/pulse in `AbilityCardShine` (+ `UiGlowPulse`), unscaled time. Details
 opens the matching detail panel (`AbilityCardView.CreateDetailPanel`: same chrome, big
 icon, LONG description, filled-accent Choose / ghost Back - Back returns to the same
-three cards, no reroll). HUD slots show the icon (title text if none); the swap dialog
-shows title + short. The detail view is the future home of per-ability explainer videos -
+three cards, no reroll). HUD slots show the icon (title text if none); the full-slots
+swap flow enlarges the live slots themselves (see §8). The detail view is the future home of per-ability explainer videos -
 the icon and long text it needs are already authored.
 
 ### Delivery layer split
@@ -76,7 +76,7 @@ and consumable-slot swap flow. It deliberately delegates the other two heavy job
   weighting, run-progress escalation, and sampling without replacement.
 - `AbilityCardView` owns all UGUI card rendering: the offer cards, the Vault collection
   cards, the shared detail panel, the "CHOOSE AN ABILITY" header, the rarity tier styling
-  ladder, and the modal/button restyle helpers the swap dialog and reroll button use.
+  ladder, and the modal/button restyle helpers the reroll button and swap overlay use.
 
 Runtime targeting/sequence effects derive from `AbilitySessionBase` when they own a temporary
 mode (Fission, Overdraw, Zap, Magma melt, Extract — all five sessions use it; none hand-roll the
@@ -285,10 +285,19 @@ level — direct-scene/quick play has no ban list (conditions still apply).
 
 ## 8. Consumables — slots and gates
 
-Two HUD slots (bottom-center buttons; they register gesture-exclusion rects with
+Two HUD slots (player-arranged via HudLayout; they register gesture-exclusion rects with
 `TouchGestureInput` so taps never steer/rotate). Picking a consumable with both slots
-full opens the swap dialog (replace either slot, or discard the new one) — the game
-stays paused until resolved. Blanket activation gates, checked before the ability's
+full does NOT open a menu (Nick 2026-08-03, replacing the old replace/discard dialog):
+the offer closes and the two live slots themselves become the choice — `ConsumableSwapOverlay`
+hides the real buttons and flies enlarged puppet copies (the exact slot chrome via
+`AbilityHud.BuildSlotChrome`) from their live on-screen rects to screen centre, under a
+header showing the incoming consumable and "choose one consumable to swap out". Tapping a
+puppet swaps that slot (`ReplaceConsumable`), punches the new icon in and flies both home;
+**Back** flies them home unchanged and returns to the SAME three cards — the consumable
+pick may itself have been the mistake. There is no discard any more: declining means going
+back and picking a different card (an all-consumable offer with full slots therefore
+forces a swap — accepted; the offer always grants something). The game stays paused
+until resolved. Blanket activation gates, checked before the ability's
 own `CanActivate`: `GameManager.CurrentPhase == Playing`, not paused, and no
 active-piece session owns the field (a freeze during the hold-steady countdown would
 cheat the sturdiness test). Slots dim

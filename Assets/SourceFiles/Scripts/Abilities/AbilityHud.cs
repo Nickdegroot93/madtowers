@@ -122,27 +122,6 @@ public class AbilityHud : MonoBehaviour
         frame.color = Color.clear;
         _slotFrames[index] = frame;
 
-        Image body = RuntimeUiKit.CreateImage(slot.transform, "Body",
-            RuntimeSprites.CardGradient(SlabTop, SlabBottom), Color.white);
-        body.type = Image.Type.Sliced;
-        body.raycastTarget = false;
-        StretchPadded(body.rectTransform);
-
-        // The icon is a square opaque image but the border is a rounded rect, so the icon
-        // renders inside a stencil mask with the ring's exact rounded geometry (an all-white
-        // card body): border and icon edge stay aligned at any slot size, and the icon's
-        // square corners are clipped instead of poking past the rounded border.
-        GameObject maskObject = new GameObject("IconMask",
-            typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Mask));
-        RectTransform maskRect = (RectTransform)maskObject.transform;
-        maskRect.SetParent(slot.transform, false);
-        StretchPadded(maskRect);
-        Image maskImage = maskObject.GetComponent<Image>();
-        maskImage.sprite = RuntimeSprites.CardGradient(Color.white, Color.white);
-        maskImage.type = Image.Type.Sliced;
-        maskImage.raycastTarget = false;
-        maskObject.GetComponent<Mask>().showMaskGraphic = false;
-
         Button button = slot.AddComponent<Button>();
         button.targetGraphic = frame;
         button.transition = Selectable.Transition.None;
@@ -153,6 +132,38 @@ public class AbilityHud : MonoBehaviour
             if (_runtime.TryActivateSlot(captured)) _punchAge[captured] = 0f;
         });
 
+        BuildSlotChrome(rect, out _slotIcons[index], out _slotRings[index], out _slotLabels[index]);
+
+        _slotGroups[index] = slot.AddComponent<CanvasGroup>();
+        _slotShownUsable[index] = true;
+        _punchAge[index] = -1f;
+        slot.SetActive(false);
+    }
+
+    /// <summary>The slot's visual recipe - dark slab, full-bleed icon clipped to the rounded
+    /// card geometry (border and icon edge stay aligned at any size; square icon corners are
+    /// clipped instead of poking past the rounded border), neon ring over the clipped edge,
+    /// fallback name label. Shared with ConsumableSwapOverlay's flying puppets so an enlarged
+    /// copy is indistinguishable from the real button.</summary>
+    public static void BuildSlotChrome(RectTransform slot, out Image icon, out Image ring, out Text label)
+    {
+        Image body = RuntimeUiKit.CreateImage(slot, "Body",
+            RuntimeSprites.CardGradient(SlabTop, SlabBottom), Color.white);
+        body.type = Image.Type.Sliced;
+        body.raycastTarget = false;
+        StretchPadded(body.rectTransform);
+
+        GameObject maskObject = new GameObject("IconMask",
+            typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Mask));
+        RectTransform maskRect = (RectTransform)maskObject.transform;
+        maskRect.SetParent(slot, false);
+        StretchPadded(maskRect);
+        Image maskImage = maskObject.GetComponent<Image>();
+        maskImage.sprite = RuntimeSprites.CardGradient(Color.white, Color.white);
+        maskImage.type = Image.Type.Sliced;
+        maskImage.raycastTarget = false;
+        maskObject.GetComponent<Mask>().showMaskGraphic = false;
+
         GameObject iconObject = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         RectTransform iconRect = (RectTransform)iconObject.transform;
         iconRect.SetParent(maskRect, false);
@@ -162,20 +173,16 @@ public class AbilityHud : MonoBehaviour
         // full bleed to the ring line.
         iconRect.offsetMin = new Vector2(ChromePad, ChromePad);
         iconRect.offsetMax = new Vector2(-ChromePad, -ChromePad);
-        Image icon = iconObject.GetComponent<Image>();
+        icon = iconObject.GetComponent<Image>();
         icon.preserveAspect = true;
         icon.raycastTarget = false;
-        _slotIcons[index] = icon;
 
-        // Ring last among the chrome so its bright line draws over the icon's clipped edge.
-        Image ring = RuntimeUiKit.CreateImage(slot.transform, "Ring",
-            RuntimeSprites.CardNeonRing(), RingColor);
+        ring = RuntimeUiKit.CreateImage(slot, "Ring", RuntimeSprites.CardNeonRing(), RingColor);
         ring.type = Image.Type.Sliced;
         ring.raycastTarget = false;
         StretchPadded(ring.rectTransform);
-        _slotRings[index] = ring;
 
-        Text label = RuntimeUiKit.CreateLabel(slot.transform, string.Empty, 16, DefaultSlotSize,
+        label = RuntimeUiKit.CreateLabel(slot, string.Empty, 16, DefaultSlotSize,
             FontStyle.Bold, RuntimeUiKit.TitleColor);
         RectTransform labelRect = label.rectTransform;
         labelRect.anchorMin = Vector2.zero;
@@ -184,12 +191,30 @@ public class AbilityHud : MonoBehaviour
         labelRect.offsetMax = new Vector2(-14f, -14f);
         label.horizontalOverflow = HorizontalWrapMode.Wrap;
         label.raycastTarget = false;
-        _slotLabels[index] = label;
+    }
 
-        _slotGroups[index] = slot.AddComponent<CanvasGroup>();
-        _slotShownUsable[index] = true;
-        _punchAge[index] = -1f;
-        slot.SetActive(false);
+    /// <summary>Screen-pixel rect of a filled slot's button, from the live player-arranged
+    /// layout - the swap overlay flies its puppets out of (and back into) exactly this rect,
+    /// wherever the player keeps their slots.</summary>
+    public bool TryGetSlotScreenRect(int index, out Rect rect)
+    {
+        rect = default;
+        if (index < 0 || index >= _slots.Length) return false;
+        if (_slots[index] == null || !_slots[index].activeSelf || _slotFrames[index] == null) return false;
+
+        HudLayout hud = SettingsService.Hud;
+        float scale = _canvas != null ? _canvas.scaleFactor : 1f;
+        float side = (index < hud.slots.Length ? hud.slots[index].size : DefaultSlotSize) * scale;
+        Vector3 center = _slotFrames[index].rectTransform.position;
+        rect = new Rect(center.x - side * 0.5f, center.y - side * 0.5f, side, side);
+        return true;
+    }
+
+    /// <summary>Hide/show the real slot buttons while the swap overlay's puppets stand in for
+    /// them - both visible at once would read as four consumables.</summary>
+    public void SetSlotsHidden(bool hidden)
+    {
+        if (_root != null) _root.SetActive(!hidden);
     }
 
     private void RefreshSlots()

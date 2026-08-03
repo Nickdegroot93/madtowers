@@ -13,8 +13,8 @@ using UnityEngine.UI;
 /// (Overdrive-style states), and a +2 jump must not hop over an earned offer.
 ///
 /// Pick routing by kind: Instant applies immediately; Consumable goes to a slot (or the
-/// swap dialog when both are full - resolved before the game unpauses); Passive/Combo
-/// are acquired into the AbilityRuntime inventory.
+/// in-place swap flow when both are full, ConsumableSwapOverlay - resolved before the game
+/// unpauses); Passive/Combo are acquired into the AbilityRuntime inventory.
 /// </summary>
 public class AbilityChoiceController : MonoBehaviour
 {
@@ -142,7 +142,7 @@ public class AbilityChoiceController : MonoBehaviour
             case ConsumableAbility consumable:
                 if (!_runtime.TryAddConsumable(consumable))
                 {
-                    ShowSwapDialog(consumable); // stays paused until resolved
+                    ShowSwapPicker(consumable); // stays paused until resolved
                     return;
                 }
                 break;
@@ -293,46 +293,22 @@ public class AbilityChoiceController : MonoBehaviour
             });
     }
 
-    // Both slots are full: the player chooses what the new consumable replaces (or
-    // discards it). The game STAYS paused until this resolves - the swap is part of the
-    // same offer, not a second decision the tower keeps falling under.
-    private void ShowSwapDialog(ConsumableAbility incoming)
+    // Both slots are full: no menu - the two live HUD slots themselves become the choice.
+    // The offer closes and ConsumableSwapOverlay hides the real buttons and flies enlarged
+    // puppet copies from their on-screen rects to centre; tapping one swaps it, Back returns
+    // HERE to the same three cards (the consumable pick may itself have been the mistake the
+    // player only discovers on seeing their full slots). The game STAYS paused for the whole
+    // round trip - the swap is part of the same offer, not a second decision the tower keeps
+    // falling under.
+    private void ShowSwapPicker(ConsumableAbility incoming)
     {
         CloseChoicePanel();
-
-        _panelRoot = RuntimeUiKit.CreateModal("Ability Swap", 6000);
-
-        Color accent = AbilityRarityInfo.GetColor(incoming.Rarity);
-        // 620: room for the honored child heights (64+46+60+2x80+74 + spacing + padding = 586)
-        // - at 560 the buttons kissed the panel edge once the kit stopped rendering every child
-        // 100 tall (the childControlHeight=false rect fix in RuntimeUiKit.Legacy).
-        GameObject panel = RuntimeUiKit.CreateCenteredPanel(
-            _panelRoot.transform, new Vector2(640f, 620f), drawBackground: false);
-        AbilityCardView.StyleModalPanel(panel, accent);
-
-        Text swapTitle = RuntimeUiKit.CreateLabel(panel.transform, "SLOTS ARE FULL", 40, 64f,
-            FontStyle.Bold, RuntimeUiKit.TitleColor);
-        swapTitle.font = RuntimeUiKit.TitleFont;
-        RuntimeUiKit.CreateLabel(panel.transform, $"Swap in {incoming.DisplayName}?", 30, 46f,
-            FontStyle.Bold, RuntimeUiKit.BodyTextColor);
-        RuntimeUiKit.CreateLabel(panel.transform, incoming.ShortDescription, 24, 60f,
-            FontStyle.Italic, RuntimeUiKit.BodyTextColor);
-
-        for (int i = 0; i < AbilityRuntime.ConsumableSlotCount; i++)
-        {
-            int slot = i;
-            ConsumableAbility current = _runtime.GetSlotSource(i);
-            string label = current != null ? $"Replace {current.DisplayName}" : $"Use slot {i + 1}";
-            Button replace = RuntimeUiKit.CreateButton(panel.transform, label, 80f, () =>
+        _panelRoot = ConsumableSwapOverlay.Show(_runtime, GetComponent<AbilityHud>(), incoming,
+            onSwapped: CloseAndResume,
+            onBack: () =>
             {
-                _runtime.ReplaceConsumable(slot, incoming);
-                CloseAndResume();
+                CloseChoicePanel();
+                BuildChoicePanel();
             });
-            AbilityCardView.StylePrimaryButton(replace, accent);
-        }
-
-        Button discard = RuntimeUiKit.CreateButton(panel.transform,
-            $"Discard {incoming.DisplayName}", 74f, CloseAndResume);
-        AbilityCardView.StyleGhostButton(discard, accent);
     }
 }
