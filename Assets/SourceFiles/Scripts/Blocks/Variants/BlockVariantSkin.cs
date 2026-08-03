@@ -54,6 +54,13 @@ public abstract class BlockVariantSkin : MonoBehaviour
     /// <summary>Whether the overlays have been built (idempotency guard for subclasses).</summary>
     protected bool IsBuilt => Cells.Count > 0;
 
+    /// <summary>True parents the overlay cells under the chapter PieceSkin child instead of the block
+    /// root, so they inherit the LandingSquashFx squash-and-stretch and always deform WITH the chapter
+    /// art beneath them (Ice). Only for overlay-mode skins whose motion never drives the PieceSkin or
+    /// the cells' rotation itself - Locked flinch-rotates the PieceSkin AND its cells separately, so
+    /// riding the skin would double-transform them. Default false = block root (status quo).</summary>
+    protected virtual bool CellsFollowPieceSkin => false;
+
     /// <summary>Fixed-look identity bricks (replace-mode: Maw, Bomb, Curse, ...) refuse foreign
     /// cosmetic creep - a vine growing over the Curse's eye or the Bomb's fuse hides exactly
     /// the signal the brick exists to show (Nick 2026-08-02). Overlay-mode skins (Vine, Ice)
@@ -97,6 +104,19 @@ public abstract class BlockVariantSkin : MonoBehaviour
         BlockController controller = GetComponent<BlockController>();
         float spacing = Mathf.Max(0.01f, controller != null ? controller.GridSpacing : 1f);
 
+        // Cell parent: block root, or the PieceSkin child for skins that ride the landing squash
+        // (CellsFollowPieceSkin). The PieceSkin sits at the piece's visual centre with identity
+        // rotation and unit scale, so skin-local = root-local minus its REST position (the squash
+        // displaces it transiently - never bake the live pose in). Demo puppets and sprite-less
+        // fallback pieces have no PieceSkin and keep the root.
+        Transform cellParent = transform;
+        Vector3 parentOffset = Vector3.zero;
+        if (CellsFollowPieceSkin && controller != null && controller.PieceSkinTransform != null)
+        {
+            cellParent = controller.PieceSkinTransform;
+            parentOffset = LandingSquashFx.RestLocalPosition(cellParent);
+        }
+
         // Quantise cell centres to a local grid so col/row parity is stable under movement and rotation.
         BoxCollider2D[] cells = GetComponentsInChildren<BoxCollider2D>();
         Vector3[] local = new Vector3[cells.Length];
@@ -121,8 +141,8 @@ public abstract class BlockVariantSkin : MonoBehaviour
             float cellSize = ResolveCellSize(box.GetComponent<SpriteRenderer>(), spacing);
 
             GameObject go = new GameObject(CellName);
-            go.transform.SetParent(transform, false);
-            go.transform.localPosition = new Vector3(local[i].x, local[i].y, 0f);
+            go.transform.SetParent(cellParent, false);
+            go.transform.localPosition = new Vector3(local[i].x - parentOffset.x, local[i].y - parentOffset.y, 0f);
             go.transform.localRotation = Quaternion.identity;
             float quad = cellSize * CellScale;
             go.transform.localScale = new Vector3(quad, quad, 1f);

@@ -21,6 +21,16 @@ public sealed class LandingSquashFx : MonoBehaviour
     private float _amplitude;
     private float _age;
 
+    /// <summary>Rest local position of a skin transform that may be mid-squash (the squash
+    /// displaces the skin to pin its bottom edge, so anything deriving skin-space positions
+    /// must use the rest pose, never the live one).</summary>
+    public static Vector3 RestLocalPosition(Transform skin)
+    {
+        if (skin == null) return Vector3.zero;
+        LandingSquashFx fx = skin.GetComponent<LandingSquashFx>();
+        return fx != null ? fx._basePosition : skin.localPosition;
+    }
+
     /// <summary>Squash the block's skin. hardness01 = 0 soft landing .. 1 flick slam.</summary>
     public static void Play(BlockController block, float hardness01)
     {

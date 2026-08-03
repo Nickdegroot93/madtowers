@@ -20,6 +20,7 @@ public sealed class IceBlockSkin : BlockVariantSkin
     protected override string MaterialResource => "Frost"; // reuse the Freeze ability's ice material
     protected override bool HidesChapterArt => false;       // keep the brick under the translucent ice (chapter-colour hint)
     protected override string CellName => "IceCell";
+    protected override bool CellsFollowPieceSkin => true;    // ice panes squash WITH the chapter art on landing - a rigid pane over a squashing brick reads as two layers
 
     private float _blockSeed;
 
