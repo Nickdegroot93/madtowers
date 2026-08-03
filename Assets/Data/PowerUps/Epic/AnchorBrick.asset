@@ -19,7 +19,7 @@ MonoBehaviour:
   description: 'Tap to transform the brick you''re dropping into an anchor brick.
     The moment it lands it freezes solid exactly where it is - permanent terrain that
     stays put even if everything beneath it disappears. One brick, on demand.'
-  rarity: 1
+  rarity: 2
   unique: 0
   maxStacks: 0
   requiresVariantsInLevel: []
