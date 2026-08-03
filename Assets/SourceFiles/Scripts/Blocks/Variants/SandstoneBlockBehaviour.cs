@@ -14,8 +14,9 @@ using UnityEngine;
 /// deterministic, and mass-aware for free: a Boulder (4x) crushes instantly, Feathers (0.25x)
 /// barely count. Static bodies are self-supporting terrain: a frozen block contributes no
 /// load and SHIELDS everything above it - Freeze is a legitimate rescue for a sand floor.
-/// Sandstone never burdens sandstone (the maw-on-maw precedent): each sand layer carries
-/// only what rests directly on it, so sand stacks safely on sand.
+/// Sandstone is ordinary weight to other sandstone (Nick 2026-08-03): a sand layer presses
+/// on the layer below and TRANSMITS the stack above it, so a sand-on-sand column cracks
+/// from the bottom, where the load is largest.
 /// The reading runs through an exponential smoother so cracks grow visibly rather than pop;
 /// damage = worst sustained load / break load, RATCHETED (cracks never heal). Crumble =
 /// shatter + dust through the standard destruction flow (BLOCKS.md accounting, neighbour
@@ -231,10 +232,6 @@ public sealed class SandstoneBlockBehaviour : MonoBehaviour
                 if (!_walkVisited.Add(other)) continue;
                 if (!other.HasLanded) continue;      // falling pieces don't press yet
                 if (other.IsFallingAway) continue;   // knocked-off debris passing by isn't load
-                // Sandstone never burdens sandstone (the maw-on-maw precedent): each sand
-                // layer carries only what rests directly on IT, so sand stacks safely on
-                // sand - and shields the layer below, like frozen terrain does.
-                if (other.TryGetComponent(out SandstoneBlockBehaviour _)) continue;
                 // Static = frozen terrain: self-supporting, carries its own stack. Kinematic =
                 // mid-animation (suck/devour handoffs), not structural weight either.
                 if (otherBody.bodyType != RigidbodyType2D.Dynamic) continue;
