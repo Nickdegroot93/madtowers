@@ -28,10 +28,9 @@ meter without both escape valves is pure friction), so "ads last" costs nothing.
 
 ## Phase 0 — now (no store accounts required)
 
-- [ ] **Push the XP migration to production** — `supabase/migrations/20260801000003_xp.sql`
-      is applied locally but NOT on the hosted project (verified 2026-08-04:
-      `migration list --linked` shows it missing). Hosted `finish_run` pays no XP today.
-      `Tools/bin/supabase db push` + `bash supabase/tests/smoke.sh` against production.
+- [x] **Push the XP migration to production** — DONE 2026-08-04: `20260801000003_xp.sql`
+      pushed via `db push`, smoke suite 22/22 against production (XP checks e3–e5/g3
+      included). Until then hosted `finish_run` paid no XP — the reason XP sat at 0.
 - [ ] **Own the domain.** `madtowers.app` is hard-coded as the privacy/terms/support
       placeholder (`MainMenuRuntime.Settings.cs:529`) — buy it (or pick the real domain
       and update the consts). Needed before any store form asks for a privacy URL.
