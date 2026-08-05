@@ -204,6 +204,7 @@ public static partial class MainMenuRuntime
 
         Time.timeScale = 0f;
         RuntimeUiKit.EnsureEventSystem();
+        SplashOverlay.ShowIfFirstBoot(); // created before BuildMenu so it covers the first rendered frame
         BuildMenu();
         MusicPlayer.PlayMenu(); // menu soundtrack plays everywhere outside a level
     }
