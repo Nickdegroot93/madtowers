@@ -283,11 +283,32 @@ touch engine code.
   changes. Rounding up instead would gift a whole free row wherever a solve ends in ~`x.0`
   (wave 1 everywhere, which lands at 3.02). The grace never feeds the island ceiling — that gets
   the row boundary.
-- A countdown rides the right end of the line showing blocks left to STAND until it rises.
-- Laser **art** follows the active chapter automatically: drop a `laser.png` into
-  `Resources/Skins/<Chapter>/` (see ART.md) and every laser level in that chapter uses it;
-  no file = the code-built bar. Zapped blocks burst via the reusable `BlockShatterFx`
-  (shards tinted to the laser color) plus a subtle camera impact.
+- The blocks-left-to-STAND countdown lives in the HUD (`WaveHud`): a pill top-right under
+  the lives card, CoinHud's mirror. It moved off the line itself because a world-space
+  number is composited UNDER every overlay canvas — the player-arranged consumable slots
+  could always occlude it. The pill borrows the laser's per-chapter tint (outline + urgency
+  colour at ≤3 left, gentle pulse at ≤2), pops on decrement and flashes its outline when the
+  bill RISES after losses. Being HUD it pierces a blackout by design — the count stays
+  readable while the player builds under the line they memorized.
+- The line itself (`WaveLaserLine`, world-space renderers, sorting band 49–51 so blackout
+  still darkens it) is a THIN hard laser: three stacked LineRenderers sharing one set of
+  ripple points — narrow chapter-coloured halo, bright core, near-white needle. The life is
+  in the SHAPE: dead straight most of the time, with a very slight electric ripple that
+  swells up every few seconds (Perlin-gated bursts, hundredths of a world unit — far inside
+  the half-cell zap grace) and surges on a zap; brightness rises with it, width never does.
+  Iteration history so it doesn't come back (Nick, Aug 2026): an additive-shader glow
+  rendered as an opaque white bar — cut; a Sacrifice-clone 4-layer soft beam with
+  travelling dashes read as too wide/feathered and the left-to-right dash motion as weird —
+  cut. The line is a hard thing: you touch it, you die, and it must look like one. Colours
+  are the active chapter's TWO menu accent colours plus white — resolved at run start from
+  `GameMenuStyle.ActiveChapter`, so every chapter's laser is its own; the modifier's
+  `lineColor` is only the fallback for chapterless runs (custom games). The near-white
+  needle is the invariant "touch this and die" signal in all of them (also the colour-blind
+  read).
+- Laser **art** can still follow the chapter: drop a `laser.png` into
+  `Resources/Skins/<Chapter>/` (see ART.md) and it replaces the halo+core (authored height
+  kept, length stretched); the rippling needle still renders. Zapped blocks burst via the
+  reusable `BlockShatterFx` (shards tinted to the laser colour) plus a subtle camera impact.
 
 #### Airtight details
 

@@ -11,4 +11,24 @@ public static class FxKit
     {
         return 1f + amplitude * Mathf.Exp(-damping * t) * Mathf.Cos(frequency * t);
     }
+
+    /// <summary>
+    /// The HUD pills' one settle-pop (CoinHud, WaveHud): a small elastic scale pulse on the
+    /// target that runs itself to completion. `age` is the caller's state - set it to 0 to
+    /// trigger a pop; this advances it and parks it at +infinity when the pop has settled,
+    /// after which calls are free no-ops.
+    /// </summary>
+    public static void TickSettlePop(Transform target, ref float age, float deltaTime)
+    {
+        if (float.IsPositiveInfinity(age)) return;
+
+        age += deltaTime;
+        if (age > 0.5f)
+        {
+            target.localScale = Vector3.one;
+            age = float.PositiveInfinity;
+            return;
+        }
+        target.localScale = Vector3.one * Elastic(age, 0.1f, 9f, 24f);
+    }
 }

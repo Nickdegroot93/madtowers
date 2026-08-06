@@ -104,7 +104,9 @@ Two things you **must** get right with the offset path:
 | Main menu chapter content | all | `SafeAreaFitter` (menu safe layer) |
 | In-game top HUD bar + NEXT card | top | `SafeAreaTopInset` + `TopMarginBelowSafeArea`, re-applied in `UIManager.Update` |
 | In-game hearts (lives) | top (inside the bar's right card) | ride the bar card - covered by the bar's own inset handling |
-| Ability/consumable slots | bottom-center | `SafeAreaBottomInset`, re-applied in `AbilityHud.Update`; gesture-exclusion rect extended to match |
+| Coin pill (`CoinHud`) | top-left, under the bar | `SafeAreaTopInset`, re-applied every frame in `CoinHud.Update` |
+| Wave countdown pill (`WaveHud`) | top-right, under the lives card | `SafeAreaTopInset`, re-applied every frame in `WaveHud.Update` (CoinHud's mirror) |
+| Ability/consumable slots | right side (player-arrangeable via `HudLayout`) | `SafeAreaFitter` container + normalized anchors, see `AbilityHud.ApplyLayout` |
 | Hold (pocket cache) bubble | left | `SafeAreaLeftInset`, re-applied in `HoldButton.Update` |
 | Menu background art | — | intentionally **full-screen**, bleeds behind the notch |
 

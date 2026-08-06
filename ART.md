@@ -161,8 +161,10 @@ Assets/Art/Chapters/              <chapter-slug>.png menu backgrounds
 
 Optional per-chapter `laser.png`: the height-limit line for puzzle levels. Horizontal
 strip, ~1024×32–64 px (128 px/unit — height is kept as authored, length is stretched),
-transparent PNG, glow baked in light tones (the level tints and pulses it). Without it,
-a clean code-built bar is used.
+transparent PNG, glow baked in light tones (the level tints and pulses it). It replaces
+the halo+core of `WaveLaserLine`; the near-white rippling needle still renders on top so
+the death boundary reads the same in every chapter. Without it, the full code-built thin
+laser is used (chapter accent colours + white).
 
 Code loads the matching skin when a chapter starts. Emblems, HUD, particles can
 be shared across chapters or overridden per chapter — only supply what should
@@ -343,7 +345,7 @@ What happens when a level loads, in order:
 **Sorting orders** (back → front): sky −100 · sky-high overlay −99 · sun −95 ·
 clouds −90 · hill base −86 · hills −85/−84/−83 · props −82 · particles −80 ·
 placement beam −60 · plateau −50 · blocks 0 · nudge wind streaks & impact debris 40 ·
-laser line 50 · shatter shards 60.
+laser line 49–51 (`WaveLaserLine`: halo/core/needle LineRenderers) · shatter shards 60.
 
 **Sprite factory** — `RuntimeSprites` (core: beam, heart, panel, soft bar, wind
 streak, chevron, square, gradient) + `RuntimeSprites.Backdrop` (clouds, hills,

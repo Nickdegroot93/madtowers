@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
 
 /// <summary>
@@ -65,22 +64,18 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     [Tooltip("Seconds the line takes to glide to the next wave's height.")]
     [SerializeField] private float lineRiseSeconds = 1.2f;
 
-    [Header("Laser Style (per level; chapters can override the art)")]
+    [Header("Laser Style (fallback only - the beam takes the active chapter's accent colours)")]
+    [Tooltip("FALLBACK beam colour for runs with no chapter context (custom games). Chapter " +
+             "runs ignore this: WaveLaserLine is coloured by the chapter's two menu accent " +
+             "colours, so every chapter's laser is its own. The look itself (layer spec, " +
+             "breath, pulses) is code-owned in WaveLaserLine, never serialized.")]
     [SerializeField] private Color lineColor = new Color(1f, 0.27f, 0.2f, 1f);
-    [Tooltip("World thickness of the default code-built line (ignored when a chapter supplies laser.png).")]
-    [SerializeField] private float lineThickness = 0.12f;
-    [Range(0f, 1f)]
-    [SerializeField] private float lineBaseAlpha = 0.55f;
-    [Range(0f, 1f)]
-    [SerializeField] private float linePulseAmount = 0.18f;
-    [SerializeField] private float linePulseSpeed = 6f;
 
     // ---- Wave math lives in WaveSolver (pure, shared with the editor's Puzzle Wave Report so a
     // printed table and a played run can never disagree). Code-owned constants, never
     // serialized - SHOP.md's staleness rule. -------------------------------------------------
 
     private const float ZapCooldownSeconds = 0.75f; // a collapse can't chain-drain lives in one beat
-    private const float LineLength = 90f;
 
     /// <summary>Stored scores pack (wavesCleared * this) + peak in-wave standing progress.</summary>
     public const int ScoreEncodeBase = 1000;
@@ -92,9 +87,8 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     public static int DecodeWaves(int encodedScore) => Mathf.Max(0, encodedScore) / ScoreEncodeBase;
 
     private LevelModifierContext _context;
-    private SpriteRenderer _line;
-    private TextMeshPro _counter;
-    private int _lastShownRemaining = -1;
+    private WaveLaserLine _laser;
+    private Color _resolvedColor; // chapter accent (or the fallback) - shatter FX + WaveHud read it
     private float _floorY;
 
     // Wave engine state. _currentWave is the 1-based wave being built; cleared waves are
@@ -117,7 +111,6 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     private float _lineY;
     private float _lineTargetY;
     private float _zapCooldown;
-    private float _flash;
 
     // Wave-transition spawn hold (WaveRevealGate -> GameManager spawn hold). While true the next piece is held until the
     // line has settled at its new height and the freshly revealed island band has finished
@@ -209,6 +202,10 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
 
     public override void OnLevelEnd(LevelModifierContext context)
     {
+        // The visual is unparented (it tracks the camera, not any scene root), so nothing
+        // else tears it down - without this a retry stacked a dead beam per run.
+        if (_laser != null) Object.Destroy(_laser.gameObject);
+        _laser = null;
         if (ActiveRun == this) ActiveRun = null;
     }
 
@@ -343,12 +340,18 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     }
 
     /// <summary>Blocks still to STAND before the current wave clears and the line rises. Can
-    /// exceed the wave's own quota after losses - destroyed blocks reopen the bill.</summary>
-    private int BlocksRemainingInWave() => Mathf.Max(0, StandingTargetForWave(_currentWave) - _standing);
+    /// exceed the wave's own quota after losses - destroyed blocks reopen the bill. Public for
+    /// WaveHud, which shows this in the top-right pill (the old world-space counter sat under
+    /// the overlay-canvas consumable slots - unwinnable by construction, see WaveHud).</summary>
+    public int BlocksRemaining => Mathf.Max(0, StandingTargetForWave(_currentWave) - _standing);
+
+    /// <summary>The beam's resolved primary colour (chapter accent, or the authored fallback) -
+    /// WaveHud borrows it so the HUD counter and the laser read as one system.</summary>
+    public Color LaserColor => _resolvedColor;
 
     public override void OnUpdate(LevelModifierContext context, float deltaTime)
     {
-        if (_line == null) return;
+        if (_laser == null) return;
 
         // Floor config can resolve after level start on some paths (procedural floors); the
         // wave math must follow it or every solved height is wrong for the real terrain.
@@ -381,16 +384,9 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
 
         if (_waitingForReveal) TickRevealHold(deltaTime, lineSettled);
 
-        Camera cam = Camera.main;
-        float x = cam != null ? cam.transform.position.x : 0f;
-        _line.transform.position = new Vector3(x, _lineY, 0f);
-
-        _flash = Mathf.Max(0f, _flash - deltaTime * 2.5f);
-        Color c = lineColor;
-        c.a = Mathf.Clamp01(lineBaseAlpha + linePulseAmount * Mathf.Sin(Time.time * linePulseSpeed) + _flash);
-        _line.color = c;
-
-        UpdateCounter(cam, x);
+        // Camera tracking, pulse and flash live inside WaveLaserLine; the modifier only owns
+        // the height (the same value the ceiling and the zap check read).
+        _laser.SetY(_lineY);
 
         _zapCooldown -= deltaTime;
         if (_zapCooldown <= 0f) CheckViolations();
@@ -404,13 +400,13 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
         BlockController block = FirstBlockAboveLine();
         if (block == null || !block.TryGetWorldBounds(out Bounds bounds)) return;
 
-        BlockShatterFx.Spawn(bounds, lineColor);
+        BlockShatterFx.Spawn(bounds, _resolvedColor);
         // The zapped block leaves the board - drop it from the live placed-block total
         // (which reopens its wave's quota through the standing-count signal).
         GameEvents.RaiseBlockDestroyed(block);
         Object.Destroy(block.gameObject);
         _zapCooldown = ZapCooldownSeconds;
-        _flash = 0.6f;
+        _laser.Flash();
         TowerCameraController.Impact(0.15f, 0.2f);
         _context?.GameManager?.GameOver();
     }
@@ -474,52 +470,24 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     private float CurrentLineWorldY()
         => _floorY + WaveSolver.LaserCellsForSolvedHeight(LineHeightCellsForWave(_currentWave)) * GridSpacing;
 
-    // Countdown riding the right end of the line: blocks still to STAND until it rises. Sits
-    // just above the line, follows it as it moves, and grows back when blocks are destroyed.
-    private void UpdateCounter(Camera cam, float cameraX)
-    {
-        if (_counter == null) return;
-
-        float halfWidth = cam != null && cam.orthographic
-            ? cam.orthographicSize * cam.aspect
-            : 8f;
-        _counter.transform.position = new Vector3(cameraX + halfWidth * 0.78f, _lineY + 0.65f, 0f);
-
-        int remaining = BlocksRemainingInWave();
-        if (remaining != _lastShownRemaining)
-        {
-            _lastShownRemaining = remaining;
-            _counter.text = remaining.ToString();
-        }
-
-        Color c = lineColor;
-        c.a = 0.9f;
-        _counter.color = c;
-    }
-
-    // The line art follows the active chapter's skin folder when it provides laser.png
-    // (same convention as piece_*.png and ground.png); otherwise a code-built soft bar.
-    // A chapter sprite keeps its authored height - only its length is stretched.
+    // The layered beam (WaveLaserLine owns the whole look, including the chapter laser.png
+    // hook), coloured by the active chapter's two accent colours - each chapter authored its
+    // own pair, so the laser belongs to the world it cuts across. lineColor is only the
+    // fallback for runs without a chapter (custom games). The blocks-remaining countdown
+    // lives in WaveHud on the screen-space HUD, not here: a world-space number is
+    // unconditionally composited UNDER every overlay canvas, so the player-arranged
+    // consumable slots could always occlude it.
     private void CreateLineVisual()
     {
-        Sprite chapterSprite = ChapterSkins.LoadLaser();
-
-        GameObject go = new GameObject("HeightLimitLine");
-        _line = go.AddComponent<SpriteRenderer>();
-        _line.sprite = chapterSprite != null ? chapterSprite : RuntimeSprites.SoftHorizontalBar(lineThickness);
-        _line.sortingOrder = 50; // in front of blocks (0), behind UI
-        _line.transform.position = new Vector3(0f, _lineY, 0f);
-        _line.transform.localScale = new Vector3(LineLength / _line.sprite.bounds.size.x, 1f, 1f);
-
-        // Separate object (NOT a child): the line is stretched to LineLength and would
-        // distort any child text. Positioned every frame in UpdateCounter.
-        GameObject counterGo = new GameObject("HeightLimitCounter");
-        _counter = counterGo.AddComponent<TextMeshPro>();
-        _counter.fontSize = 7f;
-        _counter.fontStyle = FontStyles.Bold;
-        _counter.alignment = TextAlignmentOptions.Center;
-        _counter.sortingOrder = 51;
-        _counter.text = BlocksRemainingInWave().ToString();
-        _lastShownRemaining = -1;
+        // ChapterSkins.ActiveChapter, not GameMenuStyle.ActiveChapter: the skin snapshot is
+        // latched by GameManager.Awake for THIS run, while the menu helper re-derives from
+        // live selection state - art and colour must come from the same chapter.
+        ChapterDefinition chapter = ChapterSkins.ActiveChapter;
+        _resolvedColor = chapter != null ? chapter.MenuAccentColor : lineColor;
+        Color accent = chapter != null
+            ? chapter.MenuAccentSecondaryColor
+            : Color.Lerp(lineColor, Color.white, 0.5f);
+        _laser = WaveLaserLine.Create(_resolvedColor, accent);
+        _laser.SetY(_lineY);
     }
 }

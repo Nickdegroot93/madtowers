@@ -205,20 +205,7 @@ public class CoinHud : MonoBehaviour
         if (coin.BatchClink) SfxPlayer.Play("coin_settle_01", 0.22f, 0.04f);
     }
 
-    private void TickPulse()
-    {
-        if (float.IsPositiveInfinity(_pulseTime)) return;
-
-        _pulseTime += FlightDeltaTime;
-        if (_pulseTime > 0.5f)
-        {
-            _pill.localScale = Vector3.one;
-            _pulseTime = float.PositiveInfinity;
-            return;
-        }
-
-        _pill.localScale = Vector3.one * FxKit.Elastic(_pulseTime, 0.1f, 9f, 24f);
-    }
+    private void TickPulse() => FxKit.TickSettlePop(_pill, ref _pulseTime, FlightDeltaTime);
 
     // ---- construction ----------------------------------------------------------------------
 

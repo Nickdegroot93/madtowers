@@ -17,11 +17,20 @@ public static class ChapterSkins
     public static string Folder = "Skins/Classic";
 
     /// <summary>
+    /// The chapter <see cref="Apply"/> latched, or null. THE run-scoped chapter snapshot:
+    /// visuals that need chapter identity beyond sprites (the wave laser's accent colours)
+    /// read this rather than re-deriving the chapter from menu-selection state, so art and
+    /// colour can never come from different chapters.
+    /// </summary>
+    public static ChapterDefinition ActiveChapter { get; private set; }
+
+    /// <summary>
     /// Point the skin at the given chapter (null = Classic). Must run before the first
     /// skinned visual loads (GameManager.Awake does, before the floor is configured).
     /// </summary>
     public static void Apply(ChapterDefinition chapter)
     {
+        ActiveChapter = chapter;
         Folder = chapter != null ? chapter.SkinFolder : FallbackFolder;
     }
 
