@@ -1,7 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Consumable (Slo-Mo): on activate, the next N blocks fall slower (normal descent only -
+/// Consumable (Slo-Mo): on activate, N blocks fall slower - starting with the brick that is
+/// falling RIGHT NOW, which is the whole point of tapping it mid-flight (normal descent only -
 /// fast drops still go full speed, so a player who chooses to drop fast is never fought).
 /// Block-count based, not a timescale effect, so it follows the player's pace and never
 /// touches the game clock. Shares the slow window on AbilityRuntime with Recovery.

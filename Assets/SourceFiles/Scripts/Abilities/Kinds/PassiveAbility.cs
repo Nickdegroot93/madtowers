@@ -38,6 +38,10 @@ public abstract class PassiveAbility : AbilityDefinition
 
     public virtual bool OnLifeLost(AbilityContext context) => false;
 
+    /// <summary>A piece entered play. Also delivered ONCE for the brick already falling when this
+    /// ability is acquired, so a pick acts on the piece the player is watching instead of waiting
+    /// for the next spawn - write handlers against "this piece is in play now", not "this piece was
+    /// created this instant" (it may be halfway down).</summary>
     public virtual bool OnBlockSpawned(AbilityContext context, BlockController block, BlockData data) => false;
 
     // ---- Intercepting hook (short-circuit; return true = loss handled, charge consumed) ----

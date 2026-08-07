@@ -37,23 +37,39 @@ public class AbilityRuntime : MonoBehaviour
     private AbilityContext _context;
     private StatusEffects _status;
 
-    // Block-count slow window shared by Recovery (on life loss) and Slo-Mo (on activate):
-    // the next N spawned blocks fall at _slowWindowFactor of base speed. Folded into the
-    // normal-descent factor and counted down per spawn - never a timer (follows the player's
-    // pace). Run-local (fresh AbilityRuntime per scene).
+    // Block-count slow window shared by Recovery (on life loss) and Slo-Mo (on activate): N blocks
+    // fall at _slowWindowFactor of base speed. Folded into the normal-descent factor and counted
+    // down per block - never a timer (follows the player's pace). Run-local (fresh AbilityRuntime
+    // per scene).
+    //
+    // The brick ALREADY IN THE AIR when the window is granted is the window's FIRST block - the
+    // grant has to be felt on the piece you are steering, not on the one after it. So the two
+    // fields split the bookkeeping: _slowWindowBlocks counts the future SPAWNS still owed, and
+    // _slowWindowOnActivePiece says whether the live piece is inside the window. The composed
+    // factor keys off the flag, so the window can still cover a live piece with nothing owed
+    // (a 1-block window granted mid-flight).
     private int _slowWindowBlocks;
+    private bool _slowWindowOnActivePiece;
     private float _slowWindowFactor = 1f;
 
-    /// <summary>Slow the next <paramref name="blocks"/> spawns to <paramref name="factor"/>
-    /// of base speed (normal descent only; fast drops are unaffected). Overlapping grants
-    /// take the stronger slow and the longer remaining window.</summary>
+    /// <summary>Slow <paramref name="blocks"/> blocks to <paramref name="factor"/> of base speed
+    /// (normal descent only; fast drops are unaffected), starting with the brick currently falling
+    /// if there is one. Overlapping grants take the stronger slow and the longer remaining
+    /// window.</summary>
     public void GrantSlowWindow(int blocks, float factor)
     {
         if (blocks <= 0) return;
 
         factor = Mathf.Clamp(factor, 0.05f, 1f);
-        _slowWindowFactor = _slowWindowBlocks > 0 ? Mathf.Min(_slowWindowFactor, factor) : factor;
-        _slowWindowBlocks = Mathf.Max(_slowWindowBlocks, blocks);
+        bool windowRunning = _slowWindowBlocks > 0 || _slowWindowOnActivePiece;
+        _slowWindowFactor = windowRunning ? Mathf.Min(_slowWindowFactor, factor) : factor;
+
+        // The brick in the air spends the first of the N. Re-granting while that SAME piece is
+        // still flying just re-takes the maximum, so it is never charged twice.
+        bool coversLivePiece = BlockController.LiveActivePiece != null;
+        if (coversLivePiece) _slowWindowOnActivePiece = true;
+        _slowWindowBlocks = Mathf.Max(_slowWindowBlocks, coversLivePiece ? blocks - 1 : blocks);
+
         RecomputeFallSpeedMultiplier();
     }
 
@@ -70,8 +86,45 @@ public class AbilityRuntime : MonoBehaviour
         return true;
     }
 
-    /// <summary>Raised whenever owned abilities or slots change (HUD + picker cards listen).</summary>
+    /// <summary>Raised whenever owned abilities, their charges, or the slots change (HUD + picker
+    /// cards listen).</summary>
     public event System.Action InventoryChanged;
+
+    /// <summary>Owned abilities in acquisition order - a read-only view for UI (identity via
+    /// Source, live charge count via ChargesLeft). Never mutate through this.</summary>
+    public IReadOnlyList<OwnedAbility> Owned => _owned;
+
+    /// <summary>Fill <paramref name="buffer"/> with the owned abilities still holding a charge -
+    /// the ARMED set: one-shot passives waiting to fire (Ward, Sacrifice, Hardline). Acquisition
+    /// order. Permanent passives (charges 0 = infinite) are not armed; they have nothing to spend.
+    /// This is what the armed-ability rail shows.</summary>
+    public void GetArmedAbilities(List<OwnedAbility> buffer)
+    {
+        buffer.Clear();
+        for (int i = 0; i < _owned.Count; i++)
+        {
+            // Passives only: the rail's amber is AbilityTypeInfo's "one-time PASSIVE" language, so a
+            // charged combo ability would be shown under a type badge that isn't its own.
+            if (_owned[i].ChargesLeft > 0 && _owned[i].Instance is PassiveAbility) buffer.Add(_owned[i]);
+        }
+    }
+
+    /// <summary>Spend one charge for an effect that resolves LATER than the handler which decided
+    /// to fire it - Ward arms a strike on the hazard and the charge is paid when the brick actually
+    /// converts, so the armed rail burns its icon at the moment the player sees the effect. Matched
+    /// by Instance (the clone the handler ran on). False if it is already gone.</summary>
+    public bool SpendCharge(AbilityDefinition instance)
+    {
+        if (instance == null) return false;
+
+        for (int i = 0; i < _owned.Count; i++)
+        {
+            if (_owned[i].Instance != instance) continue;
+            ConsumeCharge(_owned[i]);
+            return true;
+        }
+        return false;
+    }
 
     public AbilityContext Context => _context ?? BuildContext();
     public IReadOnlyList<ComboTriggerDefinition> SubscribedTriggers => _subscribedTriggers;
@@ -171,6 +224,11 @@ public class AbilityRuntime : MonoBehaviour
             };
             _owned.Add(owned);
             if (owned.Instance is PassiveAbility passive) passive.OnAcquired(Context, 1);
+
+            // FIRST acquisition only. A stack re-delivering the spawn hook would run it twice on a
+            // piece that already got it - Slowburn would restart a window that brick already spent,
+            // and a charged spawn-triggered passive would eat the charge the stack just added.
+            CatchUpOnLivePiece(owned);
         }
 
         RefreshSubscribedTriggers();
@@ -334,13 +392,13 @@ public class AbilityRuntime : MonoBehaviour
     {
         FanOutToPassives(passive => passive.OnBlockSpawned(Context, block, data));
 
-        // The block just spawned was already stamped with the current factor (in WireBlock);
-        // consume one of the window's blocks so the count is correct for the NEXT spawn.
-        if (_slowWindowBlocks > 0)
-        {
-            _slowWindowBlocks--;
-            if (_slowWindowBlocks == 0) _slowWindowFactor = 1f;
-        }
+        // The new piece takes the next block of the window, and the previous piece's coverage ends
+        // with it. The recompute below re-stamps this very piece with the resulting factor, so the
+        // stamp WireBlock applied a moment ago (from the pre-spawn state) is corrected in the same
+        // call - the window covers exactly N pieces however it was granted.
+        _slowWindowOnActivePiece = _slowWindowBlocks > 0;
+        if (_slowWindowBlocks > 0) _slowWindowBlocks--;
+        if (!_slowWindowOnActivePiece) _slowWindowFactor = 1f;
 
         RecomputeFallSpeedMultiplier(); // per-block windows count down on spawn
     }
@@ -372,6 +430,22 @@ public class AbilityRuntime : MonoBehaviour
             EndDispatchSnapshot(snapshot);
         }
         InventoryChanged?.Invoke();
+    }
+
+    /// <summary>Deliver OnBlockSpawned once for the brick ALREADY falling when a passive is picked.
+    /// A pick has to change the piece the player is looking at, not sit idle until the next spawn -
+    /// so Slowburn opens its slow window on this piece and Ward defuses a hazard already in the air
+    /// (spending its charge, exactly as a spawn-time defuse would). Passives with no spawn handler
+    /// are unaffected; the piece must be a live in-air one (LiveActivePiece).</summary>
+    private void CatchUpOnLivePiece(OwnedAbility owned)
+    {
+        if (owned.Instance is not PassiveAbility passive) return;
+
+        BlockController live = BlockController.LiveActivePiece;
+        if (live == null) return;
+
+        BlockData data = live.TryGetComponent(out BlockIdentity identity) ? identity.Variant : null;
+        if (passive.OnBlockSpawned(Context, live, data)) ConsumeCharge(owned);
     }
 
     private void FanOutToPassives(System.Func<PassiveAbility, bool> handler)
@@ -412,7 +486,11 @@ public class AbilityRuntime : MonoBehaviour
         if (owned.ChargesLeft <= 0) return; // 0 = infinite
 
         owned.ChargesLeft--;
-        if (owned.ChargesLeft > 0) return;
+        if (owned.ChargesLeft > 0)
+        {
+            InventoryChanged?.Invoke(); // still armed, one charge lighter - the rail shows the count
+            return;
+        }
 
         if (owned.Instance is PassiveAbility passive) passive.OnRemoved(Context);
         _owned.Remove(owned);
@@ -437,7 +515,7 @@ public class AbilityRuntime : MonoBehaviour
             }
         }
         if (_status != null) factor *= _status.GetFallSpeedFactor();
-        if (_slowWindowBlocks > 0) factor *= _slowWindowFactor;
+        if (_slowWindowOnActivePiece) factor *= _slowWindowFactor;
 
         if (GameManager.Instance != null) GameManager.Instance.SetAbilityFallSpeedMultiplier(factor);
     }

@@ -4,7 +4,9 @@ using UnityEngine;
 /// Epic passive: every new piece falls slow for its first <see cref="slowSeconds"/>, then resumes
 /// full ramped speed - a thinking/positioning beat on EVERY piece (it neutralises the speed ramp
 /// only for that opening moment, unlike Updraft's permanent slow). Applies a per-piece initial-slow
-/// window on spawn; a flick/fast-drop bypasses it, so the player can still commit early.
+/// window on spawn; a flick/fast-drop bypasses it, so the player can still commit early. The spawn
+/// hook is also delivered for the brick already falling when Slowburn is picked, so the very first
+/// window opens on that piece rather than the next one.
 /// </summary>
 [CreateAssetMenu(fileName = "Slowburn", menuName = "Stacking/Abilities/Slowburn")]
 public class SlowburnPowerUp : PassiveAbility

@@ -20,31 +20,49 @@ public static class AbilityEffects
     /// </summary>
     public static bool ActivePieceCanTransform(AbilityContext context)
     {
-        if (context == null || context.Spawner == null) return false;
+        // "A live piece in the air, above the cull line" is BlockController.LiveActivePiece - the
+        // same test every apply-to-the-falling-brick path uses, so they can't drift apart.
+        return context != null && context.Spawner != null && BlockController.LiveActivePiece != null;
+    }
 
-        BlockController active = BlockController.ActiveControlled;
-        if (active == null || active.HasLanded) return false;
+    /// <summary>
+    /// Can <paramref name="block"/> be defused in place right now? The guard half of
+    /// <see cref="NeutralizeToPlain"/>, split out so Ward can pre-check it BEFORE arming a delayed
+    /// strike and never commit to a hazard it cannot actually reset. Needs a spawner, an identity,
+    /// and a plain DefaultData to fall back to. A locked-identity shape (the Pyramid) is excluded:
+    /// ApplyVariantToNextBlock refuses to re-skin one and would bank the plain data onto the NEXT
+    /// brick instead - a silently wrong defuse that also spends the charge.
+    ///
+    /// It also pins <paramref name="block"/> to the spawner's CURRENT in-air piece, because the
+    /// defuse is addressed by the spawner, not by this reference: ApplyVariantToNextBlock always
+    /// acts on `Spawner.currentBlock`. A synchronous caller can't tell the difference, but Ward's
+    /// strike resolves up to half a second after it was armed - and if the current piece had moved
+    /// on by then, the old code would strip THIS brick's look, re-skin the OTHER one, and still
+    /// report success. Checking it here keeps the guard honest for deferred callers.
+    /// </summary>
+    public static bool CanNeutralizeToPlain(AbilityContext context, BlockController block)
+    {
+        if (context == null || context.Spawner == null || block == null) return false;
+        if (block.HasLanded || context.Spawner.currentBlock != block) return false;
+        if (!block.TryGetComponent(out BlockIdentity identity)) return false;
+        if (identity.Definition == null || identity.Definition.DefaultData == null) return false;
 
-        Camera camera = Camera.main;
-        if (camera != null && camera.orthographic && active.transform.position.y < LossZone.CullY(camera)) return false;
-
-        return true;
+        return !identity.Definition.LockDefaultData;
     }
 
     /// <summary>
     /// DEFUSE a piece in place: strip any special-variant LOOK (overlay skins) and reset it to its
     /// shape's plain DefaultData - same GameObject, so rotation/position/fall progress are kept.
-    /// Shared by Sanitize (tap) and Ward (auto, on a hazard spawn). Returns false WITHOUT touching the
-    /// piece if it can't be reset (no spawner / no identity / no DefaultData), so callers only spend a
+    /// Shared by Sanitize (tap) and Ward (its delayed strike). Returns false WITHOUT touching the
+    /// piece if it can't be reset (see <see cref="CanNeutralizeToPlain"/>), so callers only spend a
     /// charge or play FX on a real neutralise. ApplyVariantToNextBlock re-syncs identity + the
     /// active-piece accounting cache (BLOCKS.md); behaviour is added on lock and trait flags read live
     /// from the applied data, so the reset piece is fully harmless.
     /// </summary>
     public static bool NeutralizeToPlain(AbilityContext context, BlockController block)
     {
-        if (context == null || context.Spawner == null || block == null) return false;
+        if (!CanNeutralizeToPlain(context, block)) return false;
         if (!block.TryGetComponent(out BlockIdentity identity)) return false;
-        if (identity.Definition == null || identity.Definition.DefaultData == null) return false;
 
         block.StripVariantSkins();
         context.Spawner.ApplyVariantToNextBlock(identity.Definition.DefaultData);

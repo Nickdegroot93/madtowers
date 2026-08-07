@@ -13,11 +13,30 @@ public partial class BlockController : MonoBehaviour
     [Header("Movement Settings")]
     [SerializeField] public float fallSpeed = 2.0f;
     [SerializeField] public float fastDropMultiplier = 10.0f;
-    // Ability fall-speed multiplier (Air Brake, recovery / slo-mo windows), stamped at spawn
-    // from GameManager.AbilityFallSpeedFactor. Applies to NORMAL descent only - fast drop /
-    // flick use the un-factored base speed (the player chose to go fast; abilities don't fight that).
+    // Ability fall-speed multiplier (Air Brake, recovery / slo-mo windows), stamped at spawn from
+    // GameManager.AbilityFallSpeedFactor AND re-stamped live whenever that factor changes, so an
+    // ability used mid-fall is felt by the piece already in the air instead of only by the next one.
+    // Applies to NORMAL descent only - fast drop / flick use the un-factored base speed (the player
+    // chose to go fast; abilities don't fight that).
     private float _normalFallSpeedFactor = 1f;
-    public void SetNormalFallSpeedFactor(float factor) => _normalFallSpeedFactor = Mathf.Clamp(factor, 0.05f, 3f);
+    private bool _fallSpeedPinned;
+    public void SetNormalFallSpeedFactor(float factor)
+    {
+        _fallSpeedPinned = false;
+        _normalFallSpeedFactor = Mathf.Clamp(factor, 0.05f, 3f);
+    }
+
+    /// <summary>Pin this piece's normal descent to a scripted factor (the tutorial's pre-roll
+    /// ride-in). Live ability re-stamps skip a pinned piece, so a recompute mid-lesson can't yank
+    /// the speed of a piece a script is driving; SetNormalFallSpeedFactor releases the pin (which
+    /// is exactly what the script's restore call does).</summary>
+    public void PinNormalFallSpeedFactor(float factor)
+    {
+        _normalFallSpeedFactor = Mathf.Clamp(factor, 0.05f, 3f);
+        _fallSpeedPinned = true;
+    }
+
+    public bool NormalFallSpeedPinned => _fallSpeedPinned;
 
     // Per-piece "initial slow" window (Slowburn): this piece falls at _initialSlowFactor of its
     // normal speed until _initialSlowEndTime, then resumes full ramped speed. Time.time is scaled,
@@ -238,6 +257,12 @@ public partial class BlockController : MonoBehaviour
 
     public event System.Action<BlockController> OnBlockLocked;
 
+    /// <summary>Raised on this piece at the very start of its lock, BEFORE it counts as landed and
+    /// before its variant data activates (BlockData.OnLocked) - the last moment anything can change
+    /// what this brick becomes. Ward's pending strike defuses a hazard here when a fast drop beats
+    /// its timer; the piece is still in-air state, so the normal in-place variant swap applies.</summary>
+    public event System.Action<BlockController> BeforeLock;
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetGridState()
     {
@@ -290,6 +315,21 @@ public partial class BlockController : MonoBehaviour
     // The piece currently under player control (null between lock and next spawn).
     // Touch gestures use this to address their commands.
     public static BlockController ActiveControlled { get; private set; }
+
+    /// <summary>The brick the player is actually steering right now: ActiveControlled, but only
+    /// while it is a real in-air piece - not landed/locked, and not already past the loss cull
+    /// (Destroy is deferred, so a doomed piece can still BE ActiveControlled for a frame). Null when
+    /// there is nothing to act on. Every "apply this to the brick that's currently falling" path
+    /// goes through here so they can't drift apart.</summary>
+    public static BlockController LiveActivePiece
+    {
+        get
+        {
+            BlockController active = ActiveControlled;
+            if (active == null || active.HasLanded) return null;
+            return LossZone.IsBelowCull(active.transform.position) ? null : active;
+        }
+    }
 
     /// <summary>Width of one placement column in world units (for gesture distance mapping).</summary>
     public float GridSpacing => gridSpacing;

@@ -14,14 +14,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WardPowerUp
   displayName: Ward
   icon: {fileID: 21300000, guid: 3208daf163bd40c19129748225be271f, type: 3}
-  shortDescription: Defuses the next hazard brick.
-  ownedShortDescription: 
-  description: Holds a charge that defuses the next hazard brick the moment it appears
-    - a Maw, Vortex, Bomb and the like becomes a plain brick of the same shape, just
-    once. It waits until a hazard actually shows up, so the charge is never wasted.
+  shortDescription: Strikes down the next hazard brick.
+  ownedShortDescription:
+  description: Holds a charge that strikes down the next hazard brick. Let it fall
+    for a beat and the ward burns it back into a plain brick of the same shape - a
+    Maw, Vortex or Bomb defused in front of you, just once. It waits until a hazard
+    actually shows up, so the charge is never wasted.
   rarity: 0
   unique: 0
   maxStacks: 0
   requiresVariantsInLevel: []
   minChapterNumber: 0
   charges: 1
+  strikeDelaySeconds: 0.45
+  strikeEffect: {fileID: 0}
+  effectScale: 0.7

@@ -1,8 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// Passive: after losing a life, the next N blocks fall slower (normal descent only -
-/// fast drops are unaffected), giving a clean window to recover rhythm. Count-based, not a
+/// Passive: after losing a life, N blocks fall slower (normal descent only - fast drops are
+/// unaffected), giving a clean window to recover rhythm. The brick already in the air is the
+/// first of them, so the help lands the instant the life is lost. Count-based, not a
 /// timer, so it follows the player's pace. The slow window itself lives on AbilityRuntime
 /// (shared with the Slo-Mo consumable); this just grants it on life loss.
 /// </summary>

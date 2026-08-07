@@ -9,16 +9,19 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5ee97442fd16497c953fdf512d694607, type: 3}
+  m_Script: {fileID: 11500000, guid: 8b2b81f225e946e3b4d5bcb6ccb49bb0, type: 3}
   m_Name: SlowTime
-  m_EditorClassIdentifier: Assembly-CSharp::SlowMotionPowerUp
+  m_EditorClassIdentifier: Assembly-CSharp::StatusConsumableAbility
   displayName: Slow Time
   icon: {fileID: 21300000, guid: dd776dd35ea2453a90dc2ec2ca70d306, type: 3}
-  shortDescription: 
-  ownedShortDescription: 
-  description: Time runs at half speed for 15 seconds.
+  shortDescription: Tap to halve falling speed for 15 seconds.
+  ownedShortDescription:
+  description: Tap it and blocks fall at half speed for the next 15 seconds - including
+    the one already on its way down. Fast drops still fall at full speed, so you can
+    still commit early whenever you want.
   rarity: 0
   unique: 0
   maxStacks: 0
   requiresVariantsInLevel: []
-  slowStatus: {fileID: 11400000, guid: 8f34a1b5c9594b68a20ce7f8db1eecf3, type: 2}
+  status: {fileID: 11400000, guid: 8f34a1b5c9594b68a20ce7f8db1eecf3, type: 2}
+  activateSfx: slowmo_engage

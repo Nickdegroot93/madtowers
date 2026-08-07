@@ -14,9 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SlowWindowConsumable
   displayName: Slo-Mo
   icon: {fileID: 21300000, guid: 0efc3d0bf11340d6970404412edff812, type: 3}
-  shortDescription: Slows the next 5 blocks' falling speed.
-  description: Slows the falling speed of the next 5 blocks by half, giving you a window
-    to plan precise placements during high-speed phases. Fast drops still fall at full speed.
+  shortDescription: Halves the falling speed of 5 blocks.
+  description: Halves the falling speed of the next 5 blocks - starting with the one
+    already on its way down - giving you a window to plan precise placements during high-speed
+    phases. Fast drops still fall at full speed.
   rarity: 0
   unique: 0
   maxStacks: 0

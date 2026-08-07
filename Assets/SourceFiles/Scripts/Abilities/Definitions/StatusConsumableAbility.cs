@@ -10,12 +10,14 @@ public class StatusConsumableAbility : ConsumableAbility
 {
     [Tooltip("The game state activating this consumable applies (duration/magnitude live on the status asset).")]
     [SerializeField] private StatusEffectDefinition status;
+    [Tooltip("Sound played on activation. Leave as the generic pop unless the state has its own signature cue.")]
+    [SerializeField] private string activateSfx = "pop_01";
 
     public override void Activate(AbilityContext context)
     {
         if (status == null || context.Status == null) return;
 
         context.Status.Apply(status);
-        SfxPlayer.Play("pop_01", 0.8f, 0.05f);
+        if (!string.IsNullOrEmpty(activateSfx)) SfxPlayer.Play(activateSfx, 0.8f, 0.05f);
     }
 }

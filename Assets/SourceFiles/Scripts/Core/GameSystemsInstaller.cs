@@ -22,6 +22,7 @@ public static class GameSystemsInstaller
         Ensure<StatusFieldController>(host);
         Ensure<HoldCache>(host);
         Ensure<AbilityHud>(host);
+        Ensure<ArmedAbilityHud>(host);    // left-edge readout of one-shot passives still holding a charge
         Ensure<HoldButton>(host);
         Ensure<AbilityChoiceController>(host);
         Ensure<BlockDiscoveryController>(host); // brick debut modals + Vault discovery marking

@@ -27,7 +27,8 @@ public class GameManager : MonoBehaviour
     // The difficulty ramp owns its base fall speed (and the cap applies to it); ability
     // effects compose as a multiplier IN THE GETTER, never by mutating the ramp value -
     // a mutate-then-restore multiplier is unrecoverable once the ramp writes again.
-    // The Spawner stamps this onto each piece at spawn, so changes apply next piece.
+    // The Spawner stamps this onto each piece at spawn, and SetAbilityFallSpeedMultiplier
+    // re-stamps the piece already in the air, so a change is felt on the current brick too.
     public float currentFallSpeed => _difficulty.BaseFallSpeed * _abilityFallSpeedMultiplier;
     /// <summary>The difficulty-ramped descent speed WITHOUT ability factors - what fast
     /// drops / flicks use, so an ability slow never fights a player who chose to go fast.</summary>
@@ -389,6 +390,16 @@ public class GameManager : MonoBehaviour
     public void SetAbilityFallSpeedMultiplier(float multiplier)
     {
         _abilityFallSpeedMultiplier = Mathf.Clamp(multiplier, 0.1f, 3f);
+
+        // The factor is LIVE, not just a spawn stamp: re-stamp the brick already falling so a slow
+        // used mid-flight is felt on THIS piece. Tapping Slo-Mo and watching nothing happen until
+        // the next brick spawned was the whole complaint. Scripted rides (the tutorial's pre-roll)
+        // pin their piece and are left alone.
+        BlockController active = BlockController.LiveActivePiece;
+        if (active != null && !active.NormalFallSpeedPinned)
+        {
+            active.SetNormalFallSpeedFactor(_abilityFallSpeedMultiplier);
+        }
     }
 
     /// <summary>Runs the (frozen) per-block loss inside the loss policy: GameOver() learns

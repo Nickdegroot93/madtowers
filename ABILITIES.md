@@ -64,7 +64,8 @@ warm sweep. Sweeps/pulse in `AbilityCardShine` (+ `UiGlowPulse`), unscaled time.
 opens the matching detail panel (`AbilityCardView.CreateDetailPanel`: same chrome, big
 icon, LONG description, filled-accent Choose / ghost Back - Back returns to the same
 three cards, no reroll). HUD slots show the icon (title text if none); the full-slots
-swap flow enlarges the live slots themselves (see §8). The detail view is the future home of per-ability explainer videos -
+swap flow enlarges the live slots themselves (see §8). One-shot passives still holding a charge get
+their own left-edge readout, the armed rail (§15). The detail view is the future home of per-ability explainer videos -
 the icon and long text it needs are already authored.
 
 ### Delivery layer split
@@ -140,6 +141,18 @@ state across runs (documented bug class — don't reintroduce it).
 - **Notification hooks** (`OnLifeLost`, `OnBlockSpawned`, combo fan-out): EVERY
   subscriber runs, in acquisition order; a charge is consumed right after the owning
   handler returns. Handlers observe live state mutated by earlier handlers.
+- **`OnBlockSpawned` is also delivered once for the brick already falling when a passive is FIRST
+  acquired** (`AbilityRuntime.CatchUpOnLivePiece` — first acquisition only; a stack would run it a
+  second time on a piece that already got it, restarting Slowburn's window or eating the charge the
+  stack just added). A pick must change the piece the player is
+  looking at, not sit idle until the next spawn — so Slowburn opens its window on that piece and
+  Ward arms its strike on a hazard already in the air. Write spawn handlers against *"this piece is
+  in play now"*, never *"this piece was created this instant"* — it may be halfway down. See §14.
+- **A charge may be paid LATER than the handler that committed to it.** A handler returns false and
+  the effect calls `AbilityRuntime.SpendCharge(instance)` when it actually resolves (Ward's delayed
+  strike). Use this whenever the visible moment and the decision moment differ — the armed rail
+  burns the icon on `SpendCharge`, so paying early would show the ability leaving before the player
+  sees it work. `InventoryChanged` now fires on EVERY charge change, not only the last one.
 - Consumable slots resolve synchronously: the slot empties BEFORE `Activate` runs
   (double-tap safe).
 
@@ -154,7 +167,7 @@ conceivably want it, it's a status asset.*
 | Kind | Consulted by | Meaning of `magnitude` |
 |---|---|---|
 | `LifeLossImmunity` | `GameManager.GameOver()` skips the charge | — |
-| `FallSpeedMultiplier` | folded into the per-block NORMAL-descent factor (fast drops immune; never `Time.timeScale`) | the multiplier (0.5 = half) |
+| `FallSpeedMultiplier` | folded into the per-block NORMAL-descent factor — LIVE, so it also re-stamps the brick already falling (fast drops immune; never `Time.timeScale`) | the multiplier (0.5 = half) |
 | `ScorePerBlockBonus` | `BlockLedger` adds it per counted `BlockLanded` grant | extra score (+1 = double progression) |
 | `Custom` | nothing built-in; abilities query `IsActive(def)` | yours |
 
@@ -311,7 +324,7 @@ when unusable, same affordance as the nudge pills.
 
    | Class | Kind | Fields | Covers |
    |---|---|---|---|
-   | `StatusConsumableAbility` | Consumable | status | "activate: enter state X" |
+   | `StatusConsumableAbility` | Consumable | status (+ activateSfx) | "activate: enter state X" — Slow Time |
    | `TransmuteAbility` | Consumable | targetShape (+ transformEffect) | "activate: active piece becomes shape X" |
    | `FlipAbility` | Consumable | - | "activate: swap active shape with next queued shape" |
    | `SlowWindowConsumable` | Consumable | slowFactor, blocks | "activate: next N blocks fall slower" |
@@ -328,7 +341,7 @@ when unusable, same affordance as the nudge pills.
    | `SlowburnPowerUp` | Passive (unique) | slowSeconds, slowFactor | "each new piece falls slow for its first ~1s, then full speed (per-piece thinking beat; fast-drop bypasses)" |
    | `TitanPowerUp` | Passive (unique) | frictionIncrease, massMultiplier | "future blocks heavy + grippy: planted, topple/Tremor-resistant, but land harder" |
    | `PurifierPowerUp` | Passive (unique) | reductionPerStack, minHazardTypesInLevel | "drastically cuts ALL hazard spawns (data-driven off `BlockData.IsHazard`); offered only when the level features >= N hazards (custom IsAvailable)" |
-   | `WardPowerUp` | Passive (charges = 1) | — | "neutralises the NEXT hazard brick to spawn into a plain brick of its shape, once (hazards via `BlockData.IsHazard`)" |
+   | `WardPowerUp` | Passive (charges = 1) | strikeDelaySeconds (+ strikeEffect/Scale) | "the next hazard brick falls for a beat, then is visibly struck down to a plain brick of its shape, once (hazards via `BlockData.IsHazard`)" — see §15 |
    | `LastStandAbility` | Passive (unique) | reductionFraction | "on the last life: flat speed cut" |
    | `ReboundAbility` | Passive (unique) | saveChance (+ cellBurstEffect) | "% chance a lost landed block is saved back to the queue" |
    | `BlockDropChancePowerUp` | Passive (unique) | definition, dropChance | "introduce an out-of-bag brick at a rare drop rate" |
@@ -339,7 +352,6 @@ when unusable, same affordance as the nudge pills.
    | `ApplyVariantConsumable` | Consumable | variant, count (+ transformEffect/Scale) | "tap: the falling brick (and the next count-1) become variant V" — Anchor Brick (1), Vine Bricks (2) |
    | `SanitizeConsumable` | Consumable | (transformEffect/Scale) | "tap: strip the falling hazard's look IN PLACE (same piece, no shift) and reset it to its shape's plain DefaultData" |
    | `ExtraLifePowerUp` | Instant | lives | flat life grant |
-   | `SlowMotionPowerUp` | Instant | slowStatus | timed normal-descent slow (applies a `FallSpeedMultiplier` status; not `Time.timeScale`) |
 
    Otherwise subclass the kind in `Definitions/` — one file.
 2. Create the asset (Create > Stacking > Abilities > …) under `Assets/Data/PowerUps/`.
@@ -455,23 +467,40 @@ non-unique ones reappear until `maxStacks`. See CUSTOMGAME.md. (Custom Game is e
 > combo/status assets, etc.) may not each have an entry here.
 
 ### Recovery (Common, passive, unique) & Slo-Mo (Common, consumable)
-A shared **slow window** on `AbilityRuntime` (`GrantSlowWindow(blocks, factor)`): the next
-N *normal-descent* spawns fall at `factor` of base speed, counted down per spawn (not a
+A shared **slow window** on `AbilityRuntime` (`GrantSlowWindow(blocks, factor)`): N
+*normal-descent* pieces fall at `factor` of base speed, counted down per piece (not a
 timer — follows the player's pace). `RecoveryWindowAbility` (Recovery) grants 3 blocks @
 0.5 on life lost; `SlowWindowConsumable` (Slo-Mo) grants 5 @ 0.5 on activate. Overlapping
 grants take the stronger slow + longer window.
 
+**The brick already in the air is the window's FIRST block** (§14). The bookkeeping splits in
+two: `_slowWindowBlocks` counts the future *spawns* still owed, and `_slowWindowOnActivePiece`
+says whether the live piece is inside the window — the composed factor keys off the flag, so a
+1-block window granted mid-flight still covers that piece and nothing else. Re-granting while the
+same piece flies just re-takes the maximum, so a piece is never charged to the window twice and
+the total stays exactly N pieces however the grant was timed.
+
 **Fast drops are immune (the key rule).** The slow is applied as a *normal-descent-only*
-factor: the block is stamped at spawn with the un-factored `BaseFallSpeed` plus the
-`AbilityFallSpeedFactor`, and `BlockController.GetActiveFallSpeed` applies the factor **only**
+factor: the block is stamped with the un-factored `BaseFallSpeed` plus the
+`AbilityFallSpeedFactor` (at spawn, and again live whenever that factor changes — §14), and
+`BlockController.GetActiveFallSpeed` applies the factor **only**
 when the player isn't fast-dropping — hold / down / flick all use `base × fastDropMultiplier`
 with no slow. A player who chose to go fast is never fought. **This also routes Air Brake's
 multiplier through normal-descent-only** (its ~8% no longer touches fast drops — intended).
-**No slow-time ability touches `Time.timeScale`** — a global slow (the old `SlowMotionPowerUp`
+**No slow-time ability touches `Time.timeScale`** — a global slow (the original Slow Time
 behaviour) dragged fast drops and the whole simulation into slow motion too, which was wrong.
-Slow Time (`SlowMotionPowerUp`) now applies a 15 s `FallSpeedMultiplier` status instead, which
-`AbilityRuntime` folds into this same per-block normal-descent factor; the block-count window
-(Slo-Mo/Recovery) and the duration status both ride the one fast-drop-immune path.
+Slow Time applies a 15 s `FallSpeedMultiplier` status instead, which `AbilityRuntime` folds into
+this same per-block normal-descent factor; the block-count window (Slo-Mo/Recovery) and the
+duration status both ride the one fast-drop-immune path.
+
+**Slow Time is a CONSUMABLE** (Nick 2026-08-07). It shipped as an *instant* — picking the card
+started the 15 s clock immediately, so a timed slow was spent on whatever happened to be falling
+during the offer instead of on a moment the player chose. It is now a plain
+`StatusConsumableAbility` asset pointing at `Status_SlowDescent15s` (`activateSfx =
+slowmo_engage`); the `SlowMotionPowerUp` class is deleted — nothing else used it. The asset GUID
+is unchanged, so every mode's `powerUpChoicePool` still resolves, and the type badge derives the
+new kind for free. Note Slo-Mo and Slow Time now overlap heavily (both common, both half speed —
+5 blocks vs 15 seconds); if one has to go, that's a design call, not a code one.
 
 ### Rebound (Rare, passive, unique)
 `ReboundAbility` is a loss interceptor (the Sacrifice pattern, gentler): when a LANDED block
@@ -856,3 +885,102 @@ not past the loss line, Pip wired, **not already a Pip**) plus cell-count ≥ 2 
 already active. `splitEffect` is a swappable serialized CFXR field (base prefabs only; degrades to
 flash+punch until assigned). **Deferred:** the spec's "infinite stacks / +1 charge" — consumables
 don't stack today; ships single-use, revisit with a general stackable-consumable pass.
+
+## 14. Act on the brick that's falling NOW (Nick, 2026-08-07)
+
+> "I click a consumable and nothing is happening until the next brick actually comes."
+
+An ability must change the piece the player is *looking at*. Anything that took effect only on the
+next spawn read as a dud press, so the rule is now: **if the effect can apply to the piece in the
+air, it applies to it, and that piece counts as the first of any N-block window.**
+
+The single definition of "the brick currently falling" is **`BlockController.LiveActivePiece`** —
+`ActiveControlled`, but only while it is a real in-air piece: not landed/locked and not already
+past the loss cull (`Destroy` is deferred, so a doomed piece can still *be* `ActiveControlled` for
+a frame — the deferred-destroy trap). Every apply-to-the-falling-brick path goes through it,
+including `AbilityEffects.ActivePieceCanTransform`. Never re-derive the test.
+
+Three mechanisms deliver it; between them they cover every ability that used to wait:
+
+1. **Fall speed is live, not a spawn stamp.** `GameManager.SetAbilityFallSpeedMultiplier` — the one
+   push point `AbilityRuntime.RecomputeFallSpeedMultiplier` writes to — re-stamps
+   `LiveActivePiece` with the new factor. So Slo-Mo, Recovery, Slow Time (the
+   `FallSpeedMultiplier` status), Air Brake and Last Stand are all felt on the current piece the
+   instant they change, and **any future fall-speed source is too, with no extra code**. A timed
+   status expiring mid-fall likewise speeds that piece back up, which is what a *timed* state
+   should do.
+2. **Block-count windows count the live piece as block 1** (`GrantSlowWindow`, see §13).
+3. **`OnBlockSpawned` is re-delivered for the live piece on acquisition** (§4) — Slowburn and Ward.
+
+**The pin.** Scripted sequences that drive a piece's descent themselves (the tutorial's pre-roll
+ride-in) call `BlockController.PinNormalFallSpeedFactor`; live re-stamps skip a pinned piece, so a
+recompute mid-lesson can't yank the speed out from under the script. The plain
+`SetNormalFallSpeedFactor` releases the pin — which is exactly what the script's restore does.
+
+**What deliberately still waits, and why:** spawn-table effects (`BlockVariantChancePowerUp`,
+`BlockDropChancePowerUp`, `PurifierPowerUp`, `BlockDefinitionChancePowerUp`) change the odds of
+*rolling* a brick — there is nothing to apply to a piece that already rolled. Titan's mass and the
+friction passives are authored as "future pieces" balance (the friction half is shared-material and
+therefore already immediate). Vector Guide, Foresight, Pocket Cache and Reroll read their state
+live per frame, so they were never late.
+
+## 15. Armed abilities are visible (Nick, 2026-08-07)
+
+> "I never see it working in action… somewhere on the UI we should see that there is an active ward."
+
+A one-shot passive used to be invisible twice over: you couldn't tell it was still armed, and Ward
+fired so early that the hazard it ate was never seen. Both halves are fixed.
+
+### The armed rail (`ArmedAbilityHud`)
+
+A short vertical column of icons on the **left edge, under the Pocket Cache bubble** (same column
+centre and left margin as `HoldButton`, so they read as one left-edge stack). It shows every owned
+ability with `ChargesLeft > 0` — a one-shot waiting to fire: **Ward, Sacrifice, Hardline**. An icon
+appears when the ability is picked and **burns away when its charge is spent** (punch out + fade,
+0.4 s), and the chips below close the gap only after the burn finishes.
+
+- **Armed only, never the whole inventory.** Permanent passives (Air Brake, Recovery, Brace, High
+  Friction…) have nothing to spend, so an icon for them would be wallpaper that buries the one icon
+  that changes. Worst case on screen is three.
+- **A readout, not a control**: no `Button`, no raycast targets, and deliberately **no
+  gesture-exclusion rect** — registering one would eat steer/rotate gestures over a strip the player
+  cannot press. Sorting order 2470, *under* the hold button (2480) and the consumable slots (2500),
+  so if the player drags a slot on top of the rail the pressable thing wins.
+- Visually it is the consumable slot's chrome (`AbilityHud.BuildSlotChrome`, reused as-is) at 84 px
+  with an **amber** ring instead of the slots' blue-white — amber is already the card language for
+  `OneTimePassive`, "spends itself" (`AbilityTypeInfo`). The ring breathes on unscaled time so an
+  armed ability reads as a live status light. `×N` shows when a stack holds more than one charge.
+- Chips are **pooled, never destroyed**: `BuildSlotChrome` allocates fresh gradient sprites per
+  build, so re-arming across a long run would otherwise leak a set each time.
+- Requirements it added to `AbilityRuntime`: `Owned` (read-only view), `GetArmedAbilities(buffer)`,
+  `SpendCharge(instance)`, and `InventoryChanged` firing on every charge change.
+
+### Ward's visible strike (`WardStrike`)
+
+Ward no longer defuses at spawn. It **arms a strike** on the hazard and lets it fall looking like a
+hazard for `strikeDelaySeconds` (0.45 s), then converts it in front of the player — per-cell burst,
+`ImpactPunch`, `ward_absorb`, and the rail icon burning away as the charge is paid.
+
+The beat is safe by construction: **a hazard is inert while it falls** (its behaviour is attached by
+`BlockData.OnLocked`), so the only thing the strike must beat is the lock. It resolves on whichever
+comes first — the timer (scaled time, so a pause freezes the beat), or the piece's new
+**`BlockController.BeforeLock`** event when a flick lands the brick sooner. `BeforeLock` is raised at
+the very top of `LockBlock`, **before `HasLanded`**: the in-place variant swap refuses a landed piece
+and would bank the change onto the NEXT brick instead. That is the general hook for "last chance to
+change what this brick becomes".
+
+Two lifecycle rules worth keeping:
+
+- **Ward's claim IS the component**, not a bool. The strike rides on the hazard brick, so if that
+  brick leaves play (culled, zapped, game over) the reference reads null through Unity's
+  destroyed-object check and the ward re-arms by itself. A bool would need a teardown callback to
+  release it, and anything that missed the callback would strand the ward armed-but-inert for the
+  rest of the run — which is exactly what happened in testing before this was changed.
+- **`CanNeutralizeToPlain` gates the arm.** A locked-identity shape (the Pyramid) can't be re-skinned
+  in place; `ApplyVariantToNextBlock` would bank plain data onto the following brick. Pre-checking it
+  means the ward never commits to a hazard it cannot actually reset — a latent bug in the old
+  instant version, which would have spent the charge on a silently wrong defuse. The same guard pins
+  the block to `Spawner.currentBlock` and refuses a landed one, because the defuse is addressed by
+  the SPAWNER, not by the passed reference: a synchronous caller can't tell, but a strike resolving
+  half a second later could otherwise strip one brick's look, re-skin a different brick, and still
+  report success.

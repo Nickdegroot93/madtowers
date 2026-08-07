@@ -290,7 +290,10 @@ public class TutorialModifier : LevelModifier
         if (piece != null)
         {
             piece.SetDescentSuspended(false);
-            piece.SetNormalFallSpeedFactor(PreRollSpeedFactor);
+            // Pinned, not just stamped: the lesson owns this piece's descent, so a live ability
+            // re-stamp (GameManager.SetAbilityFallSpeedMultiplier) must not yank the ride-in speed.
+            // RestoreNormalSpeed's plain stamp releases the pin again.
+            piece.PinNormalFallSpeedFactor(PreRollSpeedFactor);
         }
 
         // The whole lesson is visible from the first pre-roll frame - caption, ghost hand AND

@@ -156,6 +156,13 @@ public partial class BlockController
     private void LockBlock()
     {
         if (!_isControlEnabled) return;
+
+        // Last call before this piece stops being "the falling brick": still in-air state (not
+        // HasLanded, still ActiveControlled), so a listener can still swap its variant in place.
+        // Raised before HasLanded on purpose - the in-place variant swap refuses a landed piece
+        // and would bank the change onto the NEXT brick instead.
+        BeforeLock?.Invoke(this);
+
         _isControlEnabled = false;
         if (ActiveControlled == this) ActiveControlled = null;
         HasLanded = true;
