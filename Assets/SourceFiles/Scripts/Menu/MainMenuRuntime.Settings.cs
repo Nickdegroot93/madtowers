@@ -524,11 +524,12 @@ public static partial class MainMenuRuntime
 
     // ---- About / Legal tab --------------------------------------------------------------
     // Store-required (SETTINGS.md §4): version, privacy policy, terms, support, credits.
-    // The URLs are PLACEHOLDERS until the policy is written and hosted - GOLIVE.md §6 tracks
-    // replacing them; shipping with these live would 404.
-    private const string PrivacyPolicyUrl = "https://madtowers.app/privacy";   // TODO(go-live)
-    private const string TermsUrl = "https://madtowers.app/terms";             // TODO(go-live)
-    private const string SupportEmail = "support@madtowers.app";               // TODO(go-live)
+    // hazardheights.com is owned and the pages are built (../hazard-heights-web). Trailing
+    // slashes are deliberate - the site is a static export, so /privacy/ is the real path.
+    // Still to do before ship: point the DNS at the deploy and make support@ deliver.
+    private const string PrivacyPolicyUrl = "https://hazardheights.com/privacy/";
+    private const string TermsUrl = "https://hazardheights.com/terms/";
+    private const string SupportEmail = "support@hazardheights.com";
 
     private static void BuildAboutSettings(RectTransform panel, Color accent)
     {
@@ -546,7 +547,7 @@ public static partial class MainMenuRuntime
         rowTop = BuildLinkRow(rows, rowTop, "PrivacyPolicy", "PRIVACY POLICY",
             "What we store and how to delete it.", accent, () => Application.OpenURL(PrivacyPolicyUrl));
         rowTop = BuildLinkRow(rows, rowTop, "Terms", "TERMS OF SERVICE",
-            "The rules of playing MadTowers.", accent, () => Application.OpenURL(TermsUrl));
+            "The rules of playing Hazard Heights.", accent, () => Application.OpenURL(TermsUrl));
         rowTop = BuildLinkRow(rows, rowTop, "Support", "SUPPORT",
             "Stuck or found a bug? Write to us.", accent,
             () => Application.OpenURL($"mailto:{SupportEmail}"));

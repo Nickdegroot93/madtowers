@@ -181,7 +181,7 @@ public static partial class MainMenuRuntime
             }
         }
 
-        TextMeshProUGUI title = CreateTmp(card, "Title", "MADTOWERS UNLIMITED", 34, GoldBase,
+        TextMeshProUGUI title = CreateTmp(card, "Title", "HAZARD HEIGHTS UNLIMITED", 34, GoldBase,
             TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -heroH - 26f), new Vector2(720f, 42f), new Vector2(0.5f, 1f));
         title.characterSpacing = 2f;

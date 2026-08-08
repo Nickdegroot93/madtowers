@@ -219,7 +219,7 @@ internal sealed class SimulatedPremiumStoreProvider : IPremiumStoreProvider
             new Vector2(700f, 470f), new Vector2(0.5f, 0.5f));
         panel.raycastTarget = true;
 
-        RuntimeUiKit.CreateTmp(panel.transform, "Title", "MADTOWERS UNLIMITED", 34,
+        RuntimeUiKit.CreateTmp(panel.transform, "Title", "HAZARD HEIGHTS UNLIMITED", 34,
             new Color(0.92f, 0.97f, 1f, 1f), TextAnchor.UpperCenter, FontStyle.Bold,
             RuntimeUiKit.TitleFont, new Vector2(0f, -44f), new Vector2(640f, 42f),
             new Vector2(0.5f, 1f));

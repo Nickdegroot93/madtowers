@@ -31,14 +31,20 @@ meter without both escape valves is pure friction), so "ads last" costs nothing.
 - [x] **Push the XP migration to production** — DONE 2026-08-04: `20260801000003_xp.sql`
       pushed via `db push`, smoke suite 22/22 against production (XP checks e3–e5/g3
       included). Until then hosted `finish_run` paid no XP — the reason XP sat at 0.
-- [ ] **Own the domain.** `madtowers.app` is hard-coded as the privacy/terms/support
-      placeholder (`MainMenuRuntime.Settings.cs:529`) — buy it (or pick the real domain
-      and update the consts). Needed before any store form asks for a privacy URL.
-- [ ] **Write + host the privacy policy & terms** (GitHub Pages is fine). Name the SDKs:
-      Supabase, Unity LevelPlay/AdMob, Unity IAP; what's collected; the in-app deletion
-      path. Then replace `PrivacyPolicyUrl` / `TermsUrl` / `SupportEmail` —
-      **shipping the placeholders would 404.** (Final SDK list is only certain after
-      Phase 4 — draft now, finalize then.)
+- [x] **Own the domain** — DONE 2026-08-08: `hazardheights.com` bought. **The game is
+      renamed MadTowers → Hazard Heights** (store title `Hazard Heights`, subtitle carries
+      the "tower stacker" keywords). The repo, folder and docs keep the MadTowers name
+      internally — only Product Name, bundle ID and the URL consts are player-facing.
+      `MainMenuRuntime.Settings.cs:529` now points at the real domain.
+- [x] **Write + host the privacy policy & terms** — DRAFTED 2026-08-08 in the sibling repo
+      `../hazard-heights-web` (static Next.js, deploys to Vercel). Covers privacy, terms,
+      support, and the Play-required public **account-deletion page**. Names the SDKs
+      (Supabase, Unity LevelPlay/AdMob, Unity IAP), what's collected, and the in-app
+      deletion path (verified real: `Settings.cs:481` → `delete_account` RPC).
+      `PrivacyPolicyUrl` / `TermsUrl` / `SupportEmail` replaced.
+      **Still open:** point DNS at the deploy, make `support@` + `privacy@` deliver, and
+      have the legal copy reviewed (`legalIsDraft: false` drops the draft banner). Final
+      SDK list is only certain after Phase 4 — re-check then.
 - [ ] **Crash/analytics decision** — nothing is integrated today. Decide (Unity Cloud
       Diagnostics / Crashlytics / none), integrate or explicitly skip, and declare it in
       the Phase 5 forms. Deciding late means redoing the data-safety forms.
