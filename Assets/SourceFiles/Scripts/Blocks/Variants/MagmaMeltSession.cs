@@ -105,6 +105,18 @@ public sealed class MagmaMeltSession : AbilitySessionBase
             return;
         }
 
+        // ONE magma placement is ONE block. The cells are debris of that single placement, so
+        // all but the first are excluded from the placement count - otherwise a 2x2 magma
+        // paid four blocks of score, four toward a PlaceBlocks goal, and four toward a puzzle
+        // wave quota, letting a 7-block wave clear in two placements (Nick 2026-08-09).
+        // The FIRST cell is left counting rather than crediting a phantom +1, so the ordinary
+        // destroy path still decrements exactly once if that block later leaves the tower.
+        // Per-instance, never on the variant: the Pip is a normal playable block elsewhere.
+        if (_index > 0 && cell.TryGetComponent<BlockIdentity>(out BlockIdentity cellIdentity))
+        {
+            cellIdentity.SuppressPlacementCount();
+        }
+
         // Dress the cell as flowing magma that fuses to stone on landing, then commit the plunge:
         // a hard auto-drop sends it straight down its column into the gap (horizontal steps are
         // gated during auto-drop, so the player can't divert the melt).

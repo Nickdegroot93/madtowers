@@ -20,6 +20,35 @@ A non-counting piece is `false / false` — not a real block: it never counts an
 costs a life when pushed off. A "free" block (`true / false`) is a real block that
 counts when placed but is safe to drop. The two are orthogonal — combine freely.
 
+## The per-instance override (added 2026-08-09)
+
+`BlockIdentity.SuppressPlacementCount()` excludes ONE SPAWNED INSTANCE from the placement
+count, checked in `BlockLedger.HandleBlockLanded` right after the `countsAsPlacedBlock`
+gate. It exists for **debris of a placement** — fragments that are physically real but were
+not themselves placed.
+
+Only user today: a **Magma** block melts into one stone Pip per cell, and all but the first
+are suppressed. One magma placement is one block. Before this, a 2×2 magma paid four blocks
+of score, four toward a `PlaceBlocks` goal and four toward a puzzle wave quota — a 7-block
+wave cleared in two placements (Nick 2026-08-09).
+
+Three properties that make it safe, and that a future user must preserve:
+
+- **It cannot be a variant flag.** The Pip is a normal playable block elsewhere (the Pip
+  ability drops one; Fission shatters a piece into shards the player places by hand) and
+  must count there. The suppression is per instance, decided by whoever spawned it.
+- **The FIRST fragment is left counting**, rather than crediting a phantom `+1`. That keeps
+  the ordinary `−1` path honest: if that block later leaves the tower, `TryConsumeCounted`
+  fires exactly once, as for any other block.
+- **Suppressed fragments never counted, so they never decrement.** The return happens before
+  `MarkCountedAsPlaced`, so `TryConsumeCounted` stays false and the live total cannot drift
+  negative as they are destroyed.
+
+Height is untouched: `TryUpdateMaxHeight` runs *before* the gate, so suppressed fragments
+still raise the tower for `ReachHeight` goals. Note `LastPlacedBlock` (ScrapAbility's
+target) becomes the first fragment rather than the last — deliberate, since that is the
+instance holding the count.
+
 **Authoring gotcha:** the flags default `true` *in C#*, but an existing `.asset`
 saved before the fields existed has no key for them, so they resolve to `true`
 regardless of intent (the serialized-default-staleness trap). To make a block

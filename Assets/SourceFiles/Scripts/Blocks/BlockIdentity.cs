@@ -24,6 +24,16 @@ public sealed class BlockIdentity : MonoBehaviour
     // so the life charge must be guarded to fire exactly once, the same way the count -1 is.
     private bool _lossConsumed;
 
+    // Per-INSTANCE opt-out of the placement count, for fragments that are the debris of a
+    // placement rather than placements in their own right. It cannot live on the variant:
+    // the Pip is a real playable block (the Pip ability drops one, Fission shatters a piece
+    // into several the player then places by hand) and must count normally there. Only the
+    // pips a Magma block melts into are suppressed - one magma placement is one block, not
+    // four, or a 7-block puzzle wave clears in two placements (Nick 2026-08-09).
+    public bool SuppressPlacedCount { get; private set; }
+
+    public void SuppressPlacementCount() => SuppressPlacedCount = true;
+
     public void Assign(BlockDefinition definition, BlockData variant)
     {
         Definition = definition;

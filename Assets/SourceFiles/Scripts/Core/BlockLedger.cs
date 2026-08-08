@@ -70,6 +70,11 @@ public sealed class BlockLedger : IDisposable
             data = identity.Variant;
         }
         if (data != null && !data.CountsAsPlacedBlock) return;
+        // Debris of another block's placement (magma's melt pips): physically real, but it
+        // was not a placement, so it must not move the score, the live count or a wave
+        // quota. Returning here also means TryConsumeCounted stays false, so its eventual
+        // destruction correctly decrements nothing.
+        if (identity != null && identity.SuppressPlacedCount) return;
 
         int baseAmount = 1;
         int amount = baseAmount;
