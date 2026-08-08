@@ -29,6 +29,9 @@ public static class AttemptsSync
         public int seconds_until_next;
         public bool premium;
         public bool meter_charged;
+        // Sentinel default: an older server that omits the field must not read as
+        // "budget exhausted" and hide the WATCH AD button (SHOP.md §7.3 item 6).
+        public int grants_remaining = AttemptsService.GrantsUnknown;
     }
 
     /// <summary>False until the first server answer of this session.</summary>
@@ -74,6 +77,11 @@ public static class AttemptsSync
             {
                 _refreshInFlight = false;
                 ApplyServer(dto.count, dto.seconds_until_next, dto.premium, dto.meter_charged);
+                // The ONLY path that can un-stick an exhausted budget: once the button is
+                // hidden no grant_ad_refill is ever sent, so without this the client would
+                // hold its stale zero until the process was killed - long after the oldest
+                // grant aged out of the rolling window (review 2026-08-08).
+                AttemptsService.ApplyGrantsRemaining(dto.grants_remaining);
             },
             err => _refreshInFlight = false);
     }

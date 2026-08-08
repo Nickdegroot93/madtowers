@@ -258,23 +258,59 @@ turns it into real revenue, in order — none of it before the game is near a st
 listing (AdMob deactivates accounts with 6 idle months, so **don't create accounts
 early**):
 
-1. ⬜ **Accounts**: Unity Ads Monetization (LevelPlay dashboard) + Google AdMob.
-   AdMob app approval needs a published/registered store listing. All free, ever —
-   ad networks pay out, never charge.
-2. ⬜ **SDK**: install the Unity LevelPlay package, add AdMob as a bidding network,
-   create the one rewarded placement ("attempts_refill").
-3. ⬜ **Adapter**: implement `IRewardedAdProvider` over LevelPlay (preload on boot,
-   `IsReady` from the SDK, watched-to-end → `onFinished(true)`), install it via
-   `RewardedAds.Install` at boot on device; the simulated editor provider stays.
-4. ⬜ **Consent/privacy**: iOS App Tracking Transparency prompt + Google UMP consent
-   flow (GDPR — required, not optional); store-listing data-safety /
-   ads-declaration forms; kids-policy check (ads are opt-in rewarded only, §8).
+**Provider changed 2026-08-08: Google AdMob direct, not LevelPlay.** The reason is
+BACKEND.md §6.4 — the +2 grant comes from an **AdMob SSV callback**, which is direct-
+integration territory; mediation would put a middleman between the watch and the server
+grant. It is also one account instead of two, and mediation's eCPM edge only pays at
+volume this game will not have on day one. Reversible for the price of one class:
+`IRewardedAdProvider` is the entire contract the game knows about.
+
+1. ⬜ **Account**: Google AdMob only ([admob.google.com](https://admob.google.com)).
+   An app can be added as "not listed on a store yet" to mint real ad units before
+   launch, then linked to the listing later (limited serving until linked). Free, ever
+   — ad networks pay out, never charge. **Still create it late** (idle deactivation).
+2. ✅ **SDK** — DONE 2026-08-08: `com.google.ads.mobile@11.3.0` +
+   `com.google.external-dependency-manager@1.2.188` via the OpenUPM scoped registry
+   (`com.google` added to the existing scopes). `GoogleMobileAdsSettings.asset` holds
+   Google's **sample app IDs**. `Assets/Plugins/Android/mainTemplate.gradle` +
+   `gradleTemplate.properties` copied from the engine so EDM4U can inject the Android
+   dependencies (Unity's own copy step failed and left the folder empty).
+3. ✅ **Adapter** — DONE 2026-08-08: `AdMobRewardedProvider` + `AdMobBootstrap`
+   (`Assets/SourceFiles/Scripts/Shop/AdMobRewardedProvider.cs`). Preloads on boot,
+   `IsReady` from `CanShowAd()`, watch-to-completion → `onFinished(true)`, single-use
+   ad destroyed and reloaded on close. Installed via `RewardedAds.Install` on device
+   only; the simulated editor provider stays untouched.
+   **Runs on Google's public test ad units** — real video, real callbacks, no account.
+   Swapping to real units is two constants plus the two app IDs in the settings asset.
+4. 🟡 **Consent/privacy** — UMP DONE 2026-08-08, the rest open. `AdMobBootstrap` runs
+   `ConsentInformation.Update` → `LoadAndShowConsentFormIfRequired` **before**
+   `MobileAds.Initialize`; an ad requested without consent is the violation, not the
+   ad that gets shown. Fails **closed** — unknown consent state means no ads that
+   session, because failing open costs a GDPR complaint and failing closed costs a few
+   rewarded views. Still open: **iOS ATT**, which Google now routes through a UMP
+   message configured in the AdMob console, so it is account-gated (and Nick has never
+   run an iOS build); store-listing data-safety / ads-declaration forms; kids-policy
+   check (ads are opt-in rewarded only, §8).
 5. ⬜ **Server**: replace the client-claimed `grant_ad_refill` path with **AdMob SSV**
    (server-side verification callback → Edge Function grants the +2, BACKEND.md
    §6.4); until then the 3/day server rate limit is the only defense.
-6. ⬜ **Daily-budget mirror**: surface the server's 3/day refill budget client-side
-   so the button hides BEFORE a wasted watch (today a denial hides it only for the
-   rest of the session, after the player already watched).
+6. ✅ **Daily-budget mirror** — DONE 2026-08-08, migration `20260808000004_ad_budget.sql`
+   (local only; **not yet pushed to production**). `get_profile` and every
+   `grant_ad_refill` reply now carry `grants_remaining`, so the button hides BEFORE a
+   wasted watch instead of after the first denial. The 3/day constant moved out of an
+   inline `>= 3` into `ad_refill_daily_cap()` — a client showing a different number
+   than the server enforces is the exact bug this fixes. `ad_grants_remaining(uuid)`
+   is definer + revoked from clients (ad_grants is server-internal; it must not become
+   a way to read another player's ledger). `attempts_full` deliberately does NOT
+   consume budget: that branch heals, so reporting it as a cap would be a lie.
+   Client: `AttemptsService.AdGrantsRemaining` with a `GrantsUnknown` (-1) sentinel —
+   an older server that omits the field must not read as "budget exhausted".
+   **`get_attempts` carries the budget too, and that is the only way the mirror can
+   heal**: once the button is hidden no `grant_ad_refill` is ever sent, so without the
+   focus-regain refresh a client would hold a stale zero long after the oldest grant
+   aged out of the rolling window (review 2026-08-08). `no_meter` and `premium` report
+   the real figure for the same reason — only `rate_limited` is genuinely 0.
+   Tests: `supabase/tests/ad_budget.sh` (8 checks) + smoke unchanged at 22/22.
 7. ⬜ **Premium ships in the same release** (§12: the meter without its escape
    valves is pure friction — ads and the $3.99 unlock launch together, receipt
    validation per BACKEND.md §6.4).

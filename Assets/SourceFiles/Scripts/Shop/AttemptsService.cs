@@ -22,12 +22,31 @@ public static class AttemptsService
     public const int RegenSeconds = 600;       // +1 per 10 min, full 0→5 in 50 min
     public const int AdRefillAmount = 2;
 
+    /// <summary>The server has not told us the refill budget yet. Distinct from zero: an
+    /// unknown budget must not hide the button (that would blank the affordance for anyone
+    /// playing against an older server), whereas a known zero must.</summary>
+    public const int GrantsUnknown = -1;
+
     /// <summary>May the "watch an ad → +2" button show? Requires a showable ad (no provider
-    /// installed = no ad SDK yet = hidden) and no denied grant this session: the server
-    /// rate-limits refills to 3/day (grant_ad_refill), and once it says no we stop pointing
-    /// players at ads that pay nothing. TODO before ads ship for real: mirror the 3/day
-    /// budget client-side so the CAP hides the button BEFORE a wasted watch, not after.</summary>
-    public static bool AdRefillAvailable => RewardedAds.Available && !_adRefillDenied;
+    /// installed = no ad SDK yet = hidden), no denied grant this session, and budget left in
+    /// the server's rolling 3/day window. The budget arrives on the boot get_profile and is
+    /// refreshed by every grant_ad_refill reply, so the CAP hides the button BEFORE a wasted
+    /// watch - being denied AFTER sitting through a full video reads as the game taking
+    /// something back (SHOP.md §7.3 item 6).</summary>
+    public static bool AdRefillAvailable =>
+        RewardedAds.Available && !_adRefillDenied && AdGrantsRemaining != 0;
+
+    /// <summary>Rewarded refills left in the server's rolling 24h window, or
+    /// <see cref="GrantsUnknown"/> before the first server answer.</summary>
+    public static int AdGrantsRemaining { get; private set; } = GrantsUnknown;
+
+    /// <summary>Record the server's remaining-refill count. Ignores the unknown sentinel so
+    /// a reply that omits the field never erases a figure we already have.</summary>
+    public static void ApplyGrantsRemaining(int remaining)
+    {
+        if (remaining == GrantsUnknown) return;
+        AdGrantsRemaining = Math.Max(0, remaining);
+    }
 
     private static bool _adRefillDenied;
 
@@ -136,6 +155,10 @@ public static class AttemptsService
             OnlineService.RpcObject<AdRefillDto>("grant_ad_refill", "{}",
                 dto =>
                 {
+                    // Every reply carries the budget, success or not - the success path
+                    // reports it AFTER the ledger insert, so spending the last grant hides
+                    // the button immediately rather than one watch late.
+                    ApplyGrantsRemaining(dto.grants_remaining);
                     if (dto.ok)
                     {
                         AttemptsSync.ApplyServer(dto.attempts, dto.seconds_until_next,
@@ -179,6 +202,8 @@ public static class AttemptsService
         public int attempts;
         public bool premium;
         public int seconds_until_next;
+        // Sentinel default: absent field must not read as "budget exhausted".
+        public int grants_remaining = GrantsUnknown;
     }
 
     // Persist "count as of now" - regen derives from this timestamp. A naive NowUnix() stamp
@@ -200,5 +225,9 @@ public static class AttemptsService
     private static long NowUnix() => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
     [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void ResetForPlayMode() => _adRefillDenied = false;
+    private static void ResetForPlayMode()
+    {
+        _adRefillDenied = false;
+        AdGrantsRemaining = GrantsUnknown;   // re-learned from the next get_profile
+    }
 }

@@ -6,7 +6,8 @@ using TMPro;
 /// <summary>
 /// One rewarded-video placement exists in the whole game: "watch an ad → +2 attempts"
 /// (SHOP.md §7). This interface is what that placement talks to; the real ad SDK
-/// (Unity LevelPlay, decided 2026-07-30) implements it at integration time. onFinished(true)
+/// (Google AdMob direct, decided 2026-08-08 — see AdMobRewardedProvider) implements it.
+/// Provider choice lives entirely behind this interface. onFinished(true)
 /// means the ad was WATCHED TO COMPLETION and the reward may be requested - an early close
 /// or a show failure reports false exactly once.
 /// </summary>
@@ -27,11 +28,35 @@ public static class RewardedAds
 {
     private static IRewardedAdProvider _provider;
     private static bool _showing;
+    private static float _showStartedAt;
+
+    // No real ad runs this long. A provider that never calls back at all - process
+    // backgrounded mid-ad, the SDK's event lost on the way to the Unity thread - would
+    // otherwise wedge _showing true forever and hide every ad surface for the rest of
+    // the session. Exactly-once was enforced against double-fire but not zero-fire
+    // (review 2026-08-08).
+    private const float ShowWatchdogSeconds = 300f;
 
     /// <summary>Install the live provider at boot (the LevelPlay adapter, once it exists).</summary>
     public static void Install(IRewardedAdProvider provider) => _provider = provider;
 
-    public static bool Available => _provider != null && _provider.IsReady && !_showing;
+    public static bool Available => _provider != null && _provider.IsReady && !IsShowing;
+
+    /// <summary>Is an ad genuinely on screen right now? Self-heals a provider that never
+    /// reported back: the reward is still never granted (no confirmed watch), the player
+    /// just gets the affordance back instead of losing it permanently.</summary>
+    private static bool IsShowing
+    {
+        get
+        {
+            if (_showing && UnityEngine.Time.unscaledTime - _showStartedAt > ShowWatchdogSeconds)
+            {
+                UnityEngine.Debug.LogWarning("[Ads] provider never reported back; unwedging.");
+                _showing = false;
+            }
+            return _showing;
+        }
+    }
 
     /// <summary>Show the rewarded video. The callback fires exactly once; true = reward earned.
     /// The exactly-once is enforced HERE, not trusted: ad SDKs are third-party code, and a
@@ -44,6 +69,7 @@ public static class RewardedAds
             return;
         }
         _showing = true;
+        _showStartedAt = UnityEngine.Time.unscaledTime;
         bool finished = false;
         void Finish(bool earned)
         {

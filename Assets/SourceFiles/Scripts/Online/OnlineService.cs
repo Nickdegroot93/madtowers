@@ -67,6 +67,10 @@ public class OnlineService : MonoBehaviour
         public string display_name;
         public bool is_linked;
         public long xp;
+        // Rewarded refills left in the rolling 24h window (SHOP.md §7.3 item 6). Defaults
+        // to 0 when absent from JsonUtility's parse, so it is read through a sentinel: a
+        // server that has not shipped the field yet must not read as "budget exhausted".
+        public int ad_grants_remaining = AttemptsService.GrantsUnknown;
     }
 
     [Serializable]
@@ -296,6 +300,9 @@ public class OnlineService : MonoBehaviour
                 IsLinked = dto.is_linked;
                 // Cross-device XP display: the server total is the authority (XP.md).
                 XpSystem.ApplyServerTotal(dto.xp);
+                // Rewarded-refill budget, known before the first watch rather than after
+                // the first denial (SHOP.md §7.3 item 6).
+                AttemptsService.ApplyGrantsRemaining(dto.ad_grants_remaining);
                 profileOk = true;
             },
             null);

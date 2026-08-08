@@ -13,6 +13,13 @@ playtestable on the client (simulated providers in the editor). The backend is n
 editor talks to production). What remains is: accounts & consoles, real SDK adapters
 behind the existing seams, server money-paths, compliance, and release builds.
 
+**Update 2026-08-08 — the ads adapter is no longer one of those.** The real AdMob SDK,
+adapter and GDPR consent flow are built and device-playable on test ad units (Phase 4);
+what is left there is four ID strings, ATT and SSV. Also done since: the game is renamed
+**Hazard Heights**, `hazardheights.com` is bought, and the legal/support site is built
+and pushed (`github.com/Nickdegroot93/hazardheights-web`) — Phase 0's domain and
+privacy/terms items are closed. Sign-in and IAP adapters remain simulated-only.
+
 **The order and why.** Everything funnels through the store consoles: app listings
 unlock the Sign in with Apple capability, the IAP products, and AdMob app approval.
 So: consoles first. Then the three systems in this order —
@@ -23,6 +30,19 @@ exist; ads last because ad-network accounts want a registered listing and **rot 
 idle** (AdMob deactivates after 6 idle months — create those accounts as late as
 possible). Ads and premium ship in the **same release** (SHOP.md §12: the attempts
 meter without both escape valves is pure friction), so "ads last" costs nothing.
+
+**Amended 2026-08-08 — separate the ACCOUNT from the CODE.** The ordering above is
+right about accounts and wrong if read as "write the ad code last". Google publishes
+public test ad units tied to no account, so Phase 4's SDK, adapter and consent flow were
+all built and verified with no AdMob account in existence (see Phase 4). The same holds
+in reverse for Phases 2–3: sign-in and IAP **code** is blocked on console access, not on
+the game being finished — an App ID for the Sign in with Apple capability, and store
+products before `validate_receipt` can be sandbox-tested.
+
+So the real rule is: **create ad-network accounts late, create developer accounts early,
+and never let either gate the code.** Nick's instinct to finish the game before dealing
+with publishing holds for everything except the Play Console account, which carries a
+hard 14-day tester clock (Phase 1) that has nothing to do with polish.
 
 ---
 
@@ -59,7 +79,15 @@ meter without both escape valves is pure friction), so "ads last" costs nothing.
 
 - [ ] **Apple Developer Program** — $99/year; needs D-U-N-S if publishing as a company
       (that lookup can take weeks — start immediately if company).
-- [ ] **Google Play Console** — $25 one-time.
+- [ ] **Google Play Console** — $25 one-time. ⏱️ **Start this EARLY — it carries a
+      14-day wall.** A **personal** account created after 13 Nov 2023 must run a closed
+      test with **12 testers opted in for 14 continuous days** before it may even apply
+      for production access (support.google.com/googleplay/android-developer/answer/
+      14151465). That clock needs an installable AAB, not a finished game, and the build
+      can keep updating while it runs — so starting it late simply adds two weeks to the
+      launch. **Organization accounts are exempt**; registering as a business (KvK →
+      D-U-N-S, which Apple wants anyway) removes the requirement entirely. Worth deciding
+      before registering as a person — the account type cannot be swapped afterwards.
 - [ ] **Lock bundle IDs FIRST** (permanent), then create both app listings.
 - [ ] **Release keystore (Android)**: create, back up safely, enroll Play App Signing.
       Done here because Phase 2's Google sign-in needs its SHA-1 fingerprints.
@@ -106,21 +134,43 @@ entitlement cache, premium offline-unranked play). Remaining:
 
 ## Phase 4 — ads: rewarded refill (SHOP.md §7.3 is the authoritative list)
 
-Client flow DONE (`RewardedAds` facade, WATCH AD +2 surfaces, server `grant_ad_refill`).
-Create the accounts only NOW (idle-rot rule above). In §7.3's order:
+**Provider changed 2026-08-08: Google AdMob direct, not LevelPlay** (SHOP.md §7.3 holds
+the reasoning — SSV is a direct-integration mechanism, and mediation's eCPM edge only
+pays at volume this game will not have on day one).
 
-- [ ] Accounts: Unity LevelPlay dashboard + Google AdMob (AdMob approval needs the
-      registered listing from Phase 1).
-- [ ] SDK: LevelPlay package, AdMob as bidding network, one rewarded placement
-      (`attempts_refill`).
-- [ ] Adapter: `IRewardedAdProvider` over LevelPlay (preload on boot, `IsReady`,
-      watched-to-end → `onFinished(true)`), installed at boot on device; the simulated
-      editor provider stays.
-- [ ] **Consent/privacy: iOS ATT prompt + Google UMP flow (GDPR)** — required, ships
-      with the SDK.
-- [ ] Server: **AdMob SSV** replaces the client-claimed `grant_ad_refill` path
+**Most of this phase moved OUT of the "needs a store listing" trap.** Google publishes
+public test ad units tied to no account, so the SDK, the adapter and the consent flow
+were all built and verified before any account existed. What genuinely still needs the
+account is small: four ID strings, ATT messaging, and SSV.
+
+Built 2026-08-08, all of it running on test ad units — **playable on an Android device
+today**, no account, no revenue, no invalid-traffic risk:
+
+- [x] **SDK** — `com.google.ads.mobile@11.3.0` + `com.google.external-dependency-manager
+      @1.2.188` via the OpenUPM scoped registry. EDM4U resolved the Android deps itself
+      (`play-services-ads:25.4.0`, `user-messaging-platform:4.0.0`). Note: Unity's own
+      gradle-template copy failed and left `Assets/Plugins/Android` empty — the templates
+      were copied from the engine folder by hand. Expect this again on a clean checkout.
+- [x] **Adapter** — `AdMobRewardedProvider` + `AdMobBootstrap`. Installed on device only;
+      the simulated editor provider is untouched, so editor playtesting is unaffected.
+- [x] **Consent (UMP)** — runs before `MobileAds.Initialize` and fails **closed**.
+- [x] **Daily-budget mirror** — migration `20260808000004_ad_budget.sql`, tested locally
+      (`supabase/tests/ad_budget.sh`, 6 checks; smoke still 22/22).
+      ⚠️ **NOT pushed to production yet** — `Tools/bin/supabase db push` when ready.
+
+Still open, and each one is genuinely account-gated:
+
+- [ ] **AdMob account** — created 2026-08-08, **pending Google verification**; the app
+      itself will be added later (Nick). Add it as "not listed on a store yet" to mint
+      real units before launch, then link to the listing (limited serving until linked).
+- [ ] **Swap the test IDs for real ones** — 4 values: app ID + rewarded unit ID, Android
+      and iOS. Two constants in `AdMobRewardedProvider.cs` + two fields in
+      `GoogleMobileAdsSettings.asset`. Minutes, once the IDs exist.
+- [ ] **iOS ATT** — Google routes the prompt through a UMP message configured in the
+      AdMob console, so it cannot be built before the account. Also unverifiable here:
+      no iOS build has ever been run on this machine.
+- [ ] **Server: AdMob SSV** replaces the client-claimed `grant_ad_refill` path
       (BACKEND.md §6.4); until wired, the 3/day server rate limit is the only defense.
-- [ ] Daily-budget mirror client-side, so the button hides BEFORE a wasted watch.
 
 ## Phase 5 — compliance & store forms (needs the final SDK set, hence after 2–4)
 
