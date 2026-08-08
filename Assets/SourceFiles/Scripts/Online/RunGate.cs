@@ -68,6 +68,11 @@ public static class RunGate
     private class PendingFinishFile
     {
         public List<PendingFinish> items = new List<PendingFinish>();
+        // The armed post-victory window lives on DISK with the queue. "Win, keep playing
+        // for two minutes, OS kills the backgrounded app" is routine on mobile, and a
+        // RAM-only window loses the whole post-victory score when it happens.
+        public string improvableRunId;
+        public string improvableLevelId;
     }
 
     private const int MaxQueuedFinishes = 100;
@@ -82,9 +87,21 @@ public static class RunGate
     /// online disabled, a denied grant, premium-offline). Without the level check, winning
     /// level 5 online and later toppling out of an UNRANKED level 12 would post level 12's
     /// score against level 5's run_id - the server would accept it, since the run really is
-    /// finished, won and inside 24h (review 2026-08-08).</summary>
-    private static string _improvableRunId;
-    private static string _improvableLevelId;
+    /// finished, won and inside 24h (review 2026-08-08). Persisted with the queue so an
+    /// app kill during Keep Playing does not throw the session's score away.</summary>
+    private static string _improvableRunId => Queue.improvableRunId;
+    private static string _improvableLevelId => Queue.improvableLevelId;
+
+    private static void ArmImprovableRun(string runId, string levelId)
+    {
+        // JsonUtility round-trips a null string as "", so null and empty are the same
+        // state here; comparing them naively would re-save the queue on every clear.
+        static bool Same(string a, string b) => (a ?? string.Empty) == (b ?? string.Empty);
+        if (Same(Queue.improvableRunId, runId) && Same(Queue.improvableLevelId, levelId)) return;
+        Queue.improvableRunId = runId;
+        Queue.improvableLevelId = levelId;
+        SaveQueue();
+    }
 
     /// <summary>The level the active server-backed run belongs to (carried into
     /// _improvableLevelId when that run is won).</summary>
@@ -153,8 +170,7 @@ public static class RunGate
                     _activeLevelId = levelId;
                     // A new run closes the previous one's improvement window, so a late
                     // Keep Playing report can never be attributed to the wrong run.
-                    _improvableRunId = null;
-                    _improvableLevelId = null;
+                    ClearImprovableRun();
                     done?.Invoke(new GateResult { Allowed = true });
                 }
                 else
@@ -201,18 +217,19 @@ public static class RunGate
         string wonRunId = won ? ActiveRunId : null;
         string wonLevelId = won ? _activeLevelId : null;
         ClearActiveRun();
-        _improvableRunId = wonRunId;
-        _improvableLevelId = wonLevelId;
 
         // Overflow drops the INCOMING report, not queued ones: the queue only fills when
         // every send has failed for ~100 runs straight, and the old entries hold refunds
-        // the player already earned.
+        // the player already earned. The improvement window is armed only if the finish
+        // was actually queued - improving a run the server never finished just earns a
+        // not_finished rejection (review 2026-08-08).
         if (Queue.items.Count >= MaxQueuedFinishes)
         {
             Debug.LogWarning("[Online] Finish queue full; dropping newest report.");
             return;
         }
         Queue.items.Add(finish);
+        ArmImprovableRun(wonRunId, wonLevelId);
         SaveQueue();
         TrySend(finish);
     }
@@ -261,11 +278,14 @@ public static class RunGate
             return;
         }
 
-        // Capacity checked BEFORE the window is closed, so an overflow leaves the report
-        // recoverable rather than silently thrown away.
+        // Capacity checked BEFORE the window is closed, so the armed window survives and a
+        // later report for the same run can still land. Nothing re-drives it on its own,
+        // though: if the queue is still full at the next ClearActiveRun the score is gone.
+        // That needs ~100 consecutive failed sends to reach, and the queue holds refunds
+        // the player already earned, so the old entries win the tie.
         if (Queue.items.Count >= MaxQueuedFinishes)
         {
-            Debug.LogWarning("[Online] Finish queue full; keeping the score improvement armed.");
+            Debug.LogWarning("[Online] Finish queue full; score improvement not queued.");
             return;
         }
 
@@ -284,11 +304,7 @@ public static class RunGate
         TrySend(improvement);
     }
 
-    private static void ClearImprovableRun()
-    {
-        _improvableRunId = null;
-        _improvableLevelId = null;
-    }
+    private static void ClearImprovableRun() => ArmImprovableRun(null, null);
 
     /// <summary>Queue/in-flight identity. A finish and an improvement for the SAME run are
     /// different reports and must not share a key, or resolving one deletes the other.</summary>
@@ -304,8 +320,7 @@ public static class RunGate
         // Also closes the post-victory window. Returning to the menu from the victory card
         // never routes through ReportAbandonedRun, so without this the id would survive
         // into whatever the player launched next (review 2026-08-08).
-        _improvableRunId = null;
-        _improvableLevelId = null;
+        ClearImprovableRun();
     }
 
     /// <summary>Resend queued finish reports (called on Ready and on app-focus regain).</summary>
@@ -347,20 +362,38 @@ public static class RunGate
                     if (!finish.improve) AttemptsSync.ApplyFinishCounts(dto.attempts);
                     XpSystem.ApplyServerTotal(dto.xp_total);
                 }
-                else if (!finish.improve && dto.reason == "already_finished")
+                else if (!finish.improve && finish.won && dto.reason == "already_finished")
                 {
                     // The finish DID commit; only its reply was lost, so this retry carries
-                    // Keep Playing values the server has never seen. Dropping it here would
-                    // silently bin the whole post-victory score - re-send it as what it
-                    // actually is now (review 2026-08-08).
-                    PendingFinish retry = new PendingFinish
+                    // values the server has never seen. Dropping it would silently bin the
+                    // post-victory score - re-send it as what it actually is now.
+                    // Gated on finish.won: a LOST run has no second act, and converting one
+                    // would fabricate a "won" report the server only answers not_won.
+                    //
+                    // MERGE, never add: a real improvement may already be queued for this
+                    // run (armed while the finish was on the wire). Both share Key(), so a
+                    // blind Add would let this weaker copy's verdict delete the real one -
+                    // the player's 300 replaced by the victory's 100 (review 2026-08-08).
+                    PendingFinish existing = Queue.items.Find(p => p.runId == finish.runId && p.improve);
+                    if (existing != null)
                     {
-                        runId = finish.runId, won = true, score = finish.score,
-                        height = finish.height, progress = finish.progress, improve = true,
-                    };
-                    Queue.items.Add(retry);
-                    SaveQueue();
-                    TrySend(retry);
+                        existing.score = Mathf.Max(existing.score, finish.score);
+                        existing.height = Mathf.Max(existing.height, finish.height);
+                        existing.progress = Mathf.Max(existing.progress, finish.progress);
+                        SaveQueue();
+                        TrySend(existing);
+                    }
+                    else
+                    {
+                        PendingFinish retry = new PendingFinish
+                        {
+                            runId = finish.runId, won = true, score = finish.score,
+                            height = finish.height, progress = finish.progress, improve = true,
+                        };
+                        Queue.items.Add(retry);
+                        SaveQueue();
+                        TrySend(retry);
+                    }
                 }
                 else Debug.LogWarning($"[Online] {rpc} rejected: {dto.reason}");
 
@@ -420,8 +453,9 @@ public static class RunGate
         ActiveRunId = null;
         ActiveRunServerBacked = false;
         _activeLevelId = null;
-        _improvableRunId = null;   // a stale window must not survive a domain reload
-        _improvableLevelId = null;
+        // The improvement window is part of the queue file now, so it reloads from disk
+        // with it - deliberately: an app kill mid-Keep-Playing must not lose the score,
+        // and the level check at report time is what prevents misattribution.
         _queue = null;          // reloaded from disk on demand; pending reports persist
         _inFlight.Clear();
         _grantPending = false;
