@@ -63,8 +63,14 @@ public static partial class MainMenuRuntime
         // ink itself carries the contrast (the shadows were a patch for light-on-light).
         bool lightTop = chapter.MenuTopIsLight;
         Color titleInk = lightTop ? new Color(0.16f, 0.13f, 0.10f, 1f) : TextPrimary;
+        // On light tops the eyebrow must go nearly all the way to black, not a third of the
+        // way: chapter accents are drawn from the same palette as their sky, so a lightly
+        // darkened accent lands at almost exactly the sky's luminance and the label vanishes
+        // (Amber Tide measured 1.1:1 - Sakura, Frozen Peaks and Barren Lands the same). At
+        // 0.8 the hue survives as a deep chapter-tinted ink and contrast clears 3:1, the
+        // threshold for text this size at bold weight.
         Color eyebrowColor = lightTop
-            ? Color.Lerp(chapter.MenuAccentColor, Color.black, 0.35f)
+            ? Color.Lerp(chapter.MenuAccentColor, Color.black, 0.80f)
             : Color.Lerp(chapter.MenuAccentColor, TextPrimary, 0.42f);
 
         // "- CHAPTER N -" eyebrow flanked by tiny accent diamonds (the concepts' ornament),
