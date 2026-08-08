@@ -102,6 +102,18 @@ public static class XpSystem
         Changed?.Invoke();
     }
 
+    /// <summary>Local mirror of improve_run_score: pay only the DIFFERENCE between what a
+    /// run has already been awarded and what it is worth after a post-win Keep Playing
+    /// session. Without this the same player action pays overshoot online and nothing at
+    /// all in an online-layer-disabled build (review 2026-08-08).</summary>
+    public static void ReportLocalOvershoot(float paidProgress, float newProgress, bool won)
+    {
+        int gained = ComputeRunXp(newProgress, won) - ComputeRunXp(paidProgress, won);
+        if (gained <= 0) return;
+        ProgressStore.AddXp(gained);
+        Changed?.Invoke();
+    }
+
     /// <summary>A server XP verdict arrived (finish_run reply or the boot get_profile):
     /// cache it into the save so the top bar and offline sessions read the same number.</summary>
     public static void ApplyServerTotal(long total)

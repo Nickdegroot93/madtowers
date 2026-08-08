@@ -59,6 +59,9 @@ public static class RunGate
         public int score;
         public float height;
         public float progress;   // unclamped goal progress for the XP award (XP.md); pre-XP queue files default to 0
+        // Post-victory Keep Playing report: improve_run_score instead of finish_run.
+        // Older queue files default to false, i.e. a plain finish - correct for them.
+        public bool improve;
     }
 
     [Serializable]
@@ -72,6 +75,20 @@ public static class RunGate
     private static PendingFinishFile _queue;
     private static readonly HashSet<string> _inFlight = new HashSet<string>();
     private static bool _grantPending;
+
+    /// <summary>The last WON run, still open to a post-victory score improvement, and the
+    /// level it belonged to. BOTH are checked at report time: clearing alone is not enough,
+    /// because the id outlives paths that never start a server run at all (Custom Game,
+    /// online disabled, a denied grant, premium-offline). Without the level check, winning
+    /// level 5 online and later toppling out of an UNRANKED level 12 would post level 12's
+    /// score against level 5's run_id - the server would accept it, since the run really is
+    /// finished, won and inside 24h (review 2026-08-08).</summary>
+    private static string _improvableRunId;
+    private static string _improvableLevelId;
+
+    /// <summary>The level the active server-backed run belongs to (carried into
+    /// _improvableLevelId when that run is won).</summary>
+    private static string _activeLevelId;
 
     private static string QueuePath => Path.Combine(Application.persistentDataPath, "pending_finish.json");
 
@@ -133,6 +150,11 @@ public static class RunGate
                 {
                     ActiveRunId = dto.run_id;
                     ActiveRunServerBacked = true;
+                    _activeLevelId = levelId;
+                    // A new run closes the previous one's improvement window, so a late
+                    // Keep Playing report can never be attributed to the wrong run.
+                    _improvableRunId = null;
+                    _improvableLevelId = null;
                     done?.Invoke(new GateResult { Allowed = true });
                 }
                 else
@@ -172,7 +194,15 @@ public static class RunGate
             height = height,
             progress = Mathf.Clamp(progress, 0f, 2f),
         };
+        // A WON run stays improvable: the victory banks the refund and XP immediately
+        // (XP.md win timing), but the player is then invited to Keep Playing, and every
+        // point earned after this used to be dropped on the floor. Captured BEFORE the
+        // clear and re-armed after it, because ClearActiveRun now closes this window too.
+        string wonRunId = won ? ActiveRunId : null;
+        string wonLevelId = won ? _activeLevelId : null;
         ClearActiveRun();
+        _improvableRunId = wonRunId;
+        _improvableLevelId = wonLevelId;
 
         // Overflow drops the INCOMING report, not queued ones: the queue only fills when
         // every send has failed for ~100 runs straight, and the old entries hold refunds
@@ -187,12 +217,95 @@ public static class RunGate
         TrySend(finish);
     }
 
+    /// <summary>
+    /// Report the score of a post-victory "Keep Playing" session. The win itself was
+    /// already banked at verification; this only raises the score/height/progress, and
+    /// the server pays the XP difference above what the run was already paid for.
+    ///
+    /// If the original finish is STILL QUEUED (won while offline, then kept playing), the
+    /// two collapse into one report rather than becoming two queue entries: the queue is
+    /// keyed by run_id, so a second entry would be clobbered when the first resolved.
+    /// </summary>
+    public static void ReportScoreImprovement(string levelId, int score, float height, float progress)
+    {
+        if (string.IsNullOrEmpty(_improvableRunId)) return;
+        // The window belongs to exactly one level. A mismatch means the id outlived its
+        // run, and posting here would write this level's score onto that one's board.
+        if (!string.IsNullOrEmpty(_improvableLevelId) && levelId != _improvableLevelId)
+        {
+            Debug.LogWarning("[Online] Score improvement ignored: level mismatch.");
+            return;
+        }
+
+        string runId = _improvableRunId;
+        float clamped = Mathf.Clamp(progress, 0f, 2f);
+
+        // Collapse into a still-queued finish (won offline, then kept playing) so one
+        // report carries the final numbers - but ONLY while it is off the wire. Mutating
+        // an in-flight entry loses the new values: the verdict for the older request
+        // deletes the row before the improved figures are ever sent.
+        for (int i = 0; i < Queue.items.Count; i++)
+        {
+            PendingFinish queued = Queue.items[i];
+            if (queued.runId != runId || queued.improve) continue;
+            if (_inFlight.Contains(Key(queued))) break;   // on the wire: queue separately
+
+            // Never let a late report lower an earlier one - the server enforces this too,
+            // but an un-sent queue entry has no server to defend it.
+            queued.score = Mathf.Max(queued.score, score);
+            queued.height = Mathf.Max(queued.height, height);
+            queued.progress = Mathf.Max(queued.progress, clamped);
+            ClearImprovableRun();
+            SaveQueue();
+            TrySend(queued);
+            return;
+        }
+
+        // Capacity checked BEFORE the window is closed, so an overflow leaves the report
+        // recoverable rather than silently thrown away.
+        if (Queue.items.Count >= MaxQueuedFinishes)
+        {
+            Debug.LogWarning("[Online] Finish queue full; keeping the score improvement armed.");
+            return;
+        }
+
+        PendingFinish improvement = new PendingFinish
+        {
+            runId = runId,
+            won = true,                          // improvements only exist for won runs
+            score = score,
+            height = height,
+            progress = clamped,
+            improve = true,
+        };
+        ClearImprovableRun();
+        Queue.items.Add(improvement);
+        SaveQueue();
+        TrySend(improvement);
+    }
+
+    private static void ClearImprovableRun()
+    {
+        _improvableRunId = null;
+        _improvableLevelId = null;
+    }
+
+    /// <summary>Queue/in-flight identity. A finish and an improvement for the SAME run are
+    /// different reports and must not share a key, or resolving one deletes the other.</summary>
+    private static string Key(PendingFinish p) => p.improve ? p.runId + "|improve" : p.runId;
+
     /// <summary>Drop the active-run view (quit to menu without finishing keeps the attempt
     /// spent - matching the loss-only rule; the run row stays open server-side).</summary>
     public static void ClearActiveRun()
     {
         ActiveRunId = null;
         ActiveRunServerBacked = false;
+        _activeLevelId = null;
+        // Also closes the post-victory window. Returning to the menu from the victory card
+        // never routes through ReportAbandonedRun, so without this the id would survive
+        // into whatever the player launched next (review 2026-08-08).
+        _improvableRunId = null;
+        _improvableLevelId = null;
     }
 
     /// <summary>Resend queued finish reports (called on Ready and on app-focus regain).</summary>
@@ -206,29 +319,56 @@ public static class RunGate
 
     private static void TrySend(PendingFinish finish)
     {
-        if (!OnlineService.IsReady || !_inFlight.Add(finish.runId)) return;
+        if (!OnlineService.IsReady) return;
+        // An improvement is meaningless until its finish has landed: the server answers
+        // not_finished and the report would be dropped. Wait for the finish to clear.
+        if (finish.improve && Queue.items.Exists(p => p.runId == finish.runId && !p.improve)) return;
+        if (!_inFlight.Add(Key(finish))) return;
 
+        string rpc = finish.improve ? "improve_run_score" : "finish_run";
         string body = $"{{\"p_run_id\":\"{SupabaseHttp.JsonEscape(finish.runId)}\"," +
-                      $"\"p_won\":{(finish.won ? "true" : "false")}," +
+                      (finish.improve ? "" : $"\"p_won\":{(finish.won ? "true" : "false")},") +
                       $"\"p_score\":{finish.score}," +
                       "\"p_height\":" + finish.height.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "," +
                       "\"p_progress\":" + finish.progress.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "}";
 
-        OnlineService.RpcObject<FinishRunDto>("finish_run", body,
+        OnlineService.RpcObject<FinishRunDto>(rpc, body,
             dto =>
             {
-                _inFlight.Remove(finish.runId);
+                _inFlight.Remove(Key(finish));
                 // Any server verdict - accepted or rejected - is final; only network
                 // failures stay queued.
-                RemoveQueued(finish.runId);
+                RemoveQueued(finish);
                 if (dto.accepted)
                 {
-                    AttemptsSync.ApplyFinishCounts(dto.attempts);
+                    // improve_run_score never touches the meter (the refund happened at the
+                    // win), and its reply carries no attempts field - applying the DTO's
+                    // default 0 here would wipe the player's attempts to zero.
+                    if (!finish.improve) AttemptsSync.ApplyFinishCounts(dto.attempts);
                     XpSystem.ApplyServerTotal(dto.xp_total);
                 }
-                else Debug.LogWarning($"[Online] finish_run rejected: {dto.reason}");
+                else if (!finish.improve && dto.reason == "already_finished")
+                {
+                    // The finish DID commit; only its reply was lost, so this retry carries
+                    // Keep Playing values the server has never seen. Dropping it here would
+                    // silently bin the whole post-victory score - re-send it as what it
+                    // actually is now (review 2026-08-08).
+                    PendingFinish retry = new PendingFinish
+                    {
+                        runId = finish.runId, won = true, score = finish.score,
+                        height = finish.height, progress = finish.progress, improve = true,
+                    };
+                    Queue.items.Add(retry);
+                    SaveQueue();
+                    TrySend(retry);
+                }
+                else Debug.LogWarning($"[Online] {rpc} rejected: {dto.reason}");
+
+                // The finish is gone from the queue; any improvement parked behind it can
+                // go now.
+                if (!finish.improve) RetryPendingFinishes();
             },
-            err => _inFlight.Remove(finish.runId));
+            err => _inFlight.Remove(Key(finish)));
     }
 
     private static PendingFinishFile Queue
@@ -249,9 +389,11 @@ public static class RunGate
         }
     }
 
-    private static void RemoveQueued(string runId)
+    /// <summary>Remove exactly the report that was answered. Matching on run id alone would
+    /// delete a queued improvement when its finish resolved, losing the Keep Playing score.</summary>
+    private static void RemoveQueued(PendingFinish finish)
     {
-        Queue.items.RemoveAll(p => p.runId == runId);
+        Queue.items.RemoveAll(p => p.runId == finish.runId && p.improve == finish.improve);
         SaveQueue();
     }
 
@@ -277,6 +419,9 @@ public static class RunGate
     {
         ActiveRunId = null;
         ActiveRunServerBacked = false;
+        _activeLevelId = null;
+        _improvableRunId = null;   // a stale window must not survive a domain reload
+        _improvableLevelId = null;
         _queue = null;          // reloaded from disk on demand; pending reports persist
         _inFlight.Clear();
         _grantPending = false;

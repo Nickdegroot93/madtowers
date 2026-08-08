@@ -307,7 +307,17 @@ Clock-cheating is dead: the phone's clock is never consulted.
 2. `won = true` → **refund the attempt** (loss-only model, enforced server-side).
 3. **Submit the score** in the same call: sanity-bound it (max plausible score/height per
    level), then upsert `scores` on improvement for the run's `board` with its `loadout`.
-4. Stamp the `runs` row finished.
+4. Stamp the `runs` row finished, recording `paid_progress` (what XP has been paid for).
+
+**`improve_run_score(run_id, score, height, progress)` — added 2026-08-08.** A won run
+stays open to ONE more report: the post-victory "Keep Playing" session, whose score would
+otherwise never reach a board (see XP.md "Win timing"). Deliberately narrow — won runs
+only, raises only (`greatest`), never touches `attempts` (the refund already happened),
+and pays only the XP delta above `paid_progress` so client retries are worth 0. The board
+is taken from the run row, never from the client, so CLEAN/BOOSTED cannot be switched
+after the fact. The client arms this window per run AND per level: a run id that outlives
+its run (menu return, Custom Game, an unranked premium-offline launch) would otherwise
+post the wrong level's score against it.
 
 The `run_id` handshake is the core anti-cheat structure for free: a score can only be
 submitted against a run the server saw start, once, on the board fixed at start, within a

@@ -52,6 +52,7 @@ public class LevelRuntimeController : MonoBehaviour
     // the win -> game-over and win -> quit sequences award exactly once.
     private float _xpPeakProgress;
     private bool _xpAwarded;
+    private float _xpAwardedProgress;   // what the local award has already paid for
     private static readonly EndlessWinCondition XpFallbackCondition = new EndlessWinCondition();
 
     /// <summary>The live controller of the current run, for callers outside the scene wiring
@@ -181,24 +182,52 @@ public class LevelRuntimeController : MonoBehaviour
         if (_level != null) ProgressStore.ReportResult(_level, reportedScore, maxHeightMeters, RunSuppliesState.ActiveRunBoosted);
         AwardRunXp(won: false);
         // Server finish (BACKEND.md §6.2): score submission and the XP award ride the same
-        // exchange. A game over AFTER a completion no-ops - the win's ReportFinish already
-        // consumed the run_id. Local bests above stay local-first regardless.
-        RunGate.ReportFinish(won: false, reportedScore, maxHeightMeters, XpProgressForReport());
+        // exchange. Local bests above stay local-first regardless.
+        if (_completed)
+        {
+            // Toppling out of a post-win Keep Playing session. The win already banked the
+            // refund and its XP, but everything stacked SINCE is what the player was
+            // invited to chase - it has to reach the board, or every winner ends up tied
+            // at the target score and the leaderboard says nothing.
+            AwardOvershootXp();
+            RunGate.ReportScoreImprovement(ProgressStore.LevelId(_level), reportedScore,
+                maxHeightMeters, XpProgressForReport());
+        }
+        else
+        {
+            RunGate.ReportFinish(won: false, reportedScore, maxHeightMeters, XpProgressForReport());
+        }
     }
 
     /// <summary>Pause-menu quit or restart: the run ends without a game over, but it still
     /// HAPPENED - bank the bests and report the finish so the abandon pays its participation
-    /// + progress XP (Nick 2026-08-01) exactly like a loss at the same point would. No-ops
-    /// after a completion or game over (those paths already reported), so quitting out of a
-    /// post-win Keep Playing session never double-reports.</summary>
+    /// + progress XP (Nick 2026-08-01) exactly like a loss at the same point would.
+    /// Quitting out of a post-win Keep Playing session reports a score IMPROVEMENT instead
+    /// of a finish (that run was already adjudicated at the win): do not re-add a
+    /// `_completed` early return here, or the whole Keep Playing score is dropped again.
+    /// Double-reporting is prevented by construction - ProgressStore.ReportResult is
+    /// monotonic, AwardRunXp is latched, and the improvement window is one-shot per run.</summary>
     public void ReportAbandonedRun()
     {
-        if (_completed || GameManager.Instance == null || GameManager.Instance.isGameOver) return;
+        if (GameManager.Instance == null || GameManager.Instance.isGameOver) return;
         RunResult result = GameManager.Instance.CurrentRunResult;
         int reportedScore = ReportedScore(result.Score);
+
         if (_level != null) ProgressStore.ReportResult(_level, reportedScore, result.MaxHeight, RunSuppliesState.ActiveRunBoosted);
-        AwardRunXp(won: false);
-        RunGate.ReportFinish(won: false, reportedScore, result.MaxHeight, XpProgressForReport());
+        AwardRunXp(won: false);   // latched by _xpAwarded: a no-op once the win awarded
+        if (_completed)
+        {
+            // Quitting out of a post-win Keep Playing session. The run is already finished
+            // server-side, so this is a score improvement rather than a second finish - but
+            // the score counts either way, exactly as toppling out of it does.
+            AwardOvershootXp();
+            RunGate.ReportScoreImprovement(ProgressStore.LevelId(_level), reportedScore,
+                result.MaxHeight, XpProgressForReport());
+        }
+        else
+        {
+            RunGate.ReportFinish(won: false, reportedScore, result.MaxHeight, XpProgressForReport());
+        }
     }
 
     private void ShowGameOverScreen()
@@ -647,21 +676,37 @@ public class LevelRuntimeController : MonoBehaviour
 
     private float XpProgressForReport() => Mathf.Clamp(_xpPeakProgress, 0f, 2f);
 
-    /// <summary>Award the run's XP exactly once, on its FIRST reported outcome (win, game
-    /// over, or pause-menu abandon - later outcomes for the same run are latched out; a win
-    /// therefore reports at verification, progress 1.0, and post-win Keep Playing never adds
-    /// overshoot - deliberate, XP.md §1: the refund/score must not wait for it to end).
-    /// Custom Game runs have no level identity and never earn. Online the server pays inside
-    /// finish_run (the ReportFinish alongside this call carries the progress); the local
-    /// grant only exists for online-layer-disabled play. Premium-offline runs are unranked
-    /// and deliberately earn nothing - the next server verdict would visibly rewind a local
-    /// grant (see XpSystem).</summary>
+    /// <summary>Award the run's XP once, on its FIRST reported outcome (win, game over, or
+    /// pause-menu abandon - later outcomes for the same run are latched out). A win reports
+    /// at verification with progress 1.0 (XP.md §1: the refund/score must not wait for a
+    /// Keep Playing session that may never end); the OVERSHOOT earned after that is paid
+    /// separately by <see cref="AwardOvershootXp"/>, mirroring the server's
+    /// improve_run_score delta. Custom Game runs have no level identity and never earn.
+    /// Online the server pays inside finish_run (the ReportFinish alongside this call
+    /// carries the progress); the local grant only exists for online-layer-disabled play.
+    /// Premium-offline runs are unranked and deliberately earn nothing - the next server
+    /// verdict would visibly rewind a local grant (see XpSystem).</summary>
     private void AwardRunXp(bool won)
     {
         if (_xpAwarded || ProgressStore.LevelId(_level) == null) return;
         _xpAwarded = true;
         SampleXpProgress();
-        if (!OnlineService.Enabled) XpSystem.ReportLocalRun(XpProgressForReport(), won);
+        _xpAwardedProgress = XpProgressForReport();
+        if (!OnlineService.Enabled) XpSystem.ReportLocalRun(_xpAwardedProgress, won);
+    }
+
+    /// <summary>Pay the local XP earned AFTER the win was banked. Online this is the
+    /// server's job (improve_run_score pays the same delta against runs.paid_progress);
+    /// this exists so an online-layer-disabled build does not quietly pay less for the
+    /// identical player action.</summary>
+    private void AwardOvershootXp()
+    {
+        if (!_xpAwarded || ProgressStore.LevelId(_level) == null) return;
+        SampleXpProgress();
+        float now = XpProgressForReport();
+        if (now <= _xpAwardedProgress) return;
+        if (!OnlineService.Enabled) XpSystem.ReportLocalOvershoot(_xpAwardedProgress, now, won: true);
+        _xpAwardedProgress = now;
     }
 
     // PlaceBlocks/ClearWaves win on the LIVE standing count, not cumulative score - so destroying

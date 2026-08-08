@@ -28,10 +28,23 @@ a replay of a completed level ending at 120/100 = 52 XP.
 
 **Win timing (deliberate):** a first win awards and reports at the moment the goal
 VERIFIES — progress 1.0, so the win itself never carries overshoot — because the attempt
-refund and score submission must not wait for a post-win Keep Playing session that may
-end minutes later (or never, if the app is killed). Overshoot pays on runs that END past
-the target: replays of completed levels (no win flow arms) and losses/quits after the
-goal was met but before verification.
+refund must not wait for a post-win Keep Playing session that may end minutes later (or
+never, if the app is killed). Overshoot pays on runs that END past the target: replays of
+completed levels (no win flow arms) and losses/quits after the goal was met but before
+verification.
+
+**Amended 2026-08-08 — the SCORE is no longer frozen at that moment, only the refund.**
+The original rule bundled the score into the same decision, and the consequence was that
+everything stacked during Keep Playing was dropped: the local best climbed while the
+leaderboard kept the victory number, so a player's own profile contradicted the board and
+every casual winner sat at exactly the target score. A board full of ties at N is not a
+board. So the two are split: `finish_run` still banks the refund and the win award
+instantly, and `improve_run_score` (migration `20260808000005`) raises the score
+afterwards and pays the **overshoot delta** above `runs.paid_progress` — a first win then
+a 2.0-progress Keep Playing session pays 75 then +10, exactly what one run ending at 2.0
+would have paid. Retries are worth 0 by construction. `AwardRunXp` +
+`LevelRuntimeController.AwardOvershootXp` mirror the same split locally so an
+online-layer-disabled build does not quietly pay less for the identical action.
 
 - **Quit pays** (Nick 2026-08-01): the pause menu's quit/restart call
   `LevelRuntimeController.ReportAbandonedRun()`, which banks local bests and reports the
