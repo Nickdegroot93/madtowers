@@ -20,6 +20,14 @@ what is left there is four ID strings, ATT and SSV. Also done since: the game is
 and pushed (`github.com/Nickdegroot93/hazardheights-web`) — Phase 0's domain and
 privacy/terms items are closed. Sign-in and IAP adapters remain simulated-only.
 
+**The rename is COMPLETE as of 2026-08-08.** `productName` is "Hazard Heights", bundle
+IDs are locked (Phase 1), the URL consts point at the real domain, and the player-facing
+strings are fixed. Two things that turned out NOT to need work: the splash art carries no
+wordmark (pure illustration), and "HAZARD HEIGHTS UNLIMITED" measures 565px/549px in its
+720px/640px boxes, so it fits. What internal names remain — the repo folder, the git
+remote, the `.md` filenames, the `MadTowers/HeatHaze` shader, the PlayerPrefs key — is
+deliberate: no player sees them, and renaming the prefs key would orphan saves.
+
 **The order and why.** Everything funnels through the store consoles: app listings
 unlock the Sign in with Apple capability, the IAP products, and AdMob app approval.
 So: consoles first. Then the three systems in this order —
@@ -68,9 +76,11 @@ hard 14-day tester clock (Phase 1) that has nothing to do with polish.
 - [ ] **Crash/analytics decision** — nothing is integrated today. Decide (Unity Cloud
       Diagnostics / Crashlytics / none), integrate or explicitly skip, and declare it in
       the Phase 5 forms. Deciding late means redoing the data-safety forms.
-- [ ] **Display-name moderation** (BACKEND.md §11): uniqueness rule or discriminator +
-      profanity filter in the rename RPC; also decide guest-claim policy (claim-now-link-
-      later, as built, vs. link-gated). Must land before boards are public.
+- [x] **Display-name moderation** — this box was stale (verified 2026-08-08):
+      `claim_display_name` already does format validation (`^[A-Za-z0-9 _-]{3,16}$`), a
+      profanity list, case-insensitive uniqueness and a `unique_violation` fallback, and
+      the smoke suite covers all three refusal paths. **Still open, but it's a decision
+      not code:** the guest-claim policy (claim-now-link-later, as built, vs. link-gated).
 - [ ] **Per-level score sanity bounds** (BACKEND.md §6.2): derive the max-plausible
       score/height/duration table from Nick's current playtesting data; tighten
       `finish_run`. (Same pass can set XP farming bounds, XP.md §6.)
@@ -88,7 +98,11 @@ hard 14-day tester clock (Phase 1) that has nothing to do with polish.
       launch. **Organization accounts are exempt**; registering as a business (KvK →
       D-U-N-S, which Apple wants anyway) removes the requirement entirely. Worth deciding
       before registering as a person — the account type cannot be swapped afterwards.
-- [ ] **Lock bundle IDs FIRST** (permanent), then create both app listings.
+- [x] **Bundle IDs LOCKED 2026-08-08: `com.nickdegroot.hazardheights`** on Android, iOS
+      and Standalone. Android previously read `com.nickdegroot.madtowers`; **iOS and
+      Standalone were still the Unity template default `com.unity.template.get-started`**,
+      which would have been rejected on submission. Permanent from the moment a listing
+      exists — do not change it after Phase 1. Then create both app listings.
 - [ ] **Release keystore (Android)**: create, back up safely, enroll Play App Signing.
       Done here because Phase 2's Google sign-in needs its SHA-1 fingerprints.
 - [ ] Store assets: icon set, screenshots per device class, feature graphic (Play),

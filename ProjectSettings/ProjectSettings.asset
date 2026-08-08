@@ -13,7 +13,7 @@ PlayerSettings:
   useOnDemandResources: 0
   accelerometerFrequency: 60
   companyName: Nick de Groot
-  productName: MadTowers
+  productName: Hazard Heights
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
   m_SplashScreenBackgroundColor: {r: 0.05, g: 0.035, b: 0.03, a: 1}
@@ -166,9 +166,9 @@ PlayerSettings:
   androidMaxAspectRatio: 2.4
   androidMinAspectRatio: 1
   applicationIdentifier:
-    Android: com.nickdegroot.madtowers
-    Standalone: com.unity.template.get-started
-    iPhone: com.unity.template.get-started
+    Android: com.nickdegroot.hazardheights
+    Standalone: com.nickdegroot.hazardheights
+    iPhone: com.nickdegroot.hazardheights
   buildNumber:
     Standalone: 0
     VisionOS: 0
