@@ -29,7 +29,8 @@ public static class AttemptsService
 
     /// <summary>May the "watch an ad → +2" button show? Requires a showable ad (no provider
     /// installed = no ad SDK yet = hidden), no denied grant this session, and budget left in
-    /// the server's rolling 3/day window. The budget arrives on the boot get_profile and is
+    /// the server's rolling daily window (ad_refill_daily_cap, 10/day since 2026-08-09).
+    /// The budget arrives on the boot get_profile and is
     /// refreshed by every grant_ad_refill reply, so the CAP hides the button BEFORE a wasted
     /// watch - being denied AFTER sitting through a full video reads as the game taking
     /// something back (SHOP.md §7.3 item 6).</summary>
@@ -152,6 +153,12 @@ public static class AttemptsService
     {
         if (OnlineService.Enabled)
         {
+            // Captured BEFORE the RPC: Google's SSV callback routinely lands before our
+            // own reply does (it fires at watch-completion, the RPC at ad close), so the
+            // ssv_required reply's grants_remaining may already reflect the booked grant.
+            // A baseline taken from that reply would never see a further decrease and the
+            // poll would report a landed reward as missed (review 2026-08-09).
+            int budgetBeforeWatch = AdGrantsRemaining;
             OnlineService.RpcObject<AdRefillDto>("grant_ad_refill", "{}",
                 dto =>
                 {
@@ -172,7 +179,7 @@ public static class AttemptsService
                         // from this reply rather than configured in the app, so enabling SSV
                         // stays a one-row server flip with no client release.
                         UnityEngine.Debug.Log("[Ads] SSV live - awaiting Google's callback.");
-                        AwaitVerifiedGrant(onDone);
+                        AwaitVerifiedGrant(budgetBeforeWatch, onDone);
                         return;
                     }
                     else
@@ -206,18 +213,17 @@ public static class AttemptsService
 
     /// <summary>
     /// Watch for the reward Google's SSV callback grants server-side. It is not instant -
-    /// the callback is a separate round trip from Google to our Edge Function - so the meter
-    /// is re-read a few times over several seconds rather than once. Reports true the moment
-    /// the count actually rises, so the caller never celebrates a grant that did not land.
+    /// the callback is a separate round trip from Google to our Edge Function - so the
+    /// budget is re-read a few times over several seconds rather than once.
+    /// <paramref name="budgetBefore"/> must be the PRE-WATCH baseline (RequestAdRefill
+    /// captures it before its RPC): the callback often lands before our own reply, so a
+    /// baseline taken any later already includes the grant and the poll would report a
+    /// landed reward as missed. Watching the budget rather than the meter matters for the
+    /// same reason in reverse - Count projects regen forward from local wall clock, so it
+    /// can rise with no grant at all and fake a success.
     /// </summary>
-    private static void AwaitVerifiedGrant(Action<bool> onDone)
+    private static void AwaitVerifiedGrant(int budgetBefore, Action<bool> onDone)
     {
-        // Watch the BUDGET, not the meter. Count is projected forward from local wall
-        // clock, so ordinary regen raises it during the poll window - and the player has
-        // usually just run out, which is exactly when the next +1 is closest. Watching the
-        // meter would report success for a grant that never arrived. grants_remaining only
-        // moves when the server actually books a grant (review 2026-08-09).
-        int budgetBefore = AdGrantsRemaining;
         OnlineService.Run(PollForGrant(budgetBefore, onDone));
     }
 

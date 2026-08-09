@@ -11,11 +11,12 @@ using UnityEngine;
 /// watch and the server grant. Swapping to mediation later is this one class:
 /// <see cref="IRewardedAdProvider"/> is the whole contract the game knows about.
 ///
-/// AD UNIT IDS ARE GOOGLE'S PUBLIC TEST UNITS. They serve real fullscreen video, fire the
-/// real callbacks, and are tied to no account - so the whole loop is testable on device
-/// today. They must be swapped for the account's real units before release; see
-/// <see cref="AdUnitId"/>. Test units on a shipped build earn nothing; real units on a
-/// dev build earn an invalid-traffic ban, so this is the safe default of the two.
+/// THE AD UNIT IDS ARE THE REAL CONSOLE UNITS, ALWAYS - do not "swap in test units" for
+/// development. Safety on developer phones comes from <see cref="TestDeviceIds"/> instead
+/// (registered devices get test fill from the real unit: no revenue, no invalid traffic,
+/// and a genuine SSV callback). Google's sample units cannot be used for dev here at all:
+/// SSV is configured per ad unit in OUR console, so a sample unit never produces a
+/// callback and the reward never arrives (device-proven 2026-08-09).
 /// </summary>
 public sealed class AdMobRewardedProvider : IRewardedAdProvider
 {

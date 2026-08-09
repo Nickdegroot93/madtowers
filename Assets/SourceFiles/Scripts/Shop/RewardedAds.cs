@@ -37,7 +37,7 @@ public static class RewardedAds
     // (review 2026-08-08).
     private const float ShowWatchdogSeconds = 300f;
 
-    /// <summary>Install the live provider at boot (the LevelPlay adapter, once it exists).</summary>
+    /// <summary>Install the live provider at boot (AdMobBootstrap does, on device).</summary>
     public static void Install(IRewardedAdProvider provider) => _provider = provider;
 
     public static bool Available => _provider != null && _provider.IsReady && !IsShowing;

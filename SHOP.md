@@ -329,6 +329,21 @@ volume this game will not have on day one. Reversible for the price of one class
    - `custom_data` is validated as a uuid; a malformed one would fail the cast inside
      the RPC and become a 500 Google retries forever.
 
+   **Hardened again 2026-08-09 (second review round, migration `20260809000009`):**
+   - **The daily cap on the verified path was dead code** — migration 8 compared `< 0`
+     against a function clamped at 0, so Google-verified grants were unlimited
+     server-side and only the client's hidden button "enforced" 10/day. Claim rows are
+     now `granted=false` until they pay; the budget counts only granted rows and the
+     `<= 0` check binds (regression-tested by seeding to the cap).
+   - **The two grant paths are mutually exclusive on `ssv_enabled`** — the window
+     between registering the SSV URL and flipping the flag used to pay +4 per watch.
+   - **Refusals are budget-neutral** (`attempts_full` heals again) and a callback for a
+     deleted account answers `no_user` instead of an FK exception → 500 → Google retry
+     storm.
+   - Client: the SSV poll baseline is captured pre-watch (the callback often lands
+     before our own reply), and the out-of-attempts supplies row rebuilds when the ad
+     finishes loading (live fill takes seconds; the row used to stay button-less).
+
    **Known and accepted for now:**
    - `custom_data` is still a raw user id chosen by the client, and user ids are
      publicly readable (`scores_select_all`). A modified client can attribute its own

@@ -14,14 +14,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const KEY_URL = "https://www.gstatic.com/admob/reward/verifier-keys.json";
 
-// Our own rewarded units (the numeric half of ca-app-pub-4384624714813425/…), plus
-// Google's public test units so a development build still exercises the real path.
-// A signature proves the callback came from Google - NOT that it came from our app.
+// Our own rewarded units (the numeric half of ca-app-pub-4384624714813425/…), and
+// NOTHING else. A signature proves the callback came from Google - not that it came
+// from our app - so this list is the actual authorization check. Google's sample
+// units deliberately do not appear: development uses the real units with registered
+// test devices (see AdMobRewardedProvider.TestDeviceIds), because sample units never
+// produce an SSV callback at all - they are not ours to configure.
 const ALLOWED_AD_UNITS = new Set([
   "2353049753",   // Hazard Heights Android — attempts_refill
   "9768505345",   // Hazard Heights iOS     — attempts_refill
-  "5224354917",   // Google sample rewarded, Android
-  "1712485313",   // Google sample rewarded, iOS
 ]);
 
 const UUID_RE =

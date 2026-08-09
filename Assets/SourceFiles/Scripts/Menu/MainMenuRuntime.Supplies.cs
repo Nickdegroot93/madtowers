@@ -143,6 +143,9 @@ public static partial class MainMenuRuntime
         SuppliesLive live = section.gameObject.AddComponent<SuppliesLive>();
         live.Ui = ui;
         live.Countdown = countdown;
+        // What the row just rendered with, so the 1s tick can rebuild when the ad
+        // arrives later (live fill takes seconds; the provider raises no event).
+        live.RecordRenderedAdOffer(AttemptsService.AdRefillAvailable);
     }
 
     /// <summary>Per-section live updater (menu runs at timeScale=0 - unscaled time only).
@@ -155,6 +158,16 @@ public static partial class MainMenuRuntime
 
         private float _nextTick;
         private bool _consumed;
+        // What the row rendered with. The WATCH AD button appears only if an ad was in
+        // hand at render time - but at boot the row often builds while consent + the
+        // first live-fill load are still in flight (seconds on device), and nothing
+        // event-driven fires when the ad lands: the provider's IsReady flip raises no
+        // event. Without this, a player who launched out of attempts stared at a
+        // countdown-only row for its whole life (review 2026-08-09). The top-bar "+"
+        // already self-heals via its own 1s tick; this is the same medicine here.
+        private bool _renderedAdOffer;
+
+        public void RecordRenderedAdOffer(bool adOffer) => _renderedAdOffer = adOffer;
 
         private void OnEnable()
         {
@@ -184,6 +197,13 @@ public static partial class MainMenuRuntime
             if (AttemptsService.CanStartRun)
             {
                 // The meter healed while the modal sat open - flip back to the normal row.
+                HandleChanged();
+                return;
+            }
+            if (AttemptsService.AdRefillAvailable != _renderedAdOffer)
+            {
+                // The ad finished loading (or was consumed) after the row rendered -
+                // rebuild so WATCH AD appears/disappears with reality.
                 HandleChanged();
                 return;
             }
