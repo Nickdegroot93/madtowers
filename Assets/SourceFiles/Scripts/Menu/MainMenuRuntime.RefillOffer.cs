@@ -46,7 +46,7 @@ public static partial class MainMenuRuntime
             RuntimeSprites.RoundedPanel(), new Color(0.055f, 0.05f, 0.07f, 0.99f));
         panel.type = Image.Type.Sliced;
         RuntimeUiKit.SetRect(panel.rectTransform, new Vector2(0f, 0f),
-            new Vector2(RefillPanelW, 664f), new Vector2(0.5f, 0.5f));
+            new Vector2(RefillPanelW, 700f), new Vector2(0.5f, 0.5f));
         panel.raycastTarget = true;   // swallow taps so only the backdrop dismisses
         RuntimeUiKit.AddOutline(panel.rectTransform, WithAlpha(TextPrimary, 0.10f));
 
@@ -157,11 +157,63 @@ public static partial class MainMenuRuntime
             () => PremiumStore.Changed -= OnPremiumChanged;
 
         // ---- the quiet hinge between the two options ----
+        // Vertically CENTERED in the gap between the offer card and the ad row (it sat
+        // 32px below the card but 50px above the row - Nick clocked it immediately).
+        // Panel 700: offer ends -440; ad row's top edge is -(700 - 118) = -582; the gap
+        // is 142, so a 24-tall label starts at -440 - (142 - 24) / 2 = -499.
         CreateTmp(panel, "Or", "OR", 16, WithAlpha(TextMuted, 0.8f),
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, -84f - 356f - 32f), new Vector2(120f, 24f), new Vector2(0.5f, 1f));
+            new Vector2(0f, -499f), new Vector2(120f, 24f), new Vector2(0.5f, 1f));
 
         BuildWatchAdOption(panel);
+
+        // The ad row is LIVE, not a snapshot. The dominant real-world case: the modal is
+        // opened seconds after boot, before the first ad has finished loading - a static
+        // row then shows "NO AD READY" forever even though the ad lands moments later,
+        // and an inert row shaped like a button reads as a broken button (Nick's phone,
+        // 2026-08-09, twice). The watcher rebuilds the row whenever its state changes.
+        RefillOfferLive live = panel.gameObject.AddComponent<RefillOfferLive>();
+        live.Panel = panel;
+    }
+
+    /// <summary>Rebuilds the WATCH AD row when what it says stops being true: the ad
+    /// finishing its load, the meter filling from regen, the budget changing. Checks
+    /// twice a second on unscaled time (the menu runs at timeScale 0).</summary>
+    private sealed class RefillOfferLive : MonoBehaviour
+    {
+        public RectTransform Panel;
+
+        private float _nextTick;
+        private (bool ready, bool full, int left) _rendered;
+
+        private void Start() => _rendered = CurrentState();
+
+        private static (bool, bool, int) CurrentState()
+        {
+            bool full = AttemptsService.Count >= AttemptsService.MaxAttempts;
+            return (AttemptsService.AdRefillAvailable && !full, full, AttemptsService.AdGrantsRemaining);
+        }
+
+        private void Update()
+        {
+            if (Panel == null) return;
+            if (Time.unscaledTime < _nextTick) return;
+            _nextTick = Time.unscaledTime + 0.5f;
+
+            var now = CurrentState();
+            if (now == _rendered) return;
+            _rendered = now;
+
+            Transform old = Panel.Find("WatchAd");
+            if (old != null)
+            {
+                // Destroy is deferred: rename first, or next tick's Find could grab the
+                // dying row instead of the fresh one (the deferred-destroy Find trap).
+                old.name = "WatchAdRetired";
+                Destroy(old.gameObject);
+            }
+            BuildWatchAdOption(Panel);
+        }
     }
 
     /// <summary>Option 2: the ad. Visually SECONDARY to the pitch above - dark body,
@@ -173,8 +225,13 @@ public static partial class MainMenuRuntime
         int left = AttemptsService.AdGrantsRemaining;
         bool ready = AttemptsService.AdRefillAvailable && !full;
 
+        // Inert states are deliberately FLAT - a body barely above the panel and no edge
+        // at all. A dimmed-but-button-shaped card still reads as a button that is broken
+        // (Nick tapped one repeatedly on device); only the tappable state may look
+        // tappable.
         Image row = RuntimeUiKit.CreateImage(panel, "WatchAd",
-            RuntimeSprites.RoundedPanel(), new Color(0.08f, 0.08f, 0.10f, 1f));
+            RuntimeSprites.RoundedPanel(),
+            ready ? new Color(0.08f, 0.08f, 0.10f, 1f) : new Color(0.07f, 0.065f, 0.085f, 0.55f));
         row.type = Image.Type.Sliced;
         RectTransform rowRect = row.rectTransform;
         rowRect.anchorMin = new Vector2(0f, 0f);
@@ -182,7 +239,7 @@ public static partial class MainMenuRuntime
         rowRect.pivot = new Vector2(0.5f, 0f);
         rowRect.offsetMin = new Vector2(24f, 26f);
         rowRect.offsetMax = new Vector2(-24f, 26f + 92f);
-        RuntimeUiKit.AddOutline(rowRect, WithAlpha(ready ? GameMenuStyle.Accent : TextMuted, ready ? 0.5f : 0.2f));
+        if (ready) RuntimeUiKit.AddOutline(rowRect, WithAlpha(GameMenuStyle.Accent, 0.5f));
 
         string label;
         string sub;
@@ -218,6 +275,12 @@ public static partial class MainMenuRuntime
             new Vector2(0f, -18f), new Vector2(RefillPanelW - 100f, 20f), new Vector2(0.5f, 0.5f));
 
         if (!ready) return;
+
+        // CreateImage defaults raycastTarget to FALSE (RuntimeUiKit hygiene) - without
+        // this the Button below exists but never receives a tap: the click falls through
+        // to the panel, which swallows it, and nothing happens at all. Device-found
+        // 2026-08-09; the backdrop and X worked only because theirs are set explicitly.
+        row.raycastTarget = true;
 
         Button watch = row.gameObject.AddComponent<Button>();
         watch.targetGraphic = row;

@@ -65,6 +65,12 @@ public static class RewardedAds
     {
         if (!Available)
         {
+            // Say WHY, always. A silent refusal here presents as "the button does
+            // nothing" on device, and the log is the only witness (2026-08-09).
+            UnityEngine.Debug.LogWarning("[Ads] Show refused: " +
+                (_provider == null ? "no provider installed"
+                 : _showing ? "an ad is already showing"
+                 : "no ad loaded (IsReady false)"));
             onFinished?.Invoke(false);
             return;
         }

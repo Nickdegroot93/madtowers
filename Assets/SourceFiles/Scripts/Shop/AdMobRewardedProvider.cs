@@ -210,6 +210,17 @@ public static class AdMobBootstrap
     private static AdLoadDriver _driver;
     private static bool _consentInFlight;
 
+    // Set by the UMP callbacks, consumed by the driver's Update. MobileAds.Initialize
+    // must run on the UNITY MAIN THREAD: the SDK wires up its app-foreground tracking at
+    // initialize, and off-thread it comes up believing the app is backgrounded - every
+    // Show() then fails "app is not in foreground" for the whole session. UMP callbacks
+    // are not guaranteed to arrive on the main thread (RaiseAdEventsOnUnityMainThread
+    // covers AD events, not consent), and this exact failure appeared the moment the
+    // GDPR message went live and the consent path started SUCCEEDING: the old failing
+    // path had initialized from the driver's own Update, which is why ads worked before
+    // the consent form existed and broke after (device timeline 2026-08-09).
+    private static volatile bool _initRequested;
+
     /// <summary>Re-run the consent step if it never completed. Cheap to call often: it
     /// no-ops once the SDK is initialised or while an attempt is outstanding.</summary>
     public static void RetryConsentIfNeeded()
@@ -225,6 +236,13 @@ public static class AdMobBootstrap
     /// </summary>
     private static void RequestConsentThenInitialize()
     {
+        // Re-entry guard HERE, not only in RetryConsentIfNeeded: Android fires
+        // OnApplicationFocus(true) during startup, so the focus retry and the driver's
+        // first-Update kick otherwise run two concurrent consent flows - the device log
+        // showed the form callback firing twice (2026-08-09). Two flows means a required
+        // form could try to present twice.
+        if (_initialized || _consentInFlight) return;
+
         // A returning player who already consented can request ads while the refresh runs.
         if (ConsentInformation.CanRequestAds())
         {
@@ -255,7 +273,12 @@ public static class AdMobBootstrap
                 // all), and Google's own sample re-checks here rather than returning.
                 if (ConsentInformation.CanRequestAds())
                 {
-                    InitializeAds();
+                    // NOT InitializeAds() directly: this callback may be off the main
+                    // thread, and initializing there breaks foreground tracking (see
+                    // _initRequested). The driver picks it up next frame.
+                    Debug.Log("[Ads] consent resolved (thread " +
+                        System.Threading.Thread.CurrentThread.ManagedThreadId + ") - init queued.");
+                    _initRequested = true;
                 }
             });
         });
@@ -276,6 +299,13 @@ public static class AdMobBootstrap
                 // read the app as foregrounded. See the note in Boot().
                 _kicked = true;
                 RequestConsentThenInitialize();
+            }
+            if (_initRequested)
+            {
+                // Consent resolved on some UMP thread; do the actual SDK initialization
+                // HERE, on the main thread, where its foreground tracking comes up sane.
+                _initRequested = false;
+                InitializeAds();
             }
             Provider?.Tick(Time.unscaledTime);
         }
