@@ -65,6 +65,15 @@ public static class AttemptsSync
     public static event Action Changed;
 
     /// <summary>Ask the server for fresh meter state (rpc get_attempts), debounced.</summary>
+    /// <summary>Refresh now, ignoring the 2s debounce. For polling that is waiting on a
+    /// specific server-side event (the SSV grant), where the debounce would swallow most
+    /// of the attempts and make the reward look like it never arrived.</summary>
+    public static void ForceRefresh()
+    {
+        _lastRefreshAt = float.NegativeInfinity;
+        Refresh();
+    }
+
     public static void Refresh()
     {
         if (!OnlineService.IsReady || _refreshInFlight) return;

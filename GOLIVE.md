@@ -189,8 +189,13 @@ Still open, and each one is genuinely account-gated:
 - [ ] **iOS ATT** — Google routes the prompt through a UMP message configured in the
       AdMob console, so it cannot be built before the account. Also unverifiable here:
       no iOS build has ever been run on this machine.
-- [ ] **Server: AdMob SSV** replaces the client-claimed `grant_ad_refill` path
-      (BACKEND.md §6.4); until wired, the 10/day rate limit is the only defense.
+- [x] **Server: AdMob SSV** — BUILT + DEPLOYED 2026-08-09 (SHOP.md §7.3 item 5 has the
+      detail). Endpoint is live and verified rejecting forged signatures. **Two manual
+      steps left before it is actually protecting anything:** register
+      `https://cyinvljdxpdtynlkiqhm.supabase.co/functions/v1/admob-ssv` on each rewarded
+      ad unit in the AdMob console, then flip `backend_config.ssv_enabled` to `true`.
+      Until that flip the client-claimed path still pays — deliberate, so SSV can be
+      proven on a device first.
 
 ## Phase 5 — compliance & store forms (needs the final SDK set, hence after 2–4)
 

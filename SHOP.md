@@ -292,9 +292,25 @@ volume this game will not have on day one. Reversible for the price of one class
    message configured in the AdMob console, so it is account-gated (and Nick has never
    run an iOS build); store-listing data-safety / ads-declaration forms; kids-policy
    check (ads are opt-in rewarded only, §8).
-5. ⬜ **Server**: replace the client-claimed `grant_ad_refill` path with **AdMob SSV**
-   (server-side verification callback → Edge Function grants the +2, BACKEND.md
-   §6.4); until then the 10/day server rate limit is the only defense, and it is a bound on FORGERY rather than a design target.
+5. 🟡 **Server: AdMob SSV** — BUILT + DEPLOYED 2026-08-09, **not yet switched on**.
+   Migration `20260809000007_ssv.sql` + Edge Function `supabase/functions/admob-ssv`
+   (deployed with `--no-verify-jwt`: the caller is Google, which carries no Supabase
+   JWT). Google signs the callback with a rotating ECDSA P-256 key; the function
+   verifies everything before `&signature=` against
+   `gstatic.com/admob/reward/verifier-keys.json`, then calls
+   `grant_ad_refill_verified(user_id, transaction_id)` as **service_role** — a
+   function deliberately not callable by players, or it would be the very hole SSV
+   closes. `custom_data` carries the Supabase user id, set per ad at load time in
+   `AdMobRewardedProvider`; without it a callback cannot be attributed and pays
+   nobody. `transaction_id` is uniquely indexed, so Google's retries grant once.
+   **Two steps remain, both Nick's:**
+   (a) register the callback URL on **each rewarded ad unit** in the AdMob console —
+       `https://cyinvljdxpdtynlkiqhm.supabase.co/functions/v1/admob-ssv`
+   (b) flip `backend_config.ssv_enabled` to `true` (service_role has the grant).
+   Until (b) the client-claimed path still pays, so SSV can be proven on a real
+   device before the old path is closed; flipping back is the same one row.
+   The client needs no release for either: it discovers the switch from the
+   `ssv_required` reply and starts polling the meter instead of claiming.
 6. ✅ **Daily-budget mirror** — DONE 2026-08-08, migration `20260808000004_ad_budget.sql`
    (local only; **not yet pushed to production**). `get_profile` and every
    `grant_ad_refill` reply now carry `grants_remaining`, so the button hides BEFORE a

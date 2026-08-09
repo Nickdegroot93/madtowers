@@ -164,6 +164,17 @@ public static class AttemptsService
                         AttemptsSync.ApplyServer(dto.attempts, dto.seconds_until_next,
                             dto.premium, AttemptsSync.MeterCharged);
                     }
+                    else if (dto.reason == "ssv_required")
+                    {
+                        // SSV is live server-side: the client no longer asserts it watched
+                        // anything. Google's callback pays the grant out of band, so the only
+                        // job left here is to notice when it lands. The switch is discovered
+                        // from this reply rather than configured in the app, so enabling SSV
+                        // stays a one-row server flip with no client release.
+                        UnityEngine.Debug.Log("[Ads] SSV live - awaiting Google's callback.");
+                        AwaitVerifiedGrant(onDone);
+                        return;
+                    }
                     else
                     {
                         // rate_limited / premium don't heal within this session - stop
@@ -191,6 +202,41 @@ public static class AttemptsService
         }
         Persist(Math.Min(MaxAttempts, Count + AdRefillAmount));
         onDone?.Invoke(true);
+    }
+
+    /// <summary>
+    /// Watch for the reward Google's SSV callback grants server-side. It is not instant -
+    /// the callback is a separate round trip from Google to our Edge Function - so the meter
+    /// is re-read a few times over several seconds rather than once. Reports true the moment
+    /// the count actually rises, so the caller never celebrates a grant that did not land.
+    /// </summary>
+    private static void AwaitVerifiedGrant(Action<bool> onDone)
+    {
+        int before = Count;
+        OnlineService.Run(PollForGrant(before, onDone));
+    }
+
+    private static System.Collections.IEnumerator PollForGrant(int before, Action<bool> onDone)
+    {
+        // Spread out: the callback usually lands within a second or two, but a cold Edge
+        // Function or a slow network can take longer, and a single check would miss it.
+        float[] waits = { 0.75f, 1.5f, 2.5f, 4f };
+        for (int i = 0; i < waits.Length; i++)
+        {
+            yield return new UnityEngine.WaitForSecondsRealtime(waits[i]);
+            AttemptsSync.ForceRefresh();
+            yield return new UnityEngine.WaitForSecondsRealtime(0.35f);
+            if (Count > before)
+            {
+                onDone?.Invoke(true);
+                yield break;
+            }
+        }
+        // Not arrived. Deliberately NOT latching _adRefillDenied: the grant may still be in
+        // flight, and the next meter refresh will show it. Telling the player "no" is worse
+        // than telling them nothing when the reward is probably coming.
+        UnityEngine.Debug.LogWarning("[Ads] SSV grant not seen within ~9s; meter will catch up.");
+        onDone?.Invoke(false);
     }
 
     /// <summary>grant_ad_refill reply (JSON key names are the server contract - never rename).</summary>

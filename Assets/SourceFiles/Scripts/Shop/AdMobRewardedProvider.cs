@@ -138,6 +138,23 @@ public sealed class AdMobRewardedProvider : IRewardedAdProvider
                 return;
             }
             _failures = 0;
+
+            // SSV: Google's callback carries this back to our Edge Function, and it is the
+            // ONLY thing that says which player earned the reward. Without it the callback
+            // arrives unattributable and nobody gets paid, so it is set per ad, at load,
+            // from the session that is current then.
+            string userId = SupabaseSession.UserId;
+            if (!string.IsNullOrEmpty(userId))
+            {
+                // Plain fields in this plugin version, not the Builder the docs show.
+                ad.SetServerSideVerificationOptions(
+                    new ServerSideVerificationOptions { CustomData = userId });
+            }
+            else
+            {
+                Debug.LogWarning("[Ads] no user id at ad load - SSV cannot attribute this reward.");
+            }
+
             _ad = ad;
         });
     }
