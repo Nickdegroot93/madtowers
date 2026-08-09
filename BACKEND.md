@@ -343,7 +343,7 @@ every `start_run`/`finish_run`. It is never authoritative.
 - **Watch ad → +2 attempts (cap 5):** never let the client claim "I watched an ad." Proper
   path: the ad network's **server-side verification callback** (e.g. AdMob SSV) hits an Edge
   Function which grants the +2. Acceptable v1 fallback until SSV is wired: a
-  `grant_ad_refill` function with a hard server-side rate limit (e.g. max 3/day).
+  `grant_ad_refill` function with a hard server-side rate limit (10/day since 2026-08-09, via `ad_refill_daily_cap()`). The number bounds how much a FORGED claim can mint - it is not a balance decision, except that free refills must stay finite or premium has no "unlimited lives" left to sell.
   **As built (2026-07-30):** the client is wired to the v1 fallback —
   `AttemptsService.RequestAdRefill` calls `grant_ad_refill` after the ad reports
   watched-to-end (`RewardedAds` provider facade; simulated ad in the editor, no provider in

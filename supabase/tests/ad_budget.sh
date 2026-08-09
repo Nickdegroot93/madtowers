@@ -42,27 +42,33 @@ JWT="$(jget "$R" access_token)"
 [ -n "$JWT" ] || { echo "FAIL: could not sign in"; exit 1; }
 
 # --- 1) boot read carries the full budget ------------------------------------
+# CAP is read from the server rather than hard-coded: ad_refill_daily_cap() is the
+# single home for the number precisely so tuning it does not mean editing code.
 P="$(rpc get_profile "$JWT" '{}')"
-[ "$(jget "$P" ad_grants_remaining)" = "3" ] \
-  && ok "get_profile exposes a full budget (3) on a fresh account" \
-  || bad "get_profile ad_grants_remaining = $(jget "$P" ad_grants_remaining), expected 3"
+CAP="$(jget "$P" ad_grants_remaining)"
+case "$CAP" in
+  ''|*[!0-9]*) bad "get_profile ad_grants_remaining = '$CAP', expected a number"; CAP=0 ;;
+  *) [ "$CAP" -gt 0 ] \
+       && ok "get_profile exposes a full budget ($CAP) on a fresh account" \
+       || bad "fresh account already has no budget" ;;
+esac
 
 # --- 1b) the refresh path carries it too -------------------------------------
 # get_attempts is the debounced focus-regain refresh; without the budget on this
 # reply an exhausted mirror could never heal (the button is hidden, so no
 # grant_ad_refill is ever sent to correct it).
 A="$(rpc get_attempts "$JWT" '{}')"
-[ "$(jget "$A" grants_remaining)" = "3" ] \
+[ "$(jget "$A" grants_remaining)" = "$CAP" ] \
   && ok "get_attempts carries the budget (the only self-heal path)" \
-  || bad "get_attempts grants_remaining = $(jget "$A" grants_remaining), expected 3"
+  || bad "get_attempts grants_remaining = $(jget "$A" grants_remaining), expected $CAP"
 
 # --- 2) a full meter must NOT consume budget ---------------------------------
 # The meter starts at 5/5, so this hits the attempts_full branch. That branch heals
 # (the next spent attempt makes room) and must report the budget untouched.
 G="$(rpc grant_ad_refill "$JWT" '{}')"
 [ "$(jget "$G" reason)" = "attempts_full" ] \
-  && [ "$(jget "$G" grants_remaining)" = "3" ] \
-  && ok "attempts_full leaves the budget at 3 (does not read as a cap)" \
+  && [ "$(jget "$G" grants_remaining)" = "$CAP" ] \
+  && ok "attempts_full leaves the budget at $CAP (does not read as a cap)" \
   || bad "attempts_full path: reason=$(jget "$G" reason) remaining=$(jget "$G" grants_remaining)"
 
 # --- 3) spend attempts so refills can land -----------------------------------
@@ -78,9 +84,9 @@ for i in 1 2 3; do
 done
 
 # --- 4) the budget drains one per grant, and is reported AFTER the insert -----
-EXPECT=2
+EXPECT=$((CAP - 1))
 DRAIN_OK=1
-for i in 1 2 3; do
+for i in $(seq 1 "$CAP"); do
   G="$(rpc grant_ad_refill "$JWT" '{}')"
   if [ "$(jget "$G" ok)" != "true" ]; then
     bad "grant $i refused early: $(jget "$G" reason)"; DRAIN_OK=0; break
@@ -98,13 +104,13 @@ for i in 1 2 3; do
       "{\"p_run_id\":\"$RID\",\"p_won\":false,\"p_score\":1,\"p_height\":1}" >/dev/null
   done
 done
-[ "$DRAIN_OK" = "1" ] && ok "budget drains 2 -> 1 -> 0, reported after the ledger insert"
+[ "$DRAIN_OK" = "1" ] && ok "budget drains $((CAP - 1)) -> 0 over $CAP grants, reported after each insert"
 
 # --- 5) exhausted budget is visible without another watch --------------------
 G="$(rpc grant_ad_refill "$JWT" '{}')"
 [ "$(jget "$G" reason)" = "rate_limited" ] && [ "$(jget "$G" grants_remaining)" = "0" ] \
-  && ok "4th grant refused as rate_limited with remaining=0" \
-  || bad "4th grant: reason=$(jget "$G" reason) remaining=$(jget "$G" grants_remaining)"
+  && ok "grant $((CAP + 1)) refused as rate_limited with remaining=0" \
+  || bad "over-cap grant: reason=$(jget "$G" reason) remaining=$(jget "$G" grants_remaining)"
 
 P="$(rpc get_profile "$JWT" '{}')"
 [ "$(jget "$P" ad_grants_remaining)" = "0" ] \

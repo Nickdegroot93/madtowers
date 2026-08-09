@@ -190,7 +190,7 @@ Still open, and each one is genuinely account-gated:
       AdMob console, so it cannot be built before the account. Also unverifiable here:
       no iOS build has ever been run on this machine.
 - [ ] **Server: AdMob SSV** replaces the client-claimed `grant_ad_refill` path
-      (BACKEND.md §6.4); until wired, the 3/day server rate limit is the only defense.
+      (BACKEND.md §6.4); until wired, the 10/day rate limit is the only defense.
 
 ## Phase 5 — compliance & store forms (needs the final SDK set, hence after 2–4)
 

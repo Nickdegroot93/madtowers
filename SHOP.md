@@ -204,7 +204,7 @@ meter, so victories feel free and failures create the decision point).
   = no button, ever; in the editor a simulated 5-second TEST AD overlay exercises
   both the skip-forfeits and watched-to-end paths. The grant is
   `AttemptsService.RequestAdRefill`: online it calls the server's `grant_ad_refill`
-  (rate-limited 3/day; a denial hides the button for the session); offline it
+  (rate-limited 10/day = up to 20 lives, Nick 2026-08-09; a denial hides the button); offline it
   feeds the local wall-clock meter. **Ad SDK decision (2026-07-30): Unity LevelPlay
   mediation with AdMob as a bidder** — integrated near release, NOT now.
   Everything still needed to make ads real: **§7.3**.
@@ -294,11 +294,11 @@ volume this game will not have on day one. Reversible for the price of one class
    check (ads are opt-in rewarded only, §8).
 5. ⬜ **Server**: replace the client-claimed `grant_ad_refill` path with **AdMob SSV**
    (server-side verification callback → Edge Function grants the +2, BACKEND.md
-   §6.4); until then the 3/day server rate limit is the only defense.
+   §6.4); until then the 10/day server rate limit is the only defense, and it is a bound on FORGERY rather than a design target.
 6. ✅ **Daily-budget mirror** — DONE 2026-08-08, migration `20260808000004_ad_budget.sql`
    (local only; **not yet pushed to production**). `get_profile` and every
    `grant_ad_refill` reply now carry `grants_remaining`, so the button hides BEFORE a
-   wasted watch instead of after the first denial. The 3/day constant moved out of an
+   wasted watch instead of after the first denial. The daily-cap constant moved out of an
    inline `>= 3` into `ad_refill_daily_cap()` — a client showing a different number
    than the server enforces is the exact bug this fixes. `ad_grants_remaining(uuid)`
    is definer + revoked from clients (ad_grants is server-internal; it must not become
