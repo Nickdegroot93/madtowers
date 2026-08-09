@@ -520,6 +520,61 @@ public static partial class MainMenuRuntime
             }
             FactoryReset.EraseAllAndQuit();
         });
+        rowTop -= ToggleRowH;
+
+        BuildDevSkipChapterOneRow(rows, ref rowTop, accent);
+    }
+
+    /// <summary>
+    /// DEVELOPMENT BUILDS ONLY: mark chapter 1 finished so the meta systems (attempts
+    /// meter, shop, supplies) switch on without replaying it.
+    ///
+    /// The gate is SERVER-side - `attempts_meter_charged` counts `completedLevelIds` in
+    /// the synced payload against `chapter1_level_count` - so nothing local, and not the
+    /// unlock-all define either, can turn the meter on by itself. Testing the ad-refill
+    /// loop otherwise means genuinely clearing three levels on the device first.
+    ///
+    /// Guarded by `Debug.isDebugBuild`, the same switch that keeps ads on test units, so
+    /// it cannot reach a release build even if this line is forgotten.
+    /// </summary>
+    private static void BuildDevSkipChapterOneRow(RectTransform rows, ref float rowTop, Color accent)
+    {
+        if (!Debug.isDebugBuild) return;
+
+        ChapterDefinition[] chapters = Campaign.LoadChaptersInOrder();
+        if (chapters.Length == 0) return;
+        ChapterDefinition first = chapters[0];
+
+        RectTransform row = NewSettingsRow(rows, "DevCompleteChapter1", rowTop, ToggleRowH);
+        rowTop -= ToggleRowH;
+        BuildRowLabel(row, MenuSprites.Info, "DEV: COMPLETE CHAPTER 1",
+            "Test build only. Turns on lives, shop and supplies.", accent);
+
+        (Button click, TextMeshProUGUI label) =
+            BuildRowActionButton(row, "DevCompleteButton", "COMPLETE", accent, accent);
+        click.onClick.AddListener(() =>
+        {
+            SfxPlayer.Play("ui-button-click");
+            int marked = 0;
+            foreach (LevelDefinition level in first.Levels)
+            {
+                if (level == null) continue;
+                // A plausible best as well as the completion: the level cards read the
+                // local best, and a blank one next to a completed tick looks broken.
+                if (!ProgressStore.IsLevelCompleted(level))
+                {
+                    ProgressStore.MarkLevelCompleted(level);
+                    marked++;
+                }
+                ProgressStore.ReportResult(level, 25, 6f);
+            }
+            // Push now rather than waiting for the debounced pusher: the meter cannot flip
+            // until the SERVER sees the completions, and the point of this button is not
+            // waiting. OnBackground is the existing "push what we have" entry point.
+            ProgressSync.OnBackground();
+            label.text = marked > 0 ? $"DONE ({marked})" : "ALREADY DONE";
+            Debug.Log($"[Dev] chapter 1 marked complete ({marked} newly), progress pushed.");
+        });
     }
 
     // ---- About / Legal tab --------------------------------------------------------------
