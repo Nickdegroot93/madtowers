@@ -186,7 +186,14 @@ public static class AdMobBootstrap
         UnityEngine.Object.DontDestroyOnLoad(driver.gameObject);
         _driver = driver;
 
-        RequestConsentThenInitialize();
+        // Initialization is deliberately NOT called here. BeforeSceneLoad runs before the
+        // Android Activity has resumed, and the SDK latches its app-foreground state when
+        // it initializes - so initializing this early leaves it convinced the app is
+        // backgrounded for the whole session. Every Show() then fails with "The ad can not
+        // be shown when app is not in foreground": the ad loads, the button vanishes
+        // because a show is in progress, and nothing ever appears (device log 2026-08-09).
+        // The driver kicks it off on its first Update, by which point a frame has rendered
+        // and the Activity is genuinely resumed.
 #endif
     }
 
@@ -249,8 +256,19 @@ public static class AdMobBootstrap
     private sealed class AdLoadDriver : MonoBehaviour
     {
         internal AdMobRewardedProvider Provider;
+        private bool _kicked;
 
-        private void Update() => Provider?.Tick(Time.unscaledTime);
+        private void Update()
+        {
+            if (!_kicked)
+            {
+                // First frame after scene load: the Activity is resumed, so the SDK will
+                // read the app as foregrounded. See the note in Boot().
+                _kicked = true;
+                RequestConsentThenInitialize();
+            }
+            Provider?.Tick(Time.unscaledTime);
+        }
 
         private void OnApplicationFocus(bool hasFocus)
         {
