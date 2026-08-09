@@ -65,11 +65,18 @@ public static class AttemptsSync
     public static event Action Changed;
 
     /// <summary>Ask the server for fresh meter state (rpc get_attempts), debounced.</summary>
+    /// <summary>Is a get_attempts request outstanding? Pollers wait on this rather than a
+    /// fixed sleep, which is otherwise shorter than a mobile round trip.</summary>
+    public static bool RefreshInFlight => _refreshInFlight;
+
     /// <summary>Refresh now, ignoring the 2s debounce. For polling that is waiting on a
     /// specific server-side event (the SSV grant), where the debounce would swallow most
-    /// of the attempts and make the reward look like it never arrived.</summary>
+    /// of the attempts and make the reward look like it never arrived. No-ops while a
+    /// request is already outstanding - and crucially does NOT disarm the debounce in that
+    /// case, which used to leave the next unrelated Refresh() free to bypass it.</summary>
     public static void ForceRefresh()
     {
+        if (_refreshInFlight) return;
         _lastRefreshAt = float.NegativeInfinity;
         Refresh();
     }

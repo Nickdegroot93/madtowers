@@ -212,11 +212,16 @@ public static class AttemptsService
     /// </summary>
     private static void AwaitVerifiedGrant(Action<bool> onDone)
     {
-        int before = Count;
-        OnlineService.Run(PollForGrant(before, onDone));
+        // Watch the BUDGET, not the meter. Count is projected forward from local wall
+        // clock, so ordinary regen raises it during the poll window - and the player has
+        // usually just run out, which is exactly when the next +1 is closest. Watching the
+        // meter would report success for a grant that never arrived. grants_remaining only
+        // moves when the server actually books a grant (review 2026-08-09).
+        int budgetBefore = AdGrantsRemaining;
+        OnlineService.Run(PollForGrant(budgetBefore, onDone));
     }
 
-    private static System.Collections.IEnumerator PollForGrant(int before, Action<bool> onDone)
+    private static System.Collections.IEnumerator PollForGrant(int budgetBefore, Action<bool> onDone)
     {
         // Spread out: the callback usually lands within a second or two, but a cold Edge
         // Function or a slow network can take longer, and a single check would miss it.
@@ -225,8 +230,17 @@ public static class AttemptsService
         {
             yield return new UnityEngine.WaitForSecondsRealtime(waits[i]);
             AttemptsSync.ForceRefresh();
-            yield return new UnityEngine.WaitForSecondsRealtime(0.35f);
-            if (Count > before)
+            // Wait for the REPLY, not a fixed guess: a 0.35s sleep is shorter than a
+            // typical mobile round trip, so most iterations used to re-arm the debounce
+            // against a request still in flight and the effective wait collapsed.
+            float deadline = UnityEngine.Time.realtimeSinceStartup + 3f;
+            while (AttemptsSync.RefreshInFlight && UnityEngine.Time.realtimeSinceStartup < deadline)
+            {
+                yield return null;
+            }
+            // Unknown budget means the server never told us; that is not evidence of a grant.
+            if (budgetBefore != GrantsUnknown && AdGrantsRemaining != GrantsUnknown
+                && AdGrantsRemaining < budgetBefore)
             {
                 onDone?.Invoke(true);
                 yield break;

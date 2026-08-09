@@ -14,6 +14,19 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const KEY_URL = "https://www.gstatic.com/admob/reward/verifier-keys.json";
 
+// Our own rewarded units (the numeric half of ca-app-pub-4384624714813425/…), plus
+// Google's public test units so a development build still exercises the real path.
+// A signature proves the callback came from Google - NOT that it came from our app.
+const ALLOWED_AD_UNITS = new Set([
+  "2353049753",   // Hazard Heights Android — attempts_refill
+  "9768505345",   // Hazard Heights iOS     — attempts_refill
+  "5224354917",   // Google sample rewarded, Android
+  "1712485313",   // Google sample rewarded, iOS
+]);
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 type VerifierKey = { keyId: number; pem: string; base64: string };
 
 // Google rotates these; cache but never longer than 24h (their instruction).
@@ -60,8 +73,8 @@ function derToRaw(der: Uint8Array): Uint8Array | null {
   return out;
 }
 
-async function getKeys(): Promise<Map<string, CryptoKey>> {
-  if (keyCache && Date.now() - keyCache.at < KEY_TTL_MS) return keyCache.keys;
+async function getKeys(force = false): Promise<Map<string, CryptoKey>> {
+  if (!force && keyCache && Date.now() - keyCache.at < KEY_TTL_MS) return keyCache.keys;
   const res = await fetch(KEY_URL);
   if (!res.ok) throw new Error(`verifier keys ${res.status}`);
   const json = await res.json() as { keys: VerifierKey[] };
@@ -90,11 +103,17 @@ Deno.serve(async (req) => {
   if (sigAt < 0) return new Response("missing signature", { status: 400 });
   const signedContent = qs.slice(0, sigAt);
 
-  const params = url.searchParams;
-  const signature = params.get("signature") ?? "";
-  const keyId = params.get("key_id") ?? "";
-  const userId = params.get("custom_data") ?? "";
-  const transactionId = params.get("transaction_id") ?? "";
+  // EVERY field that decides anything comes out of the SIGNED content, never the raw
+  // URL. Reading them from url.searchParams would let anyone replay a genuine signed
+  // callback with "&custom_data=<their uuid>" appended: the signature still verifies
+  // (it covers only the prefix) and the reward is redirected. signature/key_id are the
+  // exception by definition - they sit after the boundary.
+  const signed = new URLSearchParams(signedContent);
+  const signature = url.searchParams.get("signature") ?? "";
+  const keyId = url.searchParams.get("key_id") ?? "";
+  const userId = signed.get("custom_data") ?? "";
+  const transactionId = signed.get("transaction_id") ?? "";
+  const adUnit = signed.get("ad_unit") ?? "";
 
   if (!signature || !keyId || !transactionId) {
     return new Response("missing params", { status: 400 });
@@ -102,12 +121,37 @@ Deno.serve(async (req) => {
   // No user means we cannot attribute the reward. Not an error on Google's side -
   // ack it so they stop retrying something that will never succeed.
   if (!userId) return new Response("no custom_data", { status: 200 });
+  // A malformed id would blow up the uuid cast in the RPC, turning into a 500 that
+  // Google retries forever. Reject the shape here and acknowledge instead.
+  if (!UUID_RE.test(userId)) {
+    console.warn("[ssv] custom_data is not a uuid", { transactionId });
+    return new Response("bad custom_data", { status: 200 });
+  }
+  // Google signs callbacks for EVERY publisher with the same global key set, so a
+  // valid signature only proves "some AdMob account", not "ours". Without this,
+  // anyone could point their own ad unit's SSV URL here and mint grants against our
+  // meter from ads served in their app.
+  if (!ALLOWED_AD_UNITS.has(adUnit)) {
+    console.warn("[ssv] rejected foreign ad_unit", { adUnit, transactionId });
+    return new Response("unknown ad_unit", { status: 403 });
+  }
 
   let ok = false;
   try {
-    const keys = await getKeys();
-    const key = keys.get(keyId);
-    if (!key) return new Response("unknown key_id", { status: 400 });
+    let keys = await getKeys();
+    let key = keys.get(keyId);
+    if (!key) {
+      // Google rotates keys. A warm isolate holding a stale cache would answer 400 to
+      // every callback until the TTL expired - and 4xx is final, so those rewards are
+      // gone. Refetch once before giving up.
+      keys = await getKeys(true);
+      key = keys.get(keyId);
+    }
+    // Still unknown: 5xx so Google RETRIES rather than dropping a real reward.
+    if (!key) {
+      console.error("[ssv] unknown key_id after refresh", { keyId });
+      return new Response("unknown key_id", { status: 500 });
+    }
     const raw = derToRaw(b64ToBytes(signature));
     if (!raw) return new Response("bad signature encoding", { status: 400 });
     ok = await crypto.subtle.verify(

@@ -311,8 +311,36 @@ volume this game will not have on day one. Reversible for the price of one class
    device before the old path is closed; flipping back is the same one row.
    The client needs no release for either: it discovers the switch from the
    `ssv_required` reply and starts polling the meter instead of claiming.
+
+   **Hardened 2026-08-09 after review — the properties that make it safe:**
+   - Every decision field is parsed from the **signed prefix**, never the raw URL.
+     Reading `custom_data` from `url.searchParams` let anyone replay a genuine signed
+     callback with `&custom_data=<their uuid>` appended and redirect the reward.
+   - **`ad_unit` is allowlisted.** Google signs callbacks for every publisher with one
+     global key set, so a valid signature proves "some AdMob account", not ours —
+     without the check, anyone could point their own unit's SSV URL here.
+   - `verify_jwt = false` is declared in `config.toml`, not just passed at deploy. One
+     deploy without the flag would 401 every callback before the handler runs, killing
+     all payouts silently with no log.
+   - Replay is claimed **insert-first** (`20260809000008`): the old check-then-lock let
+     two retried deliveries both pay while the ledger recorded one grant.
+   - Unknown `key_id` refetches once, then answers **5xx so Google retries** — a 4xx is
+     final, and key rotation would otherwise drop real rewards for hours.
+   - `custom_data` is validated as a uuid; a malformed one would fail the cast inside
+     the RPC and become a 500 Google retries forever.
+
+   **Known and accepted for now:**
+   - `custom_data` is still a raw user id chosen by the client, and user ids are
+     publicly readable (`scores_select_all`). A modified client can attribute its own
+     watched ad to another player — a grief (it burns the victim's daily budget), not
+     self-gain, since the attacker gives away their own reward. The fix is a
+     server-minted per-ad nonce resolved in the Edge Function; worth doing before the
+     boards are public.
+   - Under SSV a server-side refusal (`rate_limited`, `attempts_full`) is invisible to
+     the player: the callback answers Google, not the app. Today they see the meter
+     simply not move.
 6. ✅ **Daily-budget mirror** — DONE 2026-08-08, migration `20260808000004_ad_budget.sql`
-   (local only; **not yet pushed to production**). `get_profile` and every
+   (**applied to production 2026-08-09**, verified 8/8 there). `get_profile` and every
    `grant_ad_refill` reply now carry `grants_remaining`, so the button hides BEFORE a
    wasted watch instead of after the first denial. The daily-cap constant moved out of an
    inline `>= 3` into `ad_refill_daily_cap()` — a client showing a different number

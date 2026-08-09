@@ -77,6 +77,26 @@ NOW="$(jget "$(rpc get_attempts "$JWT" '{}')" count)"
   && ok "replayed transaction_id grants once (attempts still $NOW)" \
   || bad "replay: $G2 attempts=$NOW"
 
+# --- 2b) CONCURRENT duplicates (Google retrying a slow call) grant once ------
+# The original code checked the ledger before taking the row lock, so two overlapping
+# deliveries both saw "unseen", then serialized on the lock and BOTH paid +2 while the
+# ledger recorded one grant. Fire them together and demand a single +2.
+for i in 1 2 3; do
+  S="$(rpc start_run "$JWT" '{"p_level_id":"Level_SSV","p_board":"clean","p_loadout":null}')"
+  RID="$(jget "$S" run_id)"
+  [ -n "$RID" ] && rpc finish_run "$JWT" \
+    "{\"p_run_id\":\"$RID\",\"p_won\":false,\"p_score\":1,\"p_height\":1}" >/dev/null
+done
+RACE_BEFORE="$(jget "$(rpc get_attempts "$JWT" '{}')" count)"
+TX="TX-$$-race"
+srpc grant_ad_refill_verified "{\"p_user_id\":\"$UID_\",\"p_transaction_id\":\"$TX\"}" >/dev/null &
+srpc grant_ad_refill_verified "{\"p_user_id\":\"$UID_\",\"p_transaction_id\":\"$TX\"}" >/dev/null &
+wait
+RACE_AFTER="$(jget "$(rpc get_attempts "$JWT" '{}')" count)"
+[ "$RACE_AFTER" = "$((RACE_BEFORE + 2))" ] \
+  && ok "concurrent duplicate callbacks pay once ($RACE_BEFORE -> $RACE_AFTER, not +4)" \
+  || bad "race: $RACE_BEFORE -> $RACE_AFTER (expected +2)"
+
 # --- 3) it must NOT be reachable by a player --------------------------------
 H="$(curl -s -m 20 -o /dev/null -w "%{http_code}" -X POST \
       "$SUPABASE_URL/rest/v1/rpc/grant_ad_refill_verified" \

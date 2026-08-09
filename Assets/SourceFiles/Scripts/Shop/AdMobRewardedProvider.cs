@@ -90,6 +90,25 @@ public sealed class AdMobRewardedProvider : IRewardedAdProvider
             return;
         }
 
+        // SSV attribution is stamped HERE, not at load. An ad is preloaded at boot and can
+        // sit in hand for the best part of an hour; on a fresh install the anonymous
+        // sign-in has not returned yet at that point, so a load-time stamp would be empty
+        // for the whole session - the player watches a full video, Google posts a callback
+        // with no custom_data, and the reward is dropped in silence. Reading the session at
+        // SHOW time means it is whatever is true when the ad is actually watched, and the
+        // account cannot have been deleted out from under it either (review 2026-08-09).
+        string userId = SupabaseSession.UserId;
+        if (string.IsNullOrEmpty(userId))
+        {
+            // Refusing beats showing: a watched ad that can never pay is worse than a
+            // hidden button, and the caller reports failure rather than a silent nothing.
+            Debug.LogWarning("[Ads] no session at show time - refusing to burn an unpayable ad.");
+            onFinished?.Invoke(false);
+            return;
+        }
+        // Plain fields in this plugin version, not the Builder the docs show.
+        ad.SetServerSideVerificationOptions(new ServerSideVerificationOptions { CustomData = userId });
+
         // A rewarded ad is single-use: hand it off now so nothing can show it twice, and
         // start the next load the moment this one closes.
         _ad = null;
@@ -138,23 +157,6 @@ public sealed class AdMobRewardedProvider : IRewardedAdProvider
                 return;
             }
             _failures = 0;
-
-            // SSV: Google's callback carries this back to our Edge Function, and it is the
-            // ONLY thing that says which player earned the reward. Without it the callback
-            // arrives unattributable and nobody gets paid, so it is set per ad, at load,
-            // from the session that is current then.
-            string userId = SupabaseSession.UserId;
-            if (!string.IsNullOrEmpty(userId))
-            {
-                // Plain fields in this plugin version, not the Builder the docs show.
-                ad.SetServerSideVerificationOptions(
-                    new ServerSideVerificationOptions { CustomData = userId });
-            }
-            else
-            {
-                Debug.LogWarning("[Ads] no user id at ad load - SSV cannot attribute this reward.");
-            }
-
             _ad = ad;
         });
     }
@@ -176,8 +178,27 @@ public static class AdMobBootstrap
         // in this game touches UI, so marshal them before anything else is configured.
         MobileAds.RaiseAdEventsOnUnityMainThread = true;
 
+        // The driver is created BEFORE consent, not inside InitializeAds. It owns both
+        // retry paths, and the consent step is the one that can fail with nothing else
+        // alive to recover it - a driver that only exists after success cannot retry
+        // the failure that stopped it existing (review 2026-08-09).
+        var driver = new GameObject("AdLoadDriver").AddComponent<AdLoadDriver>();
+        UnityEngine.Object.DontDestroyOnLoad(driver.gameObject);
+        _driver = driver;
+
         RequestConsentThenInitialize();
 #endif
+    }
+
+    private static AdLoadDriver _driver;
+    private static bool _consentInFlight;
+
+    /// <summary>Re-run the consent step if it never completed. Cheap to call often: it
+    /// no-ops once the SDK is initialised or while an attempt is outstanding.</summary>
+    public static void RetryConsentIfNeeded()
+    {
+        if (_initialized || _consentInFlight) return;
+        RequestConsentThenInitialize();
     }
 
     /// <summary>
@@ -193,13 +214,16 @@ public static class AdMobBootstrap
             InitializeAds();
         }
 
+        _consentInFlight = true;
         ConsentInformation.Update(new ConsentRequestParameters(), consentError =>
         {
+            _consentInFlight = false;
             if (consentError != null)
             {
-                // Consent state unknown: no ads this session. Failing closed costs a few
-                // rewarded views; failing open costs a GDPR complaint.
-                Debug.LogWarning($"[Ads] consent update failed: {consentError.Message}");
+                // Consent state unknown: no ads YET. Failing closed costs a few rewarded
+                // views; failing open costs a GDPR complaint. Not terminal though - the
+                // driver retries this on the next foreground.
+                Debug.LogWarning($"[Ads] consent update failed (will retry): {consentError.Message}");
                 return;
             }
 
@@ -208,8 +232,10 @@ public static class AdMobBootstrap
                 if (formError != null)
                 {
                     Debug.LogWarning($"[Ads] consent form failed: {formError.Message}");
-                    return;
                 }
+                // Checked either way: a form that failed to present can still leave a
+                // state that permits ads (a returning player, or no form required at
+                // all), and Google's own sample re-checks here rather than returning.
                 if (ConsentInformation.CanRequestAds())
                 {
                     InitializeAds();
@@ -228,7 +254,13 @@ public static class AdMobBootstrap
 
         private void OnApplicationFocus(bool hasFocus)
         {
-            if (hasFocus) Provider?.RetryNow();
+            if (!hasFocus) return;
+            Provider?.RetryNow();
+            // Consent may never have completed (no network at launch is routine). The
+            // provider's own backoff cannot help there - without consent the SDK is never
+            // initialised and no provider exists at all, so the retry has to live one
+            // layer up (review 2026-08-09).
+            AdMobBootstrap.RetryConsentIfNeeded();
         }
     }
 
@@ -249,12 +281,9 @@ public static class AdMobBootstrap
 
             var provider = new AdMobRewardedProvider();
             RewardedAds.Install(provider);
-
-            // The provider is a plain class, so it needs something with an Update to run
-            // its retry schedule. Menus run at timeScale = 0, hence unscaled time.
-            var driver = new GameObject("AdLoadDriver").AddComponent<AdLoadDriver>();
-            driver.Provider = provider;
-            UnityEngine.Object.DontDestroyOnLoad(driver.gameObject);
+            // The driver already exists (created at boot); hand it the provider so its
+            // Update starts driving the load schedule.
+            if (_driver != null) _driver.Provider = provider;
         });
     }
 }
