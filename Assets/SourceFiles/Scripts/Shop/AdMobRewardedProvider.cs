@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using GoogleMobileAds.Api;
 using GoogleMobileAds.Ump.Api;
 using UnityEngine;
@@ -18,35 +19,43 @@ using UnityEngine;
 /// </summary>
 public sealed class AdMobRewardedProvider : IRewardedAdProvider
 {
-    // Google's documented sample units (developers.google.com/admob/unity/test-ads).
-    // Not tied to any account, so they cannot generate invalid traffic.
-    private const string TestRewardedAndroid = "ca-app-pub-3940256099942544/5224354917";
-    private const string TestRewardedIos = "ca-app-pub-3940256099942544/1712485313";
-
-    // The real units (AdMob console, "attempts_refill", added 2026-08-09).
+    // Our real units (AdMob console, "attempts_refill", added 2026-08-09).
     private const string LiveRewardedAndroid = "ca-app-pub-4384624714813425/2353049753";
     private const string LiveRewardedIos = "ca-app-pub-4384624714813425/9768505345";
 
     /// <summary>
-    /// Live units ONLY in a release build. Requesting real ads from a machine you are
-    /// developing on is how AdMob accounts get flagged for invalid traffic - and the two
-    /// failure modes are not symmetric: shipping test units costs revenue for a release
-    /// (recoverable in an update), while testing on live units risks the account itself.
-    /// So the gate fails toward test ads, and a Development Build always gets them.
+    /// Devices that receive TEST fill from our own ad units. This is how Google intends
+    /// development to work, and it is the only arrangement in which SSV can be tested at
+    /// all: the verification callback is configured per ad unit in OUR console, so an ad
+    /// served from Google's sample units - which we do not own - never produces one. The
+    /// reward simply never arrives, which is exactly what happened on device 2026-08-09.
+    ///
+    /// A registered device gets test ads from the real unit: no revenue, no invalid
+    /// traffic, and a real SSV callback. The id is printed by the SDK on first request
+    /// ("Use RequestConfiguration.Builder().setTestDeviceIds(...)") - add any new test
+    /// phone here, or that phone will request LIVE ads from a development build.
     /// </summary>
-    private static bool UseLiveAds => !Debug.isDebugBuild;
-
-    private static string AdUnitId
+    private static readonly string[] TestDeviceIds =
     {
-        get
+        "0CCCB5C4DC329E8C1EF5064FC8B54993",   // Nick's SM-S938B
+    };
+
+    internal static void ApplyTestDevices()
+    {
+        // Release builds serve real ads to everyone; nothing is registered.
+        if (!Debug.isDebugBuild) return;
+        MobileAds.SetRequestConfiguration(new RequestConfiguration
         {
-#if UNITY_IOS && !UNITY_EDITOR
-            return UseLiveAds ? LiveRewardedIos : TestRewardedIos;
-#else
-            return UseLiveAds ? LiveRewardedAndroid : TestRewardedAndroid;
-#endif
-        }
+            TestDeviceIds = new List<string>(TestDeviceIds),
+        });
     }
+
+    private static string AdUnitId =>
+#if UNITY_IOS && !UNITY_EDITOR
+        LiveRewardedIos;
+#else
+        LiveRewardedAndroid;
+#endif
 
     // Retry schedule after a failed load, in seconds. No fill and no network at cold
     // start are both routine on mobile, and without a retry a single failed load kills
@@ -289,12 +298,19 @@ public static class AdMobBootstrap
         if (_initialized) return;
         _initialized = true;
 
+        // Before Initialize: the request configuration has to be in place by the time the
+        // first ad is requested, or that ad is live fill on a developer's phone.
+        AdMobRewardedProvider.ApplyTestDevices();
+
         MobileAds.Initialize(_ =>
         {
-            // Say it out loud once: "ads work on my phone but earn nothing" and "my account
-            // got flagged" are both this line being the value you did not expect.
+            // Say it out loud once. Both "ads earn nothing" and "my account got flagged"
+            // are this line being the state you did not expect - and note the unit is
+            // ALWAYS the real one now: safety comes from the test-device list, not from
+            // swapping in Google's sample units (which cannot deliver an SSV callback).
             Debug.Log(Debug.isDebugBuild
-                ? "[Ads] development build - TEST ads (no revenue, no invalid-traffic risk)."
+                ? "[Ads] development build - real ad unit, TEST fill via registered test device. " +
+                  "An UNREGISTERED device in a dev build requests LIVE ads."
                 : "[Ads] release build - LIVE ads. Do not tap these yourself.");
 
             var provider = new AdMobRewardedProvider();
