@@ -174,12 +174,18 @@ today**, no account, no revenue, no invalid-traffic risk:
 
 Still open, and each one is genuinely account-gated:
 
-- [ ] **AdMob account** — created 2026-08-08, **pending Google verification**; the app
-      itself will be added later (Nick). Add it as "not listed on a store yet" to mint
-      real units before launch, then link to the listing (limited serving until linked).
-- [ ] **Swap the test IDs for real ones** — 4 values: app ID + rewarded unit ID, Android
-      and iOS. Two constants in `AdMobRewardedProvider.cs` + two fields in
-      `GoogleMobileAdsSettings.asset`. Minutes, once the IDs exist.
+- [x] **AdMob account + apps** — DONE 2026-08-09. Two apps (Android + iOS), each added as
+      "not listed on a store yet", each with one Rewarded unit `attempts_refill`.
+      ⚠️ Still to do at launch: **link both to the store listings** once they exist, or ad
+      serving stays limited. Publisher `ca-app-pub-4384624714813425`.
+- [x] **Real IDs wired** — DONE 2026-08-09. App IDs in `GoogleMobileAdsSettings.asset`,
+      rewarded units in `AdMobRewardedProvider.cs`.
+      **Live units are used ONLY in a release build** (`UseLiveAds => !Debug.isDebugBuild`).
+      Requesting real ads from a machine you develop on is how accounts get flagged for
+      invalid traffic, and the failure modes are not symmetric: shipping test units costs
+      one release's revenue, testing on live units risks the account. So the gate fails
+      toward test ads and logs which mode it booted in. **A non-development build serves
+      LIVE ads — do not tap them.**
 - [ ] **iOS ATT** — Google routes the prompt through a UMP message configured in the
       AdMob console, so it cannot be built before the account. Also unverifiable here:
       no iOS build has ever been run on this machine.

@@ -19,17 +19,34 @@ using UnityEngine;
 public sealed class AdMobRewardedProvider : IRewardedAdProvider
 {
     // Google's documented sample units (developers.google.com/admob/unity/test-ads).
+    // Not tied to any account, so they cannot generate invalid traffic.
     private const string TestRewardedAndroid = "ca-app-pub-3940256099942544/5224354917";
     private const string TestRewardedIos = "ca-app-pub-3940256099942544/1712485313";
 
-    // TODO(go-live): replace with the real units from the AdMob console, and swap the
-    // sample app IDs in GoogleMobileAdsSettings at the same time. SHOP.md §7.3 item 1.
-    private static string AdUnitId =>
+    // The real units (AdMob console, "attempts_refill", added 2026-08-09).
+    private const string LiveRewardedAndroid = "ca-app-pub-4384624714813425/2353049753";
+    private const string LiveRewardedIos = "ca-app-pub-4384624714813425/9768505345";
+
+    /// <summary>
+    /// Live units ONLY in a release build. Requesting real ads from a machine you are
+    /// developing on is how AdMob accounts get flagged for invalid traffic - and the two
+    /// failure modes are not symmetric: shipping test units costs revenue for a release
+    /// (recoverable in an update), while testing on live units risks the account itself.
+    /// So the gate fails toward test ads, and a Development Build always gets them.
+    /// </summary>
+    private static bool UseLiveAds => !Debug.isDebugBuild;
+
+    private static string AdUnitId
+    {
+        get
+        {
 #if UNITY_IOS && !UNITY_EDITOR
-        TestRewardedIos;
+            return UseLiveAds ? LiveRewardedIos : TestRewardedIos;
 #else
-        TestRewardedAndroid;
+            return UseLiveAds ? LiveRewardedAndroid : TestRewardedAndroid;
 #endif
+        }
+    }
 
     // Retry schedule after a failed load, in seconds. No fill and no network at cold
     // start are both routine on mobile, and without a retry a single failed load kills
@@ -207,6 +224,12 @@ public static class AdMobBootstrap
 
         MobileAds.Initialize(_ =>
         {
+            // Say it out loud once: "ads work on my phone but earn nothing" and "my account
+            // got flagged" are both this line being the value you did not expect.
+            Debug.Log(Debug.isDebugBuild
+                ? "[Ads] development build - TEST ads (no revenue, no invalid-traffic risk)."
+                : "[Ads] release build - LIVE ads. Do not tap these yourself.");
+
             var provider = new AdMobRewardedProvider();
             RewardedAds.Install(provider);
 

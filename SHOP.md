@@ -265,10 +265,11 @@ grant. It is also one account instead of two, and mediation's eCPM edge only pay
 volume this game will not have on day one. Reversible for the price of one class:
 `IRewardedAdProvider` is the entire contract the game knows about.
 
-1. ⬜ **Account**: Google AdMob only ([admob.google.com](https://admob.google.com)).
-   An app can be added as "not listed on a store yet" to mint real ad units before
-   launch, then linked to the listing later (limited serving until linked). Free, ever
-   — ad networks pay out, never charge. **Still create it late** (idle deactivation).
+1. ✅ **Account + apps** — DONE 2026-08-09. Publisher `ca-app-pub-4384624714813425`, two
+   apps (Android + iOS) added as "not listed on a store yet", one Rewarded unit each
+   (`attempts_refill`). Real IDs are wired, but **live units serve only in a release
+   build** — see item 3. Remaining: link both apps to the store listings at launch, or
+   serving stays limited.
 2. ✅ **SDK** — DONE 2026-08-08: `com.google.ads.mobile@11.3.0` +
    `com.google.external-dependency-manager@1.2.188` via the OpenUPM scoped registry
    (`com.google` added to the existing scopes). `GoogleMobileAdsSettings.asset` holds
