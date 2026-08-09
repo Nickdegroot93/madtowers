@@ -149,6 +149,23 @@ public static partial class MainMenuRuntime
                 $"{AttemptsService.Count}/{AttemptsService.MaxAttempts}",
                 showTimer ? $"{(int)regen.TotalMinutes:00}:{regen.Seconds:00}" : null);
             adRefillSlot = WireAdRefillPlus(attemptsCard);
+
+            // The WHOLE chip opens the refill offer, not just the "+" (Nick 2026-08-09):
+            // the card is the natural "I want more lives" tap target, and the modal is
+            // where the choice (Unlimited vs. an ad) is actually explained.
+            Image cardHit = attemptsCard.gameObject.GetComponent<Image>()
+                ?? attemptsCard.gameObject.AddComponent<Image>();
+            if (cardHit.sprite == null && cardHit.color == default) cardHit.color = Color.clear;
+            cardHit.raycastTarget = true;
+            Button cardButton = attemptsCard.gameObject.GetComponent<Button>()
+                ?? attemptsCard.gameObject.AddComponent<Button>();
+            cardButton.targetGraphic = cardHit;
+            cardButton.transition = Selectable.Transition.None;
+            cardButton.onClick.AddListener(() =>
+            {
+                SfxPlayer.Play("ui-button-click");
+                OpenRefillOffer();
+            });
         }
 
         // Live refresh: name + meter numbers change underneath the bar (boot completing,
@@ -163,11 +180,12 @@ public static partial class MainMenuRuntime
         live.BuiltMode = ChipMode();
     }
 
-    /// <summary>Make the meter chip's "+" a live rewarded-ad refill (Nick 2026-08-01): tap →
-    /// watch → +2 attempts (capped at 5, server-granted online - SHOP.md §7.3). The whole
-    /// divider+plus slot is the 64px-wide tap target, and it only SHOWS while an ad could
-    /// actually pay out: meter below max and a showable, non-rate-limited ad (TopBarLive
-    /// re-evaluates every tick, so the plus vanishes at 5/5 and returns as regen spends).</summary>
+    /// <summary>The meter chip's "+": opens the refill offer, exactly like tapping the
+    /// chip itself (Nick 2026-08-09 - it used to START AN AD outright, which read as
+    /// broken: no explanation, no choice, just a video). The modal is where Unlimited is
+    /// pitched and the ad is chosen knowingly. The plus still only SHOWS while a watch
+    /// could pay out (meter below max, showable non-rate-limited ad - TopBarLive
+    /// re-evaluates every tick), because it advertises the ad option specifically.</summary>
     private static GameObject WireAdRefillPlus(RectTransform attemptsCard)
     {
         Transform slot = attemptsCard.Find("AddSlot");
@@ -181,11 +199,7 @@ public static partial class MainMenuRuntime
         button.onClick.AddListener(() =>
         {
             SfxPlayer.Play("ui-button-click");
-            RewardedAds.Show(earned =>
-            {
-                // The meter events / next tick redraw the chip; nothing to refresh here.
-                if (earned) AttemptsService.RequestAdRefill(null);
-            });
+            OpenRefillOffer();
         });
 
         slot.gameObject.SetActive(AdRefillPlusShouldShow());
