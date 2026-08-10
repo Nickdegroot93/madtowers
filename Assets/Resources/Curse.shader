@@ -12,8 +12,11 @@ Shader "MadTowers/Curse"
     //   - it occasionally BLINKS (_Phase) so it reads alive, not painted.
     // SOUL SMOKE rises from exposed top cells (_Expose, per cell) - the bury-me beacon.
     // _Fire is the detonation: blinding flash + two shock rings expanding past the brick edge.
-    // The body sits inset in an oversized quad (_BodyHalf, Maw pattern) for smoke headroom;
-    // _UpDir keeps everything upright however the piece landed. Component-driven time (_Phase)
+    // The body sits inset in an oversized quad (_BodyHalf, Maw pattern) for smoke headroom.
+    // The stone body draws in the CELL frame (rotates with the piece, like every brick);
+    // _UpDir keeps only the eye + smoke upright however the piece landed (Maw pattern -
+    // rotating the whole frame made falling pieces render as a wheel of upright cubes).
+    // Component-driven time (_Phase)
     // so a pause freezes it. Framed by the shared brick recipe. Theme-independent.
     Properties
     {
@@ -160,15 +163,21 @@ Shader "MadTowers/Curse"
 
             half4 frag(Varyings IN) : SV_Target
             {
-                // Up-frame: rotate the cell so +y is world up (Maw pattern).
+                // The BODY lives in the cell's OWN frame so the stone rotates rigidly with
+                // the piece, like every other brick - rotating the whole frame made a
+                // falling piece render as world-upright cubes orbiting the pivot ("the
+                // wheel", Nick 2026-08-10). Only the LIVING parts - eye and soul smoke -
+                // use the world-up frame, so they stay upright however the piece landed.
+                // This is the actual Maw pattern: its flesh is raw-frame too, only the
+                // mouth and eyes rotate.
                 float2 pRaw = IN.uv - 0.5;
                 float2 upDir = _UpDir.xy;
                 float2 u2 = (dot(upDir, upDir) < 1e-5) ? float2(0, 1) : normalize(upDir);
                 float2 r2 = float2(u2.y, -u2.x);
-                float2 p = float2(dot(pRaw, r2), dot(pRaw, u2));
+                float2 p = float2(dot(pRaw, r2), dot(pRaw, u2)); // up-frame: eye + smoke only
 
-                // Body frame: pb spans [-0.5, 0.5] over the inset brick body.
-                float2 pb = p / (2.0 * _BodyHalf);
+                // Body frame: pb spans [-0.5, 0.5] over the inset brick body (cell frame).
+                float2 pb = pRaw / (2.0 * _BodyHalf);
                 float2 bodyUv = pb + 0.5;
                 float3 stone = _StoneColor.rgb;
 
@@ -236,7 +245,9 @@ Shader "MadTowers/Curse"
                     openAmt = max(openAmt, sig * _Expose * lastOne);     // last sigil: fully wide
                     openAmt *= lerp(1.0, blink, step(openAmt, 0.75));
 
-                    float2 ep = pb - float2(0.0, 0.02);
+                    // Up-frame body coords: the eye (and its closed seam) stays world-
+                    // upright in any landed rotation, exactly like the Maw's face.
+                    float2 ep = p / (2.0 * _BodyHalf) - float2(0.0, 0.02);
                     // Wide almond that goes ROUND as it opens fully (scary-stage silhouette).
                     float almondW = 0.36;
                     float roundness = lerp(2.0, 1.05, openAmt);          // exponent: sliver -> round
