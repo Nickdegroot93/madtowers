@@ -260,7 +260,9 @@ roll. The default enforces, in order:
    The same check also consults every modifier's `LevelModifier.BansAbility` — a game
    TYPE's lockouts ride the modifier into all its levels with no per-level authoring
    (Height-Limit Waves bans every ability granting an `AnchorBlockData` variant: a brick
-   that freezes into permanent terrain wherever it lands collapses the wave puzzle).
+   that freezes into permanent terrain wherever it lands collapses the wave puzzle. It
+   bans **Hardline** for the same collapse — a caught block is a permanent airborne
+   platform to pack against, right where the wave math assumed open air; Nick 2026-08-10).
 4. `requiresVariantsInLevel`: every listed `BlockData` must exist in the mode's spawn
    tables (ambient chances or fallback variants) → **automatic** content conditions
    ("no Vortex bricks in this level → don't offer the anti-Vortex ability").
@@ -579,6 +581,9 @@ the number of cells forming the upper surface, lower height, and smallest rotati
 That makes I/domino pieces lie flat and favours L/T-style orientations with the broad
 side on top. A small overlap nudge tries to keep the rescued platform out of the tower
 without teleporting it far from where it fell. `charges = 1`, `unique = true`.
+Never offered in Height-Limit Waves levels (`HeightLimitWavesModifier.BansAbility`,
+Nick 2026-08-10): free elevated terrain collapses the packing puzzle, same reason
+anchors are banned there.
 
 Juice: the catch flashes the laser line, plays a swoosh + `ImpactPunch`, and bursts a
 swappable per-cell `catchEffect` (a serialized CFXR prefab, base prefabs only per the §13

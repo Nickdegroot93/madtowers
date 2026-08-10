@@ -49,9 +49,13 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     /// at the line is a free wave. Trait-driven (any ability granting an
     /// <see cref="AnchorBlockData"/> variant), so the ambient dropper, the on-demand anchor
     /// consumable and any future anchor ability are all covered in every per-chapter copy of
-    /// this modifier with no per-asset authoring.</summary>
+    /// this modifier with no per-asset authoring. Hardline is banned for the same collapse:
+    /// its catch beam turns a lost block into a permanent AIRBORNE platform - free elevated
+    /// terrain to pack against, right where the wave math assumed open air (Nick 2026-08-10:
+    /// too overpowered in puzzle mode).</summary>
     public override bool BansAbility(AbilityDefinition ability)
     {
+        if (ability is HardlineAbility) return true;
         BlockData granted = ability switch
         {
             BlockVariantChancePowerUp chance => chance.Variant,
