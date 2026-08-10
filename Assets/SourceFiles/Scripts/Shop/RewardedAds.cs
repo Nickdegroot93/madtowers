@@ -30,6 +30,28 @@ public static class RewardedAds
     private static bool _showing;
     private static float _showStartedAt;
 
+    // The ad brings its own soundtrack, and ours kept playing underneath it (device
+    // 2026-08-10) - the overlay activity does not pause Unity's audio. Silence the whole
+    // game via the listener for exactly the ad's lifetime. Listener volume is otherwise
+    // untouched in this game (settings are per-source), so 0-then-restore cannot fight
+    // anything, and the music keeps advancing silently: it resumes mid-track on close
+    // instead of restarting. -1 = not muted by us.
+    private static float _volumeBeforeAd = -1f;
+
+    private static void MuteGameAudioForAd()
+    {
+        if (_volumeBeforeAd >= 0f) return;
+        _volumeBeforeAd = AudioListener.volume;
+        AudioListener.volume = 0f;
+    }
+
+    private static void RestoreGameAudio()
+    {
+        if (_volumeBeforeAd < 0f) return;
+        AudioListener.volume = _volumeBeforeAd;
+        _volumeBeforeAd = -1f;
+    }
+
     // No real ad runs this long. A provider that never calls back at all - process
     // backgrounded mid-ad, the SDK's event lost on the way to the Unity thread - would
     // otherwise wedge _showing true forever and hide every ad surface for the rest of
@@ -53,6 +75,9 @@ public static class RewardedAds
             {
                 UnityEngine.Debug.LogWarning("[Ads] provider never reported back; unwedging.");
                 _showing = false;
+                // The mute rides the same lifetime: a zero-fire provider must not leave
+                // the game silent forever along with the hidden ad surfaces.
+                RestoreGameAudio();
             }
             return _showing;
         }
@@ -76,12 +101,14 @@ public static class RewardedAds
         }
         _showing = true;
         _showStartedAt = UnityEngine.Time.unscaledTime;
+        MuteGameAudioForAd();
         bool finished = false;
         void Finish(bool earned)
         {
             if (finished) return;
             finished = true;
             _showing = false;
+            RestoreGameAudio();
             onFinished?.Invoke(earned);
         }
         try
@@ -100,6 +127,11 @@ public static class RewardedAds
     {
         _provider = null;
         _showing = false;
+        // Exiting play mode mid-ad leaves the listener at 0 (and a domain reload wipes
+        // the remembered volume). Nothing else in the game sets listener volume, so a
+        // hard reset to audible is always right here.
+        _volumeBeforeAd = -1f;
+        AudioListener.volume = 1f;
 #if UNITY_EDITOR
         _provider = new SimulatedRewardedAdProvider();
 #endif
