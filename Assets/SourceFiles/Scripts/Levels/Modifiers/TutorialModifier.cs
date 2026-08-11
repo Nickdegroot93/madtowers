@@ -28,12 +28,13 @@ using UnityEngine.UI;
 [CreateAssetMenu(fileName = "Tutorial", menuName = "Stacking/Levels/Modifiers/Tutorial")]
 public class TutorialModifier : LevelModifier
 {
-    private enum Phase { Inactive, PreRoll, Armed, Beat, AwaitPiece, Coda }
+    private enum Phase { Inactive, PreRoll, Armed, Beat, AwaitPiece, Coda, Recap }
 
     private struct Step
     {
         public PieceGestures Gesture;
         public string Caption;   // <= 8 words (research: text is a caption, the demo teaches)
+        public string Sub;       // optional second line - the WHY, when the gesture needs one
         public int RequiredReps;
         public bool EndsPiece;   // a drop: it releases the hover and rides the piece down
     }
@@ -41,12 +42,15 @@ public class TutorialModifier : LevelModifier
     // The curriculum. Data here (not serialized) so the asset can never go stale against the
     // code. The per-step gesture gate is the cumulative OR of everything taught so far (see
     // AllowedThrough) - never hand-maintained, so it can't drift from the cumulative rule.
+    // Nudge carries a Sub (Nick 2026-08-11): a bare "tap to nudge" reads as another way to
+    // move, when its point is FORCE - a physics shove that darts into gaps and knocks bricks.
     private static readonly Step[] Steps =
     {
         new Step { Gesture = PieceGestures.Rotate,   Caption = "Tap to rotate",              RequiredReps = 1, EndsPiece = false },
         new Step { Gesture = PieceGestures.Move,     Caption = "Drag left or right to move", RequiredReps = 3, EndsPiece = false },
         new Step { Gesture = PieceGestures.SoftDrop, Caption = "Drag down and hold",         RequiredReps = 1, EndsPiece = true },
-        new Step { Gesture = PieceGestures.Nudge,    Caption = "Tap a corner to nudge",      RequiredReps = 1, EndsPiece = false },
+        new Step { Gesture = PieceGestures.Nudge,    Caption = "Tap a corner to nudge",
+                   Sub = "A hard shove - dart into gaps or knock bricks aside!", RequiredReps = 1, EndsPiece = false },
         new Step { Gesture = PieceGestures.HardDrop, Caption = "Flick down to slam!",        RequiredReps = 1, EndsPiece = true },
     };
 
@@ -173,6 +177,7 @@ public class TutorialModifier : LevelModifier
             case Phase.Armed:   UpdateArmed(deltaTime); break;
             case Phase.Beat:    UpdateBeat(deltaTime); break;
             case Phase.Coda:    UpdateCoda(deltaTime); break;
+            case Phase.Recap:   UpdateRecap(deltaTime); break;
         }
     }
 
@@ -301,6 +306,8 @@ public class TutorialModifier : LevelModifier
         // piece rides in. The demo anchors to the live piece, so it simply tracks the descent.
         ApplyStepVisuals();
         _groupVisible = true;
+        // The lessons are now genuinely on screen - SKIP earns its place (built hidden).
+        if (_skipRoot != null) _skipRoot.SetActive(true);
     }
 
     private void UpdatePreRoll(float deltaTime)
@@ -507,6 +514,12 @@ public class TutorialModifier : LevelModifier
         }
 
         _phase = Phase.Coda;
+        _earnedCompletion = earned;
+        // Earned: the recap card follows this coda, so hold the next spawn NOW - the slammed
+        // piece locks mid-coda and the spawner would otherwise drop a fresh brick for the
+        // player to babysit while the card is up (Nick 2026-08-11: "pause the brick dropping
+        // and show the modal directly"). Skips keep playing normally.
+        if (earned && GameManager.Instance != null) GameManager.Instance.SetSpawnSuspended(this, true);
         _codaTime = earned ? 0f : CodaHoldSeconds - SkipCodaHoldSeconds;
         HideDemo();
         if (_skipRoot != null) _skipRoot.SetActive(false);
@@ -544,7 +557,13 @@ public class TutorialModifier : LevelModifier
         // _stepIndex is frozen throughout the coda, so the boost tier is derivable live.
         UIManager.SetNudgeGuideBoost(NudgeBoostFor(_stepIndex) * (1f - fade));
 
-        if (_codaTime >= CodaHoldSeconds + CodaFadeSeconds) Teardown();
+        if (_codaTime >= CodaHoldSeconds + CodaFadeSeconds)
+        {
+            // Earned completions get the recap card; a skipper said "I know this" - don't
+            // make them read a control sheet they just declined to be taught.
+            if (_earnedCompletion) EnterRecap();
+            else Teardown();
+        }
     }
 
     private static void RestoreNormalSpeed(BlockController piece)
@@ -578,7 +597,7 @@ public class TutorialModifier : LevelModifier
     // the player used an already-learned drop mid-step (allowed; the step simply re-arms).
     private void HandleBlockSpawned(BlockController block, BlockData variant)
     {
-        if (_phase == Phase.Inactive || _phase == Phase.Coda) return;
+        if (_phase == Phase.Inactive || _phase == Phase.Coda || _phase == Phase.Recap) return;
         BeginPreRoll(block);
     }
 
@@ -784,6 +803,11 @@ public class TutorialModifier : LevelModifier
             ? ScreenRectOf((RectTransform)skipObject.transform)
             : default;
         TouchGestureInput.RegisterUiExclusionRect(_skipExclusion);
+
+        // Hidden until the first lesson actually shows (BeginPreRoll): the overlay is built
+        // during the camera intro pan, and a lone SKIP pill floating over the reveal read as
+        // a bug (Nick 2026-08-11) - there is nothing to skip yet.
+        _skipRoot.SetActive(false);
     }
 
     private System.Func<Rect> _skipExclusion;
@@ -812,7 +836,17 @@ public class TutorialModifier : LevelModifier
             }
             _caption.color = RuntimeUiKit.TitleColor;
         }
-        if (_subline != null) _subline.text = "";
+        if (_subline != null)
+        {
+            // The step's Sub (the "why") until rep progress claims the line; multi-rep steps
+            // have no Sub today, so the two writers never actually fight.
+            string sub = Steps[_stepIndex].Sub ?? "";
+            if (_subline.text != sub)
+            {
+                _subline.text = sub;
+                if (sub.Length > 0) _sublinePop = 0f;
+            }
+        }
         if (_dots != null)
         {
             for (int i = 0; i < _dots.Length; i++)
@@ -1081,6 +1115,182 @@ public class TutorialModifier : LevelModifier
         Color c = image.color; c.a = alpha; image.color = c;
     }
 
+    // ---- Recap ---------------------------------------------------------------------------------
+
+    // The one-time "everything you just learned" card (Nick 2026-08-11), shown ONLY after an
+    // EARNED completion - a skipper declined the lessons and gets no sheet. The spawn hold
+    // goes up at the earned coda's start (see BeginCoda), so the card appears the moment the
+    // coda fades with NO fresh brick falling behind it. Styled with the ability-card chrome
+    // (gradient slab + neon ring + halo - this is a game, not a spreadsheet: Nick 2026-08-11).
+    // It also carries the one fact the lessons can't show: the corner pills the player just
+    // used are invisible from here on (HudLayout defaults their opacity to 0), and
+    // Settings > Controls is where to turn them back on.
+    private const float RecapPopSeconds = 0.4f;
+    private bool _earnedCompletion;
+    private GameObject _recapRoot;
+    private RectTransform _recapPanel;
+    private CanvasGroup _recapGroup;
+    private float _recapPopTime;
+
+    private void EnterRecap()
+    {
+        _phase = Phase.Recap;
+        _groupVisible = false; // the strip stays retired; the recap is its own canvas
+        if (_group != null) _group.alpha = 0f;
+        BuildRecapModal();
+        SfxPlayer.Play("pop_01", 0.8f);
+    }
+
+    // Entrance juice: ease-out-back scale pop + a quick fade, driven like every other
+    // tutorial micro-animation (no coroutines - the modifier already ticks).
+    private void UpdateRecap(float deltaTime)
+    {
+        if (_recapPanel == null) return;
+        _recapPopTime += deltaTime;
+        float t = Mathf.Clamp01(_recapPopTime / RecapPopSeconds);
+        float back = 1f + 2.70158f * Mathf.Pow(t - 1f, 3f) + 1.70158f * Mathf.Pow(t - 1f, 2f);
+        _recapPanel.localScale = Vector3.one * Mathf.LerpUnclamped(0.92f, 1f, back);
+        if (_recapGroup != null) _recapGroup.alpha = Mathf.Clamp01(_recapPopTime / 0.18f);
+    }
+
+    private void BuildRecapModal()
+    {
+        _recapRoot = RuntimeUiKit.CreateModal("TutorialRecap", 3400);
+        _recapPopTime = 0f;
+
+        const float W = 820f, H = 860f, pad = 44f;
+        float contentW = W - 2f * pad;
+        _recapPanel = RuntimeUiKit.CreateRect(_recapRoot.transform, "Panel",
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+            Vector2.zero, new Vector2(W, H));
+        _recapGroup = _recapPanel.gameObject.AddComponent<CanvasGroup>();
+        _recapGroup.alpha = 0f;
+
+        // The ability-card chrome: soft halo behind, near-black gradient slab, accent neon ring.
+        Image halo = RuntimeUiKit.CreateImage(_recapPanel, "Halo", MenuSprites.GlowFrame(),
+            new Color(Accent.r, Accent.g, Accent.b, 0.22f));
+        halo.type = Image.Type.Sliced;
+        RuntimeUiKit.StretchPadded(halo.rectTransform, RuntimeSprites.CardSpritePad + 12f);
+        Image body = RuntimeUiKit.CreateImage(_recapPanel, "Body", RuntimeSprites.CardGradient(
+            new Color(0.045f, 0.075f, 0.115f, 0.99f), new Color(0.015f, 0.035f, 0.06f, 0.99f)), Color.white);
+        body.type = Image.Type.Sliced;
+        RuntimeUiKit.StretchPadded(body.rectTransform, RuntimeSprites.CardSpritePad);
+        body.raycastTarget = true; // the panel eats taps; only GOT IT closes
+        Image ring = RuntimeUiKit.CreateImage(_recapPanel, "Ring", RuntimeSprites.CardNeonRing(),
+            new Color(Accent.r, Accent.g, Accent.b, 0.85f));
+        ring.type = Image.Type.Sliced;
+        RuntimeUiKit.StretchPadded(ring.rectTransform, RuntimeSprites.CardSpritePad);
+
+        // Hero: the earned checkmark, big - the same accent language as the step dots.
+        Image badge = RuntimeUiKit.CreateImage(_recapPanel, "Badge",
+            MenuSprites.CircleBadge(Accent, Color.Lerp(Accent, Color.white, 0.35f)), Color.white);
+        RectTransform badgeRect = badge.rectTransform;
+        badgeRect.anchorMin = badgeRect.anchorMax = new Vector2(0.5f, 1f);
+        badgeRect.pivot = new Vector2(0.5f, 1f);
+        badgeRect.anchoredPosition = new Vector2(0f, -44f);
+        badgeRect.sizeDelta = new Vector2(92f, 92f);
+        Image check = RuntimeUiKit.CreateImage(badge.transform, "Check",
+            MenuSprites.CheckMark(new Color(0.02f, 0.07f, 0.12f, 1f)), Color.white);
+        check.preserveAspect = true;
+        RectTransform checkRect = check.rectTransform;
+        checkRect.anchorMin = checkRect.anchorMax = new Vector2(0.5f, 0.5f);
+        checkRect.sizeDelta = new Vector2(48f, 48f);
+
+        TextMeshProUGUI title = RuntimeUiKit.CreateTmp(_recapPanel, "Title", "TUTORIAL COMPLETE", 42,
+            Accent, TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(0f, -152f), new Vector2(contentW, 52f), new Vector2(0.5f, 1f));
+        title.characterSpacing = 3f;
+
+        // The moves, one pill per row: accent tick, gesture left, effect right - stat-row
+        // shape, not a two-column table.
+        (string gesture, string effect)[] rows =
+        {
+            ("DRAG LEFT / RIGHT", "Move the brick"),
+            ("TAP", "Rotate"),
+            ("DRAG DOWN & HOLD", "Fall faster"),
+            ("FLICK DOWN", "Slam it instantly"),
+            ("TAP A BOTTOM CORNER", "Nudge - a hard shove"),
+        };
+        const float rowH = 64f, rowGap = 12f;
+        for (int i = 0; i < rows.Length; i++)
+        {
+            float y = -228f - i * (rowH + rowGap);
+            Image pill = RuntimeUiKit.CreateImage(_recapPanel, $"Row{i}",
+                RuntimeSprites.RoundedPanel(), new Color(0.05f, 0.10f, 0.155f, 0.92f));
+            pill.type = Image.Type.Sliced;
+            RectTransform pillRect = pill.rectTransform;
+            pillRect.anchorMin = pillRect.anchorMax = new Vector2(0.5f, 1f);
+            pillRect.pivot = new Vector2(0.5f, 1f);
+            pillRect.anchoredPosition = new Vector2(0f, y);
+            pillRect.sizeDelta = new Vector2(contentW, rowH);
+            RuntimeUiKit.AddOutline(pillRect, new Color(Accent.r, Accent.g, Accent.b, 0.14f));
+
+            Image tick = RuntimeUiKit.CreateImage(pillRect, "Tick", RuntimeSprites.RoundedPanel(), Accent);
+            tick.type = Image.Type.Sliced;
+            RectTransform tickRect = tick.rectTransform;
+            tickRect.anchorMin = new Vector2(0f, 0.5f);
+            tickRect.anchorMax = new Vector2(0f, 0.5f);
+            tickRect.pivot = new Vector2(0f, 0.5f);
+            tickRect.anchoredPosition = new Vector2(18f, 0f);
+            tickRect.sizeDelta = new Vector2(8f, 30f);
+
+            RuntimeUiKit.CreateTmp(pillRect, "Gesture", rows[i].gesture, 22, RuntimeUiKit.TitleColor,
+                TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
+                new Vector2(44f, 0f), new Vector2(380f, rowH), new Vector2(0f, 0.5f));
+            TextMeshProUGUI effect = RuntimeUiKit.CreateTmp(pillRect, "Effect", rows[i].effect, 20,
+                new Color(0.72f, 0.85f, 0.96f, 0.95f), TextAnchor.MiddleRight, FontStyle.Normal,
+                RuntimeUiKit.TitleFont, new Vector2(-24f, 0f), new Vector2(320f, rowH), new Vector2(1f, 0.5f));
+            RuntimeUiKit.AutoSize(effect, 15f, 20f);
+        }
+
+        // Info badge (not small print): the one thing the player must know leaving here.
+        Image note = RuntimeUiKit.CreateImage(_recapPanel, "Note", RuntimeSprites.RoundedPanel(),
+            new Color(0.06f, 0.11f, 0.17f, 0.96f));
+        note.type = Image.Type.Sliced;
+        RectTransform noteRect = note.rectTransform;
+        noteRect.anchorMin = noteRect.anchorMax = new Vector2(0.5f, 1f);
+        noteRect.pivot = new Vector2(0.5f, 1f);
+        noteRect.anchoredPosition = new Vector2(0f, -614f);
+        noteRect.sizeDelta = new Vector2(contentW, 92f);
+        RuntimeUiKit.AddOutline(noteRect, new Color(Accent.r, Accent.g, Accent.b, 0.45f));
+        Image info = RuntimeUiKit.CreateImage(noteRect, "Icon", MenuSprites.Info(Accent), Color.white);
+        info.preserveAspect = true;
+        RectTransform infoRect = info.rectTransform;
+        infoRect.anchorMin = infoRect.anchorMax = new Vector2(0f, 0.5f);
+        infoRect.pivot = new Vector2(0f, 0.5f);
+        infoRect.anchoredPosition = new Vector2(26f, 0f);
+        infoRect.sizeDelta = new Vector2(40f, 40f);
+        TextMeshProUGUI noteText = RuntimeUiKit.CreateTmp(noteRect, "Text",
+            "The nudge buttons are invisible by default.\nTurn them on in Settings > Controls.",
+            22, new Color(0.85f, 0.93f, 1f, 0.95f), TextAnchor.MiddleLeft, FontStyle.Normal,
+            RuntimeUiKit.TitleFont, new Vector2(88f, 0f), new Vector2(contentW - 112f, 92f), new Vector2(0f, 0.5f));
+        noteText.lineSpacing = 6f;
+        RuntimeUiKit.AutoSize(noteText, 17f, 22f);
+
+        // GOT IT: the accent CTA, gradient like every primary button in the game.
+        Image button = RuntimeUiKit.CreateImage(_recapPanel, "GotIt", MenuSprites.RoundedGradient(
+            Color.Lerp(Accent, Color.white, 0.18f), Color.Lerp(Accent, Color.black, 0.28f)), Color.white);
+        button.type = Image.Type.Sliced;
+        RectTransform buttonRect = button.rectTransform;
+        buttonRect.anchorMin = new Vector2(0f, 0f);
+        buttonRect.anchorMax = new Vector2(1f, 0f);
+        buttonRect.pivot = new Vector2(0.5f, 0f);
+        buttonRect.offsetMin = new Vector2(pad, 44f);
+        buttonRect.offsetMax = new Vector2(-pad, 44f + 96f);
+        button.raycastTarget = true;
+        TextMeshProUGUI gotItLabel = RuntimeUiKit.CreateTmp(button.transform, "Label", "GOT IT", 30,
+            new Color(0.02f, 0.07f, 0.12f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold,
+            RuntimeUiKit.TitleFont);
+        gotItLabel.characterSpacing = 4f;
+        Button gotIt = button.gameObject.AddComponent<Button>();
+        gotIt.targetGraphic = button;
+        gotIt.onClick.AddListener(() =>
+        {
+            SfxPlayer.Play("ui-button-click");
+            Teardown(); // releases the spawn hold and destroys the card
+        });
+    }
+
     // ---- Teardown ------------------------------------------------------------------------------
 
     // Shared exit for finish/skip/game-over/scene-unload. Restores every global this modifier
@@ -1091,6 +1301,16 @@ public class TutorialModifier : LevelModifier
         _phase = Phase.Inactive;
         SetInputGate(PieceGestures.Everything);
         UIManager.SetNudgeGuideBoost(0f);
+        // The recap's spawn hold must never outlive the tutorial (game over / level end /
+        // GOT IT all funnel here). Removing an owner that never held is a free no-op.
+        if (GameManager.Instance != null) GameManager.Instance.SetSpawnSuspended(this, false);
+        if (_recapRoot != null)
+        {
+            Destroy(_recapRoot);
+            _recapRoot = null;
+        }
+        _recapPanel = null;
+        _recapGroup = null;
         // Also release the piece itself: a lesson hover left suspended would hang mid-air
         // forever (hover time doesn't count toward the force-lock), e.g. behind a game-over
         // screen. Harmless when the piece is already falling, landed, or being destroyed.

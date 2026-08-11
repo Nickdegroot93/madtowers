@@ -11,8 +11,8 @@ using static RuntimeUiKit;
 //      guest account gets a gold SIGN IN CTA that opens the shared sign-in sheet (§3.3)
 //   2. MADTOWERS UNLIMITED: the one real pitch - the full game, forever (no ads,
 //      unlimited attempts), one purchase
-//   3. ONLINE PLAY: leaderboards are live now; the rest (achievements, avatars,
-//      titles & banners) stays the coming-soon promise
+//   3. ONLINE PLAY: the big coming-soon promise, nothing else (Nick 2026-08-11 cut
+//      the feature list - the leaderboard entry lives on the play screen already)
 // No wallet, no meter, no hour pass, no lifetime stats - this page is identity and
 // promises, not a dashboard. (partial of MainMenuRuntime - same class, shared statics.)
 public static partial class MainMenuRuntime
@@ -24,7 +24,9 @@ public static partial class MainMenuRuntime
         scrollRect.anchorMin = Vector2.zero;
         scrollRect.anchorMax = Vector2.one;
         scrollRect.offsetMin = new Vector2(60f, 236f);
-        scrollRect.offsetMax = new Vector2(-60f, -344f);
+        // -240, not the sibling tabs' ~300: the identity card should sit close under the top
+        // status bar (Nick 2026-08-11: the old 344 read as a dead band above the card).
+        scrollRect.offsetMax = new Vector2(-60f, -240f);
         scroll.GetComponent<Image>().color = Color.clear; // the chapter backdrop IS the background
 
         Color accent = chapter != null ? ChapterLight(chapter) : GoldBase;
@@ -147,7 +149,7 @@ public static partial class MainMenuRuntime
     private static void BuildProfileUnlimitedCard(Transform content)
     {
         const float heroH = 170f;
-        RectTransform card = CreateProfileCard(content, 560f); // 4 benefit lines since offline play joined the pitch
+        RectTransform card = CreateProfileCard(content, 580f); // 4 benefit lines at the bigger 20pt size
         // The pitch card carries the gold edge - the single accent on this page.
         RuntimeUiKit.AddOutline(card, WithAlpha(GoldBase, 0.55f));
 
@@ -189,18 +191,20 @@ public static partial class MainMenuRuntime
             TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -heroH - 74f), new Vector2(720f, 24f), new Vector2(0.5f, 1f));
 
-        // Benefits, one per line with the shared checkmark - benefits, not features.
-        string[] benefits = { "NO ADS, EVER", "UNLIMITED LIVES - NEVER WAIT TO PLAY",
-            "PLAY OFFLINE - EVEN ON A PLANE", "ONE PURCHASE, YOURS FOREVER" };
+        // Benefits, one per line with the shared checkmark - benefits, not features. Short
+        // punches only, at a size that reads (Nick 2026-08-11: 16pt was too small, and the
+        // "NEVER WAIT TO PLAY" / "EVEN ON A PLANE" tails were cut - the lead words carry it).
+        string[] benefits = { "NO ADS, EVER", "UNLIMITED LIVES",
+            "PLAY OFFLINE", "ONE PURCHASE, YOURS FOREVER" };
         for (int i = 0; i < benefits.Length; i++)
         {
-            float y = -heroH - 116f - i * 36f;
+            float y = -heroH - 116f - i * 42f;
             Image check = CreateImage(card, $"Check{i}", MenuSprites.CheckMark(GoldBase), Color.white);
             check.preserveAspect = true;
-            SetRect(check.rectTransform, new Vector2(150f, y - 2f), new Vector2(24f, 24f), new Vector2(0f, 1f));
-            CreateTmp(card, $"Benefit{i}", benefits[i], 16, WithAlpha(TextPrimary, 0.92f),
+            SetRect(check.rectTransform, new Vector2(150f, y - 4f), new Vector2(28f, 28f), new Vector2(0f, 1f));
+            CreateTmp(card, $"Benefit{i}", benefits[i], 20, WithAlpha(TextPrimary, 0.92f),
                 TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-                new Vector2(188f, y), new Vector2(540f, 24f), new Vector2(0f, 1f));
+                new Vector2(188f, y), new Vector2(540f, 30f), new Vector2(0f, 1f));
         }
 
         // The CTA slot: full-width, 92px, rebuilt in place as ownership/state changes -
@@ -294,41 +298,28 @@ public static partial class MainMenuRuntime
         });
     }
 
-    // 3. The locked door players should SEE: online play is on the way.
+    // 3. The locked door players should SEE: online play is on the way. Just the promise,
+    // BIG - no feature laundry list (Nick 2026-08-11: the leaderboards/achievements/avatars/
+    // one-account lines all cut; "online play coming soon and that's it").
     private static void BuildProfileOnlineCard(Transform content, Color accent)
     {
-        RectTransform card = CreateProfileCard(content, 330f);
+        RectTransform card = CreateProfileCard(content, 260f);
 
         Image lockIcon = CreateImage(card, "Lock", MenuSprites.Lock(WithAlpha(TextMuted, 0.9f)), Color.white);
         lockIcon.preserveAspect = true;
-        SetRect(lockIcon.rectTransform, new Vector2(0f, -40f), new Vector2(56f, 56f), new Vector2(0.5f, 1f));
-        lockIcon.rectTransform.anchoredPosition = new Vector2(0f, -40f);
+        SetRect(lockIcon.rectTransform, new Vector2(0f, -36f), new Vector2(56f, 56f), new Vector2(0.5f, 1f));
+        lockIcon.rectTransform.anchoredPosition = new Vector2(0f, -36f);
         lockIcon.rectTransform.pivot = new Vector2(0.5f, 1f);
 
-        TextMeshProUGUI title = CreateTmp(card, "Title", "ONLINE PLAY", 40, TextPrimary,
+        TextMeshProUGUI title = CreateTmp(card, "Title", "ONLINE PLAY", 48, TextPrimary,
             TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, -112f), new Vector2(720f, 50f), new Vector2(0.5f, 1f));
+            new Vector2(0f, -104f), new Vector2(720f, 58f), new Vector2(0.5f, 1f));
         title.characterSpacing = 4f;
 
-        TextMeshProUGUI soon = CreateTmp(card, "Soon", "COMING SOON", 18,
+        TextMeshProUGUI soon = CreateTmp(card, "Soon", "COMING SOON", 24,
             Color.Lerp(accent, TextPrimary, 0.35f), TextAnchor.UpperCenter, FontStyle.Bold,
-            RuntimeUiKit.TitleFont, new Vector2(0f, -166f), new Vector2(720f, 26f), new Vector2(0.5f, 1f));
+            RuntimeUiKit.TitleFont, new Vector2(0f, -170f), new Vector2(720f, 32f), new Vector2(0.5f, 1f));
         soon.characterSpacing = 8f;
-
-        // Leaderboards shipped with the server phase - say so; the rest stays promised.
-        CreateTmp(card, "Live", "LEADERBOARDS - LIVE NOW", 15,
-            WithAlpha(GoldBase, 0.9f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, -214f), new Vector2(720f, 22f), new Vector2(0.5f, 1f));
-        CreateTmp(card, "Features",
-            "ACHIEVEMENTS   -   PROFILES & AVATARS   -   TITLES & BANNERS", 15,
-            WithAlpha(TextMuted, 0.8f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, -244f), new Vector2(720f, 26f), new Vector2(0.5f, 1f));
-
-        // Nick's direction (2026-07-20): online won't be a side feature - accounts become
-        // the standard, with lives and leaderboards living on the server.
-        CreateTmp(card, "Account", "ONE ACCOUNT, EVERY DEVICE - LIVES & SCORES CHECKED ONLINE", 13,
-            WithAlpha(TextMuted, 0.55f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, -286f), new Vector2(720f, 20f), new Vector2(0.5f, 1f));
     }
 
     // ---- small shared pieces --------------------------------------------------------------

@@ -371,6 +371,18 @@ public static partial class RuntimeUiKit
         rect.pivot = new Vector2(0.5f, 0.5f);
     }
 
+    /// <summary>Stretch a child rect <paramref name="pad"/> past its parent on every side -
+    /// the padded-canvas pattern the card chrome needs for its outer bloom (the card sprites
+    /// bake RuntimeSprites.CardSpritePad transparent px around their shape). One owner: the
+    /// ability cards, the boost picker and the tutorial recap all wear this chrome.</summary>
+    public static void StretchPadded(RectTransform rect, float pad)
+    {
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = new Vector2(-pad, -pad);
+        rect.offsetMax = new Vector2(pad, pad);
+    }
+
     /// <summary>Stretched outline child over a panel fill (RoundedOutline matches
     /// RoundedPanel's geometry, so the pair reads as one bordered shape).</summary>
     public static Image AddOutline(Transform parent, Color color)

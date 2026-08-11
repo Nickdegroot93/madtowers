@@ -756,16 +756,6 @@ public static partial class MainMenuRuntime
         });
     }
 
-    /// <summary>Stretch a child rect <paramref name="pad"/> past its parent on every side -
-    /// the padded-canvas pattern the neon chrome needs for its outer bloom.</summary>
-    private static void StretchPadded(RectTransform rect, float pad)
-    {
-        rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one;
-        rect.offsetMin = new Vector2(-pad, -pad);
-        rect.offsetMax = new Vector2(pad, pad);
-    }
-
     // ---- the play button truth -------------------------------------------------------------
 
     private static void RefreshPlayButton(SuppliesUi ui)
