@@ -80,12 +80,22 @@ public static partial class MainMenuRuntime
     private const float SupplyRowH = 104f;      // the two card rows - full-width tap targets
     private const float SupplyRowGap = 14f;
     private const float SupplyStatusH = 88f;    // total line / out-of-attempts row
-    /// <summary>Extra modal height the section needs (LevelSummary adds this to H).</summary>
-    private const float SuppliesSectionHeight = 2f * SupplyRowH + 2f * SupplyRowGap + SupplyStatusH + 26f;
+    /// <summary>Does this level's supplies section sell run lives? Lives-free game types
+    /// (the Flood) skip the row - and every height derived from the section must shrink
+    /// with it, or the modal keeps a dead band where the row used to be (review 2026-08-11).</summary>
+    private static bool SellsLives(LevelDefinition level)
+        => level == null || !level.RunLivesDisabled;
+
+    /// <summary>Extra modal height the section needs (LevelSummary adds this to H).
+    /// Two rows (lives + boosts) normally; one when the level sells no lives.</summary>
+    private static float SuppliesSectionHeight(LevelDefinition level)
+        => (SellsLives(level) ? 2f : 1f) * (SupplyRowH + SupplyRowGap) + SupplyStatusH + 26f;
+
     /// <summary>The level modal's full height once supplies are on - shared with the boost
     /// picker, which must be EXACTLY this tall: a shorter overlay panel lets the modal underneath
     /// peek out above and below it, which reads as broken borders (Nick, 2026-07-29).</summary>
-    private const float ModalHeightWithSupplies = 768f + SuppliesSectionHeight;
+    private static float ModalHeightWithSupplies(LevelDefinition level)
+        => 768f + SuppliesSectionHeight(level);
 
     private static string CoinText(int amount) => amount.ToString("N0", CultureInfo.InvariantCulture);
 
@@ -113,7 +123,7 @@ public static partial class MainMenuRuntime
 
         RectTransform section = CreateRect(ui.Panel, "Supplies",
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(ui.Pad, ui.SectionTop), new Vector2(ui.ContentW, SuppliesSectionHeight));
+            new Vector2(ui.Pad, ui.SectionTop), new Vector2(ui.ContentW, SuppliesSectionHeight(ui.Level)));
         ui.SectionRoot = section.gameObject;
 
         int wallet = PlayerProfileStore.Coins;
@@ -132,9 +142,17 @@ public static partial class MainMenuRuntime
             new Vector2(4f, 0f), new Vector2(500f, 22f), new Vector2(0f, 1f));
         header.characterSpacing = 3f;
 
-        BuildLivesRow(ui, section, wallet, -26f);
-        BuildBoostsRow(ui, section, -26f - SupplyRowH - SupplyRowGap);
-        TextMeshProUGUI countdown = BuildStatusRow(ui, section, wallet, -26f - 2f * (SupplyRowH + SupplyRowGap));
+        // Lives-free game types (the Flood) sell no lives - the row would be a dead buy.
+        // The rows below shift up into its place (and the section/modal heights shrink to
+        // match - see SuppliesSectionHeight).
+        float rowY = -26f;
+        if (SellsLives(ui.Level))
+        {
+            BuildLivesRow(ui, section, wallet, rowY);
+            rowY -= SupplyRowH + SupplyRowGap;
+        }
+        BuildBoostsRow(ui, section, rowY);
+        TextMeshProUGUI countdown = BuildStatusRow(ui, section, wallet, rowY - (SupplyRowH + SupplyRowGap));
         RefreshPlayButton(ui);
 
         // Keeps the section honest between taps: ticks the out-of-attempts countdown once a
@@ -559,7 +577,7 @@ public static partial class MainMenuRuntime
         const float cardGap = 16f;
         const float headH = 116f;
         const float doneH = 96f;
-        float H = ModalHeightWithSupplies;
+        float H = ModalHeightWithSupplies(ui.Level);
 
         RectTransform panel = CreateRect(overlay.transform, "Panel",
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
@@ -599,8 +617,19 @@ public static partial class MainMenuRuntime
         // the panel, header and backdrop never blink. The block centres vertically in the
         // fixed frame's space between the header and the DONE button, so a level with three
         // relevant boosts doesn't leave all its slack piled at the bottom.
-        float cardsBlockH = relevant.Count * (cardH + cardGap) - cardGap;
+        // The one-row (no-lives, e.g. Flood) frame is 118px shorter than the two-row one, and
+        // 5 relevant boosts at full height overflow it - the 5th card's price row disappeared
+        // under DONE, which also stole its taps (review 2026-08-11). The frame must stay
+        // EXACTLY the modal's height, so COMPRESS the cards to fit instead: card internals
+        // are middle-anchored within ±42px, so anything at the 120px floor keeps them intact.
+        float cardHFit = cardH;
+        float cardsBlockH = relevant.Count * (cardHFit + cardGap) - cardGap;
         float availableH = H - headH - (40f + doneH + 24f);
+        if (relevant.Count > 0 && cardsBlockH > availableH)
+        {
+            cardHFit = Mathf.Max(120f, (availableH - (relevant.Count - 1) * cardGap) / relevant.Count);
+            cardsBlockH = relevant.Count * (cardHFit + cardGap) - cardGap;
+        }
         float cardsTop = -headH - Mathf.Max(0f, (availableH - cardsBlockH) * 0.5f);
         RectTransform cardsRoot = CreateRect(panel, "Cards",
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
@@ -614,7 +643,7 @@ public static partial class MainMenuRuntime
             for (int i = 0; i < relevant.Count; i++)
             {
                 BuildBoostCard(ui, cardsRoot, relevant[i], wallet,
-                    new Vector2(0f, -i * (cardH + cardGap)), contentW, cardH, RebuildCards);
+                    new Vector2(0f, -i * (cardHFit + cardGap)), contentW, cardHFit, RebuildCards);
             }
         }
         RebuildCards();

@@ -14,9 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Crater Climb
   menuThumbnail: {fileID: 21300000, guid: 236db7a9a33714d4ba409c7bc88800bf, type: 3}
-  menuChallengeLabelOverride:
+  menuChallengeLabelOverride: 
   gameModeConfig: {fileID: 11400000, guid: 84794e219c124e3e92c1d8c68264b35a, type: 2}
   targetType: 2
   targetValue: 85
+  timeLimitSeconds: 120
   instruction: Reach 85 meters out of the crater.
-  modifiers: []
+  modifiers:
+  - {fileID: 11400000, guid: c23fabc89a7ad4ff7a1841f8cdd48d42, type: 2}
+  bannedAbilities: []
+  abilityRarityProfile: {fileID: 0}

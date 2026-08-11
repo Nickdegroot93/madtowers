@@ -130,7 +130,8 @@ touch engine code.
 | **Scheduled theme pressure** (blackouts, snowstorms, sandstorms, wind...) | `ScheduledStatusModifier` applying one or more `StatusEffectDefinition` assets | any standard goal |
 | **Airtight** (no sealed hollows) | `AirPocketModifier` asset on the level | any standard goal (typically `PlaceBlocks`) |
 | **Void Zones** (forbidden sky rectangles) | `VoidZoneModifier` asset on the level | any standard goal (typically `PlaceBlocks`) |
-| *future: rising water, timed rush, wind gauntlet…* | one modifier subclass each, same recipe | standard goals |
+| **The Flood** (the water is the timer) | `RisingFloodModifier` asset on the level | `ReachHeight` (the flood paces itself against the goal) |
+| *future: timed rush, wind gauntlet…* | one modifier subclass each, same recipe | standard goals |
 
 > **Win conditions are polymorphic.** A level still authors `targetType` + `targetValue`, but the
 > *behaviour* (arming, hold-steady verification, run progress, menu text) lives on a `WinCondition`
@@ -419,6 +420,61 @@ touch engine code.
   prefab; the feather band (`0.45`/`1.35` × radius) in the shader.
 - SFX: `blackout_in` / `blackout_out` (generated via ElevenLabs; the generic
   `status_engage` also fires on activation).
+
+#### The Flood details (built 2026-08-10)
+
+The height-challenge rescue (Nick: Place-N and Reach-X read as the same verb — the flood
+reframes the climb as an *escape*). `RisingFloodModifier` + `FloodFx` + the `Flood` shader;
+menu type name **THE FLOOD**; goal stays `ReachHeight` (warns on any other target).
+
+- **The water is the timer** — no countdown number anywhere. A translucent flood starts
+  `startBelowFloor` under the datum (visible from second one), waits `graceSeconds`, then
+  rises at a derived rate: it covers start-line → goal height in **`secondsToGoal`** — THE
+  pacing dial, so retuning a level's goal never silently detunes its flood.
+- **Pacing schedule (SETTLED by device playtest 2026-08-11)**: author `secondsToGoal` as
+  **seconds-per-meter × (target + startBelowFloor)** with `s/m = 3.12 − 0.05 × (chapter − 1)`
+  (ch1 3.12 → ch15 2.42; floods arrive in ~3–4:30). The bisection that got here, all Nick
+  on device, same day: 9.5 s/m dead ("really slow") → 6.3 still pressure-free ("hardly
+  catches up") → 4.7 still too roomy ("six minutes, cut it in half") → 2.4 "a bit too
+  fast" → **ch1 anchored at 240 s (3.12 s/m) by feel**. The late-chapter floor (2.42 s/m)
+  is deliberately the pace Nick called "a bit too fast" for chapter 1. Real play is
+  fast-drop-driven - the no-fast-drop model (~6 s/m) badly overestimates s/m; don't reason
+  from it. CAVEAT on the old "150s was insanely fast" verdict (2026-08-10): it predates
+  the phase-freeze fix - the flood then also rose through the intro pan, drafts and the
+  win countdown, so the same number was effectively much harsher. Retunes shift the whole
+  schedule by a flat s/m offset - never one level in isolation.
+- **The rule, verbatim**: you lose when the surface passes the TOP of the highest landed
+  brick (checked on a 0.15 s cadence over `BlockController.AllBlocks`); while any part of
+  the highest brick is above water you can still build on it. The end goes through
+  `GameManager.EndRunNow` — terminal, no life charges, no immunity interplay. Falling
+  pieces don't count (uncommitted); the floor datum is the baseline while nothing stands.
+- **The flood only runs during `GamePhase.Playing`** (review 2026-08-11): it freezes —
+  rise, grace timer and kill check alike — through the intro pan, ability drafts and
+  above all the hold-steady WIN VERIFICATION, where a photo-finish would otherwise flip
+  a reached goal into a loss mid-countdown (timed goals freeze their clock the same way).
+- **Nothing dissolves, nothing floats** (Nick's call — revisit dissolve only if wanted):
+  submerged bricks keep simulating untouched. The flood is a rule and a picture, never a
+  fluid (PHYSICS.md).
+- **NO LIVES in this mode** (Nick 2026-08-10): all bricks may fall — that's its own
+  punishment — and the water is the only death. `LevelModifier.DisablesRunLives` (flood
+  overrides true) switches off the whole economy: `GameManager.GameOver()` no-ops (fall-offs
+  AND hazard bites — don't author life-hazards onto flood levels, their bite is toothless
+  here), the hearts HUD hides, the pre-run lives shop skips the level (modal + boost-picker
+  heights shrink with the row), and ExtraLife / LastStand are banned from the draft.
+  Ledger accounting still runs (BLOCKS.md). Live example of the authoring rule: **Blood
+  Moon Climb (Hallows #14) deliberately has NO flood** — it kept its MawClimb mode, whose
+  maws bite lives, so it stays a plain climb with hearts (Nick 2026-08-11). Every other
+  ReachHeight level (13 of 14) runs the flood via a per-chapter `RisingFlood_*` asset.
+- **Look (v2, cartoon)**: one huge quad in FRONT of the bricks (order 30) so the submerged
+  tower reads submerged. Flat tones and hard edges only — a smooth rolling swell, a solid
+  foam band on the crest, then shallow/deep tones split by an OFFSET wave (cartoon water
+  banding). No glow/mist ever (v1 read as fog against the flat-shaded backdrops — Nick).
+  `_Danger` (last 4 m of margin) speeds the swell and whitens the crest — the flood's mood
+  is the countdown. **Palette is WATER-BIASED**: base teal pulled 25% toward the chapter
+  accents — pure accent derivation camouflaged green bricks in green water on first
+  contact. Per-chapter copies can `overridePalette` (sand for deserts, lava via Magma).
+  Granular/gas surface styles are planned shader variants, not new systems.
+- Assets: `RisingFlood_Standard.asset` (Data/Modifiers). SFX: none yet (deliberate).
 
 ### Campaign structure & progression
 

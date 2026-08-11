@@ -151,9 +151,11 @@ public class UIManager : MonoBehaviour
         if (GameManager.Instance != null)
         {
             HandleStandingBlocksChanged(GameManager.Instance.placedBlocks);
-            // towerHeight (meters above the floor), not maxHeight (world Y - the floor sits
-            // at -11.5 world, which briefly showed as "-11.5m" before the first block).
-            HandleHeightChanged(GameManager.Instance.towerHeight);
+            // liveTowerHeight (standing meters above the floor), not maxHeight (world Y - the
+            // floor sits at -11.5 world, which briefly showed as "-11.5m" before the first
+            // block) and not towerHeight (the monotonic record - the counter must come back
+            // DOWN after a collapse, matching the live signal GameManager publishes).
+            HandleHeightChanged(GameManager.Instance.liveTowerHeight);
             HandleLivesChanged(GameManager.Instance.lives);
         }
 
@@ -230,6 +232,13 @@ public class UIManager : MonoBehaviour
     // the first frame - never as UI that appears only once a life exists.
     private void HandleLivesChanged(int lives)
     {
+        // Lives-free game type (the Flood): no sockets at all - an empty heart row would
+        // read as "you're about to die", and there is nothing here to die from but the water.
+        if (GameManager.Instance != null && GameManager.Instance.RunLivesDisabled)
+        {
+            if (_heartsContainer != null) _heartsContainer.gameObject.SetActive(false);
+            return;
+        }
         if (_heartsContainer == null) return;
 
         lives = Mathf.Min(lives, _hearts.Length);

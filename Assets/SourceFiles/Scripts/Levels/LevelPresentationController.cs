@@ -200,7 +200,11 @@ public partial class LevelPresentationController : MonoBehaviour
     {
         if (!Application.isPlaying || GameManager.Instance == null || _preset == null) return 0f;
 
-        float height = GameManager.Instance.towerHeight;
+        // liveTowerHeight, not the monotonic towerHeight record: the camera now descends with
+        // the live top after a collapse, and a sky blend frozen at the pre-collapse peak left
+        // the player rebuilding from the ground under a full high-altitude sky (review
+        // 2026-08-11). Live height brings the backdrop down the same glide the camera takes.
+        float height = GameManager.Instance.liveTowerHeight;
         float blend = Mathf.Clamp01(height / _preset.AltitudeFadeMeters);
         if (_preset.SkyShimmerAmount > 0f)
         {

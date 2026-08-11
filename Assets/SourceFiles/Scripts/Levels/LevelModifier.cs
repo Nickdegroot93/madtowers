@@ -57,4 +57,10 @@ public abstract class LevelModifier : ScriptableObject
     /// <see cref="LevelDefinition.IsAbilityBanned"/> alongside the level's own banned list, so
     /// the ban rides the modifier into every level that uses it - no per-level authoring.</summary>
     public virtual bool BansAbility(AbilityDefinition ability) => false;
+
+    /// <summary>True removes RUN LIVES from the level entirely (the Flood: losing bricks is
+    /// its own punishment, the only death is the modifier's - Nick 2026-08-10). Block losses
+    /// and hazard bites charge nothing and never end the run, the hearts HUD hides, and the
+    /// pre-run lives shop skips the level. The modifier owns ending the run (EndRunNow).</summary>
+    public virtual bool DisablesRunLives => false;
 }

@@ -14,12 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Temple Steps
   menuThumbnail: {fileID: 21300000, guid: 6b43e5367f8d74790bad08c3df1ad727, type: 3}
-  menuChallengeLabelOverride:
+  menuChallengeLabelOverride: 
   gameModeConfig: {fileID: 11400000, guid: 8b6225594ead4ab3a557ad38cbeacc8e, type: 2}
   targetType: 2
   targetValue: 75
   timeLimitSeconds: 120
   instruction: Reach 75 meters above the temple roofs.
-  modifiers: []
+  modifiers:
+  - {fileID: 11400000, guid: af64246ef30f54506bd5f0959ec40c2f, type: 2}
   bannedAbilities: []
   abilityRarityProfile: {fileID: 0}

@@ -14,9 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Penthouse Run
   menuThumbnail: {fileID: 21300000, guid: c1b45fdacea38490690f28495d0bddd2, type: 3}
-  menuChallengeLabelOverride:
+  menuChallengeLabelOverride: 
   gameModeConfig: {fileID: 11400000, guid: ebd5385c54d142ba8030f5a1d0f9f257, type: 2}
   targetType: 2
   targetValue: 60
+  timeLimitSeconds: 120
   instruction: Reach 60 meters across two rooftop pillars.
-  modifiers: []
+  modifiers:
+  - {fileID: 11400000, guid: 11a57804526a94772a1b05b393d0a14d, type: 2}
+  bannedAbilities: []
+  abilityRarityProfile: {fileID: 0}

@@ -399,23 +399,14 @@ public class LevelRuntimeController : MonoBehaviour
     // a condition that doesn't need height (PlaceBlocks) never triggers the per-block walk.
     private WinContext BuildWinContext() => new WinContext(GameManager.Instance, _liveHeightFunc);
 
-    // The win target compares against the same cell-center height the goal system uses,
-    // but over the blocks actually standing right now instead of the monotonic record.
+    // One owner for "the tower standing right now": GameManager.liveTowerHeight - the HUD
+    // counter, the camera and this check all read the same walk (throttled to 0.15s), so they
+    // can never disagree about whether the tower fell. A block only stops counting once it is
+    // CLEARLY falling off (IsFallingClearOfTower: fast-fall latch + still descending + fallen
+    // more than a cell below its seat) - a jolted-but-recovering peak block keeps counting, so
+    // it can't flicker the hold-steady countdown into a false "tower fell" abort.
     private float LiveTowerHeight()
-    {
-        float floorY = GameManager.Instance != null ? GameManager.Instance.floorOriginY : 0f;
-        float highest = floorY;
-
-        IReadOnlyList<BlockController> blocks = BlockController.AllBlocks;
-        for (int i = 0; i < blocks.Count; i++)
-        {
-            BlockController block = blocks[i];
-            if (block == null || !block.HasLanded) continue;
-            highest = Mathf.Max(highest, block.GetHighestCellY());
-        }
-
-        return Mathf.Max(0f, highest - floorY);
-    }
+        => GameManager.Instance != null ? GameManager.Instance.liveTowerHeight : 0f;
 
     private void BuildCountdownUi()
     {

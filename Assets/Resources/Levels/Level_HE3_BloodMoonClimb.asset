@@ -14,9 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Blood Moon Climb
   menuThumbnail: {fileID: 21300000, guid: 116b5b55296134236b32dd818277251f, type: 3}
-  menuChallengeLabelOverride:
+  menuChallengeLabelOverride: 
   gameModeConfig: {fileID: 11400000, guid: 0a3b1317de3d4772bb20dd8f653ed849, type: 2}
   targetType: 2
   targetValue: 90
+  timeLimitSeconds: 120
   instruction: Reach 90 meters - feed the maws their own tower!
   modifiers: []
+  bannedAbilities: []
+  abilityRarityProfile: {fileID: 0}

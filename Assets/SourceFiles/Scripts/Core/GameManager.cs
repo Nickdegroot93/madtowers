@@ -11,12 +11,41 @@ public class GameManager : MonoBehaviour
     [SerializeField] private DifficultyController _difficulty = new DifficultyController();
 
     public bool isGameOver { get; private set; }
+    /// <summary>True on lives-free game types (LevelModifier.DisablesRunLives, the Flood):
+    /// GameOver() is a no-op, the hearts HUD hides, and only EndRunNow can end the run.</summary>
+    public bool RunLivesDisabled { get; private set; }
     public bool IsGamePaused { get; private set; }
     public GamePhase CurrentPhase { get; private set; } = GamePhase.Playing;
     public bool CanSpawnBlocks => CurrentPhase == GamePhase.Playing && !IsGamePaused && _spawnHoldOwners.Count == 0;
     public float maxHeight => _runState.MaxHeightWorld;
-    /// <summary>Tower height in meters above the floor (what the HUD shows). maxHeight stays world-space for the camera/spawners.</summary>
+    /// <summary>PEAK tower height in meters above the floor - the monotonic record that feeds
+    /// bests, results and XP. Never goes down; for what is standing right now (HUD, camera,
+    /// hold-steady checks) use <see cref="liveTowerHeight"/>.</summary>
     public float towerHeight => _runState.TowerHeight;
+    /// <summary>World Y of the top of the highest block actually STANDING right now (the floor
+    /// while nothing stands). Unlike maxHeight this goes DOWN when the tower sheds blocks, so
+    /// the camera can follow a collapse back to the real tower - with lives gone from some
+    /// modes (the Flood), collapse-and-continue is a normal state the monotonic record was
+    /// never meant to serve. A block clearly falling off the tower stops counting while it
+    /// falls (IsFallingClearOfTower - NOT the sticky IsFallingAway latch, which stays set on
+    /// recoverable jolts long after the block re-seats). Recomputed at most every 0.15s: the
+    /// walk touches every landed block's cell geometry, and every consumer (camera SmoothDamp
+    /// 0.35s, the 5 Hz publish, hold-steady tolerance checks) fully hides that staleness.</summary>
+    public float LiveTowerTopWorldY
+    {
+        get
+        {
+            if (Time.unscaledTime - _liveTopCacheAt >= LiveTopRefreshSeconds)
+            {
+                _liveTopCacheAt = Time.unscaledTime;
+                _liveTopCache = ComputeLiveTowerTopWorldY();
+            }
+            return _liveTopCache;
+        }
+    }
+    /// <summary>Live standing-tower height in meters above the floor (what the HUD height
+    /// counter shows). The live counterpart of <see cref="towerHeight"/>.</summary>
+    public float liveTowerHeight => Mathf.Max(0f, LiveTowerTopWorldY - floorOriginY);
     /// <summary>World Y of the floor surface.</summary>
     public float floorOriginY => _runState.FloorOriginY;
     public int score => _runState.Score;
@@ -62,6 +91,20 @@ public class GameManager : MonoBehaviour
     // GameOver() reads whether the lost piece costs a life; BlockLedger suppresses the
     // posthumous placement score of a piece that fell off (it was lost, not placed).
     private bool _losingBlockCostsLife = true;
+    // Live standing-top cache (see LiveTowerTopWorldY) + the 5 Hz publish that lets the HUD
+    // height counter come DOWN after a collapse (HeightChanged historically fired only on new
+    // peaks, from BlockLedger). 5 Hz because the walk touches every landed block and a lost
+    // half-meter showing 0.2s late is invisible next to the camera's own glide.
+    private const float LiveHeightPollInterval = 0.2f;
+    private float _liveHeightPollTimer;
+    private float _lastPublishedLiveHeight;
+    // Unscaled-time throttle (0.15s) rather than a per-frame cache: the camera reads this
+    // every rendered frame, including at timeScale=0 on pause/game-over screens, and a
+    // per-frame walk over 100+ blocks' cell geometry cost ~0.1-0.25ms on mid-tier Android
+    // for a value that only meaningfully changes on land/collapse (review 2026-08-11).
+    private const float LiveTopRefreshSeconds = 0.15f;
+    private float _liveTopCache;
+    private float _liveTopCacheAt = float.NegativeInfinity;
     private GameModeConfig ActiveGameModeConfig => LevelSelectionState.ResolveGameMode(gameModeConfig);
 
     private void Awake()
@@ -77,6 +120,11 @@ public class GameManager : MonoBehaviour
             // leak an input lock or a lit nudge spotlight into the next run.
             TouchGestureInput.Suspended = false;
             UIManager.SetNudgeGuideBoost(0f);
+            // A lives-free game type (the Flood) switches off the whole lives economy for
+            // the run: GameOver() charges nothing and never ends the run - the modifier
+            // owns the only death (EndRunNow). Resolved once; the level can't change mid-run.
+            RunLivesDisabled = LevelSelectionState.SelectedLevel != null
+                && LevelSelectionState.SelectedLevel.RunLivesDisabled;
             // Resolve the active chapter once; skin must apply before any skinned visual
             // loads (the floor's ground skin is applied just below; block skins at spawn).
             ChapterDefinition activeChapter = Campaign.FindChapterOf(LevelSelectionState.SelectedLevel);
@@ -281,6 +329,35 @@ public class GameManager : MonoBehaviour
         if (isGameOver) return;
 
         _difficulty.Tick(Time.deltaTime);
+        PollLiveHeight(Time.deltaTime);
+    }
+
+    // Publishes the LIVE height whenever it moves - in either direction. BlockLedger still
+    // raises instantly on a new peak (same value at that moment: the peak IS the block that
+    // just locked); this poll is what brings the counter back down after a collapse.
+    private void PollLiveHeight(float deltaTime)
+    {
+        _liveHeightPollTimer -= deltaTime;
+        if (_liveHeightPollTimer > 0f) return;
+        _liveHeightPollTimer = LiveHeightPollInterval;
+
+        float live = liveTowerHeight;
+        if (Mathf.Approximately(live, _lastPublishedLiveHeight)) return;
+        _lastPublishedLiveHeight = live;
+        GameEvents.RaiseHeightChanged(live);
+    }
+
+    private float ComputeLiveTowerTopWorldY()
+    {
+        float highest = floorOriginY;
+        IReadOnlyList<BlockController> blocks = BlockController.AllBlocks;
+        for (int i = 0; i < blocks.Count; i++)
+        {
+            BlockController block = blocks[i];
+            if (block == null || !block.HasLanded || block.IsFallingClearOfTower) continue;
+            highest = Mathf.Max(highest, block.GetHighestCellY());
+        }
+        return highest;
     }
 
     private void PublishState()
@@ -288,12 +365,17 @@ public class GameManager : MonoBehaviour
         GameEvents.RaiseScoreChanged(_runState.Score);
         GameEvents.RaiseStandingBlocksChanged(_runState.StandingBlocks);
         GameEvents.RaiseLivesChanged(_runState.Lives);
-        GameEvents.RaiseHeightChanged(towerHeight);
+        GameEvents.RaiseHeightChanged(liveTowerHeight);
     }
 
     public void GameOver()
     {
         if (isGameOver) return;
+
+        // A lives-free game type (the Flood): losing bricks is its own punishment and the
+        // modifier owns the only death (EndRunNow) - every life charge, fall-off or hazard
+        // bite alike, is a no-op. The ledger still ran, so counts stay honest (BLOCKS.md).
+        if (RunLivesDisabled) return;
 
         // A block flagged "free to lose" (e.g. a projectile-style piece) never costs a life
         // when it falls off - it isn't a real block. Set per-loss by ReportBlockLost.

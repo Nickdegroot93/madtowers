@@ -14,9 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Antenna Climb
   menuThumbnail: {fileID: 21300000, guid: 461b287653f374d3f884b82a6063e472, type: 3}
-  menuChallengeLabelOverride:
+  menuChallengeLabelOverride: 
   gameModeConfig: {fileID: 11400000, guid: edd72500bc174cd9838fa6b4a6fb45d6, type: 2}
   targetType: 2
   targetValue: 60
+  timeLimitSeconds: 120
   instruction: Reach 60 meters from a three-column rooftop.
-  modifiers: []
+  modifiers:
+  - {fileID: 11400000, guid: aeaa0f57ea5954eb5a12c1ee1abf40d2, type: 2}
+  bannedAbilities: []
+  abilityRarityProfile: {fileID: 0}

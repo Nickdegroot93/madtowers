@@ -663,6 +663,9 @@ public static partial class MainMenuRuntime
         if (label.Contains("TIMED")) return "timer";
         if (label.Contains("WAVE")) return "waves";
         if (label.Contains("HEIGHT")) return "mountain";
+        if (label.Contains("FLOOD")) return "flood";
+        if (label.Contains("AIRTIGHT")) return "airtight";
+        if (label.Contains("VOID")) return "void";
         return "cube";
     }
 

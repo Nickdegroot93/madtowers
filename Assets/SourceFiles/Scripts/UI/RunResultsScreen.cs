@@ -76,7 +76,7 @@ public sealed class RunResultsScreen : MonoBehaviour
 
     /// <summary>Build and show the card. Replaces any card already on screen (a game over
     /// arriving over a stale victory card must win).</summary>
-    public static void Show(Content content)
+    public static void Show(Content content, bool muted = false)
     {
         if (_active != null) Destroy(_active.gameObject);
 
@@ -88,7 +88,12 @@ public sealed class RunResultsScreen : MonoBehaviour
         screen._content = content;
         screen.Build();
 
-        SfxPlayer.Play(content.Victory ? "ui-victory" : "game_over", content.Victory ? 0.9f : 0.85f, 0f);
+        // Muted on in-place rebuilds (an ad refill re-rendering the card must not
+        // replay the game-over sting the player already heard).
+        if (!muted)
+        {
+            SfxPlayer.Play(content.Victory ? "ui-victory" : "game_over", content.Victory ? 0.9f : 0.85f, 0f);
+        }
     }
 
     private void OnDestroy()
@@ -186,11 +191,56 @@ public sealed class RunResultsScreen : MonoBehaviour
                 display: false).gameObject, CoinsAt);
         }
 
-        Button primary = RuntimeUiKit.CreateButton(panel.transform,
-            string.IsNullOrEmpty(_content.PrimaryLabel) ? "Try Again" : _content.PrimaryLabel, 96f, OnPrimaryClicked);
-        GameMenuStyle.StyleButton(primary, primary: true);
-        RoundButton(primary);
-        AddReveal(primary.gameObject, PrimaryAt, isButton: true);
+        // The lives line: a player weighing "Try Again" must see what it costs and what
+        // they hold - the meter is otherwise invisible mid-run (Nick 2026-08-09).
+        // Game over only: the victory card's primary is Keep Playing, which is free.
+        if (!_content.Victory)
+        {
+            GameObject lives = RunLivesUi.BuildStatusRow(panel.transform);
+            if (lives != null) AddReveal(lives, DetailsAt);
+        }
+
+        bool outOfLives = !_content.Victory && RunLivesUi.OutOfLives;
+        if (outOfLives)
+        {
+            // Zero lives: "Try Again" would only bounce to the menu after a doomed server
+            // round trip - the one exit this screen must never take silently. Pitch the
+            // refills instead; a successful one rebuilds this card with Try Again back.
+            int before = panel.transform.childCount;
+            int added = RunLivesUi.BuildOutOfLivesActions(panel.transform, () =>
+            {
+                // A slow claim can land after the player already left this screen -
+                // never resurrect a game-over card over whatever they moved on to.
+                if (this == null || _active != this) return;
+                Show(_content, muted: true);
+            });
+            for (int i = 0; i < added; i++)
+            {
+                Transform action = panel.transform.GetChild(before + i);
+                Button button = action.GetComponent<Button>();
+                if (button != null) RoundButton(button);
+                AddReveal(action.gameObject, PrimaryAt, isButton: true);
+            }
+            // Neither an ad nor a store on hand: say so, like the pause sheet does - the
+            // ticking lives row above carries the regen countdown, and the card watches
+            // for the meter to heal (regen or a late SSV grant) so Try Again can reappear
+            // without the player doing anything.
+            if (added == 0)
+            {
+                GameObject hint = CreateRow(panel.transform, "A life regenerates on the timer above.",
+                    24, new Color(1f, 1f, 1f, 0.6f), 44f, display: false).gameObject;
+                AddReveal(hint, PrimaryAt);
+            }
+            gameObject.AddComponent<OutOfLivesWatcher>().Screen = this;
+        }
+        else
+        {
+            Button primary = RuntimeUiKit.CreateButton(panel.transform,
+                string.IsNullOrEmpty(_content.PrimaryLabel) ? "Try Again" : _content.PrimaryLabel, 96f, OnPrimaryClicked);
+            GameMenuStyle.StyleButton(primary, primary: true);
+            RoundButton(primary);
+            AddReveal(primary.gameObject, PrimaryAt, isButton: true);
+        }
 
         Button menu = RuntimeUiKit.CreateButton(panel.transform, "Back to Menu", 84f, () =>
         {
@@ -210,6 +260,26 @@ public sealed class RunResultsScreen : MonoBehaviour
         System.Action action = _content.OnPrimary;
         Destroy(gameObject);
         action?.Invoke();
+    }
+
+    /// <summary>While the out-of-lives card is up, a life can arrive on its own (regen
+    /// ticking over, or an SSV grant landing late). Rebuild once so Try Again returns
+    /// without the player having to leave and come back.</summary>
+    private sealed class OutOfLivesWatcher : MonoBehaviour
+    {
+        public RunResultsScreen Screen;
+        private float _next;
+
+        private void Update()
+        {
+            if (Screen == null || Time.unscaledTime < _next) return;
+            _next = Time.unscaledTime + 1f;
+            if (!RunLivesUi.OutOfLives)
+            {
+                enabled = false;
+                Show(Screen._content, muted: true);
+            }
+        }
     }
 
     // A single centered text row, height-driven for the panel's vertical layout.

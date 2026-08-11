@@ -14,9 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Rising Dunes
   menuThumbnail: {fileID: 21300000, guid: aaaa3fe5a2c84457a635b0a2583aea6a, type: 3}
-  menuChallengeLabelOverride:
+  menuChallengeLabelOverride: 
   gameModeConfig: {fileID: 11400000, guid: 918c2ac6ce2644b188262194853aac34, type: 2}
   targetType: 2
   targetValue: 65
+  timeLimitSeconds: 120
   instruction: Reach 65 meters up the pocketed canyon cliff.
-  modifiers: []
+  modifiers:
+  - {fileID: 11400000, guid: fa82034278ea94d03bf1db9e4678722a, type: 2}
+  bannedAbilities: []
+  abilityRarityProfile: {fileID: 0}

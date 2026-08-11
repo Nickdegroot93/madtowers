@@ -284,8 +284,10 @@ public static class MenuSprites
     // and the long up-stroke). Tinted by `color`; the font's U+2713 glyph renders as tofu in our
     // SDF font, so the completed badge uses this sprite instead.
     /// <summary>Small goal-type glyphs for the level cards: "cube" (block count), "waves"
-    /// (puzzle waves), "mountain" (height challenge), "timer" (timed goals). Drawn as thin
-    /// strokes in the given colour, matching the concepts' inline marks.</summary>
+    /// (puzzle waves), "mountain" (height challenge), "timer" (timed goals), "flood" (a
+    /// wave with an arrow climbing out of it - rising water, build upward), "airtight" (a
+    /// sealed container with a trapped bubble), "void" (a forbidden rectangle, slashed).
+    /// Drawn as thin strokes in the given colour, matching the concepts' inline marks.</summary>
     public static Sprite GoalGlyph(string kind, Color color)
     {
         string key = $"goal:{kind}:{Key(color)}";
@@ -324,6 +326,58 @@ public static class MenuSprites
                 dist = p2 => Mathf.Min(
                     Mathf.Min(DistToSegment(p2, a, b), DistToSegment(p2, b, c)),
                     Mathf.Min(DistToSegment(p2, c, d), DistToSegment(p2, d, e)));
+                break;
+            }
+            case "flood":
+            {
+                // One rolling wave low in the frame, an arrow climbing out of it: the water
+                // is rising - get above it. (The flood level type, RisingFloodModifier.)
+                Vector2 tip = new Vector2(0.50f * S, 0.82f * S);
+                Vector2 stemBase = new Vector2(0.50f * S, 0.36f * S);
+                Vector2 headL = new Vector2(0.34f * S, 0.64f * S);
+                Vector2 headR = new Vector2(0.66f * S, 0.64f * S);
+                dist = p2 =>
+                {
+                    float best = float.MaxValue;
+                    if (p2.x >= 0.08f * S && p2.x <= 0.92f * S)
+                    {
+                        float wave = 0.24f * S + Mathf.Sin(p2.x / S * Mathf.PI * 2.4f + 0.6f) * 0.06f * S;
+                        best = Mathf.Abs(p2.y - wave);
+                    }
+                    best = Mathf.Min(best, DistToSegment(p2, stemBase, tip));
+                    best = Mathf.Min(best, DistToSegment(p2, tip, headL));
+                    best = Mathf.Min(best, DistToSegment(p2, tip, headR));
+                    return best;
+                };
+                break;
+            }
+            case "airtight":
+            {
+                // A sealed container with one trapped bubble - the thing Airtight forbids.
+                Vector2 bl = new Vector2(0.20f * S, 0.18f * S);
+                Vector2 br = new Vector2(0.80f * S, 0.18f * S);
+                Vector2 tr = new Vector2(0.80f * S, 0.78f * S);
+                Vector2 tl = new Vector2(0.20f * S, 0.78f * S);
+                // Small and off-centre: a centred circle read as a camera icon, not a bubble.
+                Vector2 bub = new Vector2(0.42f * S, 0.40f * S);
+                float bubR = 0.11f * S;
+                dist = p2 => Mathf.Min(
+                    Mathf.Min(Mathf.Min(DistToSegment(p2, bl, br), DistToSegment(p2, br, tr)),
+                              Mathf.Min(DistToSegment(p2, tr, tl), DistToSegment(p2, tl, bl))),
+                    Mathf.Abs(Vector2.Distance(p2, bub) - bubR));
+                break;
+            }
+            case "void":
+            {
+                // A wide forbidden rectangle with a slash - the sky zone you must not touch.
+                Vector2 bl = new Vector2(0.14f * S, 0.30f * S);
+                Vector2 br = new Vector2(0.86f * S, 0.30f * S);
+                Vector2 tr = new Vector2(0.86f * S, 0.70f * S);
+                Vector2 tl = new Vector2(0.14f * S, 0.70f * S);
+                dist = p2 => Mathf.Min(
+                    Mathf.Min(Mathf.Min(DistToSegment(p2, bl, br), DistToSegment(p2, br, tr)),
+                              Mathf.Min(DistToSegment(p2, tr, tl), DistToSegment(p2, tl, bl))),
+                    DistToSegment(p2, new Vector2(0.24f * S, 0.38f * S), new Vector2(0.76f * S, 0.62f * S)));
                 break;
             }
             case "timer":

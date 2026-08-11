@@ -96,15 +96,97 @@ public class PauseMenuController : MonoBehaviour
         _menuCanvas = RuntimeUiKit.CreateOverlayCanvas("Pause Menu", 7000);
         CreateShroud(_menuCanvas.transform);
 
-        GameObject panel = RuntimeUiKit.CreateCenteredPanel(_menuCanvas.transform, new Vector2(560f, 560f));
+        // The lives row adds a line for non-premium players; size the sheet for it.
+        bool showLives = RunLivesUi.Applies;
+        GameObject panel = RuntimeUiKit.CreateCenteredPanel(_menuCanvas.transform,
+            new Vector2(560f, showLives ? 600f : 560f));
         GameMenuStyle.StylePanel(panel);
         RuntimeUiKit.CreateLabel(panel.transform, "Paused", 52, 82f, FontStyle.Bold, GameMenuStyle.Accent);
+        // The meter is invisible mid-run, so a player deciding whether to restart was
+        // deciding blind - restarts felt free and running dry felt random (Nick 2026-08-09).
+        RunLivesUi.BuildStatusRow(panel.transform);
         GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Resume", 88f, Resume), primary: true);
-        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Restart Level", 88f,
-            () => BuildConfirm("Restart this level?\nYour current run will be lost.", RestartLevel)), primary: false);
+        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Restart Level", 88f, () =>
+        {
+            // Out of lives: a restart would only bounce to the menu after a doomed server
+            // round trip. Offer the refills instead of pretending.
+            if (RunLivesUi.OutOfLives) BuildOutOfLives();
+            else BuildConfirm($"Restart this level?\n{RunLivesUi.RestartCostText()}", RestartLevel);
+        }), primary: false);
         GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Back to Menu", 88f,
             () => BuildConfirm("Quit to the level menu?\nYour current run will be lost.", ReturnToMenu)), primary: false);
         UiEntranceFx.Play(panel, 0.02f);
+    }
+
+    /// <summary>The restart-with-zero-lives sheet: name the problem, offer the refills
+    /// (ad / premium via RunLivesUi), and keep "back" one tap away. After a successful
+    /// refill it returns to the pause sheet, where Restart now works normally. A heal
+    /// watcher does the same when a life simply regenerates while the sheet sits open.</summary>
+    private void BuildOutOfLives()
+    {
+        DestroyMenu();
+        _menuCanvas = RuntimeUiKit.CreateOverlayCanvas("Pause Out Of Lives", 7000);
+        CreateShroud(_menuCanvas.transform);
+
+        // THIS sheet, by identity. "_menuCanvas != null" cannot tell sheets apart: a slow
+        // SSV claim (~9-20s) can land after the player resumed, re-paused, and reached the
+        // button-less "Restarting..." panel - rebuilding the pause menu over THAT reopens
+        // the double-restart the pending panel exists to prevent (review 2026-08-11).
+        GameObject sheet = _menuCanvas;
+
+        GameObject panel = RuntimeUiKit.CreateCenteredPanel(_menuCanvas.transform, new Vector2(560f, 650f));
+        GameMenuStyle.StylePanel(panel);
+        RuntimeUiKit.CreateLabel(panel.transform, "Out of lives", 46, 70f, FontStyle.Bold, GameMenuStyle.Accent);
+        RunLivesUi.BuildStatusRow(panel.transform);
+        RuntimeUiKit.CreateLabel(panel.transform, "Restarting costs a life and you have none left.",
+            26, 66f, FontStyle.Normal, GameMenuStyle.BodyText);
+
+        int actions = RunLivesUi.BuildOutOfLivesActions(panel.transform, () =>
+        {
+            if (this != null && _menuCanvas == sheet) BuildMenu();
+        });
+        if (actions == 0)
+        {
+            // No ad in hand and no store: the countdown above is the honest answer.
+            RuntimeUiKit.CreateLabel(panel.transform, "A life regenerates on the timer above.",
+                24, 56f, FontStyle.Normal, GameMenuStyle.BodyText);
+        }
+        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Keep playing this run", 88f, Resume),
+            primary: actions == 0);
+        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Back to Menu", 88f,
+            () => BuildConfirm("Quit to the level menu?\nYour current run will be lost.", ReturnToMenu)),
+            primary: false);
+        UiEntranceFx.Play(panel, 0.02f);
+
+        // A life can arrive on its own while the sheet sits open (regen tick, late SSV
+        // grant). Rebuild to the pause sheet so Restart returns without the player having
+        // to leave and come back - the results screen got this watcher, this sheet didn't
+        // (review 2026-08-11).
+        var watcher = sheet.AddComponent<OutOfLivesHealWatcher>();
+        watcher.Controller = this;
+        watcher.Sheet = sheet;
+    }
+
+    /// <summary>While the pause out-of-lives sheet is open: the moment lives heal, swap back
+    /// to the pause sheet (where Restart works). Self-disarms when the sheet it was born on
+    /// is no longer the live one. Unscaled time - the pause menu lives at timeScale 0.</summary>
+    private sealed class OutOfLivesHealWatcher : MonoBehaviour
+    {
+        public PauseMenuController Controller;
+        public GameObject Sheet;
+        private float _next;
+
+        private void Update()
+        {
+            if (Time.unscaledTime < _next) return;
+            _next = Time.unscaledTime + 0.5f;
+            if (Controller == null || Controller._menuCanvas != Sheet)
+            {
+                enabled = false;
+                return;
+            }
+            if (!RunLivesUi.OutOfLives) Controller.BuildMenu();
+        }
     }
 
     private void BuildConfirm(string question, UnityEngine.Events.UnityAction onYes)

@@ -14,9 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Skyline Climb
   menuThumbnail: {fileID: 0}
-  menuChallengeLabelOverride:
+  menuChallengeLabelOverride: 
   gameModeConfig: {fileID: 11400000, guid: f308407e7a3f4d13b77ed710fcdb64d7, type: 2}
   targetType: 2
   targetValue: 100
+  timeLimitSeconds: 120
   instruction: Reach 100 meters above the monsoon sector.
-  modifiers: []
+  modifiers:
+  - {fileID: 11400000, guid: a0c08054eebb44dc5ae6cfbcffbdef87, type: 2}
+  bannedAbilities: []
+  abilityRarityProfile: {fileID: 0}

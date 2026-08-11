@@ -17,6 +17,12 @@ public class StatusPassiveAbility : PassiveAbility
 
     [Tooltip("Which game event applies the status.")]
     [SerializeField] private TriggerEvent triggerEvent = TriggerEvent.LifeLost;
+
+    /// <summary>True when this asset fires on the life-lost event. Lives-free game types
+    /// (RisingFloodModifier.BansAbility) ban those cards outright: with DisablesRunLives the
+    /// only RaiseLifeLost site sits behind GameOver's early return, so the card could never
+    /// trigger - a dead draft slot.</summary>
+    public bool TriggersOnLifeLost => triggerEvent == TriggerEvent.LifeLost;
     [Tooltip("The game state to apply (duration/magnitude live on the status asset).")]
     [SerializeField] private StatusEffectDefinition status;
 

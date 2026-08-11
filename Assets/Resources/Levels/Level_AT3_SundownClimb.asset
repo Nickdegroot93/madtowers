@@ -14,9 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Sundown Climb
   menuThumbnail: {fileID: 21300000, guid: 11acee79155954a5d927df844b655cc5, type: 3}
-  menuChallengeLabelOverride:
+  menuChallengeLabelOverride: 
   gameModeConfig: {fileID: 11400000, guid: 5535f85f5d0949cbb7a6b56e58b98201, type: 2}
   targetType: 2
   targetValue: 95
+  timeLimitSeconds: 120
   instruction: Reach 95 meters above the amber tide.
-  modifiers: []
+  modifiers:
+  - {fileID: 11400000, guid: 612455531335d4061bb80f7c7e6b42d5, type: 2}
+  bannedAbilities: []
+  abilityRarityProfile: {fileID: 0}

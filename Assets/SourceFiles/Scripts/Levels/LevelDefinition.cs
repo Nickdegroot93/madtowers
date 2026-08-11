@@ -82,6 +82,21 @@ public class LevelDefinition : ScriptableObject
         return level;
     }
 
+    /// <summary>Does any modifier remove run lives from this level (Flood levels)? See
+    /// <see cref="LevelModifier.DisablesRunLives"/> for everything the flag switches off.</summary>
+    public bool RunLivesDisabled
+    {
+        get
+        {
+            if (modifiers == null) return false;
+            for (int i = 0; i < modifiers.Length; i++)
+            {
+                if (modifiers[i] != null && modifiers[i].DisablesRunLives) return true;
+            }
+            return false;
+        }
+    }
+
     public bool IsAbilityBanned(AbilityDefinition ability)
     {
         if (ability == null) return false;

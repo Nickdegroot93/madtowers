@@ -47,7 +47,6 @@ public class TowerCameraController : MonoBehaviour
     private float _verticalVelocity;
     private float _zoomVelocity;
     private float _horizontalVelocity;
-    private float _highestCameraY;
     private float _baseY;
     private float _baseX;
     private bool _hasInitializedFraming;
@@ -76,8 +75,7 @@ public class TowerCameraController : MonoBehaviour
             _camera.orthographicSize = Mathf.Clamp(_camera.orthographicSize, MinimumCameraSize, MaximumCameraSize);
         }
 
-        _highestCameraY = Mathf.Max(transform.position.y, MinimumCameraY);
-        _baseY = _highestCameraY;
+        _baseY = Mathf.Max(transform.position.y, MinimumCameraY);
         _baseX = transform.position.x;
         _framingCenterX = transform.position.x; // until the first real framing resolves
         // The camera is the sole authority on the opening-pan spawn hold: commit here (before any
@@ -86,7 +84,7 @@ public class TowerCameraController : MonoBehaviour
         _introActive = playIntroPan;
         if (_introActive) CameraIntroGate.Begin();
         else CameraIntroGate.Reset();
-        SetCameraY(_highestCameraY);
+        SetCameraY(_baseY);
         UpdateSpawnPoint();
         UpdateVerticalFollowers();
     }
@@ -120,13 +118,18 @@ public class TowerCameraController : MonoBehaviour
 
     private void LateUpdate()
     {
+        // Follows the LIVE standing top both ways - no "never descend" latch. With lives gone
+        // from some modes (the Flood), collapse-and-continue is a normal state, and a camera
+        // latched at the pre-collapse peak stared at empty air while pieces spawned into it
+        // (Nick 2026-08-11). The target only moves when landed geometry changes (debris and
+        // the falling piece are excluded), so the descent is the same smoothed glide as the
+        // climb, never a chase after tumbling blocks.
         float targetY = GetTargetCameraY();
-        _highestCameraY = Mathf.Max(_highestCameraY, targetY);
 
         float smoothTime = Mathf.Max(0.01f, CameraSmoothTime);
         _baseY = Mathf.SmoothDamp(
             _baseY,
-            _highestCameraY,
+            targetY,
             ref _verticalVelocity,
             smoothTime);
 
@@ -333,10 +336,13 @@ public class TowerCameraController : MonoBehaviour
 
     private float GetTargetCameraY()
     {
-        float towerHeight = GameManager.Instance != null ? GameManager.Instance.maxHeight : 0f;
+        // LiveTowerTopWorldY, not maxHeight: the record is monotonic (it feeds bests/XP) and
+        // held the camera at the pre-collapse peak forever; the live top is what there is to
+        // frame. MinimumCameraY still floors the frame, so an empty board reads as level start.
+        float towerTopY = GameManager.Instance != null ? GameManager.Instance.LiveTowerTopWorldY : 0f;
         float halfHeight = GetHalfHeight();
         float peakOffset = Mathf.Lerp(-halfHeight, halfHeight, TowerPeakScreenY);
-        return Mathf.Max(MinimumCameraY, towerHeight - peakOffset);
+        return Mathf.Max(MinimumCameraY, towerTopY - peakOffset);
     }
 
     private void UpdateSpawnPoint()

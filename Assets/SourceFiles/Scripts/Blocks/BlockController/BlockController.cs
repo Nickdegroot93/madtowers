@@ -436,6 +436,31 @@ public partial class BlockController : MonoBehaviour
     public bool IsFallingAway =>
         _fallingAway && _rb != null && _rb.bodyType == RigidbodyType2D.Dynamic;
 
+    // World Y where the piece stood when it locked (set once in LockBlock, never re-anchored -
+    // unlike the stillness anchor, which follows the body). The falling-clear test below
+    // measures displacement against this.
+    private float _landedAnchorY;
+
+    /// <summary>The stricter debris test for HEIGHT accounting - the live-tower-top walk that
+    /// feeds the camera, the HUD counter, hold-steady win checks and the flood's swallow rule.
+    /// <see cref="IsFallingAway"/> alone is the WRONG predicate there: it is a sticky latch
+    /// that stays set on a block that got jolted past the trip speed but re-seated in place,
+    /// until sleep is re-earned - and treating that whole window as "not part of the tower"
+    /// dropped the live top a full block during routine recoverable transients (wrongful flood
+    /// deaths, aborted win countdowns, camera dips - review 2026-08-11). A block only counts
+    /// as LEAVING the tower while all three hold: the fast-fall latch tripped, it is still
+    /// descending NOW, and it has fallen clearly further than one cell below where it locked.
+    /// So a jolt-and-reseat never qualifies (no displacement), a one-cell support-loss reseat
+    /// never qualifies (displacement stops at one cell), and a genuinely knocked-off block
+    /// qualifies within a few tenths of a second - then counts again, at its new honest
+    /// height, the moment it comes to rest anywhere.</summary>
+    private const float FallingClearDropDistance = 1.25f;  // world units ≈ cells (GridSpacing 1); > 1 so a one-cell reseat can't qualify
+    private const float FallingClearDescentSpeed = -0.5f;  // must be going down NOW - debris at rest counts again immediately
+    public bool IsFallingClearOfTower =>
+        IsFallingAway &&
+        _rb.linearVelocity.y < FallingClearDescentSpeed &&
+        _rb.position.y < _landedAnchorY - FallingClearDropDistance;
+
     public bool IsLostBelow(float cullY)
     {
         if (!TryGetWorldBounds(out Bounds bounds)) return false;

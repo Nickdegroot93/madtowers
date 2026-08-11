@@ -14,9 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Pyramid Climb
   menuThumbnail: {fileID: 21300000, guid: c973a038b69a94063bcacb255debc6cc, type: 3}
-  menuChallengeLabelOverride:
+  menuChallengeLabelOverride: 
   gameModeConfig: {fileID: 11400000, guid: c9787fdd691441efabe2b4b9ba76660b, type: 2}
   targetType: 2
   targetValue: 90
+  timeLimitSeconds: 120
   instruction: Reach 90 meters up the great pyramid.
-  modifiers: []
+  modifiers:
+  - {fileID: 11400000, guid: 2ea37c11ee4d344609cb39e23ca9cdd2, type: 2}
+  bannedAbilities: []
+  abilityRarityProfile: {fileID: 0}

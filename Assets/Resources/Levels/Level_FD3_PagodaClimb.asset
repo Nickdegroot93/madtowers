@@ -14,9 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Pagoda Climb
   menuThumbnail: {fileID: 21300000, guid: 1e61828378a42400cbbf3f79b2ce344b, type: 3}
-  menuChallengeLabelOverride:
+  menuChallengeLabelOverride: 
   gameModeConfig: {fileID: 11400000, guid: 7b06344b09354fdebcc99e36fbb51d8c, type: 2}
   targetType: 2
   targetValue: 80
+  timeLimitSeconds: 120
   instruction: Reach 80 meters up the pagoda staircase.
-  modifiers: []
+  modifiers:
+  - {fileID: 11400000, guid: 5a4f12d72491648639f15dda4101cb65, type: 2}
+  bannedAbilities: []
+  abilityRarityProfile: {fileID: 0}

@@ -166,6 +166,7 @@ public partial class BlockController
         _isControlEnabled = false;
         if (ActiveControlled == this) ActiveControlled = null;
         HasLanded = true;
+        _landedAnchorY = _rb.position.y; // datum for IsFallingClearOfTower - fixed at lock, never re-anchored
         InvalidateReachGeometry(); // this block now counts toward the reach bounds for the next piece
         DestroyPlacementBeam();
 

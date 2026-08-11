@@ -14,10 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Core Ascent
   menuThumbnail: {fileID: 0}
-  menuChallengeLabelOverride:
+  menuChallengeLabelOverride: 
   gameModeConfig: {fileID: 11400000, guid: fba34891ee844825a68c707e4d77783c, type: 2}
   targetType: 2
   targetValue: 110
+  timeLimitSeconds: 120
   instruction: Reach 110 meters up the core shaft - lights out!
   modifiers:
   - {fileID: 11400000, guid: 57cc85b4d35a4aeeae634ad54ee1bfea, type: 2}
+  - {fileID: 11400000, guid: 7e95e83d4ea7740fda28f18ced2b1aff, type: 2}
+  bannedAbilities: []
+  abilityRarityProfile: {fileID: 0}
