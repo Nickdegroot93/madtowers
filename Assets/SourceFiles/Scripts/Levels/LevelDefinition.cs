@@ -82,18 +82,19 @@ public class LevelDefinition : ScriptableObject
         return level;
     }
 
-    /// <summary>Does any modifier remove run lives from this level (Flood levels)? See
-    /// <see cref="LevelModifier.DisablesRunLives"/> for everything the flag switches off.</summary>
-    public bool RunLivesDisabled
+    /// <summary>Free RUN LIVES the level's game type grants at run start (Flood levels: the
+    /// cap). The strongest modifier wins; see <see cref="LevelModifier.GrantedRunLives"/>.</summary>
+    public int GrantedRunLives
     {
         get
         {
-            if (modifiers == null) return false;
+            int granted = 0;
+            if (modifiers == null) return granted;
             for (int i = 0; i < modifiers.Length; i++)
             {
-                if (modifiers[i] != null && modifiers[i].DisablesRunLives) return true;
+                if (modifiers[i] != null) granted = Mathf.Max(granted, modifiers[i].GrantedRunLives);
             }
-            return false;
+            return granted;
         }
     }
 

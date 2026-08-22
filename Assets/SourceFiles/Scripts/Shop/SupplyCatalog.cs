@@ -57,10 +57,18 @@ public static class SupplyCatalog
     /// <summary>Stable save/analytics id (DATA.md rule 2) - the enum name, never its ordinal.</summary>
     public static string StableId(BoostId id) => id.ToString();
 
-    public static int PriceForLives(int lives)
+    /// <summary>Total price of <paramref name="lives"/> purchased pips, the first landing
+    /// in slot <paramref name="firstSlot"/> (0-based). Free lives (authored or type-granted,
+    /// SHOP.md §3.1) occupy the cheap slots, so purchases pay the later, dearer prices -
+    /// the escalation prices the pip, not the purchase order.</summary>
+    public static int PriceForLives(int lives, int firstSlot = 0)
     {
         int total = 0;
-        for (int i = 0; i < lives && i < LifePipPrices.Length; i++) total += LifePipPrices[i];
+        for (int i = 0; i < lives; i++)
+        {
+            int slot = firstSlot + i;
+            if (slot < LifePipPrices.Length) total += LifePipPrices[slot];
+        }
         return total;
     }
 

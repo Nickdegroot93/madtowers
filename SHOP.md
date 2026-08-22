@@ -71,7 +71,17 @@ run actually starts (back out = charged nothing). Supplies apply to that run onl
   other unavailable abilities.
 - Levels that *author* starting lives (e.g. Maw Sort's 2) keep them; purchases top
   up to the cap (so there you could buy at most 1). Authored lives do NOT mark the
-  run boosted — only purchases do.
+  run boosted — only purchases do. **Implemented in the modal 2026-08-22**: the RUN
+  LIVES row is free-lives-aware (`FreeLives()` = max(authored, type-granted), the
+  exact GameManager seeding rule) — free pips render pre-filled, the stepper sells
+  only the remainder, and prices are per absolute pip slot (a 2-free level sells
+  only the 90-coin third pip), so the row can never sell a pip the cap swallows.
+- **Type-granted lives** (2026-08-22): a game type can grant free lives via
+  `LevelModifier.GrantedRunLives` — The Flood grants all 3 (the anti-dump tax,
+  LEVELS.md). Same non-boosting rule as authored lives. A mode granting the cap
+  closes the lives sale: the modal's RUN LIVES row renders as the **INCLUDED
+  acknowledgment** (full pips, "YOU START WITH 3", no stepper) so the player
+  learns the free hearts before the run, not mid-panic.
 
 ### 3.2 Boosts (max 2 per run)
 

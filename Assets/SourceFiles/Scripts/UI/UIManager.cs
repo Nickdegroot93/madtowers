@@ -227,18 +227,12 @@ public class UIManager : MonoBehaviour
     private bool[] _heartFull;
 
     // Two-state hearts (SHOP.md §2) in three FIXED sockets (RunState.MaxLives): a held life
-    // is the FULL heart, a missing one stays visible as the dark socket. Runs start at ZERO
-    // lives (lives are bought supplies), so the row must read as "empty slots to fill" from
-    // the first frame - never as UI that appears only once a life exists.
+    // is the FULL heart, a missing one stays visible as the dark socket. Most runs start at
+    // ZERO lives (lives are bought supplies; the Flood grants all 3), so the row must read
+    // as "empty slots to fill" from the first frame - never as UI that appears only once a
+    // life exists.
     private void HandleLivesChanged(int lives)
     {
-        // Lives-free game type (the Flood): no sockets at all - an empty heart row would
-        // read as "you're about to die", and there is nothing here to die from but the water.
-        if (GameManager.Instance != null && GameManager.Instance.RunLivesDisabled)
-        {
-            if (_heartsContainer != null) _heartsContainer.gameObject.SetActive(false);
-            return;
-        }
         if (_heartsContainer == null) return;
 
         lives = Mathf.Min(lives, _hearts.Length);

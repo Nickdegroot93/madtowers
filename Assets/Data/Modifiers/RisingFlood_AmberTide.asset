@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: RisingFlood_AmberTide
   m_EditorClassIdentifier: Assembly-CSharp::RisingFloodModifier
   graceSeconds: 8
-  secondsToGoal: 250
+  secondsToGoal: 300
   startBelowFloor: 2
   overridePalette: 0
   shallowColor: {r: 0.2, g: 0.55, b: 0.6, a: 0.55}

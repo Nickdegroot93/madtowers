@@ -431,13 +431,13 @@ menu type name **THE FLOOD**; goal stays `ReachHeight` (warns on any other targe
   `startBelowFloor` under the datum (visible from second one), waits `graceSeconds`, then
   rises at a derived rate: it covers start-line → goal height in **`secondsToGoal`** — THE
   pacing dial, so retuning a level's goal never silently detunes its flood.
-- **Pacing schedule (SETTLED by device playtest 2026-08-11)**: author `secondsToGoal` as
-  **seconds-per-meter × (target + startBelowFloor)** with `s/m = 3.12 − 0.05 × (chapter − 1)`
-  (ch1 3.12 → ch15 2.42; floods arrive in ~3–4:30). The bisection that got here, all Nick
-  on device, same day: 9.5 s/m dead ("really slow") → 6.3 still pressure-free ("hardly
-  catches up") → 4.7 still too roomy ("six minutes, cut it in half") → 2.4 "a bit too
-  fast" → **ch1 anchored at 240 s (3.12 s/m) by feel**. The late-chapter floor (2.42 s/m)
-  is deliberately the pace Nick called "a bit too fast" for chapter 1. Real play is
+- **Pacing schedule (v2, 2026-08-22 — NEEDS DEVICE PLAYTEST)**: author `secondsToGoal` as
+  **seconds-per-meter × (target + startBelowFloor)** with `s/m = 3.62 − 0.05 × (chapter − 1)`
+  (ch1 3.62 → ch15 2.92). This is the settled 2026-08-11 schedule (ch1 3.12, bisected on
+  device by Nick: 9.5 dead → 6.3 pressure-free → 4.7 too roomy → 2.4 "a bit too fast" →
+  240 s anchor by feel) **shifted +0.5 s/m flat** when lives came back (below): falls now
+  cost hearts, so the water relaxed to compensate. The +0.5 bracket is a first guess
+  inside the 3.12–4.7 window — expect Nick to re-anchor ch1 by feel. Real play is
   fast-drop-driven - the no-fast-drop model (~6 s/m) badly overestimates s/m; don't reason
   from it. CAVEAT on the old "150s was insanely fast" verdict (2026-08-10): it predates
   the phase-freeze fix - the flood then also rose through the intro pan, drafts and the
@@ -455,16 +455,20 @@ menu type name **THE FLOOD**; goal stays `ReachHeight` (warns on any other targe
 - **Nothing dissolves, nothing floats** (Nick's call — revisit dissolve only if wanted):
   submerged bricks keep simulating untouched. The flood is a rule and a picture, never a
   fluid (PHYSICS.md).
-- **NO LIVES in this mode** (Nick 2026-08-10): all bricks may fall — that's its own
-  punishment — and the water is the only death. `LevelModifier.DisablesRunLives` (flood
-  overrides true) switches off the whole economy: `GameManager.GameOver()` no-ops (fall-offs
-  AND hazard bites — don't author life-hazards onto flood levels, their bite is toothless
-  here), the hearts HUD hides, the pre-run lives shop skips the level (modal + boost-picker
-  heights shrink with the row), and ExtraLife / LastStand are banned from the draft.
-  Ledger accounting still runs (BLOCKS.md). Live example of the authoring rule: **Blood
-  Moon Climb (Hallows #14) deliberately has NO flood** — it kept its MawClimb mode, whose
-  maws bite lives, so it stays a plain climb with hearts (Nick 2026-08-11). Every other
-  ReachHeight level (13 of 14) runs the flood via a per-chapter `RisingFlood_*` asset.
+- **3 FREE LIVES, falls charge them** (Nick 2026-08-22, replacing the 2026-08-10 no-lives
+  design): the lives-free flood had a degenerate winning line — dump every unwanted piece
+  into the water, stack only 1×4s vertically, nothing can ever topple — so lives are the
+  anti-dump tax. `LevelModifier.GrantedRunLives` (flood overrides `RunState.MaxLives`)
+  floors the run's starting lives at 3, free: not a purchase, never marks the run boosted
+  (SHOP.md §3.1). Fall-offs and hazard bites charge lives normally again; **the swallow
+  stays terminal** (`EndRunNow`, bypassing charges and immunity — hearts buy mistakes,
+  never time underwater). The hearts HUD shows (starts full), the draft bans are gone
+  (ExtraLife / LastStand / on-life-lost cards are live again), and the pre-run modal keeps
+  its two-row supplies section but swaps the lives stepper for the **INCLUDED
+  acknowledgment row** (full pips, "YOU START WITH 3" — `BuildGrantedLivesRow`): at the
+  cap there is nothing to sell. Historical note: **Blood Moon Climb (Hallows #14) has NO
+  flood** — it kept its MawClimb mode (Nick 2026-08-11). Every other ReachHeight level
+  (13 of 14) runs the flood via a per-chapter `RisingFlood_*` asset.
 - **Look (v2, cartoon)**: one huge quad in FRONT of the bricks (order 30) so the submerged
   tower reads submerged. Flat tones and hard edges only — a smooth rolling swell, a solid
   foam band on the crest, then shallow/deep tones split by an OFFSET wave (cartoon water

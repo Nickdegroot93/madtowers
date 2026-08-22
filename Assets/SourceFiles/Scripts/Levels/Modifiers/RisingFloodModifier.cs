@@ -9,10 +9,14 @@ using UnityEngine;
 /// never a fluid). Pairs with ReachHeight goals: the same climb as a classic height level,
 /// reframed as an escape.
 ///
-/// Lives play no part in this mode AT ALL (DisablesRunLives below): the swallow goes through
-/// GameManager.EndRunNow (the timeout precedent), bypassing life charges and immunity, and
-/// blocks lost below the screen charge nothing either - losing bricks is its own punishment
-/// here, and the water is the only death.
+/// Lives: the mode GRANTS the full 3 for free (GrantedRunLives below) and fallen bricks
+/// charge them like any other level. The original no-lives design ("losing bricks is its own
+/// punishment") had a degenerate winning line - throw every piece into the water and stack
+/// only the 1x4s vertically, nothing can ever topple - so lives came back as the anti-dump
+/// tax (Nick 2026-08-22), the water slowed down to compensate (+0.5 s/m on the schedule),
+/// and the granted-3 start closes the pre-run lives shop: nothing to buy at the cap.
+/// The swallow itself stays terminal via GameManager.EndRunNow (the timeout precedent),
+/// bypassing life charges and immunity - hearts buy mistakes, never time underwater.
 ///
 /// Pacing has ONE dial: secondsToGoal - the flood travels from its start line to the goal
 /// height in that many seconds (after the grace), whatever the level's target is. Rise speed
@@ -31,20 +35,12 @@ public class RisingFloodModifier : LevelModifier, ILevelMenuProgressProvider
     public string MenuProgressLabel(LevelDefinition level, ProgressStore.LevelBest best, bool completed) => null;
     public ResultMetric? EndOfRunMetric(LevelDefinition level, RunResult result, ProgressStore.LevelBest best) => null;
 
-    /// <summary>No lives in this mode (Nick 2026-08-10): all bricks may fall - that's its own
-    /// punishment - and the ONLY death is the water passing the highest brick. Block losses
-    /// and hazard bites charge nothing, the hearts HUD hides, the lives shop skips us.</summary>
-    public override bool DisablesRunLives => true;
-
-    // With lives gone, lives-economy abilities would be dead cards in the draft. That is not
-    // just the life GIVERS: anything TRIGGERED by losing a life is structurally dead too -
-    // GameOver()'s RunLivesDisabled early-return sits before the game's only RaiseLifeLost
-    // call site, and EndRunNow never raises it, so an on-life-lost card can never fire
-    // (review 2026-08-11: Brace and Recovery Window burned a draft slot with no signal).
-    public override bool BansAbility(AbilityDefinition ability)
-        => ability is ExtraLifePowerUp || ability is LastStandAbility
-        || ability is RecoveryWindowAbility
-        || (ability is StatusPassiveAbility statusPassive && statusPassive.TriggersOnLifeLost);
+    /// <summary>Every flood run starts with the full 3 lives, free (Nick 2026-08-22): fallen
+    /// bricks charge lives again - dumping pieces into the water is no longer a free win -
+    /// while the swallow stays terminal (EndRunNow). Granting the cap also closes the pre-run
+    /// lives shop; the modal shows the pips as INCLUDED. Lives-economy abilities (ExtraLife,
+    /// LastStand, on-life-lost triggers) are live cards here again - no draft bans.</summary>
+    public override int GrantedRunLives => RunState.MaxLives;
 
     [Header("Pacing")]
     [Tooltip("Seconds before the flood starts rising - covers the intro and the first placements.")]

@@ -118,8 +118,9 @@ public class TowerCameraController : MonoBehaviour
 
     private void LateUpdate()
     {
-        // Follows the LIVE standing top both ways - no "never descend" latch. With lives gone
-        // from some modes (the Flood), collapse-and-continue is a normal state, and a camera
+        // Follows the LIVE standing top both ways - no "never descend" latch. In any mode
+        // with lives in hand (the Flood starts with all 3), collapse-and-continue is a
+        // normal state, and a camera
         // latched at the pre-collapse peak stared at empty air while pieces spawned into it
         // (Nick 2026-08-11). The target only moves when landed geometry changes (debris and
         // the falling piece are excluded), so the descent is the same smoothed glide as the

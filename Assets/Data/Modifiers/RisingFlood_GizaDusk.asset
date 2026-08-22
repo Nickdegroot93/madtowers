@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: RisingFlood_GizaDusk
   m_EditorClassIdentifier: Assembly-CSharp::RisingFloodModifier
   graceSeconds: 8
-  secondsToGoal: 240
+  secondsToGoal: 285
   startBelowFloor: 2
   overridePalette: 0
   shallowColor: {r: 0.2, g: 0.55, b: 0.6, a: 0.55}

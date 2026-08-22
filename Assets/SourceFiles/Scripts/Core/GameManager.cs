@@ -11,9 +11,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private DifficultyController _difficulty = new DifficultyController();
 
     public bool isGameOver { get; private set; }
-    /// <summary>True on lives-free game types (LevelModifier.DisablesRunLives, the Flood):
-    /// GameOver() is a no-op, the hearts HUD hides, and only EndRunNow can end the run.</summary>
-    public bool RunLivesDisabled { get; private set; }
+    /// <summary>Free starting lives granted by the level's game type (the Flood grants the
+    /// cap): a floor over the config's authored StartingLives, applied in ApplyConfig.</summary>
+    private int _grantedRunLives;
     public bool IsGamePaused { get; private set; }
     public GamePhase CurrentPhase { get; private set; } = GamePhase.Playing;
     public bool CanSpawnBlocks => CurrentPhase == GamePhase.Playing && !IsGamePaused && _spawnHoldOwners.Count == 0;
@@ -120,11 +120,11 @@ public class GameManager : MonoBehaviour
             // leak an input lock or a lit nudge spotlight into the next run.
             TouchGestureInput.Suspended = false;
             UIManager.SetNudgeGuideBoost(0f);
-            // A lives-free game type (the Flood) switches off the whole lives economy for
-            // the run: GameOver() charges nothing and never ends the run - the modifier
-            // owns the only death (EndRunNow). Resolved once; the level can't change mid-run.
-            RunLivesDisabled = LevelSelectionState.SelectedLevel != null
-                && LevelSelectionState.SelectedLevel.RunLivesDisabled;
+            // A game type can grant free starting lives (the Flood: the full 3, so the run
+            // has a real cost for dumped bricks without selling anything). Resolved once;
+            // the level can't change mid-run. Applied in ApplyConfig below.
+            _grantedRunLives = LevelSelectionState.SelectedLevel != null
+                ? LevelSelectionState.SelectedLevel.GrantedRunLives : 0;
             // Resolve the active chapter once; skin must apply before any skinned visual
             // loads (the floor's ground skin is applied just below; block skins at spawn).
             ChapterDefinition activeChapter = Campaign.FindChapterOf(LevelSelectionState.SelectedLevel);
@@ -321,7 +321,9 @@ public class GameManager : MonoBehaviour
         if (activeConfig == null) return;
 
         _difficulty.ApplyConfig(activeConfig);
-        _runState.SetLives(activeConfig.StartingLives);
+        // Type-granted lives (the Flood's free 3) floor the config's authored lives; both
+        // sit under purchases, which top up afterwards (RunSuppliesApplier, capped at 3).
+        _runState.SetLives(Mathf.Max(activeConfig.StartingLives, _grantedRunLives));
     }
 
     private void Update()
@@ -371,11 +373,6 @@ public class GameManager : MonoBehaviour
     public void GameOver()
     {
         if (isGameOver) return;
-
-        // A lives-free game type (the Flood): losing bricks is its own punishment and the
-        // modifier owns the only death (EndRunNow) - every life charge, fall-off or hazard
-        // bite alike, is a no-op. The ledger still ran, so counts stay honest (BLOCKS.md).
-        if (RunLivesDisabled) return;
 
         // A block flagged "free to lose" (e.g. a projectile-style piece) never costs a life
         // when it falls off - it isn't a real block. Set per-loss by ReportBlockLost.

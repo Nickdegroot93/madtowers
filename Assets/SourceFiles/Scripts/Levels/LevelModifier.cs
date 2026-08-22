@@ -58,9 +58,11 @@ public abstract class LevelModifier : ScriptableObject
     /// the ban rides the modifier into every level that uses it - no per-level authoring.</summary>
     public virtual bool BansAbility(AbilityDefinition ability) => false;
 
-    /// <summary>True removes RUN LIVES from the level entirely (the Flood: losing bricks is
-    /// its own punishment, the only death is the modifier's - Nick 2026-08-10). Block losses
-    /// and hazard bites charge nothing and never end the run, the hearts HUD hides, and the
-    /// pre-run lives shop skips the level. The modifier owns ending the run (EndRunNow).</summary>
-    public virtual bool DisablesRunLives => false;
+    /// <summary>RUN LIVES the game type grants for free at run start (the Flood: 3, the cap -
+    /// Nick 2026-08-22, replacing the lives-free design that made throwing every brick into
+    /// the water a free win). Applied as a floor over the config's authored StartingLives;
+    /// granted lives are not purchases, so they never mark the run boosted (SHOP.md §3.1).
+    /// A mode granting the cap closes the pre-run lives shop - the modal shows the pips as
+    /// INCLUDED instead of selling dead top-ups.</summary>
+    public virtual int GrantedRunLives => 0;
 }

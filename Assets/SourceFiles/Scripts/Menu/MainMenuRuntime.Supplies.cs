@@ -17,14 +17,15 @@ public static partial class MainMenuRuntime
 {
     private sealed class SupplySelection
     {
-        public int Lives;                            // 0..3, purchased pips
+        public int Lives;                            // purchased pips, 0..(MaxLives - FreeLives)
+        public int FreeLives;                        // pips the run already starts with (see FreeLives())
         public readonly List<BoostId> Boosts = new();  // ≤ SupplyCatalog.MaxBoostsPerRun
 
         public bool Boosted => Lives > 0 || Boosts.Count > 0;
 
         public int Total()
         {
-            int total = SupplyCatalog.PriceForLives(Lives);
+            int total = SupplyCatalog.PriceForLives(Lives, FreeLives);
             for (int i = 0; i < Boosts.Count; i++)
             {
                 SupplyCatalog.BoostInfo info = SupplyCatalog.Info(Boosts[i]);
@@ -80,16 +81,29 @@ public static partial class MainMenuRuntime
     private const float SupplyRowH = 104f;      // the two card rows - full-width tap targets
     private const float SupplyRowGap = 14f;
     private const float SupplyStatusH = 88f;    // total line / out-of-attempts row
-    /// <summary>Does this level's supplies section sell run lives? Lives-free game types
-    /// (the Flood) skip the row - and every height derived from the section must shrink
-    /// with it, or the modal keeps a dead band where the row used to be (review 2026-08-11).</summary>
+    /// <summary>Lives the player already holds for free at run start: the config's authored
+    /// StartingLives floored by the game type's granted lives - EXACTLY GameManager.
+    /// ApplyConfig's seeding rule, so the row can never sell a pip the in-run cap would
+    /// swallow (RunState.AddLife silently no-ops at 3: charged coins, nothing gained).</summary>
+    private static int FreeLives(LevelDefinition level)
+    {
+        if (level == null) return 0;
+        int authored = level.GameModeConfig != null ? level.GameModeConfig.StartingLives : 0;
+        return Mathf.Clamp(Mathf.Max(authored, level.GrantedRunLives), 0, RunState.MaxLives);
+    }
+
+    /// <summary>Does this level's supplies section SELL run lives? Free lives pre-fill the
+    /// cheap pip slots and the stepper sells only the remainder; a mode starting at the cap
+    /// (the Flood grants all 3) has no remainder, so the row renders as the INCLUDED
+    /// acknowledgment instead (BuildGrantedLivesRow): the player must learn the free hearts
+    /// HERE, or the in-run pips read as a bug on a level that never sold any.</summary>
     private static bool SellsLives(LevelDefinition level)
-        => level == null || !level.RunLivesDisabled;
+        => FreeLives(level) < RunState.MaxLives;
 
     /// <summary>Extra modal height the section needs (LevelSummary adds this to H).
-    /// Two rows (lives + boosts) normally; one when the level sells no lives.</summary>
+    /// Always two rows: lives (stepper or INCLUDED acknowledgment) + boosts.</summary>
     private static float SuppliesSectionHeight(LevelDefinition level)
-        => (SellsLives(level) ? 2f : 1f) * (SupplyRowH + SupplyRowGap) + SupplyStatusH + 26f;
+        => 2f * (SupplyRowH + SupplyRowGap) + SupplyStatusH + 26f;
 
     /// <summary>The level modal's full height once supplies are on - shared with the boost
     /// picker, which must be EXACTLY this tall: a shorter overlay panel lets the modal underneath
@@ -107,7 +121,7 @@ public static partial class MainMenuRuntime
         var ui = new SuppliesUi
         {
             Level = level,
-            Selection = new SupplySelection(),
+            Selection = new SupplySelection { FreeLives = FreeLives(level) },
             Panel = panel,
             SectionTop = sectionTop,
             ContentW = contentW,
@@ -142,15 +156,12 @@ public static partial class MainMenuRuntime
             new Vector2(4f, 0f), new Vector2(500f, 22f), new Vector2(0f, 1f));
         header.characterSpacing = 3f;
 
-        // Lives-free game types (the Flood) sell no lives - the row would be a dead buy.
-        // The rows below shift up into its place (and the section/modal heights shrink to
-        // match - see SuppliesSectionHeight).
+        // A mode that grants its lives for free (the Flood: all 3) gets the acknowledgment
+        // row instead of the stepper - same slot, nothing to buy.
         float rowY = -26f;
-        if (SellsLives(ui.Level))
-        {
-            BuildLivesRow(ui, section, wallet, rowY);
-            rowY -= SupplyRowH + SupplyRowGap;
-        }
+        if (SellsLives(ui.Level)) BuildLivesRow(ui, section, wallet, rowY);
+        else BuildGrantedLivesRow(ui, section, rowY);
+        rowY -= SupplyRowH + SupplyRowGap;
         BuildBoostsRow(ui, section, rowY);
         TextMeshProUGUI countdown = BuildStatusRow(ui, section, wallet, rowY - (SupplyRowH + SupplyRowGap));
         RefreshPlayButton(ui);
@@ -237,24 +248,25 @@ public static partial class MainMenuRuntime
     private static void BuildLivesRow(SuppliesUi ui, RectTransform section, int wallet, float y)
     {
         RectTransform row = CreateSupplyCard(section, "LivesRow", y, ui.ContentW);
+        int free = ui.Selection.FreeLives;   // pre-filled pips (authored/type-granted, SHOP.md §3.1)
 
         // Text-only left edge, same x as the BOOSTS row below - the pips ARE the heart imagery,
         // a leading icon on the label read as a duplicate (Nick, 2026-07-22).
         CreateTmp(row, "Label", "RUN LIVES", 21, TextPrimary, TextAnchor.UpperLeft,
             FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(24f, -20f), new Vector2(210f, 28f), new Vector2(0f, 1f));
-        CreateTmp(row, "Blurb", "MAX 3", 14,
+        CreateTmp(row, "Blurb", free > 0 ? $"{free} FREE - MAX 3" : "MAX 3", 14,
             WithAlpha(TextMuted, 0.8f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(24f, -52f), new Vector2(210f, 20f), new Vector2(0f, 1f));
 
-        // Heart pips: the current pick, big and readable (display - the buttons do the work).
-        // Full/empty are the two-state heart art; while the dedicated empty socket asset is
-        // pending (HeartSprites), an unfilled pip is the full art dimmed.
+        // Heart pips: free lives + the current pick, big and readable (display - the buttons
+        // do the work). Full/empty are the two-state heart art; while the dedicated empty
+        // socket asset is pending (HeartSprites), an unfilled pip is the full art dimmed.
         // Fixed x so they don't jump when the [-] button appears; the rightmost pip stops
         // short of the [-] slot (left edge at ContentW - 340).
         for (int i = 0; i < RunState.MaxLives; i++)
         {
-            bool filled = ui.Selection.Lives > i;
+            bool filled = free + ui.Selection.Lives > i;
             Sprite pipSprite = filled ? HeartSprites.Full() : HeartSprites.Empty();
             Color pipColor = filled || HeartSprites.HasDedicatedEmpty
                 ? Color.white : new Color(1f, 1f, 1f, 0.16f);
@@ -276,9 +288,11 @@ public static partial class MainMenuRuntime
             });
         }
 
-        if (ui.Selection.Lives < RunState.MaxLives)
+        if (free + ui.Selection.Lives < RunState.MaxLives)
         {
-            int price = SupplyCatalog.LifePipPrices[ui.Selection.Lives];
+            // Absolute slot pricing: free lives sit in the cheap slots, purchases pay the
+            // dearer remainder (a 2-free level sells only the 90-coin third pip).
+            int price = SupplyCatalog.LifePipPrices[free + ui.Selection.Lives];
             bool affordable = ui.Selection.Total() + price <= wallet;
             Button plus = CreateSupplyButton(row, "Plus", "+ LIFE", 220f,
                 new Vector2(-24f, 0f), affordable, gold: true, price: price);
@@ -298,6 +312,40 @@ public static partial class MainMenuRuntime
                 FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(-24f, 0f), new Vector2(200f, 30f), new Vector2(1f, 0.5f));
         }
+    }
+
+    /// <summary>The lives row for a level whose free lives already fill the cap (the Flood
+    /// grants all 3, so there is nothing to sell): same card, same label and pip positions
+    /// as the stepper row so it reads as the familiar row answered, not a different feature -
+    /// full pips, a gold INCLUDED tag where the buy button sits, and the blurb says who is
+    /// paying (nobody).</summary>
+    private static void BuildGrantedLivesRow(SuppliesUi ui, RectTransform section, float y)
+    {
+        RectTransform row = CreateSupplyCard(section, "LivesRow", y, ui.ContentW);
+
+        CreateTmp(row, "Label", "RUN LIVES", 21, TextPrimary, TextAnchor.UpperLeft,
+            FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(24f, -20f), new Vector2(210f, 28f), new Vector2(0f, 1f));
+        int granted = ui.Selection.FreeLives;
+        CreateTmp(row, "Blurb", $"YOU START WITH {granted}", 14,
+            WithAlpha(TextMuted, 0.8f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(24f, -52f), new Vector2(210f, 20f), new Vector2(0f, 1f));
+
+        for (int i = 0; i < RunState.MaxLives; i++)
+        {
+            bool filled = i < granted;
+            Sprite pipSprite = filled ? HeartSprites.Full() : HeartSprites.Empty();
+            Color pipColor = filled || HeartSprites.HasDedicatedEmpty
+                ? Color.white : new Color(1f, 1f, 1f, 0.16f);
+            Image pip = CreateImage(row, $"Pip{i}", pipSprite, pipColor);
+            pip.preserveAspect = true;
+            SetRect(pip.rectTransform, new Vector2(280f + i * 56f, 0f), new Vector2(48f, 48f), new Vector2(0f, 0.5f));
+        }
+
+        TextMeshProUGUI tag = CreateTmp(row, "Included", "INCLUDED", 18, GoldBase,
+            TextAnchor.MiddleRight, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(-24f, 0f), new Vector2(200f, 30f), new Vector2(1f, 0.5f));
+        tag.characterSpacing = 2f;
     }
 
     // ---- BOOSTS: one big row, the picker does the choosing --------------------------------------
@@ -391,6 +439,10 @@ public static partial class MainMenuRuntime
         // show AND pay out (no SDK / rate-limited = the row is countdown-only).
         if (AttemptsService.MeterActive && !AttemptsService.CanStartRun)
         {
+            // First time the meter ever blocks play: offer the notification permission
+            // (one-time sheet; see MaybeOfferNotificationPrompt for the full rules).
+            MaybeOfferNotificationPrompt();
+
             bool adOffer = AttemptsService.AdRefillAvailable;
             TimeSpan regen = AttemptsService.NextRegenIn;
             TextMeshProUGUI blocked = CreateTmp(zone, "Blocked",
@@ -617,11 +669,13 @@ public static partial class MainMenuRuntime
         // the panel, header and backdrop never blink. The block centres vertically in the
         // fixed frame's space between the header and the DONE button, so a level with three
         // relevant boosts doesn't leave all its slack piled at the bottom.
-        // The one-row (no-lives, e.g. Flood) frame is 118px shorter than the two-row one, and
-        // 5 relevant boosts at full height overflow it - the 5th card's price row disappeared
-        // under DONE, which also stole its taps (review 2026-08-11). The frame must stay
-        // EXACTLY the modal's height, so COMPRESS the cards to fit instead: card internals
-        // are middle-anchored within ±42px, so anything at the 120px floor keeps them intact.
+        // The frame must stay EXACTLY the modal's height, so if the roster ever outgrows it,
+        // COMPRESS the cards to fit instead of overflowing: the shorter one-row frame era
+        // proved a card sliding under DONE loses its price row AND its taps (review
+        // 2026-08-11). Card internals are middle-anchored within ±42px, so anything at the
+        // 120px floor keeps them intact. (The section is two rows for every level now - the
+        // Flood's lives row came back as the INCLUDED acknowledgment - so today this only
+        // fires if a 6th relevant boost ships.)
         float cardHFit = cardH;
         float cardsBlockH = relevant.Count * (cardHFit + cardGap) - cardGap;
         float availableH = H - headH - (40f + doneH + 24f);
