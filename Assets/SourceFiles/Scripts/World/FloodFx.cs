@@ -32,7 +32,16 @@ public sealed class FloodFx : MonoBehaviour
     // speed and steepness would disagree about how angry the water is.
     private const float AgitationGain = 1.1f;
 
+    // The danger BED: quiet lapping water that is silent for the whole run except the
+    // last DangerBandMeters, where its volume rides the SAME smoothed danger the shader
+    // agitation uses - the flood's mood is the countdown, in audio as in visuals (Nick
+    // 2026-08-22: "some kind of a danger sound, last 4 meters"). A dedicated source, NOT
+    // SfxPlayer.PlayLoop: that slot is shared (the win-verification countdown would
+    // steal it and StopLoop would kill the water).
+    private const float BedMaxVolume = 0.55f;
+
     private Material _material;
+    private AudioSource _bed;
     private float _phase;
     private float _agitPhase; // advances at the agitated RATE - see Update
     private float _danger;        // smoothed value the shader sees
@@ -57,6 +66,17 @@ public sealed class FloodFx : MonoBehaviour
 
         go.transform.localScale = new Vector3(QuadWidth, QuadHeight, 1f);
         go.transform.position = new Vector3(centerX, -1000f, 0f); // parked until the first SetSurfaceY
+
+        AudioClip lapping = Resources.Load<AudioClip>("Audio/Sfx/flood_danger");
+        if (lapping != null)
+        {
+            fx._bed = go.AddComponent<AudioSource>();
+            fx._bed.clip = lapping;
+            fx._bed.loop = true;
+            fx._bed.playOnAwake = false;
+            fx._bed.spatialBlend = 0f;   // 2D, like every SfxPlayer source
+            fx._bed.volume = 0f;
+        }
         return fx;
     }
 
@@ -87,6 +107,22 @@ public sealed class FloodFx : MonoBehaviour
         _material.SetFloat(PhaseId, _phase);
         _material.SetFloat(AgitPhaseId, _agitPhase);
         _material.SetFloat(DangerId, _danger);
+
+        if (_bed != null)
+        {
+            // Audio ignores timeScale, so the bed gates itself: silent whenever the world
+            // isn't live play (pause sheet, drafts, win verification, game over) - the
+            // flood is frozen then and frozen water doesn't lap. Volume is _danger
+            // directly: that value is ALREADY slewed above, and a second smoothing stage
+            // made the bed audibly lag the wave agitation it rides (review 2026-08-22).
+            // The source plays once and stays playing at volume 0 - Pause/Play churn on
+            // the band edge resumed mid-waveform as a click (the AirPocketFx precedent).
+            GameManager gm = GameManager.Instance;
+            bool live = gm != null && !gm.isGameOver && !gm.IsGamePaused
+                        && gm.CurrentPhase == GamePhase.Playing;
+            _bed.volume = live ? _danger * BedMaxVolume * SettingsService.EffectiveSfx : 0f;
+            if (!_bed.isPlaying) _bed.Play();
+        }
     }
 
     private void OnDestroy()

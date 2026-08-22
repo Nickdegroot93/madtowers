@@ -488,7 +488,12 @@ public partial class BlockController : MonoBehaviour
     // own gate keeps the lost piece from scoring posthumously.
     public void HandleLostBelowScreen()
     {
-        LifeLossFx.Play(transform.position); // the mist swallows the block - visible at the screen edge
+        // Water deaths splash at the waterline; everything else keeps the fog mist. The
+        // flood surface is -infinity when no flood runs, so this never fires elsewhere.
+        if (transform.position.y < RisingFloodModifier.FloodSurfaceY)
+            FloodSplashFx.Play(transform.position.x);
+        else
+            LifeLossFx.Play(transform.position); // the mist swallows the block - visible at the screen edge
         if (GameManager.Instance != null) GameManager.Instance.GameOver();
         if (!HasLanded) LockBlock(); // end control cleanly so (lives permitting) the next piece spawns
         Destroy(gameObject);

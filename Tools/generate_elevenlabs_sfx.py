@@ -144,6 +144,17 @@ SOUNDS = {
         "a stone chamber, rock cracking and splitting, a shockwave punch with a rumbling "
         "debris tail and dust settling. Cinematic, powerful, massive low end with a sharp "
         "crack transient. AAA game explosion.", 1.8, 0.7),
+    "flood_rising": ("Deep water starting to rise in a flooded canyon: one broad low ocean "
+        "swell rolling forward and settling into quiet, watery and ominous, cinematic. "
+        "No music, no splash impacts.", 2.5, 0.5),
+    "flood_danger": ("Restless water lapping and sloshing close underfoot, a steady "
+        "continuous texture that loops seamlessly, mild threatening undertone. No music, "
+        "no big splashes, no crashing waves.", 6.0, 0.45),
+    "flood_swallow": ("A stone tower swallowed by a rising flood: one big wave crashing and "
+        "folding over, then a brief muffled underwater glug as everything goes under, "
+        "dramatic, cinematic. No music.", 1.8, 0.55),
+    "flood_plip": ("A stone brick dropping into deep water: one soft round PLOP with a "
+        "small ripple, subtle and quick. No long splash tail.", 0.6, 0.5),
     "blackout_in": ("A city-wide power failure: electrical hum and buzz abruptly cutting out, "
         "a heavy descending power-down whine like giant turbines spinning down, transformer "
         "breakers thunking off one after another, ending in eerie ringing silence. Cinematic, "

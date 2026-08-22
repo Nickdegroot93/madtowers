@@ -97,7 +97,11 @@ clamp-masked bug).
   (`costsLifeWhenLost`, read by `GameManager.GameOver`), asks `BlockLedger` to `−1`
   the live total once for a counted block, and suppresses the posthumous lock-score of
   the lost piece. An active piece pushed off was never counted, so it never `−1`s —
-  only its life charge (if any) applies.
+  only its life charge (if any) applies. On a Flood level the sweep raises its PER-BLOCK
+  line to the water (`RisingFloodModifier.FloodKillY`, 2026-08-22) for the active piece
+  and falling-clear bricks only — never the shared `CullY`, and never resting submerged
+  tower bricks: a falling brick fully under the surface is charged there, through this
+  same gateway — no new loss path, all the policy above unchanged.
 - **Devoured by a hazard** (the Maw): the prey is removed through `ImpactFx
   .DestroyBlockWithShatter` (so it `−1`s like any other destruction), and the maw
   additionally calls `GameManager.LoseLifeToHazard`. That life charge is INDEPENDENT of

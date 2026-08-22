@@ -210,6 +210,17 @@ public class LossZone : MonoBehaviour
         // of play, nothing can legally land off-screen) the veto ends - a catch must not be
         // skipped at altitude.
 
+        // The Flood's death line: a brick fully under the water is gone THERE, not seconds
+        // later at the screen bottom (Nick 2026-08-22). Applied PER BLOCK and only to bricks
+        // the water can claim - the active piece and landed bricks falling clear of the
+        // tower. Never the shared CullY: submerged RESTING tower bricks are normal state
+        // (nothing dissolves), and IsLostBelow's landed branch (dynamic + awake + falling)
+        // matches jolted-but-reseating rows for up to ~0.75s after any slam, so a raised
+        // global line culled live tower rows mid-run (review 2026-08-22). CullY consumers
+        // (Magma's doomed-check, Curse wake, Zap targeting) keep their original meaning
+        // for the same reason. -infinity when no flood runs.
+        float floodKillY = RisingFloodModifier.FloodKillY;
+
         var blocks = BlockController.AllBlocks;
         for (int i = 0; i < blocks.Count; i++)
         {
@@ -217,6 +228,10 @@ public class LossZone : MonoBehaviour
             if (block == null) continue;
 
             float blockCullY = block.HasLanded ? landedInterceptCullY : cullY;
+            if ((!block.HasLanded || block.IsFallingClearOfTower) && floodKillY > blockCullY)
+            {
+                blockCullY = floodKillY;
+            }
             if (!block.IsLostBelow(blockCullY)) continue;
             if (block.HasLanded && groundRegime && blockCullY > cullY &&
                 !block.IsLostBelow(cullY) && IsOverFloorSpan(block)) continue;
@@ -238,6 +253,13 @@ public class LossZone : MonoBehaviour
     {
         if (block.TryGetComponent(out BlockIdentity identity) && !identity.TryConsumeLoss()) return;
         if (TryInterceptLoss(block)) return;
+        // A brick the WATER claimed plops as it goes (the modifier's slower sweep can
+        // miss a fast drop's brief surface crossing) - the loss line is at the flood's
+        // surface when a flood runs, so this is the swallow moment, not decoration.
+        if (block.transform.position.y < RisingFloodModifier.FloodSurfaceY)
+        {
+            SfxPlayer.Play("flood_plip", 0.55f, 0.08f);
+        }
         GameManager.Instance.DuringBlockLoss(block, block.HandleLostBelowScreen);
     }
 

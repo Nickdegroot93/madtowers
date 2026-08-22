@@ -63,6 +63,27 @@ public class RisingFloodModifier : LevelModifier, ILevelMenuProgressProvider
     [SerializeField] private Color deepColor = new Color(0.03f, 0.10f, 0.16f, 0.85f);
     [SerializeField] private Color foamColor = new Color(0.85f, 0.97f, 1f, 0.9f);
 
+    // A falling brick fully under the surface is GONE - it must not sink for seconds
+    // until the bottom-screen line charges it (Nick 2026-08-22: steering a piece into
+    // the water read as a free slow-motion ride). The flood publishes a kill line just
+    // under its surface and LossZone.CullY takes the max, so the sweep, the death beam
+    // and the Sacrifice/Hardline lasers all agree - and IsLostBelow's falling-only rules
+    // keep submerged RESTING tower bricks safe (nothing dissolves, PHYSICS.md).
+    // The depth is a beat of "slips under the waves" before the charge - a same-frame
+    // kill at the surface read as the brick popping against the foam.
+    private const float SubmergeKillDepth = 0.75f;
+
+    /// <summary>World Y of the active flood's surface; NegativeInfinity when no flood runs.
+    /// Global the TowerHeightLimit way (modifiers have no cross-system hooks); reset by
+    /// GameManager.Awake so a torn-down run can never leak a kill line into the next.</summary>
+    public static float FloodSurfaceY { get; private set; } = float.NegativeInfinity;
+
+    /// <summary>The flood's own death line (surface - a small submerge beat); LossZone raises
+    /// the cull line to this. NegativeInfinity when no flood runs.</summary>
+    public static float FloodKillY => FloodSurfaceY - SubmergeKillDepth;
+
+    public static void ResetFloodLines() => FloodSurfaceY = float.NegativeInfinity;
+
     // The swallow check sweeps all landed blocks; the flood moves slowly, so a cadence is
     // plenty (and the danger reading it feeds only drives visuals between sweeps).
     private const float CheckInterval = 0.15f;
@@ -76,16 +97,20 @@ public class RisingFloodModifier : LevelModifier, ILevelMenuProgressProvider
     private float _elapsed;
     private float _checkTimer;
     private float _floorY;
+    private bool _risingAnnounced;   // the flood_rising swell fired (once, when grace ends)
+    private int _submergedCount;     // bricks under the surface last sweep - a rise = plip
 
     public override void OnLevelStart(LevelModifierContext context)
     {
         _context = context;
         _elapsed = 0f;
         _checkTimer = 0f;
+        _risingAnnounced = false;
+        _submergedCount = 0;
 
         GameManager gm = context.GameManager;
         _floorY = gm != null ? gm.floorOriginY : 0f;
-        _surfaceY = _floorY - startBelowFloor;
+        SetSurface(_floorY - startBelowFloor);
 
         float goalHeight = 20f;
         if (context.Level != null && context.Level.TargetType == LevelTargetType.ReachHeight)
@@ -115,11 +140,23 @@ public class RisingFloodModifier : LevelModifier, ILevelMenuProgressProvider
             foam = Color.Lerp(Color.Lerp(b, Color.white, 0.75f), Color.white, 0.3f); foam.a = 0.95f;
         }
         _fx = FloodFx.Create(shallow, deep, foam, FloorCenterX());
-        _fx.SetSurfaceY(_surfaceY);
+        SetSurface(_surfaceY);   // now that the fx exists, sync the quad to the start line
+    }
+
+    /// <summary>THE single writer for the water level: the instance value (rules), the
+    /// static (LossZone kill line + FX gates) and the shader quad (what the player sees)
+    /// move together or not at all - a branch that moved one alone would leave an
+    /// invisible kill line metres from the rendered surface (review 2026-08-22).</summary>
+    private void SetSurface(float worldY)
+    {
+        _surfaceY = worldY;
+        FloodSurfaceY = worldY;
+        if (_fx != null) _fx.SetSurfaceY(worldY);
     }
 
     public override void OnLevelEnd(LevelModifierContext context)
     {
+        ResetFloodLines();
         if (_fx != null) Object.Destroy(_fx.gameObject);
         _fx = null;
     }
@@ -138,8 +175,15 @@ public class RisingFloodModifier : LevelModifier, ILevelMenuProgressProvider
         _elapsed += deltaTime;
         if (_elapsed > graceSeconds)
         {
-            _surfaceY += _riseSpeed * deltaTime;
-            _fx.SetSurfaceY(_surfaceY);
+            // The water waking up is the mode's starting gun - one swell, no countdown
+            // number (the water IS the timer). SFX are event-based on Nick's rule
+            // (2026-08-22): no constant ambience, the danger bed lives in FloodFx.
+            if (!_risingAnnounced)
+            {
+                _risingAnnounced = true;
+                SfxPlayer.Play("flood_rising", 0.8f);
+            }
+            SetSurface(_surfaceY + _riseSpeed * deltaTime);
         }
 
         _checkTimer -= deltaTime;
@@ -151,19 +195,31 @@ public class RisingFloodModifier : LevelModifier, ILevelMenuProgressProvider
         // hasn't committed. (A raised terrain shelf above the datum isn't credited either;
         // with any sane grace the first real placement lands long before that matters.)
         float highestTop = _floorY;
+        int submerged = 0;
         var blocks = BlockController.AllBlocks;
         for (int i = 0; i < blocks.Count; i++)
         {
             BlockController block = blocks[i];
+            if (block == null || !block.TryGetWorldBounds(out Bounds bounds)) continue;
             // IsFallingClearOfTower, NOT the sticky IsFallingAway latch: the latch stays set
             // on a jolted-but-reseated brick until it re-earns sleep, and excluding the real
             // top for that window drowned players whose highest brick never went under
             // (review 2026-08-11) - a mid-tower Magma/zap drop was an instant wrongful death
             // whenever the water was close.
-            if (block == null || !block.HasLanded || block.IsFallingClearOfTower) continue;
-            if (!block.TryGetWorldBounds(out Bounds bounds)) continue;
+            if (!block.HasLanded || block.IsFallingClearOfTower) continue;
+            // The plip here counts only RESTING tower bricks the rising water overtakes -
+            // a slow, atmospheric tick. Falling bricks plip at the loss funnel instead
+            // (LossZone.ResolveLostBlock): one owner per brick, or a dump double-plopped
+            // whenever a sweep sampled the submerge band (review 2026-08-22).
+            if (bounds.max.y < _surfaceY) submerged++;
             if (bounds.max.y > highestTop) highestTop = bounds.max.y;
         }
+
+        // A resting brick slipping under the surface plops - quiet physical feedback
+        // (JUICE.md Tier-0), throttled by the 0.15s sweep cadence. Count-compare, so
+        // destruction elsewhere never retriggers it.
+        if (submerged > _submergedCount) SfxPlayer.Play("flood_plip", 0.5f, 0.08f);
+        _submergedCount = submerged;
 
         float margin = highestTop - _surfaceY;
         _fx.SetDanger(1f - Mathf.Clamp01(margin / DangerBandMeters));
@@ -171,6 +227,7 @@ public class RisingFloodModifier : LevelModifier, ILevelMenuProgressProvider
         // Nick's rule, verbatim: you lose when the water is above your highest brick.
         if (margin < 0f)
         {
+            SfxPlayer.Play("flood_swallow", 0.9f);
             context.GameManager.EndRunNow("The flood swallowed the tower", RunEndCause.Flood);
         }
     }

@@ -448,6 +448,17 @@ menu type name **THE FLOOD**; goal stays `ReachHeight` (warns on any other targe
   the highest brick is above water you can still build on it. The end goes through
   `GameManager.EndRunNow` — terminal, no life charges, no immunity interplay. Falling
   pieces don't count (uncommitted); the floor datum is the baseline while nothing stands.
+- **The water is also the death line for FALLING bricks** (2026-08-22): the flood
+  publishes `FloodSurfaceY`/`FloodKillY` (surface − 0.75 m submerge beat); the LossZone
+  sweep raises its PER-BLOCK line to it for exactly the bricks the water can claim —
+  the active piece and landed bricks `IsFallingClearOfTower` — so a dumped or knocked-off
+  brick is charged the moment it slips fully under, with the splash + plip at the
+  waterline. **Never the shared `CullY`**: `IsLostBelow`'s landed branch matches
+  jolted-but-reseating rows for ~0.75 s after any slam, so a raised global line culled
+  live submerged tower rows, and `CullY`'s other consumers (Magma doomed-check, Curse
+  wake, Zap targeting) must keep their meaning (review 2026-08-22). A piece tucked into
+  an already-flooded pocket IS swallowed — underwater is underwater. Statics reset via
+  `GameManager.Awake` (the TowerHeightLimit pattern) so a dead run can't leak the line.
 - **The flood only runs during `GamePhase.Playing`** (review 2026-08-11): it freezes —
   rise, grace timer and kill check alike — through the intro pan, ability drafts and
   above all the hold-steady WIN VERIFICATION, where a photo-finish would otherwise flip
@@ -478,7 +489,11 @@ menu type name **THE FLOOD**; goal stays `ReachHeight` (warns on any other targe
   accents — pure accent derivation camouflaged green bricks in green water on first
   contact. Per-chapter copies can `overridePalette` (sand for deserts, lava via Magma).
   Granular/gas surface styles are planned shader variants, not new systems.
-- Assets: `RisingFlood_Standard.asset` (Data/Modifiers). SFX: none yet (deliberate).
+- Assets: `RisingFlood_Standard.asset` (Data/Modifiers). SFX wired 2026-08-22 (SOUNDS.md):
+  `flood_rising` swell at grace end, `flood_danger` lapping bed riding the danger ramp
+  (silent outside the last 4m, own AudioSource on FloodFx, gated to live play),
+  `flood_swallow` at the kill, `flood_plip` per submerged brick. Event-based only -
+  no constant ambience (Nick's rule).
 
 ### Campaign structure & progression
 

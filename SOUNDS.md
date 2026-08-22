@@ -151,6 +151,17 @@ The scheduled power-loss state (LEVELS.md "Blackout details"). Prompts in
 **Should be:** a deep descending power-down *whomp*, hum dying (in); breakers clunking back,
 hum swelling (out).
 
+### `flood_rising`, `flood_danger`, `flood_swallow`, `flood_plip` — The Flood · *generated (ElevenLabs, 2026-08-22)*
+The rising-water game type (LEVELS.md "The Flood details"). Prompts in
+`Tools/generate_elevenlabs_sfx.py`. Event-based on Nick's rule - no constant ambience.
+- `flood_rising` — one swell when grace ends and the water starts moving ([RisingFloodModifier.cs OnUpdate](Assets/SourceFiles/Scripts/Levels/Modifiers/RisingFloodModifier.cs)).
+- `flood_danger` — quiet lapping LOOP on a dedicated source, silent except the last 4m: volume rides the shader's smoothed danger, gated to live play ([FloodFx.cs Update](Assets/SourceFiles/Scripts/World/FloodFx.cs)).
+- `flood_swallow` — wave crash + underwater glug at the terminal swallow ([RisingFloodModifier.cs OnUpdate](Assets/SourceFiles/Scripts/Levels/Modifiers/RisingFloodModifier.cs)).
+- `flood_plip` — two owners, one per brick: a FALLING brick swallowed at the waterline plays it at the loss funnel ([LossZone.cs ResolveLostBlock](Assets/SourceFiles/Scripts/World/LossZone.cs)); a RESTING tower brick overtaken by the rising water plays it from the sweep's count-compare ([RisingFloodModifier.cs OnUpdate](Assets/SourceFiles/Scripts/Levels/Modifiers/RisingFloodModifier.cs)). The split is deliberate - one brick can never hit both paths.
+
+**Should be:** a broad low swell (rising); restless lapping, loopable (danger); a crash
+folding into a muffled glug (swallow); one soft round plop (plip).
+
 ### `void_open`, `void_suck` — Void Zones · *generated (ElevenLabs)*
 The forbidden-sky-rectangle hazard (LEVELS.md "Void Zones details"). Prompts in
 `Tools/generate_elevenlabs_sfx.py`.

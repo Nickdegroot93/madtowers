@@ -25,17 +25,25 @@ public static class LandingFx
         // not like 37% of a flick.
         float hardness = Mathf.Pow(Mathf.Clamp01(hardnessRaw01), 0.65f);
 
-        PlaySound(hardness);
+        // Underwater landings (the Flood: a brick landing on the submerged part of the
+        // tower) keep the thud, squash, trauma and haptic - mass is mass - but drop the
+        // DUST layers, visual and audible: kicked-up dust read as smoke under water
+        // (Nick 2026-08-22). Decided HERE, once, for the whole stack - not per leaf FX.
+        // FloodSurfaceY is -infinity when no flood runs.
+        bool hasBounds = block.TryGetWorldBounds(out Bounds bounds);
+        bool underwater = hasBounds && bounds.min.y < RisingFloodModifier.FloodSurfaceY;
+
+        PlaySound(hardness, dustTail: !underwater);
         TowerCameraController.AddTrauma(0.15f + 0.4f * hardness);
         LandingSquashFx.Play(block, hardness);
-        if (block.TryGetWorldBounds(out Bounds bounds)) LandingDustFx.Spawn(bounds, hardness);
+        if (hasBounds && !underwater) LandingDustFx.Spawn(bounds, hardness);
 
         if (hardness < 0.35f) Haptics.Light();
         else if (hardness < 0.75f) Haptics.Medium();
         else Haptics.Heavy();
     }
 
-    private static void PlaySound(float hardness)
+    private static void PlaySound(float hardness, bool dustTail = true)
     {
         // Body: the mass of the thud. Volume rides hardness; pitch drops a touch as it
         // hits harder (bigger = lower reads as heavier).
@@ -59,8 +67,9 @@ public static class LandingFx
         }
 
         // Tail: dust settling after a GENTLE placement. Hard slams skip it - their energy
-        // should end on the thud, not a whisper.
-        if (hardness < 0.55f && SfxPlayer.HasClip("land_tail_01"))
+        // should end on the thud, not a whisper. Underwater landings skip it too (no dust
+        // to settle - see Play).
+        if (dustTail && hardness < 0.55f && SfxPlayer.HasClip("land_tail_01"))
         {
             SfxPlayer.PlayVariant("land_tail", TailVariants, 0.22f, 0.1f);
         }

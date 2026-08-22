@@ -29,7 +29,11 @@ every effect must respect its invariants.
 ## 2. Tier 0 — every landing (shipped, commit 39b4627)
 
 Fires for ALL landings, scaled by descent speed at touchdown (`ComputeLandingHardness01`:
-normal steer ≈ 0, held fast-drop ≈ 0.5, flick = 1), orchestrated by `Core/LandingFx`:
+normal steer ≈ 0, held fast-drop ≈ 0.5, flick = 1), orchestrated by `Core/LandingFx`.
+One carve-out (2026-08-22): a landing UNDER the Flood's surface keeps the thud, squash,
+trauma and haptic — mass is mass — but drops both DUST layers (the `LandingDustFx` puffs
+and the `land_tail` settle sound): kicked-up dust read as smoke under water. Decided once
+in `LandingFx.Play`, never per leaf FX.
 
 - Velocity-scaled impact sound (layered `land_*` clips once generated; `impact_heavy`
   fallback until then) — volume and pitch ride hardness.
