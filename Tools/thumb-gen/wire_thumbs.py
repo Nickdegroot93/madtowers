@@ -19,6 +19,8 @@ WIRE = {
     "GD": ("GizaDusk", "giza-dusk"),
     "LO": ("LostCity", "lost-city"),
     "SI": ("SectorIsla", "sector-isla"),
+    "MS": ("MonsoonSector", "monsoon-sector"),
+    "CC": ("CrimsonCore", "crimson-core"),
     "HE": ("HallowsEnd", "hallows-end"),
     "AT": ("AmberTide", "amber-tide"),
 }

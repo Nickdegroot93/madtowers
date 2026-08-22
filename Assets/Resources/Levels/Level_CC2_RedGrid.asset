@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_CC2_RedGrid
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Red Grid
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: b0a224aef661d4203864d611aa41d285, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: ac3ff93598474f20ae2c283638bbb500, type: 2}
   targetType: 5

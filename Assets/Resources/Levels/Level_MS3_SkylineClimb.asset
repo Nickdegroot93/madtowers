@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_MS3_SkylineClimb
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Skyline Climb
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 91a12ccfd0c7f4be0af1131da5a3250c, type: 3}
   menuChallengeLabelOverride: 
   gameModeConfig: {fileID: 11400000, guid: f308407e7a3f4d13b77ed710fcdb64d7, type: 2}
   targetType: 2

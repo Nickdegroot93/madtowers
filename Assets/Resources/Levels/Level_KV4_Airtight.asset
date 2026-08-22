@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_KV4_Airtight
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Airtight
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 54f20681ce8f04247a7a20909e5ab7c2, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: d628f61fec754358b9a05d0843a6822c, type: 2}
   targetType: 1

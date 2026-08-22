@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_HE4_VoidZones
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Void Zones
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 816fed19e532345eab3a11cc3c0f687d, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: 05a33f73767c482496ab330997da9c2f, type: 2}
   targetType: 1

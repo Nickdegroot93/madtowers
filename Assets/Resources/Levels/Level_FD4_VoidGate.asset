@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_FD4_VoidGate
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Void Gate
-  menuThumbnail: {fileID: 21300000, guid: 4ee9ad82a43eb4648a08597768769d29, type: 3}
+  menuThumbnail: {fileID: 21300000, guid: f7f3243c887424431953870c7e0b0315, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: 0f9f35bc3d3c48b9af6234277914a287, type: 2}
   targetType: 1

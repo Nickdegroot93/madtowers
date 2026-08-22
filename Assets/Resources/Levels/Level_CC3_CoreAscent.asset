@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_CC3_CoreAscent
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: Core Ascent
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: a25387320c8bb46a89a90913bb96be2e, type: 3}
   menuChallengeLabelOverride: 
   gameModeConfig: {fileID: 11400000, guid: fba34891ee844825a68c707e4d77783c, type: 2}
   targetType: 2

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_MS1_ThePalmRoad
   m_EditorClassIdentifier: Assembly-CSharp::LevelDefinition
   displayName: The Palm Road
-  menuThumbnail: {fileID: 0}
+  menuThumbnail: {fileID: 21300000, guid: 4ec9587d8478846ccb8f2056164d51aa, type: 3}
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: 210cff82937548b4a25274bd2a13dec7, type: 2}
   targetType: 1
