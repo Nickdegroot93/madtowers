@@ -73,9 +73,19 @@ hard 14-day tester clock (Phase 1) that has nothing to do with polish.
       **Still open:** point DNS at the deploy, make `support@` + `privacy@` deliver, and
       have the legal copy reviewed (`legalIsDraft: false` drops the draft banner). Final
       SDK list is only certain after Phase 4 — re-check then.
-- [ ] **Crash/analytics decision** — nothing is integrated today. Decide (Unity Cloud
-      Diagnostics / Crashlytics / none), integrate or explicitly skip, and declare it in
-      the Phase 5 forms. Deciding late means redoing the data-safety forms.
+- [x] **Crash/analytics decision** — DECIDED + WIRED 2026-08-22: **Unity 6's built-in
+      Diagnostics** (crashes, C# exceptions, Android ANRs → Unity Cloud dashboard →
+      project → Developer Data → Diagnostics). Chosen over Crashlytics/Sentry: zero new
+      SDK, zero new vendor in the data-safety forms (Unity is already declared as the
+      engine), and it was ALREADY ON — the `Diagnostic Data` project setting
+      (`InsightsSettings.m_EngineDiagnosticsEnabled`) defaulted enabled with the Unity
+      6.2+ upgrade; the deprecated legacy Cloud Diagnostics stays off. Added a dev-build
+      "DEV: TEST CRASH" row (Settings → Alerts, two-tap) to prove the pipeline.
+      **Still open, both on the next device build:** tap TEST CRASH, relaunch, confirm
+      the report reaches the dashboard; and confirm IL2CPP symbols upload with the build
+      (dashboard → Symbols) so native stacks aren't garbage. Phase 5 forms: declare
+      "crash diagnostics / device info via Unity". No separate analytics product —
+      the runs-ledger telemetry (level_stats) covers gameplay questions.
 - [x] **Display-name moderation** — this box was stale (verified 2026-08-08):
       `claim_display_name` already does format validation (`^[A-Za-z0-9 _-]{3,16}$`), a
       profanity list, case-insensitive uniqueness and a `unique_violation` fallback, and

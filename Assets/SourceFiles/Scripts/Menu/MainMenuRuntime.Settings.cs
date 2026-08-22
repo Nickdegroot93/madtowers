@@ -364,15 +364,16 @@ public static partial class MainMenuRuntime
             SettingsService.AlertsEnabled, accent, y,
             on => { SettingsService.AlertsEnabled = on; CommitSetting(); });
 
-        BuildDevTestPingRow(rows, y, accent);
+        y = BuildDevTestPingRow(rows, y, accent);
+        BuildDevTestCrashRow(rows, y, accent);
     }
 
     /// <summary>DEVELOPMENT BUILDS ONLY: a 60-second test notification, so device passes
     /// verify the pipeline (permission, channel, delivery) without waiting out a regen
     /// cycle. Stay IN the app - backgrounding wipes and reschedules the real alerts.</summary>
-    private static void BuildDevTestPingRow(RectTransform rows, float rowTop, Color accent)
+    private static float BuildDevTestPingRow(RectTransform rows, float rowTop, Color accent)
     {
-        if (!Debug.isDebugBuild) return;
+        if (!Debug.isDebugBuild) return rowTop;
 
         RectTransform row = NewSettingsRow(rows, "DevTestPing", rowTop, ToggleRowH);
         BuildRowLabel(row, MenuSprites.Info, "DEV: TEST PING",
@@ -385,6 +386,44 @@ public static partial class MainMenuRuntime
             SfxPlayer.Play("ui-button-click");
             NotificationScheduler.ScheduleTestPing();
             label.text = "SENT - WAIT 60S";
+        });
+        return rowTop - ToggleRowH;
+    }
+
+    /// <summary>DEVELOPMENT BUILDS ONLY: kill the app with a real native crash so a device
+    /// build can prove the Unity Diagnostics pipeline end to end (capture, upload,
+    /// symbolication - the report lands in Unity Cloud &gt; Developer Data &gt; Diagnostics a
+    /// few minutes after the NEXT launch). Two taps on purpose: the first arms, the second
+    /// crashes - a mis-tap must not nuke a play session. In the editor this would take the
+    /// whole editor down, so it no-ops behind isDebugBuild's device gate AND an explicit
+    /// editor check.</summary>
+    private static void BuildDevTestCrashRow(RectTransform rows, float rowTop, Color accent)
+    {
+        if (!Debug.isDebugBuild) return;
+
+        RectTransform row = NewSettingsRow(rows, "DevTestCrash", rowTop, ToggleRowH);
+        BuildRowLabel(row, MenuSprites.Info, "DEV: TEST CRASH",
+            "Test build only. Force a native crash to verify crash reporting.", accent);
+
+        bool armed = false;
+        (Button click, TextMeshProUGUI label) =
+            BuildRowActionButton(row, "TestCrashButton", "CRASH", accent, TextPrimary);
+        click.onClick.AddListener(() =>
+        {
+            SfxPlayer.Play("ui-button-click");
+            if (!armed)
+            {
+                armed = true;
+                label.text = "TAP AGAIN";
+                return;
+            }
+            if (Application.isEditor)
+            {
+                Debug.Log("[Diagnostics] Test crash is device-only (it would take the editor down).");
+                label.text = "DEVICE ONLY";
+                return;
+            }
+            UnityEngine.Diagnostics.Utils.ForceCrash(UnityEngine.Diagnostics.ForcedCrashCategory.AccessViolation);
         });
     }
 
