@@ -59,6 +59,14 @@ public static class ProgressStore
         // profiles.xp (LWW overwrite, like the attempts fields; merge_progress strips it);
         // with the online layer disabled it is the local accumulator itself.
         public long xpEarned;
+        // The one-shot solo-dev letter (DEVLETTER.md beat 1) has been shown. Monotonic
+        // timestamp, 0 = never; merge = max - the linkPromptShownAtUnixUtc shape, and the
+        // generic server merge already maxes numbers, so it cloud-syncs with no SQL change.
+        public long devLetterShownAtUnixUtc;
+        // The one-lifetime review ask (DEVLETTER.md beat 3) has fired. Same shape. Marked
+        // the moment we CALL the OS API - whether a dialog actually appeared is the OS's
+        // secret (iOS may silently no-op), and once-ever is our side of the contract.
+        public long reviewAskedAtUnixUtc;
     }
 
     [Serializable]
@@ -319,6 +327,26 @@ public static class ProgressStore
     {
         if (Data.linkPromptShownAtUnixUtc > 0) return;
         Data.linkPromptShownAtUnixUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        Save();
+    }
+
+    /// <summary>Has the one-time solo-dev letter (DEVLETTER.md beat 1) been shown?</summary>
+    public static bool WasDevLetterShown() => Data.devLetterShownAtUnixUtc > 0;
+
+    public static void MarkDevLetterShown()
+    {
+        if (Data.devLetterShownAtUnixUtc > 0) return;
+        Data.devLetterShownAtUnixUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        Save();
+    }
+
+    /// <summary>Has the one-lifetime review ask (DEVLETTER.md beat 3) fired?</summary>
+    public static bool WasReviewAsked() => Data.reviewAskedAtUnixUtc > 0;
+
+    public static void MarkReviewAsked()
+    {
+        if (Data.reviewAskedAtUnixUtc > 0) return;
+        Data.reviewAskedAtUnixUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         Save();
     }
 

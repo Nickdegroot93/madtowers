@@ -235,12 +235,17 @@ public static partial class MainMenuRuntime
         TryScheduleLinkPrompt();
     }
 
+    /// <summary>Is the one-time sign-in card still owed? Shared with the dev-beats runner,
+    /// whose review ask must never land on the same visit as this card.</summary>
+    private static bool LinkPromptOwesAVisit()
+        => OnlineService.Enabled
+        && !ProgressStore.WasLinkPromptShown()
+        && AttemptsService.MetaEnabled;                           // pre-Chapter-1: monetization-silent
+
     private static void TryScheduleLinkPrompt()
     {
-        if (!OnlineService.Enabled) return;
         if (!LevelSelectionState.IsSelectionPending) return;      // a run is launching, not the menu
-        if (ProgressStore.WasLinkPromptShown()) return;
-        if (!AttemptsService.MetaEnabled) return;                 // pre-Chapter-1: monetization-silent
+        if (!LinkPromptOwesAVisit()) return;
         OnlineService.Run(LinkPromptCo());
     }
 
@@ -254,6 +259,9 @@ public static partial class MainMenuRuntime
         // An unlock reveal owns this menu return - the prompt simply waits for a later visit.
         if (UnlockRevealPending.PeekLevelId() != null) yield break;
         if (UnityEngine.Object.FindFirstObjectByType<MenuUnlockRevealRunner>() != null) yield break;
+        // So does the dev letter (DEVLETTER.md beat 1): it explains the systems that just
+        // switched on, and one-shots never stack - the prompt takes the NEXT visit.
+        if (DevLetterOwnsAVisit()) yield break;
         ShowLinkPromptCard();
     }
 

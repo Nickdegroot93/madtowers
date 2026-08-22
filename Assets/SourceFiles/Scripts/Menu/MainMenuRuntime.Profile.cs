@@ -194,8 +194,11 @@ public static partial class MainMenuRuntime
         // Benefits, one per line with the shared checkmark - benefits, not features. Short
         // punches only, at a size that reads (Nick 2026-08-11: 16pt was too small, and the
         // "NEVER WAIT TO PLAY" / "EVEN ON A PLANE" tails were cut - the lead words carry it).
+        // The 4th line IS the DEVLETTER.md beat-2 microcopy - it replaced "ONE PURCHASE,
+        // YOURS FOREVER" rather than stacking under it (two "one purchase" lines 10px
+        // apart read as a collision - review 2026-08-22).
         string[] benefits = { "NO ADS, EVER", "UNLIMITED LIVES",
-            "PLAY OFFLINE", "ONE PURCHASE, YOURS FOREVER" };
+            "PLAY OFFLINE", DevSupportLine };
         for (int i = 0; i < benefits.Length; i++)
         {
             float y = -heroH - 116f - i * 42f;

@@ -1,6 +1,12 @@
 # DEVLETTER.md — the solo-dev letter, premium microcopy & review ask
 
-**Status: DESIGN — agreed 2026-08-05, not built.** Extends SHOP.md's monetization
+**Status: BUILT 2026-08-22** (letter: `MainMenuRuntime.DevLetter.cs`; review facade:
+`Shop/StoreReview.cs` over `com.google.play.review` + iOS `Device.RequestStoreReview`;
+microcopy on the Profile card + refill offer; save flags `devLetterShownAtUnixUtc` /
+`reviewAskedAtUnixUtc`, monotonic timestamps that cloud-merge as max with no SQL change).
+The letter waits out an unlock reveal and shows the same visit; the link prompt defers
+to the letter (one-shots never stack). Design below agreed 2026-08-05, unchanged.
+Extends SHOP.md's monetization
 surfaces with three one-shot beats; SHOP.md §7/§8 remain binding and unchanged. The
 original idea (one popup at chapter 2 offering "buy the game OR leave a review")
 was split apart on research — combining the asks weakens both and flirts with store
@@ -44,7 +50,15 @@ emotional peak, per platform best practice.
 - **Form**: modal in the standard taste contract (near-black body, neon edge, no
   ornament). Signed "— Nick". Single button: **KEEP PLAYING**. No price, no BUY
   button, no review button. Android back / tap-outside dismisses too — never trap.
-- **Copy draft** (tune freely, keep every claim literally true in-game):
+- **Copy REWRITTEN by Nick 2026-08-22** (supersedes the draft below; as-built in
+  `MainMenuRuntime.DevLetter.cs`): personal intro ("I'm Nick, the developer of…"),
+  free + no pay-to-win, the premium pitch WITH the live store price
+  (`PremiumStore.PriceText`, never a hardcoded number - localized tiers), and a soft
+  standalone review mention. Two of the original rules were consciously relaxed: the
+  letter may now name the price and mention a review. Two still bind: the review line
+  is never conditional on not buying ("review instead of paying" framing invites
+  obligation reviews), and there is still exactly one button and no reward. The
+  original draft, kept for the record:
 
   > Hey — I'm Nick. MadTowers is made by one person.
   >

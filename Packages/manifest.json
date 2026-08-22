@@ -2,6 +2,7 @@
   "dependencies": {
     "com.coffee.ui-effect": "5.10.9",
     "com.google.ads.mobile": "11.3.0",
+    "com.google.play.review": "1.8.4",
     "com.google.external-dependency-manager": "1.2.188",
     "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#v9.7.3",
     "com.unity.ai.assistant": "2.11.0-pre.1",

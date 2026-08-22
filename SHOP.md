@@ -253,6 +253,12 @@ COMING SOON. Both systems switch on at first Chapter 1 completion (one save flag
 first session ≈ 40% better later conversion — and it matches PROGRESSION.md's
 "beatable cold" opener philosophy.
 
+> **Cross-ref (built 2026-08-22):** the solo-dev letter, the "one purchase, supports
+> one developer" microcopy and the one-lifetime review ask live in **DEVLETTER.md**
+> (the binding design for those three beats). They add no new monetization surface:
+> the letter asks for nothing, the microcopy rides the existing premium card, and the
+> review ask is the silent official API. §7/§8 stand unchanged.
+
 ### 7.2 Offer help at the wall (the only nudge, binding limits)
 
 After **3 consecutive losses on the same level**, the level modal opens its

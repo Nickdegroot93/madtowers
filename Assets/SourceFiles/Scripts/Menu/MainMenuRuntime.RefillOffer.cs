@@ -146,6 +146,11 @@ public static partial class MainMenuRuntime
         CreateTmp(offer.transform, "Pitch2", "NO ADS  ·  PLAY OFFLINE  ·  YOURS FOREVER", 13,
             WithAlpha(TextMuted, 0.95f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -170f), new Vector2(RefillPanelW - 100f, 20f), new Vector2(0.5f, 1f));
+        // The DEVLETTER.md beat-2 microcopy: one line of who's behind the price, on the
+        // surface that already converts - never a new popup (SHOP.md §7.2 restraint).
+        CreateTmp(offer.transform, "DevLine", DevSupportLine, 13,
+            WithAlpha(TextMuted, 0.8f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(0f, -196f), new Vector2(RefillPanelW - 100f, 20f), new Vector2(0.5f, 1f));
 
         // CTA: the Profile card's builder, verbatim - owned banner, live BUY, or the
         // dimmed COMING SOON all render here exactly as they do there.
