@@ -18,6 +18,14 @@ using static RuntimeUiKit;
 public static partial class MainMenuRuntime
 {
     private const float RefillPanelW = 700f;
+    private const float RefillPanelH = 700f;
+
+    // Contextual permission ask (approved 2026-08-11): the one moment a notification is
+    // a favor is standing at an empty meter, so the "want a ping when lives are full?"
+    // row lives HERE, not in a boot dialog. Extra panel height when the row shows: the
+    // row itself plus the same 26px breathing gap the ad row keeps to the panel edge.
+    private const float NotifyAskRowH = 70f;
+    private const float NotifyAskExtra = NotifyAskRowH + 26f;
 
     private static GameObject _refillOverlay;
 
@@ -45,12 +53,18 @@ public static partial class MainMenuRuntime
         Image panel = RuntimeUiKit.CreateImage(overlay.transform, "Panel",
             RuntimeSprites.RoundedPanel(), new Color(0.055f, 0.05f, 0.07f, 0.99f));
         panel.type = Image.Type.Sliced;
+        // Standing at an EMPTY meter with the OS never yet asked: grow the panel and
+        // append the notification ask. Any other state keeps the tuned 700 layout.
+        bool showNotifyAsk = NotificationScheduler.CanOfferContextualAsk
+            && AttemptsService.MeterActive && AttemptsService.Count <= 0;
         RuntimeUiKit.SetRect(panel.rectTransform, new Vector2(0f, 0f),
-            new Vector2(RefillPanelW, 700f), new Vector2(0.5f, 0.5f));
+            new Vector2(RefillPanelW, RefillPanelH + (showNotifyAsk ? NotifyAskExtra : 0f)),
+            new Vector2(0.5f, 0.5f));
         panel.raycastTarget = true;   // swallow taps so only the backdrop dismisses
         RuntimeUiKit.AddOutline(panel.rectTransform, WithAlpha(TextPrimary, 0.10f));
 
         BuildRefillContent(panel.rectTransform);
+        if (showNotifyAsk) BuildNotifyAskRow(panel.rectTransform);
 
         // Pop-in on unscaled time (the menu runs at timeScale = 0): scale + backdrop
         // fade. Small and quick - liveliness, not a celebration.
@@ -237,8 +251,12 @@ public static partial class MainMenuRuntime
         rowRect.anchorMin = new Vector2(0f, 0f);
         rowRect.anchorMax = new Vector2(1f, 0f);
         rowRect.pivot = new Vector2(0.5f, 0f);
-        rowRect.offsetMin = new Vector2(24f, 26f);
-        rowRect.offsetMax = new Vector2(-24f, 26f + 92f);
+        // When the notification ask row occupies the panel's bottom band, ride above it
+        // by exactly the added height - every top-relative position (offer card, OR
+        // label) then keeps its tuned distance to this row.
+        float lift = panel.sizeDelta.y - RefillPanelH;
+        rowRect.offsetMin = new Vector2(24f, 26f + lift);
+        rowRect.offsetMax = new Vector2(-24f, 26f + 92f + lift);
         if (ready) RuntimeUiKit.AddOutline(rowRect, WithAlpha(GameMenuStyle.Accent, 0.5f));
 
         string label;
@@ -293,6 +311,147 @@ public static partial class MainMenuRuntime
             {
                 if (earned) AttemptsService.RequestAdRefill(null);
             });
+        });
+    }
+
+    /// <summary>The contextual permission ask: one tappable row at the panel's bottom.
+    /// A tap fires the REAL OS dialog (the only place outside Settings that does), and
+    /// the row then speaks the verdict itself - it never turns into a dead button, and
+    /// CanOfferContextualAsk goes false either way, so the row never appears again.</summary>
+    private static void BuildNotifyAskRow(RectTransform panel)
+    {
+        Image row = RuntimeUiKit.CreateImage(panel, "NotifyAsk",
+            RuntimeSprites.RoundedPanel(), new Color(0.08f, 0.08f, 0.10f, 1f));
+        row.type = Image.Type.Sliced;
+        RectTransform rowRect = row.rectTransform;
+        rowRect.anchorMin = new Vector2(0f, 0f);
+        rowRect.anchorMax = new Vector2(1f, 0f);
+        rowRect.pivot = new Vector2(0.5f, 0f);
+        rowRect.offsetMin = new Vector2(24f, 26f);
+        rowRect.offsetMax = new Vector2(-24f, 26f + NotifyAskRowH);
+        RuntimeUiKit.AddOutline(rowRect, WithAlpha(GameMenuStyle.Accent, 0.4f));
+        row.raycastTarget = true;   // CreateImage defaults to false; see BuildWatchAdOption
+
+        Image bell = CreateImage(row.transform, "Bell",
+            MenuSprites.Bell(WithAlpha(GameMenuStyle.Accent, 0.9f)), Color.white);
+        bell.preserveAspect = true;
+        SetCenteredAt(bell.rectTransform, new Vector2(0f, 0.5f), new Vector2(44f, 0f), new Vector2(34f, 34f));
+
+        TextMeshProUGUI label = CreateTmp(row.transform, "Label",
+            "GET A PING WHEN LIVES ARE FULL?", 19, TextPrimary,
+            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(0f, 9f), new Vector2(RefillPanelW - 160f, 26f), new Vector2(0.5f, 0.5f));
+        TextMeshProUGUI sub = CreateTmp(row.transform, "Sub",
+            "ONE TAP - JUST THE REFILL, NO SPAM", 12, WithAlpha(TextMuted, 0.9f),
+            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(0f, -15f), new Vector2(RefillPanelW - 160f, 18f), new Vector2(0.5f, 0.5f));
+
+        Button ask = row.gameObject.AddComponent<Button>();
+        ask.targetGraphic = row;
+        ask.onClick.AddListener(() =>
+        {
+            SfxPlayer.Play("ui-button-click");
+            ask.interactable = false;
+            label.text = "...";
+            NotificationScheduler.RequestPermission(granted =>
+            {
+                if (label == null) return;   // modal closed while the OS dialog was up
+                if (granted)
+                {
+                    label.text = "YOU'LL GET A PING WHEN LIVES ARE FULL";
+                    sub.text = "MANAGE IN SETTINGS - ALERTS";
+                }
+                else
+                {
+                    label.text = "NOTIFICATIONS ARE BLOCKED";
+                    sub.text = "ENABLE THEM IN YOUR PHONE'S SETTINGS";
+                }
+            });
+        });
+    }
+
+    /// <summary>The one-time "out of lives - want a ping?" sheet, popped automatically
+    /// the FIRST time the meter blocks play (Nick 2026-08-12: the ask must find the
+    /// player, not wait to be found). OS rules make on-by-default impossible - both
+    /// stores require an explicit grant via the system dialog - so this is the moment
+    /// we ask: the one time a notification is a favor. Shows once ever (flag set on
+    /// open, crash-proof); declining softly keeps the OS never-asked, so the refill
+    /// modal's passive row and Settings remain as quiet second chances.</summary>
+    private static void MaybeOfferNotificationPrompt()
+    {
+        if (NotificationScheduler.SoftAskShown) return;
+        if (!NotificationScheduler.CanOfferContextualAsk) return;
+        NotificationScheduler.MarkSoftAskShown();
+
+        GameObject overlay = RuntimeUiKit.CreateOverlayCanvas("Notify Ask", 5850);
+
+        Image backdrop = CreateImage(overlay.transform, "Backdrop", null, new Color(0f, 0f, 0f, 0.72f));
+        Stretch(backdrop.rectTransform);
+        backdrop.raycastTarget = true;
+        Button dismiss = backdrop.gameObject.AddComponent<Button>();
+        dismiss.transition = Selectable.Transition.None;
+        dismiss.onClick.AddListener(() => UnityEngine.Object.Destroy(overlay));
+
+        Color accent = GameMenuStyle.Accent;
+        Image panel = CreateImage(overlay.transform, "Panel", RuntimeSprites.RoundedPanel(),
+            new Color(0.055f, 0.05f, 0.07f, 0.99f));
+        panel.type = Image.Type.Sliced;
+        SetRect(panel.rectTransform, Vector2.zero, new Vector2(640f, 440f), new Vector2(0.5f, 0.5f));
+        panel.raycastTarget = true;
+        RuntimeUiKit.AddOutline(panel.rectTransform, WithAlpha(accent, 0.45f));
+
+        Image bell = CreateImage(panel.transform, "Bell", MenuSprites.Bell(WithAlpha(accent, 0.9f)), Color.white);
+        bell.preserveAspect = true;
+        SetCenteredAt(bell.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -62f), new Vector2(56f, 56f));
+
+        TextMeshProUGUI title = CreateTmp(panel.transform, "Title", "OUT OF LIVES", 32, TextPrimary,
+            TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(0f, -108f), new Vector2(560f, 42f), new Vector2(0.5f, 1f));
+        title.characterSpacing = 3f;
+        TextMeshProUGUI body = CreateTmp(panel.transform, "Body",
+            "Want a ping the moment they're back to full?", 22, WithAlpha(TextPrimary, 0.9f),
+            TextAnchor.UpperCenter, FontStyle.Normal, RuntimeUiKit.TitleFont,
+            new Vector2(0f, -158f), new Vector2(520f, 64f), new Vector2(0.5f, 1f));
+        body.textWrappingMode = TextWrappingModes.Normal;
+
+        // YES: the bright, easy choice - only this fires the real OS dialog.
+        Image yesBg = CreateImage(panel.transform, "Yes", MenuSprites.RoundedGradient(
+            Color.Lerp(accent, Color.white, 0.15f), Color.Lerp(accent, Color.black, 0.2f)), Color.white);
+        yesBg.type = Image.Type.Sliced;
+        SetRect(yesBg.rectTransform, new Vector2(0f, 118f), new Vector2(540f, 92f), new Vector2(0.5f, 0f));
+        yesBg.raycastTarget = true;
+        TextMeshProUGUI yesLabel = CreateTmp(yesBg.transform, "Label", "YES, NOTIFY ME", 25,
+            new Color(0.08f, 0.07f, 0.10f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        Button yes = yesBg.gameObject.AddComponent<Button>();
+        yes.targetGraphic = yesBg;
+        yes.onClick.AddListener(() =>
+        {
+            SfxPlayer.Play("ui-button-click");
+            yes.interactable = false;
+            dismiss.interactable = false;
+            yesLabel.text = "...";
+            NotificationScheduler.RequestPermission(_ =>
+            {
+                // Either verdict: the sheet's job is done (scheduling happens at the
+                // next app background; a denial is spoken by the Settings tab, not here).
+                if (overlay != null) UnityEngine.Object.Destroy(overlay);
+            });
+        });
+
+        // The quiet no: flat and unbordered, same weight as tap-outside.
+        Image noBg = CreateImage(panel.transform, "No", RuntimeSprites.RoundedPanel(),
+            new Color(0.10f, 0.095f, 0.12f, 1f));
+        noBg.type = Image.Type.Sliced;
+        SetRect(noBg.rectTransform, new Vector2(0f, 30f), new Vector2(540f, 72f), new Vector2(0.5f, 0f));
+        noBg.raycastTarget = true;
+        CreateTmp(noBg.transform, "Label", "NOT NOW", 21, WithAlpha(TextMuted, 0.9f),
+            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        Button no = noBg.gameObject.AddComponent<Button>();
+        no.targetGraphic = noBg;
+        no.onClick.AddListener(() =>
+        {
+            SfxPlayer.Play("ui-button-click", 0.7f);
+            UnityEngine.Object.Destroy(overlay);
         });
     }
 

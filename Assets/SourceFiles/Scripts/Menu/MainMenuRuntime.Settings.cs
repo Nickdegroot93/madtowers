@@ -194,6 +194,7 @@ public static partial class MainMenuRuntime
         if (tab == SettingsTab.Sound) BuildSoundSettings(panel, light);
         else if (tab == SettingsTab.Graphics) BuildGraphicsSettings(panel, light);
         else if (tab == SettingsTab.Controls) BuildControlsSettings(panel, chapter, light);
+        else if (tab == SettingsTab.Notifications) BuildNotificationSettings(panel, light);
         else if (tab == SettingsTab.Account) BuildAccountSettings(panel, light);
         else if (tab == SettingsTab.About) BuildAboutSettings(panel, light);
         else BuildEmptyState(panel, icon, light);
@@ -307,6 +308,84 @@ public static partial class MainMenuRuntime
             TextAnchor.UpperCenter, FontStyle.Normal, RuntimeUiKit.TitleFont,
             new Vector2(0f, -SettingsRowsTop - 230f), new Vector2(600f, 60f), new Vector2(0.5f, 1f));
         desc.textWrappingMode = TextWrappingModes.Normal;
+    }
+
+    // ---- Alerts / Notifications tab -----------------------------------------------------
+    // Three honest states, one per OS permission verdict. NotRequested: a single TURN ON
+    // row (a toggle would be a dead switch until the OS says yes, and dead switches read
+    // as broken). Denied: say so and deep-link to system settings - only the OS can undo
+    // its own no. Granted: ONE yes/no toggle for everything - per-type toggles were built
+    // and cut same-day (Nick 2026-08-12: "do you want notifications, yes or no" is the
+    // whole setting; nobody curates ping categories for a tower game).
+    private static void BuildNotificationSettings(RectTransform panel, Color accent)
+    {
+        RectTransform rows = NewRowsBlock(panel);
+        NotificationScheduler.PermissionState permission = NotificationScheduler.Permission;
+
+        if (permission == NotificationScheduler.PermissionState.Denied)
+        {
+            RectTransform denied = NewSettingsRow(rows, "AlertsDenied", 0f, ToggleRowH);
+            BuildRowLabel(denied, MenuSprites.Bell, "NOTIFICATIONS ARE OFF",
+                "Blocked in your phone's settings.", accent);
+            (Button open, _) = BuildRowActionButton(denied, "OpenButton", "OPEN SETTINGS", accent, TextPrimary);
+            open.onClick.AddListener(() =>
+            {
+                SfxPlayer.Play("ui-button-click");
+                NotificationScheduler.OpenSystemSettings();
+            });
+            return;
+        }
+
+        if (permission == NotificationScheduler.PermissionState.NotRequested)
+        {
+            RectTransform enable = NewSettingsRow(rows, "AlertsEnable", 0f, ToggleRowH);
+            BuildRowLabel(enable, MenuSprites.Bell, "GET NOTIFIED",
+                "Lives refilled, and the odd nudge.", accent);
+            (Button turnOn, TextMeshProUGUI turnOnLabel) =
+                BuildRowActionButton(enable, "TurnOnButton", "TURN ON", accent, TextPrimary);
+            turnOn.onClick.AddListener(() =>
+            {
+                SfxPlayer.Play("ui-button-click");
+                turnOn.interactable = false;
+                turnOnLabel.text = "...";
+                NotificationScheduler.RequestPermission(_ =>
+                {
+                    // Verdict changes which of the three states this tab is in: rebuild
+                    // (guarded - the player may have left Settings during the OS dialog).
+                    if (turnOnLabel != null && _activeTab == MenuTab.Settings) BuildMenu();
+                });
+            });
+            return;
+        }
+
+        float y = 0f;
+        y = BuildToggleRow(rows, MenuSprites.Bell, "NOTIFICATIONS",
+            "Lives refilled, comeback nudges.",
+            SettingsService.AlertsEnabled, accent, y,
+            on => { SettingsService.AlertsEnabled = on; CommitSetting(); });
+
+        BuildDevTestPingRow(rows, y, accent);
+    }
+
+    /// <summary>DEVELOPMENT BUILDS ONLY: a 60-second test notification, so device passes
+    /// verify the pipeline (permission, channel, delivery) without waiting out a regen
+    /// cycle. Stay IN the app - backgrounding wipes and reschedules the real alerts.</summary>
+    private static void BuildDevTestPingRow(RectTransform rows, float rowTop, Color accent)
+    {
+        if (!Debug.isDebugBuild) return;
+
+        RectTransform row = NewSettingsRow(rows, "DevTestPing", rowTop, ToggleRowH);
+        BuildRowLabel(row, MenuSprites.Info, "DEV: TEST PING",
+            "Test build only. Notification in 60s - stay in the app.", accent);
+
+        (Button click, TextMeshProUGUI label) =
+            BuildRowActionButton(row, "TestPingButton", "SEND", accent, TextPrimary);
+        click.onClick.AddListener(() =>
+        {
+            SfxPlayer.Play("ui-button-click");
+            NotificationScheduler.ScheduleTestPing();
+            label.text = "SENT - WAIT 60S";
+        });
     }
 
     // ---- Account tab ------------------------------------------------------------------------

@@ -28,6 +28,8 @@ public static class SettingsService
     private const string HapticsKey = "settings.haptics.enabled";
     private const string HudLayoutKey = "settings.controls.hudLayout";
 
+    private const string AlertsKey = "settings.alerts.enabled";
+
     private const int DefaultFrameRate = 60;
 
     private static float _music;
@@ -38,6 +40,7 @@ public static class SettingsService
     private static bool _screenShake;
     private static bool _haptics;
     private static HudLayout _hud;
+    private static bool _alerts;
     private static bool _loaded;
 
     private static void EnsureLoaded()
@@ -51,6 +54,9 @@ public static class SettingsService
         _screenShake = PlayerPrefs.GetInt(ScreenShakeKey, 1) != 0;
         _haptics = PlayerPrefs.GetInt(HapticsKey, 1) != 0;
         _hud = HudLayout.FromJsonOrDefault(PlayerPrefs.GetString(HudLayoutKey, string.Empty));
+        // Defaults ON in-app: the OS permission dialog (never shown at boot) is the
+        // real gate, so this only ever matters after an explicit player yes.
+        _alerts = PlayerPrefs.GetInt(AlertsKey, 1) != 0;
         _loaded = true;
     }
 
@@ -155,6 +161,25 @@ public static class SettingsService
             if (_haptics == value) return;
             _haptics = value;
             PlayerPrefs.SetInt(HapticsKey, value ? 1 : 0);
+            Changed?.Invoke();
+        }
+    }
+
+    // ---- Alerts (local notifications; enforced in NotificationScheduler, which simply
+    // never queues anything while this says no). ONE toggle for everything, by design
+    // (Nick 2026-08-12, second round: per-type toggles beg a question nobody asks -
+    // "do you want notifications, yes or no" is the whole setting). ----
+
+    /// <summary>All local notifications: lives refilled, comeback nudges.</summary>
+    public static bool AlertsEnabled
+    {
+        get { EnsureLoaded(); return _alerts; }
+        set
+        {
+            EnsureLoaded();
+            if (_alerts == value) return;
+            _alerts = value;
+            PlayerPrefs.SetInt(AlertsKey, value ? 1 : 0);
             Changed?.Invoke();
         }
     }
