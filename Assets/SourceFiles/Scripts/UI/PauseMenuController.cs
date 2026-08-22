@@ -34,6 +34,39 @@ public class PauseMenuController : MonoBehaviour
         StartCoroutine(CaptureBlurThenShowMenu());
     }
 
+    // ---- interruption auto-pause -----------------------------------------------------------
+    // A call, an app switch or the Android notification shade must never cost a run: live
+    // play resumes INTO the pause sheet, never into a brick that kept falling (or fell the
+    // moment the OS suspended us mid-drop). Both hooks route to one gate:
+    //   - OnApplicationPause(true): real suspend (home button, call, app switch).
+    //   - OnApplicationFocus(false): the sneaky case - shade pull / multi-window can drop
+    //     focus while the app KEEPS RENDERING AND SIMULATING, so the run would die unwatched.
+    // The rule is MANUAL-PAUSE PARITY: fire exactly when the player could have tapped the
+    // HUD pause button (PauseAvailable) - not just GamePhase.Playing. Discovery and
+    // WinVerifying keep the world simulating (a debut modal holds spawning, not physics;
+    // hold-steady verification IS live physics) and GameOver() has no phase gate, so a
+    // collapse there drains lives unwatched too (review 2026-08-22). Phases that freeze
+    // time push a real pause (ability draft) and exclude themselves via IsGamePaused.
+
+    private void OnApplicationPause(bool paused)
+    {
+        if (paused) AutoPauseForInterruption();
+    }
+
+    private void OnApplicationFocus(bool hasFocus)
+    {
+        if (!hasFocus) AutoPauseForInterruption();
+    }
+
+    private void AutoPauseForInterruption()
+    {
+        // Editor focus flips constantly (clicking any other window, MCP-driven test runs
+        // with runInBackground) - this is a device behavior, not an editor one.
+        if (Application.isEditor) return;
+        if (!PauseAvailable) return;
+        ShowPauseMenu();
+    }
+
     // The shroud is a real blur: capture the frozen frame once, then downscale through a
     // render-texture chain - each bilinear resample is a cheap strong blur pass, and the
     // result is a static texture with zero per-frame cost. Rendering keeps running while
