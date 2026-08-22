@@ -171,7 +171,7 @@ public class RisingFloodModifier : LevelModifier, ILevelMenuProgressProvider
         // Nick's rule, verbatim: you lose when the water is above your highest brick.
         if (margin < 0f)
         {
-            context.GameManager.EndRunNow("The flood swallowed the tower");
+            context.GameManager.EndRunNow("The flood swallowed the tower", RunEndCause.Flood);
         }
     }
 

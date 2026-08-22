@@ -59,6 +59,9 @@ public static class RunGate
         public int score;
         public float height;
         public float progress;   // unclamped goal progress for the XP award (XP.md); pre-XP queue files default to 0
+        // Loss telemetry (runs.fail_cause): 'lives'/'flood'/'timeout'/'abandon'/'other',
+        // null on wins and in pre-telemetry queue files (the server nulls unknowns too).
+        public string failCause;
         // Post-victory Keep Playing report: improve_run_score instead of finish_run.
         // Older queue files default to false, i.e. a plain finish - correct for them.
         public bool improve;
@@ -196,9 +199,11 @@ public static class RunGate
 
     /// <summary>Report the active run's outcome (win refund + score submission + the XP award
     /// happen server-side in one exchange). <paramref name="progress"/> is the run's peak
-    /// unclamped goal progress (1 = at target; XP.md). Fire-and-forget: network failures
-    /// queue to disk and retry; the run_id makes retries idempotent.</summary>
-    public static void ReportFinish(bool won, int score, float height, float progress)
+    /// unclamped goal progress (1 = at target; XP.md); <paramref name="cause"/> is loss
+    /// telemetry (runs.fail_cause - the server nulls it on wins). Fire-and-forget: network
+    /// failures queue to disk and retry; the run_id makes retries idempotent.</summary>
+    public static void ReportFinish(bool won, int score, float height, float progress,
+        RunEndCause cause = RunEndCause.Other)
     {
         if (!ActiveRunServerBacked || string.IsNullOrEmpty(ActiveRunId)) return;
 
@@ -209,6 +214,9 @@ public static class RunGate
             score = score,
             height = height,
             progress = Mathf.Clamp(progress, 0f, 2f),
+            // Lowercase names are the server's check-constraint vocabulary; wins carry
+            // none (pre-telemetry queue files deserialize to null - also fine).
+            failCause = won ? null : cause.ToString().ToLowerInvariant(),
         };
         // A WON run stays improvable: the victory banks the refund and XP immediately
         // (XP.md win timing), but the player is then invited to Keep Playing, and every
@@ -341,11 +349,17 @@ public static class RunGate
         if (!_inFlight.Add(Key(finish))) return;
 
         string rpc = finish.improve ? "improve_run_score" : "finish_run";
+        // p_fail_cause exists only on finish_run - improve_run_score would reject the
+        // unknown parameter (PostgREST dispatches on the full named-argument set).
+        string failCause = finish.improve ? "" :
+            ",\"p_fail_cause\":" + (string.IsNullOrEmpty(finish.failCause)
+                ? "null" : $"\"{SupabaseHttp.JsonEscape(finish.failCause)}\"");
         string body = $"{{\"p_run_id\":\"{SupabaseHttp.JsonEscape(finish.runId)}\"," +
                       (finish.improve ? "" : $"\"p_won\":{(finish.won ? "true" : "false")},") +
                       $"\"p_score\":{finish.score}," +
                       "\"p_height\":" + finish.height.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "," +
-                      "\"p_progress\":" + finish.progress.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "}";
+                      "\"p_progress\":" + finish.progress.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) +
+                      failCause + "}";
 
         OnlineService.RpcObject<FinishRunDto>(rpc, body,
             dto =>

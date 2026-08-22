@@ -2,6 +2,17 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
+/// <summary>Why a run ended - difficulty telemetry, not game logic (runs.fail_cause on
+/// the server; losses only). Abandon is claimed by the pause-menu quit path directly.</summary>
+public enum RunEndCause
+{
+    Other,
+    Lives,     // topple-out: the last life spent on a lost block
+    Flood,     // the water passed the highest brick (RisingFloodModifier)
+    Timeout,   // a timed goal's clock ran out
+    Abandon,   // pause-menu quit/restart - set by LevelRuntimeController, never here
+}
+
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
@@ -398,17 +409,21 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        FinishRun("Game Over");
+        FinishRun("Game Over", RunEndCause.Lives);
     }
+
+    /// <summary>How the run ended (telemetry; meaningful once isGameOver).</summary>
+    public RunEndCause EndCause { get; private set; } = RunEndCause.Other;
 
     /// <summary>Terminal failure that bypasses per-block life/immunity rules: used by level goals
     /// such as timeouts where the challenge itself was failed, not a block-loss charge.</summary>
-    public void EndRunNow(string reason) => FinishRun(reason);
+    public void EndRunNow(string reason, RunEndCause cause = RunEndCause.Other) => FinishRun(reason, cause);
 
-    private void FinishRun(string reason)
+    private void FinishRun(string reason, RunEndCause cause = RunEndCause.Other)
     {
         if (isGameOver) return;
 
+        EndCause = cause;
         isGameOver = true;
         _gameOverLatched = true; // terminal: outranks every phase request until a scene reload
         RecomputePhase();

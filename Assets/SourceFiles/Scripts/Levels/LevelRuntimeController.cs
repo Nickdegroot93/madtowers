@@ -195,7 +195,8 @@ public class LevelRuntimeController : MonoBehaviour
         }
         else
         {
-            RunGate.ReportFinish(won: false, reportedScore, maxHeightMeters, XpProgressForReport());
+            RunGate.ReportFinish(won: false, reportedScore, maxHeightMeters, XpProgressForReport(),
+                GameManager.Instance != null ? GameManager.Instance.EndCause : RunEndCause.Other);
         }
     }
 
@@ -226,7 +227,8 @@ public class LevelRuntimeController : MonoBehaviour
         }
         else
         {
-            RunGate.ReportFinish(won: false, reportedScore, result.MaxHeight, XpProgressForReport());
+            RunGate.ReportFinish(won: false, reportedScore, result.MaxHeight, XpProgressForReport(),
+                RunEndCause.Abandon);
         }
     }
 
@@ -529,7 +531,7 @@ public class LevelRuntimeController : MonoBehaviour
         if (GoalMetNow() && TryBeginVerification()) return;
 
         _hasTimeLimit = false;
-        GameManager.Instance.EndRunNow("Time ran out");
+        GameManager.Instance.EndRunNow("Time ran out", RunEndCause.Timeout);
     }
 
     private void BuildTimerUi()
