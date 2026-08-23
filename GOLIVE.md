@@ -97,29 +97,22 @@ hard 14-day tester clock (Phase 1) that has nothing to do with polish.
 
 ## Phase 1 — store accounts & listings (the unlock for everything below)
 
-- [ ] **Apple Developer Program** — $99/year; needs D-U-N-S if publishing as a company
-      (that lookup can take weeks — start immediately if company).
-- [ ] **Google Play Console** — $25 one-time. ⏱️ **Start this EARLY — it carries a
-      14-day wall.** A **personal** account created after 13 Nov 2023 must run a closed
-      test with **12 testers opted in for 14 continuous days** before it may even apply
-      for production access (support.google.com/googleplay/android-developer/answer/
-      14151465). That clock needs an installable AAB, not a finished game, and the build
-      can keep updating while it runs — so starting it late simply adds two weeks to the
-      launch. **Organization accounts are exempt**; registering as a business (KvK →
-      D-U-N-S, which Apple wants anyway) removes the requirement entirely. Worth deciding
-      before registering as a person — the account type cannot be swapped afterwards.
+> **The account setup lives in `STOREACCOUNTS.md`** (split out 2026-08-23; DECIDED:
+> publishing as a PERSON, both stores): the Play 14-day/12-tester wall and its exact
+> closed-test steps, Apple enrollment + App ID + IAP product + Small Business Program,
+> the EU DSA trader-privacy prep, keystore + Play App Signing, payout/tax, and the
+> future eenmanszaak conversion path. That file is the checklist; this phase is done
+> when it is.
+
+- [ ] **Work through `STOREACCOUNTS.md`** — start §1 (Play) immediately: the 14-day
+      tester clock decides the launch date more than any polish does.
 - [x] **Bundle IDs LOCKED 2026-08-08: `com.nickdegroot.hazardheights`** on Android, iOS
       and Standalone. Android previously read `com.nickdegroot.madtowers`; **iOS and
       Standalone were still the Unity template default `com.unity.template.get-started`**,
       which would have been rejected on submission. Permanent from the moment a listing
       exists — do not change it after Phase 1. Then create both app listings.
-- [ ] **Release keystore (Android)**: create, back up safely, enroll Play App Signing.
-      Done here because Phase 2's Google sign-in needs its SHA-1 fingerprints.
 - [ ] Store assets: icon set, screenshots per device class, feature graphic (Play),
       description copy.
-- [ ] **Apple Small Business Program: ENROLL manually** (15% instead of 30% under
-      $1M/yr; Google's equivalent is automatic). Enroll BEFORE the first sale.
-- [ ] Payout details + tax forms in both consoles (money arrives ~15–45 days lagged).
 
 ## Phase 2 — sign-in: Apple & Google account linking (BACKEND.md §3.3)
 
