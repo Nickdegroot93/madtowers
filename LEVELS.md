@@ -156,6 +156,10 @@ touch engine code.
 
 #### Height-Limit Waves details (REBUILT July 2026 — endless generated waves)
 
+- **NO ABILITIES in this mode** (Nick 2026-08-24): no per-wave draft (removed), a
+  blanket `BansAbility => true`, and stocked-consumable boosts filtered from the pre-run
+  tray on ClearWaves levels — nearly every ability is a cheese against a packing puzzle.
+  SlowDescent and run lives remain purchasable (comforts, not abilities).
 - Blocks arrive in **endless waves**; the whole tower must stay under a glowing **limit line**.
   Clearing a wave makes the line **glide up** and the next, bigger wave begins — forever.
 - **Counting is the LIVE standing count** (BLOCKS.md), never cumulative placements: a wave of

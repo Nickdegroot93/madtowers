@@ -122,9 +122,9 @@ MonoBehaviour:
     - {x: 0, y: 1}
   floorSegments:
   - centerColumn: 0
-    columnCount: 9
+    columnCount: 8
     baseHeightCells: 0
-    columnHeightSteps: 010000000200000001000000000000000000000000000000010000000200000001000000
+    columnHeightSteps: 0100000002000000010000000000000000000000010000000200000001000000
     pockets: []
   minimumCameraY: 0
   towerPeakScreenY: 0.5

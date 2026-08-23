@@ -327,12 +327,26 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // Code-owned, not serialized (a [SerializeField] default never reaches already-
+    // imported assets): the hot-speed factor for pure block-count classics.
+    private const float ClassicSpeedMultiplier = 1.15f;
+
     private void ApplyConfig()
     {
         GameModeConfig activeConfig = ActiveGameModeConfig;
         if (activeConfig == null) return;
 
         _difficulty.ApplyConfig(activeConfig);
+        // Pure block-count classics run HOT (Nick 2026-08-24): a stacking goal with no
+        // twist rule is the game's easiest type, so it deviates +15% from the chapter's
+        // base speed - start, cap and ramps together, authored shape kept (ScaleSpeeds).
+        // Any modifier opts a level out: twist levels (Void Zones, Airtight, Blackout)
+        // carry their own difficulty, and the chapter-1 tutorial is a modifier too.
+        LevelDefinition selected = LevelSelectionState.SelectedLevel;
+        bool pureClassic = selected != null && !selected.HasAnyModifier &&
+            (selected.TargetType == LevelTargetType.PlaceBlocks ||
+             selected.TargetType == LevelTargetType.TimedPlaceBlocks);
+        if (pureClassic) _difficulty.ScaleSpeeds(ClassicSpeedMultiplier);
         // Type-granted lives (the Flood's free 3) floor the config's authored lives; both
         // sit under purchases, which top up afterwards (RunSuppliesApplier, capped at 3).
         _runState.SetLives(Mathf.Max(activeConfig.StartingLives, _grantedRunLives));

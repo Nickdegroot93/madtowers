@@ -44,26 +44,14 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     /// over every level without entering play mode).</summary>
     public int DifficultyRank => Mathf.Clamp(difficultyRank, 1, 5);
 
-    /// <summary>Anchor sources are never offered in wave mode: a brick that freezes into
-    /// permanent terrain wherever it lands collapses the packing puzzle - one anchor dropped
-    /// at the line is a free wave. Trait-driven (any ability granting an
-    /// <see cref="AnchorBlockData"/> variant), so the ambient dropper, the on-demand anchor
-    /// consumable and any future anchor ability are all covered in every per-chapter copy of
-    /// this modifier with no per-asset authoring. Hardline is banned for the same collapse:
-    /// its catch beam turns a lost block into a permanent AIRBORNE platform - free elevated
-    /// terrain to pack against, right where the wave math assumed open air (Nick 2026-08-10:
-    /// too overpowered in puzzle mode).</summary>
-    public override bool BansAbility(AbilityDefinition ability)
-    {
-        if (ability is HardlineAbility) return true;
-        BlockData granted = ability switch
-        {
-            BlockVariantChancePowerUp chance => chance.Variant,
-            ApplyVariantConsumable apply => apply.Variant,
-            _ => null,
-        };
-        return granted is AnchorBlockData;
-    }
+    /// <summary>NO ABILITIES IN WAVE MODE, full stop (Nick 2026-08-24). The mode is a pure
+    /// packing puzzle, and nearly every ability is a skip button against it: shrink/1x1
+    /// grants trivialize the fit, anchors freeze free terrain at the line, Hardline mints
+    /// airborne platforms where the wave math assumed open air (the 2026-08-10 targeted
+    /// bans that preceded this blanket one). The per-wave draft offer is gone from
+    /// OnStandingBlocksChanged, wave configs author no block-cadence draft, and this
+    /// blanket ban is the backstop for any future offer path.</summary>
+    public override bool BansAbility(AbilityDefinition ability) => true;
 
     [Tooltip("Seconds the line takes to glide to the next wave's height.")]
     [SerializeField] private float lineRiseSeconds = 1.2f;
@@ -272,14 +260,9 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
             _wavesCleared = Mathf.Max(_wavesCleared, _currentWave);
             _currentWave++;
         }
-        // One ability offer per cleared wave (wave modes run no block-count cadence - their
-        // configs author powerUpChoiceEveryBlocks 0). Queued, not shown: the controller's own
-        // gates present it once the line has risen and nothing more important is on screen.
-        if (GameManager.Instance != null &&
-            GameManager.Instance.TryGetComponent(out AbilityChoiceController choices))
-        {
-            choices.QueueOffer();
-        }
+        // No ability offer here (removed 2026-08-24): wave mode runs WITHOUT abilities -
+        // see BansAbility above. The per-cleared-wave draft this used to queue was the
+        // mode's only offer source (wave configs author powerUpChoiceEveryBlocks 0).
         // Mathf.Max, not a bare assign: a mid-run re-solve (procedural floors) can leave the
         // live line ABOVE the next wave's solved height, and the laser must never descend into
         // a standing tower - the tighter solve waits for a later wave to catch up.

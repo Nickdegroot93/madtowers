@@ -92,6 +92,11 @@ public static class SupplyCatalog
                     && config.PowerUpChoicePool != null && config.PowerUpChoicePool.Count > 0;
             case BoostId.StockedSloMo:
             case BoostId.StockedZap:
+                // Wave mode runs WITHOUT abilities (HeightLimitWavesModifier.BansAbility,
+                // Nick 2026-08-24) - stocked consumables ARE abilities, so the tray must
+                // not sell them into the one mode they'd cheese. SlowDescent stays: a
+                // fall-speed comfort is a boost, not an ability.
+                if (level.TargetType == LevelTargetType.ClearWaves) return false;
                 return FindConsumable(boost.ConsumableAssetName) != null;
             default:
                 return false;

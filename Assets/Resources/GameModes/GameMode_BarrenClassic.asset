@@ -124,15 +124,11 @@ MonoBehaviour:
   - centerColumn: 0
     columnCount: 9
     baseHeightCells: 0
-    columnHeightSteps: 040000000400000000000000000000000000000000000000000000000400000004000000
+    columnHeightSteps: 000000000000000000000000000000000400000004000000000000000000000000000000
     pockets:
-    - column: 0
+    - column: 4
       depthCells: 1
-    - column: 0
-      depthCells: 3
-    - column: 8
-      depthCells: 1
-    - column: 8
+    - column: 4
       depthCells: 3
   minimumCameraY: 0
   towerPeakScreenY: 0.5

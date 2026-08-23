@@ -82,6 +82,22 @@ public class LevelDefinition : ScriptableObject
         return level;
     }
 
+    /// <summary>Does any modifier run this level (twist rules AND the tutorial count)?
+    /// A pure classic - block-count goal, no modifiers - is the game's easiest type and
+    /// gets the hot-speed treatment (GameManager.ApplyConfig).</summary>
+    public bool HasAnyModifier
+    {
+        get
+        {
+            if (modifiers == null) return false;
+            for (int i = 0; i < modifiers.Length; i++)
+            {
+                if (modifiers[i] != null) return true;
+            }
+            return false;
+        }
+    }
+
     /// <summary>Free RUN LIVES the level's game type grants at run start (Flood levels: the
     /// cap). The strongest modifier wins; see <see cref="LevelModifier.GrantedRunLives"/>.</summary>
     public int GrantedRunLives
