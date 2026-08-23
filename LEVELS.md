@@ -358,6 +358,16 @@ touch engine code.
 
 #### Void Zones details
 
+- **The RNG floor (`minZonesPerRun`, 2026-08-24)**: spawning is height-row dice (a roll
+  every `heightInterval` at `spawnChance`), and short goals get few rolls — the chapter-3
+  debut (65% × ~3 rolls) let Nick clear the level with ONE zone all round. The quota fixes
+  the tail without touching the dice: by 85% of the goal the full minimum must have
+  spawned, paced proportionally (half the goal owes half the minimum); falling behind
+  forces a spawn at the normal ahead-of-peak position with the same placement RNG and
+  route guarantee. Also covers rolls whose placement failed (those were silently lost).
+  Values: NeonDebut 3 (+ first roll at 10 m so the debut shows its mechanic early),
+  Standard 4, Giza 4 (a safety net there — its dice already deliver ~4–5). Goal-less
+  levels keep pure dice (quota reads goal progress; Endless/waves return 0).
 - **Forbidden rectangles torn into the sky** (2×2 / 2×3, `VoidZone.shader` black-hole look:
   dark eye, spiral arms, pulsing accretion rim — the visual fills the exact danger rect so
   the kill boundary is honest). They spawn AHEAD of the tower peak like sky islands — you

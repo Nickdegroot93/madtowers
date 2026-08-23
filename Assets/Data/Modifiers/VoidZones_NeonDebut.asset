@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 110767f7e964e4f47aca86ba62793f04, type: 3}
   m_Name: VoidZones_NeonDebut
   m_EditorClassIdentifier: Assembly-CSharp::VoidZoneModifier
-  firstZoneHeight: 12
+  firstZoneHeight: 10
   heightInterval: 11
   spawnChance: 0.65
   spawnAheadHeight: 7
@@ -22,5 +22,6 @@ MonoBehaviour:
   minColumn: -6
   maxColumn: 6
   maxZonesPerRun: 0
+  minZonesPerRun: 3
   suckSeconds: 0.45
   overlapInset: 0.15

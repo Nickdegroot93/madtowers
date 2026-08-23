@@ -52,6 +52,14 @@ public class VoidZoneModifier : LevelModifier, ILevelMenuProgressProvider
     [Tooltip("0 = unlimited. Otherwise the run stops spawning zones after this many.")]
     [Min(0)]
     [SerializeField] private int maxZonesPerRun = 0;
+    [Tooltip("The RNG floor (0 = off): by 85% of the goal, at least this many zones have " +
+             "spawned, paced proportionally (at 42% of the goal, half the minimum is owed). " +
+             "The dice keep owning WHERE and exactly WHEN - the quota only forces a spawn " +
+             "when a lucky streak of missed rolls falls behind it, so a run can never " +
+             "cruise to the win without meeting the mechanic (Nick 2026-08-24: one zone " +
+             "all round on the chapter-3 debut).")]
+    [Min(0)]
+    [SerializeField] private int minZonesPerRun = 0;
 
     [Header("The suck")]
     [Tooltip("Seconds the devour animation takes before the block is destroyed and the life charged.")]
@@ -79,8 +87,14 @@ public class VoidZoneModifier : LevelModifier, ILevelMenuProgressProvider
     private readonly List<Zone> _zones = new();
     private readonly List<Vector2> _cellScratch = new();
     private readonly List<Vector2> _islandScratch = new();
+    // Quota retry cadence: a forced spawn can fail placement (route guarantee, overlaps) -
+    // retry on a beat, not per frame (24 placement attempts per try).
+    private const float QuotaRetryInterval = 0.75f;
+
     private float _nextZoneY;
     private int _zonesSpawned;
+    private int _blocksPlaced;
+    private float _quotaTimer;
     private float _sweepTimer;
     private bool _sweepQueued;
     private float _gridSpacing = 1f;
@@ -90,6 +104,8 @@ public class VoidZoneModifier : LevelModifier, ILevelMenuProgressProvider
         _context = context;
         _zones.Clear();
         _zonesSpawned = 0;
+        _blocksPlaced = 0;
+        _quotaTimer = 0f;
         _sweepTimer = 0f;
         _sweepQueued = false;
 
@@ -110,6 +126,7 @@ public class VoidZoneModifier : LevelModifier, ILevelMenuProgressProvider
 
     public override void OnBlockLocked(LevelModifierContext context, int totalBlocksPlaced)
     {
+        _blocksPlaced = totalBlocksPlaced;   // feeds the quota's goal-progress fraction
         _sweepQueued = true;
     }
 
@@ -127,12 +144,50 @@ public class VoidZoneModifier : LevelModifier, ILevelMenuProgressProvider
             _nextZoneY += heightInterval;
         }
 
+        // THE RNG FLOOR: by 85% of the goal the full minimum must have spawned, paced
+        // proportionally along the way. When a lucky streak (missed rolls, or rolls whose
+        // placement failed and was silently lost) falls behind that pace, force a spawn at
+        // the normal ahead-of-peak position - same placement RNG, same route guarantee,
+        // just no dice for WHETHER. Retries on a beat while placement keeps failing.
+        _quotaTimer -= deltaTime;
+        if (minZonesPerRun > 0 && _zonesSpawned < minZonesPerRun && _quotaTimer <= 0f
+            && (maxZonesPerRun <= 0 || _zonesSpawned < maxZonesPerRun))
+        {
+            int owed = Mathf.CeilToInt(Mathf.Clamp01(GoalProgress01(context) / 0.85f) * minZonesPerRun);
+            if (_zonesSpawned < owed)
+            {
+                _quotaTimer = QuotaRetryInterval;
+                TrySpawnZone(peak + spawnAheadHeight);
+            }
+        }
+
         _sweepTimer -= deltaTime;
         if (_sweepQueued || _sweepTimer <= 0f)
         {
             _sweepQueued = false;
             _sweepTimer = SweepInterval;
             SweepForViolations();
+        }
+    }
+
+    /// <summary>How far through the level's goal the run is, 0..1 - the quota's clock.
+    /// Blocks-goals count locked placements; height-goals use the peak tower height.
+    /// Goal-less levels (Endless, waves) return 0, which keeps the quota inert - the
+    /// height-row dice remain the only spawner there.</summary>
+    private float GoalProgress01(LevelModifierContext context)
+    {
+        LevelDefinition level = context.Level;
+        if (level == null || context.GameManager == null) return 0f;
+        switch (level.TargetType)
+        {
+            case LevelTargetType.PlaceBlocks:
+            case LevelTargetType.TimedPlaceBlocks:
+                return _blocksPlaced / Mathf.Max(1f, level.TargetValue);
+            case LevelTargetType.ReachHeight:
+            case LevelTargetType.TimedReachHeight:
+                return context.GameManager.towerHeight / Mathf.Max(1f, level.TargetValue);
+            default:
+                return 0f;
         }
     }
 
