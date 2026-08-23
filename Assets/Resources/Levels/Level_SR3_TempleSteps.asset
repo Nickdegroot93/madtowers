@@ -19,7 +19,7 @@ MonoBehaviour:
   targetType: 2
   targetValue: 50
   timeLimitSeconds: 120
-  instruction: Reach 75 meters above the temple roofs.
+  instruction: Reach 50 meters above the temple roofs.
   modifiers:
   - {fileID: 11400000, guid: af64246ef30f54506bd5f0959ec40c2f, type: 2}
   bannedAbilities: []

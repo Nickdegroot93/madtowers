@@ -123,11 +123,46 @@ MonoBehaviour:
     - {x: 1, y: 0}
     - {x: 0, y: 1}
   floorSegments:
-  - centerColumn: 0
-    columnCount: 9
+  - centerColumn: -3
+    columnCount: 2
     baseHeightCells: 0
-    columnHeightSteps: 010000000100000000000000020000000000000000000000000000000100000001000000
-    pockets: []
+    floatingFragment: 1
+    columnHeightSteps: 0200000002000000
+    pockets:
+    - column: 0
+      depthCells: 2
+    - column: 1
+      depthCells: 2
+  - centerColumn: -1
+    columnCount: 1
+    baseHeightCells: 0
+    floatingFragment: 1
+    columnHeightSteps: 03000000
+    pockets:
+    - column: 0
+      depthCells: 2
+    - column: 0
+      depthCells: 3
+  - centerColumn: 2
+    columnCount: 2
+    baseHeightCells: 0
+    floatingFragment: 1
+    columnHeightSteps: 0200000002000000
+    pockets:
+    - column: 0
+      depthCells: 2
+    - column: 1
+      depthCells: 2
+  - centerColumn: 4
+    columnCount: 1
+    baseHeightCells: 0
+    floatingFragment: 1
+    columnHeightSteps: 03000000
+    pockets:
+    - column: 0
+      depthCells: 2
+    - column: 0
+      depthCells: 3
   minimumCameraY: 0
   towerPeakScreenY: 0.5
   spawnPointScreenY: 0.9

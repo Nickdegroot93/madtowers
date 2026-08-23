@@ -24,6 +24,7 @@ Select the level's **GameModeConfig** asset (`Assets/Resources/GameModes/…`) �
 | `Center Column` | Where the segment sits (grid columns; 0 = play-area centre; negative = left). |
 | `Column Count` | Width in columns. |
 | `Base Height Cells` | Raises the WHOLE segment this many cells above the **datum** (0 = classic ground level). |
+| `Floating Fragment` | The segment hangs in OPEN AIR (2026-08-24): no bedrock body, collider or fog fade below the datum — only the solid cells exist. Pair with the floating-fragment pocket recipe so the solids hover; a brick dropped under it falls into the void. Born for Lost City's floating-cube floor, where an L-piece hooked on a low float clipped the bedrock edge one cell below. |
 | `Column Height Steps` | Optional per-column EXTRA cells on top of the base, left → right (size ≤ Column Count; missing = 0). Bumps, walls, valleys, stairs. |
 | `Pockets` | Optional carved 1×1 **nudge-in niches**: `Column` (0-based from this segment's left edge) + `Depth Cells` (1 = directly under that column's top). A pocket is a REAL hole — hollow collider, masonry cut away, backdrop visible through it, outlined on its solid edges. Entry is island-grade lenient (~±0.4 cell of vertical slack). |
 

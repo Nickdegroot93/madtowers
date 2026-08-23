@@ -304,6 +304,8 @@ public sealed class FloorSegmentConfig
     [SerializeField] private int[] columnHeightSteps = null;
     [Tooltip("Carve 1x1 nudge-in POCKETS into the ground body: each entry names a column (0-based from this segment's left edge) and a depth in cells below that column's top surface (1 = directly under the top). Put them on columns whose side face is exposed (outer edges, or beside a height step) so a brick can be nudged in sideways and stick out of the wall.")]
     [SerializeField] private FloorPocketConfig[] pockets = null;
+    [Tooltip("The segment hangs in open air: NO bedrock body, collider or fog fade below the datum - only the solid cells above it exist (pair with the floating-fragment pocket recipe so the solids hover). A brick dropped under it falls into the void.")]
+    [SerializeField] private bool floatingFragment = false;
 
     public FloorSegmentConfig()
     {
@@ -325,6 +327,11 @@ public sealed class FloorSegmentConfig
     }
 
     public IReadOnlyList<FloorPocketConfig> Pockets => pockets;
+
+    /// <summary>True suspends this segment in open air - FloorTerrain draws no bedrock,
+    /// collider or fade below the datum (added 2026-08-24 for Lost City's floating floor:
+    /// an L-piece hooked on a low float clipped the bedrock edge one cell below it).</summary>
+    public bool FloatingFragment => floatingFragment;
 
     public int CenterColumn => centerColumn;
     public int ColumnCount => Mathf.Max(1, columnCount);

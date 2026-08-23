@@ -17,9 +17,9 @@ MonoBehaviour:
   menuChallengeLabelOverride: 
   gameModeConfig: {fileID: 11400000, guid: 429c0427ba724a368d88de5146ab5afa, type: 2}
   targetType: 2
-  targetValue: 85
+  targetValue: 75
   timeLimitSeconds: 120
-  instruction: Reach 85 meters past the levitating monolith.
+  instruction: Reach 75 meters past the levitating monolith.
   modifiers:
   - {fileID: 11400000, guid: 93811646f552d4481bd2a6121cad7cab, type: 2}
   bannedAbilities: []

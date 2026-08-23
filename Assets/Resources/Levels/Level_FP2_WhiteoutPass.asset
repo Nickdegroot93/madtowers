@@ -18,6 +18,6 @@ MonoBehaviour:
   gameModeConfig: {fileID: 11400000, guid: 96863a919a9640468e74ba92959b5531, type: 2}
   targetType: 5
   targetValue: 6
-  instruction: Clear 5 waves - stay under the frozen laser!
+  instruction: Clear 6 waves - stay under the frozen laser!
   modifiers:
   - {fileID: 11400000, guid: a4be46c5431c478f9f68ae7c22382924, type: 2}

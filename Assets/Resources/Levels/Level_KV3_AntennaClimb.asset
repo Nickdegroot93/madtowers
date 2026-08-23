@@ -19,7 +19,7 @@ MonoBehaviour:
   targetType: 2
   targetValue: 60
   timeLimitSeconds: 120
-  instruction: Reach 60 meters from a three-column rooftop.
+  instruction: Reach 60 meters from a narrow rooftop.
   modifiers:
   - {fileID: 11400000, guid: aeaa0f57ea5954eb5a12c1ee1abf40d2, type: 2}
   bannedAbilities: []

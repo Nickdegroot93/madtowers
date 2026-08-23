@@ -32,7 +32,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d47f69c0549f64a78b7a3dde80d0f06a, type: 2}
   ambientBlockVariantChances:
   - variant: {fileID: 11400000, guid: f407db141c344b22a57fef07160d72bd, type: 2}
-    chancePerBlock: 0.08
+    chancePerBlock: 0.13
   spawnDelay: 0
   gridSpacing: 1
   horizontalPlacementBufferColumns: 3
@@ -91,9 +91,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: b12b4daffe3a42a484fe867f6696a8c5, type: 2}
   - {fileID: 11400000, guid: 75218f2ff7654f7c9ee02f40c0ee3ef1, type: 2}
   slowMotionScale: 0.5
-  staticSupportIslandsEnabled: 0
-  staticSupportIslandHeightInterval: 1
-  staticSupportIslandSpawnChance: 0.25
+  staticSupportIslandsEnabled: 1
+  staticSupportIslandHeightInterval: 6
+  staticSupportIslandSpawnChance: 0.3
   staticSupportIslandFirstHeight: 9
   staticSupportIslandSpawnAheadHeight: 6
   staticSupportIslandMinColumn: -6
@@ -124,16 +124,8 @@ MonoBehaviour:
   - centerColumn: 0
     columnCount: 9
     baseHeightCells: 0
-    columnHeightSteps: 000000000300000000000000000000000000000000000000000000000300000000000000
-    pockets:
-    - column: 1
-      depthCells: 1
-    - column: 1
-      depthCells: 3
-    - column: 7
-      depthCells: 1
-    - column: 7
-      depthCells: 3
+    columnHeightSteps: 040000000200000000000000000000000100000000000000000000000100000002000000
+    pockets: []
   minimumCameraY: 0
   towerPeakScreenY: 0.5
   spawnPointScreenY: 0.9

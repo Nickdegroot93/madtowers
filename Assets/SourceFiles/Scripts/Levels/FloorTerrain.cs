@@ -162,7 +162,46 @@ public sealed class FloorTerrain : MonoBehaviour
                     pocketSpans[pocket.Column] = list = new List<(float, float)>();
                 list.Add((top, top - grid));
             }
+        }
+
+        // A FLOATING segment (FloorSegmentConfig.FloatingFragment) has no bedrock: carve
+        // every column from the datum down past both the visual body and the collider
+        // depth. The synthetic span rides the exact same machinery as authored pockets -
+        // masonry cut, collider split, cap strips, side-outline gaps - and the merge pass
+        // below fuses it with any datum-touching hole into one open-bottomed shaft.
+        // (Outside the Pockets null-check on purpose: a floating segment needs no
+        // authored pockets to float.)
+        if (segment.FloatingFragment)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                if (!pocketSpans.TryGetValue(i, out var list))
+                    pocketSpans[i] = list = new List<(float, float)>();
+                list.Add((datumY, datumY - ColliderDepth - 1f));
+            }
+        }
+
+        if (pocketSpans.Count > 0)
+        {
             foreach (var list in pocketSpans.Values) list.Sort((a, b) => b.top.CompareTo(a.top));
+            // Adjacent carved cells merge into ONE hole: stacked pockets (the floating-
+            // fragment recipe carves several cells of a column) used to render top/bottom
+            // outline strips PER CELL - ladder rungs drawn across an empty shaft (Nick
+            // 2026-08-24: "weird black lines between the empty spots", every level with
+            // stacked pockets). A merged span outlines only its true solid borders, and
+            // the colliders, masonry cut, cap strips and side-outline gaps all read the
+            // same contiguous hole instead of N slivers.
+            foreach (var list in pocketSpans.Values)
+            {
+                for (int s = list.Count - 2; s >= 0; s--)
+                {
+                    if (list[s].bottom <= list[s + 1].top + 0.01f)
+                    {
+                        list[s] = (list[s].top, list[s + 1].bottom);
+                        list.RemoveAt(s + 1);
+                    }
+                }
+            }
         }
 
         // Colliders: one static box per column, split vertically around its pockets. Column boxes
@@ -274,17 +313,26 @@ public sealed class FloorTerrain : MonoBehaviour
             {
                 (float top, float bottom) = kv.Value[p];
                 float w = OutlineWidth;
-                bool solidLeft = leftTop >= top - 0.01f;
-                bool solidRight = rightTop >= top - 0.01f;
+                // A neighbour tall enough to border the hole may be CARVED over the same
+                // span (a 2-wide floating slab hollows both columns): hollow-on-hollow is
+                // one shared hole, and a strip on the shared boundary drew a vertical bar
+                // down the middle of the shaft (Nick 2026-08-24, the 1-brick-gap twin of
+                // the merged-span fix above).
+                bool solidLeft = leftTop >= top - 0.01f && !HollowOver(pocketSpans, c - 1, top, bottom);
+                bool solidRight = rightTop >= top - 0.01f && !HollowOver(pocketSpans, c + 1, top, bottom);
                 if (top < colTop - 0.01f)                                     // solid above the hole
                     CreateOutlineRect(colLeft, colLeft + grid, top + w, top);
-                CreateOutlineRect(colLeft, colLeft + grid, bottom, bottom - w); // floor of the hole
+                if (bottom > datumY - 0.01f)                                  // floor of the hole -
+                    CreateOutlineRect(colLeft, colLeft + grid, bottom, bottom - w); // none on an
+                    // open-bottomed shaft (floating fragments carve past the datum into void)
                 if (solidLeft) CreateOutlineRect(colLeft - w, colLeft, top, bottom);
                 if (solidRight) CreateOutlineRect(colLeft + grid, colLeft + grid + w, top, bottom);
             }
         }
 
-        // Bottom fade into the fog colour, spanning the whole segment.
+        // Bottom fade into the fog colour, spanning the whole segment. A floating segment
+        // has nothing below the datum to fade - open air stays open.
+        if (segment.FloatingFragment) return;
         float segRight = segLeft + count * grid;
         float fadeTop = datumY - FadeTopBelowDatum;
         float fadeBottom = bottomY - 0.5f;
@@ -351,6 +399,19 @@ public sealed class FloorTerrain : MonoBehaviour
         sr.sprite = cap;
         sr.drawMode = SpriteDrawMode.Tiled;
         sr.size = new Vector2(width, CapHeight);
+    }
+
+    /// <summary>Is this column carved hollow anywhere over the given vertical span?
+    /// Open-interval overlap with a hair of tolerance - touching edges don't count.</summary>
+    private static bool HollowOver(Dictionary<int, List<(float top, float bottom)>> spans,
+        int column, float top, float bottom)
+    {
+        if (!spans.TryGetValue(column, out var list)) return false;
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (list[i].top > bottom + 0.01f && list[i].bottom < top - 0.01f) return true;
+        }
+        return false;
     }
 
     private void CreateOutlineRect(float left, float right, float topY, float bottomY)
