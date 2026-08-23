@@ -246,12 +246,14 @@ meter, so victories feel free and failures create the decision point).
 
 ### 7.1 Soft landing (FTUE rule, binding)
 
-**Chapter 1 is monetization-silent.** While the player hasn't completed Chapter 1:
-no supplies row in the modal, no attempts meter, no shop tab contents beyond
-COMING SOON. Both systems switch on at first Chapter 1 completion (one save flag,
-`metaSystemsUnlockedAtUnixUtc`). Research basis: zero monetization pressure in the
-first session ≈ 40% better later conversion — and it matches PROGRESSION.md's
-"beatable cold" opener philosophy.
+**Chapters 1–2 are monetization-silent** (moved from "chapter 1" on 2026-08-23 when the
+early chapters were compressed to two ~5-minute levels each — the gate follows the "first
+session silent" INTENT, not a chapter index). While the player hasn't completed Chapter 2:
+no supplies row in the modal, no attempts meter, no shop tab contents beyond COMING SOON.
+Everything switches on at first Chapter 2 completion (`AttemptsService.MetaEnabled`,
+derived — the old `metaSystemsUnlockedAtUnixUtc` flag idea was never stored). Research
+basis: zero monetization pressure in the first session ≈ 40% better later conversion —
+and it matches PROGRESSION.md's "beatable cold" opener philosophy.
 
 > **Cross-ref (built 2026-08-22):** the solo-dev letter, the "one purchase, supports
 > one developer" microcopy and the one-lifetime review ask live in **DEVLETTER.md**

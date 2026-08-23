@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// The one-lifetime store review ask (DEVLETTER.md beat 3), behind the same tiny-facade
-/// pattern as RewardedAds/PremiumStore. Fired at the first Chapter 2 completion - a
+/// pattern as RewardedAds/PremiumStore. Fired at the first Chapter 3 completion - a
 /// positive milestone, player not mid-task - and NEVER again from us: the flag is marked
 /// the moment the OS API is called, because whether a dialog actually appeared is the
 /// OS's secret (iOS may silently show nothing; both platforms quota-limit).

@@ -32,9 +32,9 @@ review count/warmth.
 
 | Beat | Moment | Surface | Ask |
 |---|---|---|---|
-| **Letter** | first Chapter 1 completion — the same moment `metaSystemsUnlockedAtUnixUtc` flips and the attempts meter + shop appear (SHOP.md §7.1) | one-shot full modal, once ever, skippable | none (one soft pointer to Profile) |
+| **Letter** | first Chapter 2 completion — the same moment the meta systems unlock and the attempts meter + shop appear (SHOP.md §7.1; both moved from chapter 1 on 2026-08-23 with the early-chapter compression) | one-shot full modal, once ever, skippable | none (one soft pointer to Profile) |
 | **Premium microcopy** | the existing attempts-wall / Profile premium card | one line added to what's already built | the existing $ unlock |
-| **Review ask** | first Chapter 2 completion (or first personal best, whichever ships) | official in-app review API, no custom preamble | a rating |
+| **Review ask** | first Chapter 3 completion (moved with the letter — one chapter after the systems unlock, same relative spacing) | official in-app review API, no custom preamble | a rating |
 
 Sequencing logic: the letter explains the systems the instant they appear
 (inoculation, not sale — "unlimited lives" is worth money only to someone who has

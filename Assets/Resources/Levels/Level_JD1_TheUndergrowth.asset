@@ -17,7 +17,7 @@ MonoBehaviour:
   menuChallengeLabelOverride: 
   gameModeConfig: {fileID: 11400000, guid: 0f8155fce14de489ca9547314446a73f, type: 2}
   targetType: 1
-  targetValue: 100
+  targetValue: 60
   timeLimitSeconds: 0
   instruction: Place 100 blocks to rise above the undergrowth.
   modifiers:

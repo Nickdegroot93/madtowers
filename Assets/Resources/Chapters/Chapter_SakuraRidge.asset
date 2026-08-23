@@ -16,7 +16,6 @@ MonoBehaviour:
   chapterNumber: 2
   sortOrder: 20
   levels:
-  - {fileID: 11400000, guid: 212222f8f4a448d2a34c6f76b115e0f9, type: 2}
   - {fileID: 11400000, guid: 253edddf272942ae99cf8568b3d30ab3, type: 2}
   - {fileID: 11400000, guid: a045b1796c0540f2aeb37f25c68c7d42, type: 2}
   menuBackgroundVideo: {fileID: 0}

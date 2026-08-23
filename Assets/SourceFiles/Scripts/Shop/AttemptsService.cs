@@ -58,16 +58,18 @@ public static class AttemptsService
     /// <summary>The server's answer is on hand and is the display source of truth.</summary>
     private static bool UseServer => OnlineService.Enabled && AttemptsSync.HasServerState;
 
-    /// <summary>Are the meta systems (attempts, supplies, shop) live for this player?
-    /// Gated on completing the first campaign chapter (§7.1); the dev unlock-all define
-    /// also opens it so the shop is testable without replaying chapter 1.</summary>
+    /// <summary>Are the meta systems (attempts, supplies, shop - and the dev letter that
+    /// explains them) live for this player? Gated on completing the first TWO chapters
+    /// (§7.1; moved from chapter 1 on 2026-08-23 when the early chapters were compressed
+    /// to ~5 min each - the gate follows the "first session monetization-silent" intent,
+    /// not a chapter index). The dev unlock-all define also opens it for testing.</summary>
     public static bool MetaEnabled
     {
         get
         {
             if (Campaign.UnlockAllForTesting) return true;
             ChapterDefinition[] chapters = Campaign.LoadChaptersInOrder();
-            return chapters.Length > 0 && Campaign.IsChapterCompleted(chapters[0]);
+            return chapters.Length > 1 && Campaign.IsChapterCompleted(chapters[1]);
         }
     }
 

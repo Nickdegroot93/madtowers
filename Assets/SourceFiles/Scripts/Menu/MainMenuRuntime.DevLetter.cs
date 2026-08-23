@@ -7,10 +7,11 @@ using static RuntimeUiKit;
 
 // The solo-dev letter and the review ask (DEVLETTER.md beats 1 & 3 - that file is the
 // binding design; SHOP.md stays the monetization contract). Beat 1: a one-shot modal at
-// first Chapter 1 completion, landing the moment the attempts meter and shop appear -
+// first Chapter 2 completion (moved with the meta gate 2026-08-23), landing the moment
+// the attempts meter and shop appear -
 // inoculation, not sale: no price, no BUY, no review button, one KEEP PLAYING exit and
 // every claim in it literally true in-game. Beat 3: the one-lifetime silent review-API
-// call at first Chapter 2 completion (StoreReview owns the platform plumbing).
+// call at first Chapter 3 completion (StoreReview owns the platform plumbing).
 // (partial of MainMenuRuntime - same class as the other menu surfaces.)
 public static partial class MainMenuRuntime
 {
@@ -55,14 +56,17 @@ public static partial class MainMenuRuntime
 
     /// <summary>Is the one-lifetime review ask still owed? (StoreReview.Asked carries the
     /// editor-session vs. real-save distinction.) Flag first: the chapter walk is O(levels)
-    /// and this runs on every scene load forever.</summary>
+    /// and this runs on every scene load forever. The milestone is the first CHAPTER 3
+    /// completion - one chapter after the letter/meter unlock (which moved to chapter 2
+    /// on 2026-08-23), preserving DEVLETTER.md's spacing: the letter explains the systems
+    /// at their unlock, the review ask fires alone at the NEXT emotional peak.</summary>
     private static bool ReviewAskOwed()
-        => !StoreReview.Asked && SecondChapterCompleted();
+        => !StoreReview.Asked && ThirdChapterCompleted();
 
-    private static bool SecondChapterCompleted()
+    private static bool ThirdChapterCompleted()
     {
         ChapterDefinition[] chapters = Campaign.LoadChaptersInOrder();
-        return chapters.Length > 1 && Campaign.IsChapterCompleted(chapters[1]);
+        return chapters.Length > 2 && Campaign.IsChapterCompleted(chapters[2]);
     }
 
     private static void TryScheduleDevBeats()

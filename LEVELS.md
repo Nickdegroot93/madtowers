@@ -479,7 +479,8 @@ menu type name **THE FLOOD**; goal stays `ReachHeight` (warns on any other targe
   acknowledgment row** (full pips, "YOU START WITH 3" — `BuildGrantedLivesRow`): at the
   cap there is nothing to sell. Historical note: **Blood Moon Climb (Hallows #14) has NO
   flood** — it kept its MawClimb mode (Nick 2026-08-11). Every other ReachHeight level
-  (13 of 14) runs the flood via a per-chapter `RisingFlood_*` asset.
+  (12 of 13 after the 2026-08-23 early-game compression cut Jungle's flood — see below)
+  runs the flood via a per-chapter `RisingFlood_*` asset.
 - **Look (v2, cartoon)**: one huge quad in FRONT of the bricks (order 30) so the submerged
   tower reads submerged. Flat tones and hard edges only — a smooth rolling swell, a solid
   foam band on the crest, then shallow/deep tones split by an OFFSET wave (cartoon water
@@ -496,6 +497,15 @@ menu type name **THE FLOOD**; goal stays `ReachHeight` (warns on any other targe
   no constant ambience (Nick's rule).
 
 ### Campaign structure & progression
+
+**Early-game compression (Nick, 2026-08-23 — FTUE research pass):** the first two
+chapters are deliberately SHORT so a new player hits "new chapter, new world" fast and
+each early chapter debuts something new. Chapter 1 = Classic (60 blocks, tutorial) +
+Waves (5) — its flood level (`Level_JD3_VineAscent`) was DELETED. Chapter 2 = Waves (5) +
+Flood debut (50 m, gentle 190 s pacing) — its classic (`Level_SR1_MorningGate`) was
+DELETED. Chapter 3 then debuts Void Zones. The meta systems (meter/shop/dev letter)
+unlock at first CHAPTER 2 completion (SHOP.md §7.1); the review ask at chapter 3.
+Retired level ids linger harmlessly in saves (DATA.md rule 2).
 
 The game is a campaign of chapters: chapters unlock in `sortOrder` once the
 previous chapter's levels are ALL completed; levels within a chapter unlock sequentially.

@@ -244,7 +244,7 @@ public static class NotificationScheduler
     /// while the app is open, so the prediction made here is exact.</summary>
     private static void ScheduleLivesFull()
     {
-        if (!AttemptsService.MeterActive) return;   // premium / pre-chapter-1: no meter
+        if (!AttemptsService.MeterActive) return;   // premium / pre-meta-unlock: no meter
         int count = AttemptsService.Count;
         if (count >= AttemptsService.MaxAttempts) return;
 

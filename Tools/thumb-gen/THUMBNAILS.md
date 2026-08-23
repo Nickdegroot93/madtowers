@@ -73,13 +73,16 @@ wired to nothing; skip them unless told a new level shipped.
 - **Scenery:** deep misty jungle, mossy ancient ruins, hanging vines.
 - **Palette:** layered deep greens with shafts of soft jungle light.
 - **Blocks:** mossy green, fern, ripe papaya orange, river-stone teal.
-- Levels: 1 The Undergrowth (Classic, tutorial) · 2 Canopy Trial (Waves) · 3 Vine Ascent (Flood).
+- Levels: 1 The Undergrowth (Classic, tutorial) · 2 Canopy Trial (Waves). (Vine Ascent
+  was cut 2026-08-23 — `jungle-3.jpg` is now a spare.)
 
 ### 2 · Sakura Ridge — folder `SakuraRidge`, files `sakura-ridge-1..5.jpg`
 - **Scenery:** serene Japanese mountain ridge, cherry blossoms, distant snow-capped Fuji, red torii gate.
 - **Palette:** muted washi tones — soft pink sakura, pale sky, temple indigo accents.
 - **Blocks:** patinated teal, washi gold, wisteria purple, torii vermilion.
-- Levels: 1 Morning Gate (Classic) · 2 Lantern Drift (Waves) · 3 Temple Steps (Flood).
+- Levels: 2 Lantern Drift (Waves) · 3 Temple Steps (Flood, 50 m — the flood's debut).
+  (Morning Gate was cut 2026-08-23 — `sakura-ridge-1.jpg` is now a spare; the files keep
+  their `-2`/`-3` names, wiring follows level identity, not menu position.)
 
 ### 3 · Neon Nightfall — folder `NeonNightfall`, files `neon-nightfall-1..5.jpg`
 - **Scenery:** neon-lit night-city waterfront, glowing skyscraper reflections.

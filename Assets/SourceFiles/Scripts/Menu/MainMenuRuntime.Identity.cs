@@ -240,7 +240,7 @@ public static partial class MainMenuRuntime
     private static bool LinkPromptOwesAVisit()
         => OnlineService.Enabled
         && !ProgressStore.WasLinkPromptShown()
-        && AttemptsService.MetaEnabled;                           // pre-Chapter-1: monetization-silent
+        && AttemptsService.MetaEnabled;                           // pre-meta-unlock (ch1-2): monetization-silent
 
     private static void TryScheduleLinkPrompt()
     {
