@@ -222,6 +222,14 @@ Still open, and each one is genuinely account-gated:
 - [ ] **`Assets/csc.rsp` contains NO dev defines — verify per release.** (2026-08-04:
       the working tree has `-define:MADTOWERS_UNLOCK_ALL` for playtesting; committed
       state is clean. This is exactly why the check exists.)
+- [ ] **Size pass — get the base module under ~160 MB** (first closed-test AAB measured
+      197 MB max download, 2026-08; Play's hard cap is 200 MB, so every added chapter
+      risks a rejected upload). Usual suspects in payoff order: texture compression on
+      chapter/backdrop art (ASTC, sane max sizes), audio import settings (streamed
+      Vorbis ~0.4, no decompress-on-load music), dead weight in `Resources/` from
+      purchased packs (everything there ships whether referenced or not). The build's
+      Editor.log has the per-asset size breakdown. This buys headroom only — the real
+      ceiling fix is Play Asset Delivery (post-launch watchlist).
 - [ ] Bump version/build numbers; signing: keystore (Phase 1) on Android,
       provisioning/certs on iOS.
 - [ ] IL2CPP release builds, both platforms.
@@ -237,6 +245,13 @@ Still open, and each one is genuinely account-gated:
 - Refund-revocation automation if the manual runbook gets tedious.
 - Native Game Center / Play Games layer, cosmetics, boost-weekend banner (XP.md §4) —
   all deliberately post-launch.
+- **Play Asset Delivery (install-time packs) when chapter count grows** — the 200 MB cap
+  applies to the BASE module only; tagging chapter art + music as an install-time asset
+  pack (same .aab, same one-tap install for the player, fully offline) raises the ceiling
+  to ~4 GB. Decided 2026-08: NOT before launch — it means moving that content off
+  `Resources/` onto AssetBundles/Addressables, a real content-pipeline refactor. Trigger:
+  when the compression headroom (Phase 6 size pass) is being eaten by new chapters —
+  ~30 more chapters ≈ +300–450 MB, so it is a when, not an if.
 
 ---
 
