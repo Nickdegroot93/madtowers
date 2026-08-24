@@ -24,9 +24,8 @@ recruit 14+ for slack. The build does NOT need to be finished and can update fre
 during the window.
 
 - [x] 1. Create the developer account at play.google.com/console — **personal**, $25
-      one-time. DONE 2026-08-23; ⏳ identity verification pending (docs uploaded, email
-      arrives when done, "a few days"), then phone verification. App creation + the
-      closed test are gated behind it.
+      one-time. DONE 2026-08-23; identity verification COMPLETE 2026-08-24 — console
+      now offers "create your first app". App creation + the closed test are unblocked.
 - [ ] 2. Set up the **payments profile** (payouts + selling IAP) as an individual and
       complete **tax info** (US tax form W-8BEN inside the payments profile; NL income
       is then declared privately in box 1 — no KvK needed to receive payouts as a
@@ -37,11 +36,16 @@ during the window.
       locally, back it up somewhere that survives this machine, upload-key model via Play
       App Signing. Phase 2's Google sign-in needs BOTH SHA-1s (upload key AND Play App
       Signing key) later.
-- [ ] 5. Build a **closed-test AAB**. Build discipline: `Assets/csc.rsp` must be EMPTY
-      (the local unlock-all define must never leave this machine), IL2CPP, release
-      signing. Live AdMob units serve in non-debug builds — **tell testers not to tap
-      ads**, or keep the first tester build a debug build (test ads) until the meter
-      matters.
+- [ ] 5. Build a **closed-test AAB**. ⚠️ The old "debug build for test ads" idea does NOT
+      work: Play rejects debuggable artifacts, so tester builds are release builds — and
+      a release build serves LIVE AdMob ads to every tester (test fill only exists for
+      devices registered in `TestDeviceIds`, applied in debug builds only). Fix wired
+      2026-08-24: **tester-build discipline is `Assets/csc.rsp` containing EXACTLY
+      `-define:MADTOWERS_SIM_ADS`** (never the unlock-all define). That define compiles
+      AdMobBootstrap to a no-op and installs `SimulatedRewardedAdProvider` on device —
+      the whole attempts→watch→refill economy runs with zero AdMob traffic. IL2CPP,
+      ARM64, release signing, versionCode +1 per upload. The PRODUCTION build later
+      returns to an EMPTY csc.rsp (GOLIVE Phase 6 check catches this).
 - [ ] 6. Create a **closed testing track**, upload the AAB, add testers by email list,
       send the opt-in link, and confirm ≥12 show as opted in.
 - [ ] 7. **Note the date 12+ were opted in. Day 15 or later:** apply for production

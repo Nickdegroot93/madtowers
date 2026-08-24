@@ -19,10 +19,11 @@ public interface IRewardedAdProvider
 }
 
 /// <summary>
-/// Facade over the rewarded-ad provider. No provider installed (today: every device build)
-/// means ads are simply off and every ad surface hides - the game must never point at an ad
-/// that cannot show. In the editor a simulated provider installs itself so the whole
-/// out-of-attempts → watch → refill loop is playtestable before any SDK ships.
+/// Facade over the rewarded-ad provider. No provider installed means ads are simply off
+/// and every ad surface hides - the game must never point at an ad that cannot show. In
+/// the editor (and in MADTOWERS_SIM_ADS closed-test builds, on device) a simulated
+/// provider installs itself so the whole out-of-attempts → watch → refill loop runs
+/// without any AdMob traffic; otherwise AdMobBootstrap installs the real one on device.
 /// </summary>
 public static class RewardedAds
 {
@@ -132,18 +133,21 @@ public static class RewardedAds
         // hard reset to audible is always right here.
         _volumeBeforeAd = -1f;
         AudioListener.volume = 1f;
-#if UNITY_EDITOR
+#if UNITY_EDITOR || MADTOWERS_SIM_ADS
+        // MADTOWERS_SIM_ADS: closed-test tester builds get the simulated provider on
+        // device too - AdMobBootstrap compiles to a no-op there (STOREACCOUNTS.md §1.5).
         _provider = new SimulatedRewardedAdProvider();
 #endif
     }
 }
 
-#if UNITY_EDITOR
+#if UNITY_EDITOR || MADTOWERS_SIM_ADS
 /// <summary>
-/// Editor-only stand-in for a real rewarded video: a full-screen "TEST AD" overlay with a
-/// 5-second countdown. Closing early forfeits (the real SDK's skip path); sitting it out
-/// turns the close button gold and pays out - both callback branches get exercised. Runs on
-/// unscaled time (the menu lives at timeScale = 0).
+/// Stand-in for a real rewarded video (editor always; device only in MADTOWERS_SIM_ADS
+/// closed-test builds): a full-screen "TEST AD" overlay with a 5-second countdown.
+/// Closing early forfeits (the real SDK's skip path); sitting it out turns the close
+/// button gold and pays out - both callback branches get exercised. Runs on unscaled
+/// time (the menu lives at timeScale = 0).
 /// </summary>
 internal sealed class SimulatedRewardedAdProvider : IRewardedAdProvider
 {
@@ -180,7 +184,7 @@ internal sealed class SimulatedRewardedAdProvider : IRewardedAdProvider
                 new Color(0.92f, 0.97f, 1f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold,
                 RuntimeUiKit.TitleFont, new Vector2(0f, 60f), new Vector2(800f, 110f),
                 new Vector2(0.5f, 0.5f));
-            RuntimeUiKit.CreateTmp(transform, "Sub", "SIMULATED REWARDED VIDEO - EDITOR ONLY", 20,
+            RuntimeUiKit.CreateTmp(transform, "Sub", "SIMULATED REWARDED VIDEO - NOT A REAL AD", 20,
                 new Color(1f, 1f, 1f, 0.45f), TextAnchor.MiddleCenter, FontStyle.Bold,
                 RuntimeUiKit.TitleFont, new Vector2(0f, -20f), new Vector2(800f, 30f),
                 new Vector2(0.5f, 0.5f));

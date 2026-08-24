@@ -172,8 +172,8 @@ today**, no account, no revenue, no invalid-traffic risk:
       the simulated editor provider is untouched, so editor playtesting is unaffected.
 - [x] **Consent (UMP)** — runs before `MobileAds.Initialize` and fails **closed**.
 - [x] **Daily-budget mirror** — migration `20260808000004_ad_budget.sql`, tested locally
-      (`supabase/tests/ad_budget.sh`, 6 checks; smoke still 22/22).
-      ⚠️ **NOT pushed to production yet** — `Tools/bin/supabase db push` when ready.
+      (`supabase/tests/ad_budget.sh`, 6 checks; smoke still 22/22). Pushed to production
+      (verified applied via `migration list --linked`, 2026-08).
 
 Still open, and each one is genuinely account-gated:
 
@@ -182,13 +182,15 @@ Still open, and each one is genuinely account-gated:
       ⚠️ Still to do at launch: **link both to the store listings** once they exist, or ad
       serving stays limited. Publisher `ca-app-pub-4384624714813425`.
 - [x] **Real IDs wired** — DONE 2026-08-09. App IDs in `GoogleMobileAdsSettings.asset`,
-      rewarded units in `AdMobRewardedProvider.cs`.
-      **Live units are used ONLY in a release build** (`UseLiveAds => !Debug.isDebugBuild`).
-      Requesting real ads from a machine you develop on is how accounts get flagged for
-      invalid traffic, and the failure modes are not symmetric: shipping test units costs
-      one release's revenue, testing on live units risks the account. So the gate fails
-      toward test ads and logs which mode it booted in. **A non-development build serves
-      LIVE ads — do not tap them.**
+      rewarded units in `AdMobRewardedProvider.cs`. Safety model (revised on device
+      2026-08-09): the REAL ad units are used always — test fill comes from the
+      registered `TestDeviceIds` list (Nick's phone), applied only when
+      `Debug.isDebugBuild`; sample units can't be used because SSV is configured per
+      OUR ad unit. **A non-development build serves LIVE ads — do not tap them.**
+      For the closed-test track (Play rejects debuggable AABs, so tester builds are
+      release builds): build with `-define:MADTOWERS_SIM_ADS` in `Assets/csc.rsp`,
+      which no-ops AdMobBootstrap and installs the simulated provider on device —
+      zero AdMob traffic from testers (wired 2026-08-24, STOREACCOUNTS.md §1.5).
 - [ ] **iOS ATT** — Google routes the prompt through a UMP message configured in the
       AdMob console, so it cannot be built before the account. Also unverifiable here:
       no iOS build has ever been run on this machine.
@@ -198,7 +200,9 @@ Still open, and each one is genuinely account-gated:
       `https://cyinvljdxpdtynlkiqhm.supabase.co/functions/v1/admob-ssv` on each rewarded
       ad unit in the AdMob console, then flip `backend_config.ssv_enabled` to `true`.
       Until that flip the client-claimed path still pays — deliberate, so SSV can be
-      proven on a device first.
+      proven on a device first. ⚠️ Do NOT flip while the closed test runs on
+      `MADTOWERS_SIM_ADS` builds: simulated watches pay via the client-claimed path,
+      so the flip would silently stop testers' refills.
 
 ## Phase 5 — compliance & store forms (needs the final SDK set, hence after 2–4)
 

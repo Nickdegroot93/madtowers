@@ -183,7 +183,15 @@ public static class AdMobBootstrap
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Boot()
     {
-#if !UNITY_EDITOR
+#if MADTOWERS_SIM_ADS
+        // Closed-test tester builds (STOREACCOUNTS.md §1.5): AdMob is never touched -
+        // no consent flow, no SDK init, no ad requests. RewardedAds installs the
+        // simulated provider instead, so the attempts→watch→refill economy still runs.
+        // Play rejects debuggable AABs, so tester builds are release builds - without
+        // this define every tester would be served LIVE ads (test fill only exists for
+        // registered devices in debug builds).
+        Debug.Log("[Ads] MADTOWERS_SIM_ADS build - simulated rewarded ads, AdMob not initialized.");
+#elif !UNITY_EDITOR
         // Ad SDK callbacks arrive on a background thread by default; everything they reach
         // in this game touches UI, so marshal them before anything else is configured.
         MobileAds.RaiseAdEventsOnUnityMainThread = true;
