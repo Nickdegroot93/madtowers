@@ -288,8 +288,13 @@ public static partial class MainMenuRuntime
                 AdRefillSlot.SetActive(AdRefillPlusShouldShow());
             if (AttemptsSecondary == null) return;
             System.TimeSpan regen = AttemptsService.NextRegenIn;
-            AttemptsSecondary.text = count < AttemptsService.MaxAttempts
-                ? $"{(int)regen.TotalMinutes:00}:{regen.Seconds:00}" : "";
+            bool full = count >= AttemptsService.MaxAttempts;
+            AttemptsSecondary.text = full
+                ? "" : $"{(int)regen.TotalMinutes:00}:{regen.Seconds:00}";
+            // An ad refill can fill the meter while the bar is alive: the timer line goes
+            // empty, so re-centre the count the way a full-at-build card lays out (78,0) -
+            // otherwise "5/5" keeps the two-line offset and floats high over a dead gap.
+            AttemptsPrimary.rectTransform.anchoredPosition = new Vector2(78f, full ? 0f : 12f);
         }
     }
 

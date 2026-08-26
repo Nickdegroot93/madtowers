@@ -202,7 +202,10 @@ Still open, and each one is genuinely account-gated:
       Until that flip the client-claimed path still pays — deliberate, so SSV can be
       proven on a device first. ⚠️ Do NOT flip while the closed test runs on
       `MADTOWERS_SIM_ADS` builds: simulated watches pay via the client-claimed path,
-      so the flip would silently stop testers' refills.
+      so the flip would silently stop testers' refills. **This exact incident happened
+      2026-08-25** (flag was found `true` during the closed test; ad claims silently
+      paid nothing) — flipped back to `false` same day. Current hosted state: `false`.
+      The launch flip is a Phase 6 checklist item.
 
 ## Phase 5 — compliance & store forms (needs the final SDK set, hence after 2–4)
 
@@ -219,6 +222,11 @@ Still open, and each one is genuinely account-gated:
 
 ## Phase 6 — release engineering & submission
 
+- [ ] **Flip `backend_config.ssv_enabled` to `true`** — MUST happen together with the
+      first real-ads release (no `MADTOWERS_SIM_ADS`), never before (kills tester
+      refills — bitten 2026-08-25, see Phase 4 SSV item). Prereq: SSV callback URL
+      registered on both rewarded units in the AdMob console (Phase 4). One-liner:
+      `Tools/bin/supabase db query --linked "update public.backend_config set value = 'true'::jsonb where key = 'ssv_enabled'"`
 - [ ] **`Assets/csc.rsp` contains NO dev defines — verify per release.** (2026-08-04:
       the working tree has `-define:MADTOWERS_UNLOCK_ALL` for playtesting; committed
       state is clean. This is exactly why the check exists.)
