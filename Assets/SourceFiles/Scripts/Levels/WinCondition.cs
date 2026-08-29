@@ -28,13 +28,12 @@ public readonly struct WinContext
 /// </summary>
 public readonly struct ResultMetric
 {
-    public ResultMetric(string label, float value, float previousBest, bool isMeters, string targetText)
+    public ResultMetric(string label, float value, float previousBest, bool isMeters)
     {
         Label = label;
         Value = value;
         PreviousBest = previousBest;
         IsMeters = isMeters;
-        TargetText = targetText;
     }
 
     /// <summary>Uppercase metric name for the card ("BLOCKS", "HEIGHT", "WAVES CLEARED").</summary>
@@ -45,8 +44,6 @@ public readonly struct ResultMetric
     public float PreviousBest { get; }
     /// <summary>Format values as meters ("12.4m") instead of a whole number.</summary>
     public bool IsMeters { get; }
-    /// <summary>The goal in display form ("100", "12M", "4 WAVES"); null when there is no goal.</summary>
-    public string TargetText { get; }
 
     public string Format(float value) => IsMeters ? $"{value:F1}m" : Mathf.RoundToInt(value).ToString();
 

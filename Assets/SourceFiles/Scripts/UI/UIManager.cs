@@ -614,47 +614,40 @@ public class UIManager : MonoBehaviour
         card.offsetMin = new Vector2(BarCardInset, BarCardInset);
         card.offsetMax = new Vector2(-BarCardInset, -BarCardInset);
 
-        if (_waveObjective || IsHeightObjective)
+        // The LEADING icon is the target's tier (Nick 2026-08-29): a bronze cube next to
+        // "0/50" says what reaching 50 earns, and it rolls to silver the moment bronze lands
+        // (HandleTierEarned) - one icon, no separate badge. Ladder-less levels (Endless)
+        // keep the old grey cube on block goals and no icon on wave/height.
+        LevelDefinition level = LevelSelectionState.SelectedLevel;
+        bool tiered = LevelTiers.HasTiers(level);
+
+        if ((_waveObjective || IsHeightObjective) && !tiered)
         {
             RectTransform group = CreateCenteredGroup(card, new Vector2(150f, 60f), 0f);
             CreateBarCaption(group, _waveObjective ? "WAVE" : "HEIGHT", new Vector2(0f, 16f));
             if (scoreText != null) PlaceBarValue(scoreText, group, new Vector2(0f, -12f));
-            BuildObjectiveTierIcon(card);
             return;
         }
 
-        // Block goals keep the cube glyph; icon + caption + value as one center-anchored group.
+        string caption = _waveObjective ? "WAVE" : IsHeightObjective ? "HEIGHT" : "BLOCKS";
         RectTransform iconGroup = CreateCenteredGroup(card, new Vector2(186f, 60f), 0f);
-        CreateBarIcon(iconGroup, RuntimeSprites.CubeGlyph(), new Vector2(24f, 0f), 42f,
+        Image lead = CreateBarIcon(iconGroup, RuntimeSprites.CubeGlyph(), new Vector2(24f, 0f), 42f,
             new Color(0.90f, 0.90f, 0.90f, 0.85f));
-        CreateBarCaption(iconGroup, "BLOCKS", new Vector2(60f, 16f));
+        CreateBarCaption(iconGroup, caption, new Vector2(60f, 16f));
         if (scoreText != null) PlaceBarValue(scoreText, iconGroup, new Vector2(60f, -12f));
-        BuildObjectiveTierIcon(card);
+
+        if (tiered)
+        {
+            _objectiveTierIcon = lead;
+            lead.color = MedalStyle.IconTint(earned: true); // pairs the medal art per MedalStyle's contract
+            UpdateObjectiveTierIcon(LevelTiers.LowestUnearned(level) ?? LevelTiers.MaxTier);
+        }
     }
 
-    // The tier badge at the objective card's right edge: WHICH rung the "/target" denominator
-    // belongs to - "60/75" alone doesn't say whether 75 is bronze, silver or gold (Nick
-    // 2026-08-29). Rolls with the denominator via HandleTierEarned; on a fully-earned ladder
-    // it stays on the top rung, matching the best-chase denominator. Placeholder MedalStyle
-    // badge until Nick's rendered block icons land (MEDALS.md §8).
+    // The objective card's leading icon once a ladder exists: WHICH rung the "/target"
+    // denominator belongs to. Rolls with the denominator via HandleTierEarned; on a
+    // fully-earned ladder it stays on the top rung, matching the best-chase denominator.
     private Image _objectiveTierIcon;
-
-    private void BuildObjectiveTierIcon(RectTransform card)
-    {
-        LevelDefinition level = LevelSelectionState.SelectedLevel;
-        if (!LevelTiers.HasTiers(level)) return;
-
-        GameObject icon = new GameObject("TierIcon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform rect = (RectTransform)icon.transform;
-        rect.SetParent(card, false);
-        rect.anchorMin = rect.anchorMax = new Vector2(1f, 0.5f);
-        rect.anchoredPosition = new Vector2(-32f, 0f);
-        rect.sizeDelta = new Vector2(34f, 34f);
-        _objectiveTierIcon = icon.GetComponent<Image>();
-        _objectiveTierIcon.preserveAspect = true;
-        _objectiveTierIcon.raycastTarget = false;
-        UpdateObjectiveTierIcon(LevelTiers.LowestUnearned(level) ?? LevelTiers.MaxTier);
-    }
 
     // Full tier colour on purpose: this badge NAMES the target's rung (a label), it does not
     // report earned state - the banked-state view is MedalHud's pill on the right.
@@ -705,7 +698,7 @@ public class UIManager : MonoBehaviour
         return rect;
     }
 
-    private void CreateBarIcon(RectTransform parent, Sprite sprite, Vector2 center, float size, Color color)
+    private Image CreateBarIcon(RectTransform parent, Sprite sprite, Vector2 center, float size, Color color)
     {
         GameObject icon = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         RectTransform rect = (RectTransform)icon.transform;
@@ -718,6 +711,7 @@ public class UIManager : MonoBehaviour
         image.preserveAspect = true;
         image.color = color;
         image.raycastTarget = false;
+        return image;
     }
 
     private void CreateBarCaption(RectTransform parent, string text, Vector2 position)

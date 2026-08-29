@@ -21,7 +21,6 @@ public sealed class RunResultsScreen : MonoBehaviour
     {
         public bool Victory;            // gold banked: the full victory treatment
         public ResultMetric Metric;     // the goal's one stat: run value + previous best
-        public bool GoalReached;        // show the "GOAL ... REACHED" line (level was made)
         public float EndlessHeight;     // > 0 on endless runs only: quiet secondary height line
         public int Coins;               // banked this run (incl. win bonus on victory); 0 hides the line
         public bool Boosted;            // run started with purchased supplies (SHOP.md §5) - the honesty tag
@@ -49,6 +48,11 @@ public sealed class RunResultsScreen : MonoBehaviour
     private const float SecondaryAt = 2.2f;
 
     private const float PunchSeconds = 0.6f;
+    // Tier celebration (modal redesign, Nick 2026-08-29): the badge pops in with an overshoot
+    // at BadgeAt, and the confetti burst + ray fade-in fire on the same frame (handoff §5).
+    private const float BadgeAt = 0.2f;
+    private const float BadgePopSeconds = 0.6f;
+    private const float BadgeSize = 150f;
     // The sanctioned reward-gold (golden brick, sheen) - one gold across the whole game.
     private static readonly Color Gold = GoldenBlockDirector.GoldTint;
 
@@ -73,6 +77,8 @@ public sealed class RunResultsScreen : MonoBehaviour
     private float _backdropAlpha;
     private readonly List<Reveal> _reveals = new List<Reveal>(10);
     private TextMeshProUGUI _hero;
+    private RectTransform _badge; // the half-out tier cube; null on plain game-over cards
+    private ResultsCelebrationFx _celebrationFx; // FastForward must skip its start delay too
     private float _clock;
     private float _endTime;
     private bool _landed;
@@ -121,32 +127,45 @@ public sealed class RunResultsScreen : MonoBehaviour
         skip.transition = Selectable.Transition.None;
         skip.onClick.AddListener(FastForward);
 
+        // The celebration layer (rays + confetti) must paint BETWEEN backdrop and panel, so it
+        // is created before the panel and the burst spills out from behind the card.
+        MedalTier? earnedTier = _content.TierEarnedThisRun;
+        bool celebrate = earnedTier.HasValue;
+        RectTransform fxLayer = null;
+        if (celebrate)
+        {
+            fxLayer = RuntimeUiKit.CreateRect(transform, "CelebrationFx",
+                Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+        }
+
         GameObject panel = RuntimeUiKit.CreateCenteredPanel(transform, new Vector2(660f, 100f));
         GameMenuStyle.StylePanel(panel);
         panel.GetComponent<Image>().raycastTarget = false; // taps beside the rows reach the skip
         VerticalLayoutGroup layout = panel.GetComponent<VerticalLayoutGroup>();
         layout.childControlHeight = true; // rows declare their height via LayoutElement
         layout.spacing = 16f;
+        // The half-out badge claims the card's top band; the first row starts below it.
+        if (celebrate) layout.padding.top = Mathf.RoundToInt(BadgeSize * 0.5f + 24f);
         ContentSizeFitter fitter = panel.AddComponent<ContentSizeFitter>();
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         bool record = _content.Metric.IsNewRecord;
 
-        // Kicker: quiet on a plain game over (the metric is the headline, not the death), hot
-        // whenever the run banked a medal - a collapse AFTER earning bronze is a completion
-        // with a bruise, never a failure screen. The tier names the card and colors it.
-        MedalTier? earnedTier = _content.TierEarnedThisRun;
-        bool hot = _content.Victory || earnedTier.HasValue;
-        string kickerText = earnedTier.HasValue
-            ? $"LEVEL COMPLETE - {MedalStyle.DisplayName(earnedTier.Value)}"
-            : _content.Victory ? "LEVEL COMPLETE" : "GAME OVER";
-        Color kickerColor = earnedTier.HasValue ? MedalStyle.TierColor(earnedTier.Value)
-            : _content.Victory ? GameMenuStyle.Accent : new Color(0.85f, 0.88f, 0.90f, 0.70f);
-        TextMeshProUGUI kicker = CreateRow(panel.transform, kickerText,
-            hot ? 44 : 30, kickerColor, hot ? 60f : 42f, display: true);
-        kicker.characterSpacing = 8f;
-        if (earnedTier.HasValue) RuntimeUiKit.AutoSize(kicker, 26f, 44f); // "- SILVER" must fit the 660 panel
-        AddReveal(kicker.gameObject, KickerAt);
+        if (celebrate)
+        {
+            BuildCelebration(panel, fxLayer, earnedTier.Value);
+        }
+        else
+        {
+            // Plain game over: the quiet in-panel kicker - the metric is the headline, not
+            // the death. (A run that banked a medal gets the celebration header instead.)
+            TextMeshProUGUI kicker = CreateRow(panel.transform,
+                _content.Victory ? "LEVEL COMPLETE" : "GAME OVER", 30,
+                _content.Victory ? GameMenuStyle.Accent : new Color(0.85f, 0.88f, 0.90f, 0.70f),
+                42f, display: true);
+            kicker.characterSpacing = 8f;
+            AddReveal(kicker.gameObject, KickerAt);
+        }
 
         // The boosted honesty tag (SHOP.md §5): a quiet gold line under the kicker so an
         // assisted run always says so - the score below belongs to the boosted board.
@@ -166,6 +185,12 @@ public sealed class RunResultsScreen : MonoBehaviour
         _hero = CreateRow(panel.transform, _content.Metric.Format(0f), 116,
             record ? Gold : RuntimeUiKit.TitleColor, 148f, display: true);
         RuntimeUiKit.AutoSize(_hero, 64f, 116f);
+        if (celebrate)
+        {
+            // The hero number wears the tier's gradient: cream into the tier's light tone.
+            RuntimeUiKit.ApplyHorizontalGradient(_hero,
+                MedalStyle.HeroCream, MedalStyle.TierLight(earnedTier.Value));
+        }
         AddReveal(_hero.gameObject, HeroAt);
 
         if (record) BuildNewBestPill(panel.transform);
@@ -178,18 +203,12 @@ public sealed class RunResultsScreen : MonoBehaviour
             AddReveal(best.gameObject, RecordAt);
         }
 
-        if (_content.TierThresholds != null && _content.TierEarnedState != null)
+        // The three-slot ladder row survives only on the PLAIN game-over card, where "silver
+        // at 75 is still on the table" is the motivation to retry; a celebration card's story
+        // is the badge + chip, and the row would double-tell it (screenshot is authoritative).
+        if (_content.TierThresholds != null && _content.TierEarnedState != null && !celebrate)
         {
             BuildMedalRow(panel.transform);
-        }
-
-        if (_content.GoalReached && !string.IsNullOrEmpty(_content.Metric.TargetText))
-        {
-            TextMeshProUGUI goal = CreateRow(panel.transform,
-                $"GOAL {_content.Metric.TargetText} {(_content.Victory ? "CLEARED" : "REACHED")}", 24,
-                WithAlpha(GameMenuStyle.Accent, 0.9f), 32f, display: false);
-            goal.characterSpacing = 6f;
-            AddReveal(goal.gameObject, DetailsAt);
         }
 
         if (_content.EndlessHeight > 0.05f)
@@ -206,11 +225,7 @@ public sealed class RunResultsScreen : MonoBehaviour
             AddReveal(sentence.gameObject, DetailsAt);
         }
 
-        if (_content.Coins > 0)
-        {
-            AddReveal(CreateRow(panel.transform, $"+{_content.Coins} coins", 28, Gold, 40f,
-                display: false).gameObject, CoinsAt);
-        }
+        if (_content.Coins > 0) BuildCoinsRow(panel.transform);
 
         // The lives line: a player weighing "Try Again" must see what it costs and what
         // they hold - the meter is otherwise invisible mid-run (Nick 2026-08-09).
@@ -303,6 +318,97 @@ public sealed class RunResultsScreen : MonoBehaviour
         }
     }
 
+    /// <summary>The tier celebration (modal redesign, Nick 2026-08-29): the tier cube
+    /// half-in/half-out over the card's top edge, the gradient "{TIER} TIER REACHED" chip as
+    /// the card's first row, and the confetti + ray layer behind the card. No header outside
+    /// the card (cut - it collided with the HUD). Shared verbatim by the gold victory card and
+    /// the bronze/silver on-death card - one treatment, different tier data.</summary>
+    private void BuildCelebration(GameObject panel, RectTransform fxLayer, MedalTier tier)
+    {
+        // No header outside the card (a screen-top "LEVEL COMPLETE" line collided with the
+        // HUD and read as clutter - Nick 2026-08-29): the badge + chip carry the whole story.
+
+        // The badge: the tier cube centered ON the card's top edge - half in, half out. It
+        // rides the panel (ignoreLayout) so the dynamic card height can never detach it;
+        // ApplyTimeline drives its overshoot pop from scale 0 at BadgeAt.
+        GameObject badge = new GameObject("TierBadge", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        _badge = (RectTransform)badge.transform;
+        _badge.SetParent(panel.transform, false);
+        _badge.anchorMin = _badge.anchorMax = new Vector2(0.5f, 1f);
+        _badge.pivot = new Vector2(0.5f, 0.5f);
+        _badge.anchoredPosition = Vector2.zero;
+        _badge.sizeDelta = new Vector2(BadgeSize, BadgeSize);
+        _badge.localScale = Vector3.zero;
+        badge.AddComponent<LayoutElement>().ignoreLayout = true;
+        Image badgeImage = badge.GetComponent<Image>();
+        badgeImage.sprite = MedalStyle.Sprite(tier, earned: true);
+        badgeImage.color = MedalStyle.IconTint(earned: true);
+        badgeImage.preserveAspect = true;
+        badgeImage.raycastTarget = false;
+
+        // "{TIER} TIER REACHED" - dark text on the tier's gradient capsule, the card's first row.
+        GameObject chipRow = new GameObject("ChipRow", typeof(RectTransform));
+        chipRow.transform.SetParent(panel.transform, false);
+        chipRow.AddComponent<LayoutElement>().preferredHeight = 56f;
+        RectTransform chip = RuntimeUiKit.CreateRect(chipRow.transform, "TierChip",
+            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+            Vector2.zero, MedalStyle.ChipSize); // the sprite is generated at exactly this size
+        Image chipImage = chip.gameObject.AddComponent<Image>();
+        chipImage.sprite = MedalStyle.ChipSprite(tier);
+        chipImage.raycastTarget = false;
+        TextMeshProUGUI chipLabel = RuntimeUiKit.CreateTmp(chip, "Label",
+            $"{MedalStyle.DisplayName(tier)} TIER REACHED", 22, MedalStyle.ChipText,
+            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        chipLabel.characterSpacing = 5f;
+        AddReveal(chipRow, KickerAt);
+
+        // Confetti + rays fire on the badge's pop-in frame, behind the card.
+        _celebrationFx = ResultsCelebrationFx.Attach(fxLayer, _badge, tier, BadgeAt);
+    }
+
+    // The card's centered horizontal row scaffold (medal row, coins row): fixed-size
+    // children centered as one group.
+    private static RectTransform CreateCenteredRow(Transform parent, string name, float height, float spacing)
+    {
+        GameObject row = new GameObject(name, typeof(RectTransform));
+        row.transform.SetParent(parent, false);
+        row.AddComponent<LayoutElement>().preferredHeight = height;
+
+        HorizontalLayoutGroup layout = row.AddComponent<HorizontalLayoutGroup>();
+        layout.childAlignment = TextAnchor.MiddleCenter;
+        layout.spacing = spacing;
+        layout.childControlWidth = false;
+        layout.childControlHeight = false;
+        layout.childForceExpandWidth = false;
+        layout.childForceExpandHeight = false;
+        return (RectTransform)row.transform;
+    }
+
+    // The banked-coins line: the coin icon + "+N", no word (the icon IS the word - Nick
+    // 2026-08-29). CoinHud owns the art + fallback pair.
+    private void BuildCoinsRow(Transform parent)
+    {
+        RectTransform row = CreateCenteredRow(parent, "CoinsRow", 44f, 10f);
+
+        Sprite coin = CoinHud.CoinSprite(out bool isFallback);
+        Image iconImage = RuntimeUiKit.CreateImage(row, "Coin", coin,
+            isFallback ? CoinHud.FallbackCoinGold : Color.white);
+        iconImage.rectTransform.sizeDelta = new Vector2(34f, 34f);
+        iconImage.preserveAspect = true;
+
+        TextMeshProUGUI amount = RuntimeUiKit.CreateTmp(row, "Amount",
+            $"+{_content.Coins}", 30, Gold, TextAnchor.MiddleLeft, FontStyle.Bold,
+            RuntimeUiKit.TitleFont);
+        amount.rectTransform.sizeDelta = new Vector2(0f, 40f);
+        amount.textWrappingMode = TextWrappingModes.NoWrap;
+        amount.overflowMode = TextOverflowModes.Overflow;
+        // Self-sizing width so the icon+amount pair truly centers (the layout group only
+        // centers what declares its size).
+        amount.gameObject.AddComponent<ContentSizeFitter>().horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        AddReveal(row.gameObject, CoinsAt);
+    }
+
     // A single centered text row, height-driven for the panel's vertical layout.
     private static TextMeshProUGUI CreateRow(Transform parent, string text, int size, Color color,
         float height, bool display)
@@ -346,17 +452,7 @@ public sealed class RunResultsScreen : MonoBehaviour
     // tier earned THIS run gets the card-shine sweep, the same visual word as NEW BEST.
     private void BuildMedalRow(Transform parent)
     {
-        GameObject row = new GameObject("MedalRow", typeof(RectTransform));
-        row.transform.SetParent(parent, false);
-        row.AddComponent<LayoutElement>().preferredHeight = 104f;
-
-        HorizontalLayoutGroup layout = row.AddComponent<HorizontalLayoutGroup>();
-        layout.childAlignment = TextAnchor.MiddleCenter;
-        layout.spacing = 34f;
-        layout.childControlWidth = false;
-        layout.childControlHeight = false;
-        layout.childForceExpandWidth = false;
-        layout.childForceExpandHeight = false;
+        RectTransform row = CreateCenteredRow(parent, "MedalRow", 104f, 34f);
 
         // The arrays are the source of truth for the ladder's size (the controller fills them
         // from LevelTiers.TierCount) - no literal rung count here.
@@ -393,7 +489,7 @@ public sealed class RunResultsScreen : MonoBehaviour
             }
         }
 
-        AddReveal(row, RecordAt);
+        AddReveal(row.gameObject, RecordAt);
     }
 
     private static void RoundButton(Button button)
@@ -455,7 +551,20 @@ public sealed class RunResultsScreen : MonoBehaviour
             }
         }
 
+        TickBadge();
         TickHero();
+    }
+
+    // The badge's overshoot pop (scale 0 -> past 1 -> settle), computed from the clock so
+    // FastForward lands it at rest like every other element. Nulled once settled: the card
+    // ticks on well past the pop, and re-writing an identical scale re-dirties the layout.
+    private void TickBadge()
+    {
+        if (_badge == null) return;
+        float t = (_clock - BadgeAt) / BadgePopSeconds;
+        float scale = FxKit.EaseOutBack(t); // clamps t; exactly 0 at 0, 1 at 1
+        _badge.localScale = new Vector3(scale, scale, 1f);
+        if (t >= 1f) _badge = null;
     }
 
     // Count 0 -> value linearly (an eased number reads as broken), then land with the game's
@@ -505,6 +614,9 @@ public sealed class RunResultsScreen : MonoBehaviour
     {
         if (_clock >= _endTime) return;
         _clock = _endTime;
+        // The fx runs its own real-time clock: without this, a skip-tap in the first frames
+        // lands the final card and THEN the confetti erupts, out of sync with everything.
+        if (_celebrationFx != null) _celebrationFx.SkipDelay();
         _landed = true;
         _punchAge = PunchSeconds;
         _recordSfxPlayed = true;

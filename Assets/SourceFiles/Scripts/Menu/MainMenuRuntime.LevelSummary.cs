@@ -58,16 +58,13 @@ public static partial class MainMenuRuntime
         // Tiered levels are ~136 taller: the full-width medal TARGETS card + the moved BEST card.
         bool tiered = LevelTiers.HasTiers(level);
         float H = suppliesOn ? ModalHeightWithSupplies(level) : (tiered ? 976f : 840f);
-        Color panelColor = new Color(0.075f, 0.065f, 0.058f, 1f);
+        Color panelColor = GameMenuStyle.PanelColor; // kept local: the thumbnail fade blends into it
         RectTransform panel = CreateRect(overlay.transform, "Panel",
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(W, H));
         Image panelImage = panel.gameObject.AddComponent<Image>();
-        panelImage.sprite = RuntimeSprites.RoundedPanel();
-        panelImage.type = Image.Type.Sliced;
-        panelImage.color = panelColor;
+        GameMenuStyle.StylePanel(panel.gameObject); // the one modal-panel treatment
         panelImage.raycastTarget = true;
-        RuntimeUiKit.AddOutline(panel, GoldOutline(0.22f));
 
         // Thumbnail, full-bleed across the top (rounded corners match the panel).
         const float imgH = 360f;

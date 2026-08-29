@@ -51,7 +51,7 @@ public static partial class MainMenuRuntime
 
         // Panel: near-black body, the accent lives in the edges (taste contract).
         Image panel = RuntimeUiKit.CreateImage(overlay.transform, "Panel",
-            RuntimeSprites.RoundedPanel(), new Color(0.055f, 0.05f, 0.07f, 0.99f));
+            RuntimeSprites.RoundedPanel(), GameMenuStyle.PanelColor);
         panel.type = Image.Type.Sliced;
         // Standing at an EMPTY meter with the OS never yet asked: grow the panel and
         // append the notification ask. Any other state keeps the tuned 700 layout.
@@ -61,7 +61,6 @@ public static partial class MainMenuRuntime
             new Vector2(RefillPanelW, RefillPanelH + (showNotifyAsk ? NotifyAskExtra : 0f)),
             new Vector2(0.5f, 0.5f));
         panel.raycastTarget = true;   // swallow taps so only the backdrop dismisses
-        RuntimeUiKit.AddOutline(panel.rectTransform, WithAlpha(TextPrimary, 0.10f));
 
         BuildRefillContent(panel.rectTransform);
         if (showNotifyAsk) BuildNotifyAskRow(panel.rectTransform);
@@ -399,11 +398,10 @@ public static partial class MainMenuRuntime
 
         Color accent = GameMenuStyle.Accent;
         Image panel = CreateImage(overlay.transform, "Panel", RuntimeSprites.RoundedPanel(),
-            new Color(0.055f, 0.05f, 0.07f, 0.99f));
+            GameMenuStyle.PanelColor);
         panel.type = Image.Type.Sliced;
         SetRect(panel.rectTransform, Vector2.zero, new Vector2(640f, 440f), new Vector2(0.5f, 0.5f));
         panel.raycastTarget = true;
-        RuntimeUiKit.AddOutline(panel.rectTransform, WithAlpha(accent, 0.45f));
 
         Image bell = CreateImage(panel.transform, "Bell", MenuSprites.Bell(WithAlpha(accent, 0.9f)), Color.white);
         bell.preserveAspect = true;

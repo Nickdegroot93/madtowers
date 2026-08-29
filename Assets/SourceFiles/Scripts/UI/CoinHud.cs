@@ -31,7 +31,19 @@ public class CoinHud : MonoBehaviour
     private const float PillFadeInSeconds = 0.25f;
 
     private static readonly Color PillColor = new Color(0f, 0f, 0f, 0.78f); // UIManager BarInsetColor
-    private static readonly Color CoinGold = new Color(1f, 0.76f, 0.22f, 1f);
+
+    /// <summary>Tint for the procedural fallback coin (the real art is drawn untinted).</summary>
+    public static readonly Color FallbackCoinGold = new Color(1f, 0.76f, 0.22f, 1f);
+
+    /// <summary>The coin art + its fallback, shared by every surface that draws a coin
+    /// (this HUD's flight/pill, the results card's coins row) so the art path and the
+    /// fallback tint can never drift between them.</summary>
+    public static Sprite CoinSprite(out bool isFallback)
+    {
+        Sprite sprite = Resources.Load<Sprite>("Menu/coin"); // the menu top bar's coin art
+        isFallback = sprite == null;
+        return isFallback ? RuntimeSprites.Bubble() : sprite;
+    }
 
     private struct FlightCoin
     {
@@ -217,9 +229,7 @@ public class CoinHud : MonoBehaviour
         _canvas = _canvasRoot.GetComponent<Canvas>();
         _canvasRect = (RectTransform)_canvasRoot.transform;
 
-        _coinSprite = Resources.Load<Sprite>("Menu/coin"); // the menu top bar's coin art
-        _coinSpriteIsFallback = _coinSprite == null;
-        if (_coinSpriteIsFallback) _coinSprite = RuntimeSprites.Bubble();
+        _coinSprite = CoinSprite(out _coinSpriteIsFallback);
 
         BuildPill();
     }
@@ -253,7 +263,7 @@ public class CoinHud : MonoBehaviour
         Image iconImage = icon.GetComponent<Image>();
         iconImage.sprite = _coinSprite;
         iconImage.preserveAspect = true;
-        iconImage.color = _coinSpriteIsFallback ? CoinGold : Color.white;
+        iconImage.color = _coinSpriteIsFallback ? FallbackCoinGold : Color.white;
         iconImage.raycastTarget = false;
 
         GameObject value = new GameObject("Value", typeof(RectTransform));
@@ -300,7 +310,7 @@ public class CoinHud : MonoBehaviour
         Image image = coin.GetComponent<Image>();
         image.sprite = _coinSprite;
         image.preserveAspect = true;
-        image.color = _coinSpriteIsFallback ? CoinGold : Color.white;
+        image.color = _coinSpriteIsFallback ? FallbackCoinGold : Color.white;
         image.raycastTarget = false;
         return rect;
     }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -54,13 +55,18 @@ public class LevelRuntimeController : MonoBehaviour
     // own mid-run banked score could never say NEW BEST.
     private ProgressStore.LevelBest _preRunBest;
     // The BRONZE goal was met at least once THIS run (even if the tower later fell, and even on
-    // a fully-earned level where nothing arms). Drives the game-over card's "level made" line.
+    // a fully-earned level where nothing arms). Gates the monotonic-goal re-arm polling
+    // (TickWinVerification); the card line it once drove was cut (Nick 2026-08-29).
     private bool _targetMetThisRun;
     private RunResultsScreen.Content _victoryContent; // built at CompleteLevel; shown possibly later (paused)
     private float _verificationRemaining;
     private GameObject _countdownRoot;
-    private Text _countdownLabel;
-    private Text _countdownDigit;
+    private TextMeshProUGUI _countdownDigit;
+    private TextMeshProUGUI _countdownDigitShadow; // painted twin behind the digit (see CreateShadowedText)
+    private RectTransform _countdownDigitRoot;     // scaling this punches digit + shadow together
+    private RectTransform _countdownBarLeft;       // accent fills draining toward the cube
+    private RectTransform _countdownBarRight;
+    private RectTransform _countdownCube;          // the armed rung's cube, wobbling to steady
     private int _countdownShownSecond = -1;
     private float _countdownDigitPunchAge;
     private bool _hasTimeLimit;
@@ -125,29 +131,16 @@ public class LevelRuntimeController : MonoBehaviour
 
     // One-sentence goal banner in the upper third at level start: fade in, hold, fade out.
     // Unscaled time so it behaves the same if the level opens paused (power-up choice etc.).
+    // Free-floating shadowed text - the old full-width black strip read as a debug bar
+    // (Nick 2026-08-29, with the hold-steady restyle).
     private System.Collections.IEnumerator ShowInstructionBanner(string text)
     {
         GameObject root = RuntimeUiKit.CreateOverlayCanvas("Level Instruction", 3000);
         _bannerRoot = root;
 
-        GameObject strip = new GameObject("Strip");
-        strip.transform.SetParent(root.transform, false);
-        RectTransform stripRect = strip.AddComponent<RectTransform>();
-        stripRect.anchorMin = new Vector2(0f, 0.74f);
-        stripRect.anchorMax = new Vector2(1f, 0.74f);
-        stripRect.pivot = new Vector2(0.5f, 0.5f);
-        stripRect.sizeDelta = new Vector2(0f, 150f);
-        Image background = strip.AddComponent<Image>();
-        background.color = new Color(0.03f, 0.05f, 0.07f, 0.62f);
-        background.raycastTarget = false;
-
-        Text label = RuntimeUiKit.CreateLabel(strip.transform, text, 38, 150f,
-            FontStyle.Bold, RuntimeUiKit.TitleColor);
-        RectTransform labelRect = label.rectTransform;
-        labelRect.anchorMin = Vector2.zero;
-        labelRect.anchorMax = Vector2.one;
-        labelRect.offsetMin = new Vector2(40f, 0f);
-        labelRect.offsetMax = new Vector2(-40f, 0f);
+        CreateShadowedText(root.transform, "Banner", text, 38, RuntimeUiKit.TitleColor,
+            RuntimeUiKit.TitleFont, 2f, new Vector2(0.5f, 0.74f), new Vector2(940f, 160f),
+            wrap: true, display: false, out _, out _);
 
         CanvasGroup group = root.AddComponent<CanvasGroup>();
         group.blocksRaycasts = false;
@@ -191,6 +184,7 @@ public class LevelRuntimeController : MonoBehaviour
         {
             GameManager.Instance.PopPause(this);
             GameManager.Instance.ReleasePhase(this);
+            SetVerificationSpawnHold(false);
         }
     }
 
@@ -267,9 +261,6 @@ public class LevelRuntimeController : MonoBehaviour
         {
             Victory = false,
             Metric = ResolveEndOfRunMetric(result),
-            // "You made the level": only when bronze is genuinely earned AND this run actually
-            // reached the goal - a replay that never got close doesn't get the line.
-            GoalReached = _targetMetThisRun && LevelTiers.IsEarned(_level, MedalTier.Bronze, _sessionVerifiedValue),
             EndlessHeight = endless ? result.MaxHeight : 0f,
             // A run that showed the victory card already advertised (and banked) its coins
             // there - re-advertising them here would read as a second payout that never happens.
@@ -283,10 +274,10 @@ public class LevelRuntimeController : MonoBehaviour
             OnPrimary = () => { if (GameManager.Instance != null) GameManager.Instance.RestartGame(); },
         };
         PopulateTierContent(ref content);
-        // The gold victory card already celebrated this run's climb; toppling out of Keep
-        // Playing afterwards is a plain game over (the medal row still shows the earned set),
-        // not a second "LEVEL COMPLETE - GOLD" fanfare.
-        if (_victoryShown) content.TierEarnedThisRun = null;
+        // A run that newly earned a rung celebrates it on THIS card too, even when the gold
+        // victory card already showed (Nick 2026-08-29: a game over after an achievement must
+        // never read as a plain failure screen) - only the coin line stays suppressed above,
+        // because those coins were genuinely already advertised and banked.
         RunResultsScreen.Show(content);
     }
 
@@ -391,6 +382,22 @@ public class LevelRuntimeController : MonoBehaviour
             return;
         }
 
+        // A pending debounced arm confirms (or cancels) here every frame: event-driven goals
+        // fire no further events while nothing changes, so the retry can't ride on them.
+        if (_armMetSince >= 0f)
+        {
+            if (ArmedGoalMetNow())
+            {
+                TryBeginVerification();
+            }
+            else
+            {
+                _armMetSince = -1f; // the ghost passed - never armed, nothing shown
+                SetVerificationSpawnHold(false);
+            }
+            return;
+        }
+
         // After a collapse aborted verification, a goal that arms from a MONOTONIC signal (the
         // height record only rises) can never re-fire for the same peak - re-arm from the live
         // tower instead. Polled at 5 Hz, not per frame: LiveTowerHeight walks every landed block's
@@ -410,10 +417,20 @@ public class LevelRuntimeController : MonoBehaviour
     private const float RearmPollInterval = 0.2f;
     private float _rearmPollTimer;
 
+    // A ghost hold (a falling brick's progress event momentarily satisfying the armed
+    // threshold, common right after a rung completes with the next one nearly met) must not
+    // flash the overlay, blip the countdown loop, or flip the phase - the goal has to stay
+    // met THIS long before verification actually arms. The abort banner has its own guard
+    // (AbortBannerMinHoldSeconds) for holds that armed legitimately and fell early.
+    private const float ArmDebounceSeconds = 0.2f;
+    private float _armMetSince = -1f;
+
     // Returns whether verification actually armed. Every arming precondition lives HERE, so
     // callers must branch on the outcome, never re-derive the conditions - a timed goal that
     // assumes arming succeeded would freeze its clock forever (the bug this shape prevents).
-    private bool TryBeginVerification()
+    // During the debounce window it returns false; TickWinVerification re-drives the pending
+    // arm every frame (event-driven goals get no further events while nothing changes).
+    private bool TryBeginVerification(bool immediate = false)
     {
         // No armed tier = ladder dormant (all tiers earned, Endless): the target passes
         // silently and the player plays on for a best, exactly like the old already-completed
@@ -421,18 +438,52 @@ public class LevelRuntimeController : MonoBehaviour
         if (_armedTier == null || IsVerifyingWin) return false;
         if (GameManager.Instance == null || GameManager.Instance.isGameOver) return false;
 
+        if (!immediate)
+        {
+            if (_armMetSince < 0f) _armMetSince = Time.unscaledTime;
+            // The debounce window is still phase-Playing, so it holds spawns itself: without
+            // this, the goal-crossing lock's own (frame-deferred) spawn chain drops the next
+            // brick INTO the imminent countdown.
+            SetVerificationSpawnHold(true);
+            if (Time.unscaledTime - _armMetSince < ArmDebounceSeconds) return false;
+        }
+        _armMetSince = -1f;
+
         GameManager.Instance.RequestPhase(this, GamePhase.WinVerifying);
+        SetVerificationSpawnHold(false); // the WinVerifying phase gates spawning from here
         _verificationRemaining = WinVerificationSeconds;
         BuildCountdownUi();
         UpdateCountdownLabel();
         return true;
     }
 
+    private bool _verificationSpawnHold;
+
+    // NO brick may ever enter play once a hold-steady is pending or running (Nick 2026-08-29).
+    // The WinVerifying phase covers the countdown itself; this hold covers the arm-debounce
+    // window before it, through the same owner-keyed gate every other spawn suppressor uses.
+    private void SetVerificationSpawnHold(bool held)
+    {
+        if (_verificationSpawnHold == held || GameManager.Instance == null) return;
+        _verificationSpawnHold = held;
+        GameManager.Instance.SetSpawnSuspended(this, held);
+    }
+
+    // "The tower fell" is only an honest message when the player SAW a countdown running: a
+    // hold can arm and abort within a frame or two (a falling brick fires a progress event
+    // while the standing count still momentarily satisfies the armed threshold - common right
+    // after a rung completes with the next one nearly met), and a banner for that ghost hold
+    // reads as a bug (Nick 2026-08-29). Shorter than this = release silently.
+    private const float AbortBannerMinHoldSeconds = 0.75f;
+
     private void AbortVerification()
     {
         if (GameManager.Instance != null) GameManager.Instance.ReleasePhase(this); // drops WinVerifying -> back to Playing
         DestroyCountdownUi();
-        ShowBanner("The tower fell - keep building!");
+        if (WinVerificationSeconds - _verificationRemaining >= AbortBannerMinHoldSeconds)
+        {
+            ShowBanner("The tower fell - keep building!");
+        }
     }
 
     // The live snapshot the win condition reads. LiveTowerHeight is passed as a cached delegate so
@@ -454,42 +505,110 @@ public class LevelRuntimeController : MonoBehaviour
 
         SfxPlayer.PlayLoop("countdown", 0.8f); // clock runs for the 5->0 hold; stopped in DestroyCountdownUi
         _countdownRoot = RuntimeUiKit.CreateOverlayCanvas("Win Verification", 3200);
+        Color accent = GameMenuStyle.Accent;
 
-        GameObject strip = new GameObject("Strip");
-        strip.transform.SetParent(_countdownRoot.transform, false);
-        RectTransform stripRect = strip.AddComponent<RectTransform>();
-        stripRect.anchorMin = new Vector2(0f, 0.74f);
-        stripRect.anchorMax = new Vector2(1f, 0.74f);
-        stripRect.pivot = new Vector2(0.5f, 0.5f);
-        stripRect.sizeDelta = new Vector2(0f, 150f);
-        Image background = strip.AddComponent<Image>();
-        background.color = new Color(0.03f, 0.05f, 0.07f, 0.62f);
-        background.raycastTarget = false;
+        // HOLD STEADY: display-font wordmark, horizontal light-to-accent gradient (the hero
+        // number's language), painted shadow - no strip, no bar.
+        TextMeshProUGUI wordmark = CreateShadowedText(_countdownRoot.transform, "HoldSteady",
+            "HOLD STEADY", 46, Color.white, RuntimeUiKit.TitleFont, 10f,
+            new Vector2(0.5f, WordmarkY), new Vector2(960f, 90f),
+            wrap: false, display: true, out _, out _);
+        RuntimeUiKit.ApplyHorizontalGradient(wordmark, Color.Lerp(accent, Color.white, 0.65f), accent);
 
-        _countdownLabel = RuntimeUiKit.CreateLabel(strip.transform, "Hold steady!", 38, 150f,
-            FontStyle.Bold, RuntimeUiKit.TitleColor);
-        _countdownLabel.raycastTarget = false;
+        // The centerpiece line: ---- cube ---- (Nick 2026-08-29, "one composition"). The armed
+        // rung's cube sits IN the progress line, floating on a slow bob that glides to a dead
+        // stop as the window runs down (the hold, embodied - a perfectly still cube marks the
+        // landing); the two accent bars drain from their outer ends toward the cube.
+        BuildCountdownSegment("TrackL", GameMenuStyle.WithAlpha(accent, 0.18f), new Vector2(1f, 0.5f), -CubeGapHalf);
+        BuildCountdownSegment("TrackR", GameMenuStyle.WithAlpha(accent, 0.18f), new Vector2(0f, 0.5f), CubeGapHalf);
+        _countdownBarLeft = BuildCountdownSegment("FillL", GameMenuStyle.WithAlpha(accent, 0.95f), new Vector2(1f, 0.5f), -CubeGapHalf).rectTransform;
+        _countdownBarRight = BuildCountdownSegment("FillR", GameMenuStyle.WithAlpha(accent, 0.95f), new Vector2(0f, 0.5f), CubeGapHalf).rectTransform;
 
-        // The countdown itself: one huge digit below the strip that punches in on every
+        if (_armedTier.HasValue)
+        {
+            GameObject cube = new GameObject("TierCube", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            _countdownCube = (RectTransform)cube.transform;
+            _countdownCube.SetParent(_countdownRoot.transform, false);
+            _countdownCube.anchorMin = _countdownCube.anchorMax = new Vector2(0.5f, LineY);
+            _countdownCube.pivot = new Vector2(0.5f, 0.5f);
+            _countdownCube.sizeDelta = new Vector2(96f, 96f);
+            Image cubeImage = cube.GetComponent<Image>();
+            cubeImage.sprite = MedalStyle.Sprite(_armedTier.Value, earned: true);
+            cubeImage.color = MedalStyle.IconTint(earned: true);
+            cubeImage.preserveAspect = true;
+            cubeImage.raycastTarget = false;
+        }
+
+        // The countdown itself: one huge digit tucked under the line that punches in on every
         // second (5 -> 4 -> 3...), so the wait reads as a countdown, not a frozen banner.
-        GameObject digit = new GameObject("Digit");
-        digit.transform.SetParent(_countdownRoot.transform, false);
-        RectTransform digitRect = digit.AddComponent<RectTransform>();
-        digitRect.anchorMin = new Vector2(0.5f, 0.6f);
-        digitRect.anchorMax = new Vector2(0.5f, 0.6f);
-        digitRect.pivot = new Vector2(0.5f, 0.5f);
-        digitRect.sizeDelta = new Vector2(300f, 170f);
-        _countdownDigit = digit.AddComponent<Text>();
-        _countdownDigit.font = RuntimeUiKit.DefaultFont;
-        _countdownDigit.fontSize = 140;
-        _countdownDigit.fontStyle = FontStyle.Bold;
-        _countdownDigit.alignment = TextAnchor.MiddleCenter;
-        _countdownDigit.horizontalOverflow = HorizontalWrapMode.Overflow;
-        _countdownDigit.verticalOverflow = VerticalWrapMode.Overflow;
-        _countdownDigit.color = RuntimeUiKit.TitleColor;
-        _countdownDigit.raycastTarget = false;
+        _countdownDigit = CreateShadowedText(_countdownRoot.transform, "Digit", "", 140,
+            RuntimeUiKit.TitleColor, RuntimeUiKit.TitleFont, 0f,
+            new Vector2(0.5f, DigitY), new Vector2(400f, 180f),
+            wrap: false, display: true, out _countdownDigitShadow, out _countdownDigitRoot);
 
         _countdownShownSecond = -1; // force the first digit to set + punch immediately
+    }
+
+    // One tight stack (Nick 2026-08-29: minimal, little vertical margin): wordmark, the
+    // cube-in-line right under it, the digit tucked under the cube.
+    private const float WordmarkY = 0.745f;
+    private const float LineY = 0.700f;
+    private const float DigitY = 0.625f;
+    private const float CountdownSegmentWidth = 150f;
+    private const float CountdownBarHeight = 8f;
+    private const float CubeGapHalf = 58f; // cube half (48) + breathing room
+    private const float CubeBobPixels = 6f;      // full bob amplitude - subtle, never a shake
+    private const float CubeBobHz = 0.6f;        // slow float, ~1.7s per cycle
+    private const float CubeBobSettleFrac = 0.4f; // glide to a dead stop over the final 40%
+
+    // One side of the ---- cube ---- line. The pivot sits at the INNER end (next to the
+    // cube), so a shrinking fill drains from its outer edge toward the cube.
+    private Image BuildCountdownSegment(string name, Color color, Vector2 pivot, float innerX)
+    {
+        GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        RectTransform rect = (RectTransform)go.transform;
+        rect.SetParent(_countdownRoot.transform, false);
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, LineY);
+        rect.pivot = pivot;
+        rect.anchoredPosition = new Vector2(innerX, 0f);
+        rect.sizeDelta = new Vector2(CountdownSegmentWidth, CountdownBarHeight);
+        Image image = go.GetComponent<Image>();
+        image.sprite = RuntimeSprites.RoundedPanel();
+        image.type = Image.Type.Sliced;
+        image.color = color;
+        image.raycastTarget = false;
+        return image;
+    }
+
+
+    /// <summary>Free-floating overlay text with a painted shadow twin behind it (UI.Shadow
+    /// does not touch TMP meshes, so the shadow is a second TMP). The main text is a CHILD of
+    /// the shadow, both under <paramref name="root"/> - scaling the root punches the pair
+    /// together. <paramref name="display"/> = the Archivo display voice.</summary>
+    private static TextMeshProUGUI CreateShadowedText(Transform parent, string name, string text,
+        int size, Color color, Font font, float spacing, Vector2 anchor, Vector2 sizeDelta,
+        bool wrap, bool display, out TextMeshProUGUI shadow, out RectTransform root)
+    {
+        root = RuntimeUiKit.CreateRect(parent, name, anchor, anchor, new Vector2(0.5f, 0.5f),
+            Vector2.zero, sizeDelta);
+
+        shadow = RuntimeUiKit.CreateTmp(root, "Shadow", text, size, new Color(0f, 0f, 0f, 0.55f),
+            TextAnchor.MiddleCenter, FontStyle.Normal, font);
+        shadow.rectTransform.anchoredPosition = new Vector2(0f, -4f);
+
+        TextMeshProUGUI main = RuntimeUiKit.CreateTmp(shadow.rectTransform, "Text", text, size,
+            color, TextAnchor.MiddleCenter, FontStyle.Normal, font);
+        main.rectTransform.anchoredPosition = new Vector2(0f, 4f); // cancels the shadow offset
+
+        foreach (TextMeshProUGUI tmp in new[] { shadow, main })
+        {
+            if (display) tmp.font = RuntimeUiKit.TmpDisplayFont;
+            tmp.characterSpacing = spacing;
+            tmp.textWrappingMode = wrap ? TextWrappingModes.Normal : TextWrappingModes.NoWrap;
+            tmp.overflowMode = TextOverflowModes.Overflow;
+            tmp.raycastTarget = false;
+        }
+        return main;
     }
 
     private const float DigitPunchSeconds = 0.3f;
@@ -499,24 +618,47 @@ public class LevelRuntimeController : MonoBehaviour
     {
         if (_countdownDigit == null) return;
 
+        // Everything but the cube is built unconditionally alongside _countdownDigit (the
+        // early-return above), so only the cube gets a guard - it exists per armed tier.
+        float remainingFrac = Mathf.Clamp01(_verificationRemaining / WinVerificationSeconds);
+        Vector2 fillSize = new Vector2(CountdownSegmentWidth * remainingFrac, CountdownBarHeight);
+        _countdownBarLeft.sizeDelta = fillSize;
+        _countdownBarRight.sizeDelta = fillSize;
+
+        // The cube floats on a slow, subtle bob (never a rotation shake - rejected as ugly,
+        // Nick 2026-08-29) and glides to a dead stop over the final stretch of the window, so
+        // a perfectly still cube marks the hold landing - the beat the earned pill pops on.
+        if (_countdownCube != null)
+        {
+            float amp = CubeBobPixels * Mathf.SmoothStep(0f, 1f, Mathf.Min(1f, remainingFrac / CubeBobSettleFrac));
+            float bob = Mathf.Sin(Time.unscaledTime * 2f * Mathf.PI * CubeBobHz) * amp;
+            _countdownCube.anchoredPosition = new Vector2(0f, bob);
+        }
+
         int seconds = Mathf.CeilToInt(Mathf.Max(0f, _verificationRemaining));
         if (seconds != _countdownShownSecond)
         {
             _countdownShownSecond = seconds;
             _countdownDigit.text = seconds.ToString();
+            _countdownDigitShadow.text = _countdownDigit.text;
             _countdownDigitPunchAge = 0f;
         }
 
-        // Scale-punch: lands big and settles to rest size over the punch window.
+        // Scale-punch: lands big and settles to rest size over the punch window. The root
+        // carries the scale so the digit and its painted shadow punch as one.
         _countdownDigitPunchAge += Time.deltaTime;
         float t = Mathf.Clamp01(_countdownDigitPunchAge / DigitPunchSeconds);
         float eased = 1f - (1f - t) * (1f - t); // ease-out
         float scale = Mathf.Lerp(DigitPunchStartScale, 1f, eased);
-        _countdownDigit.rectTransform.localScale = new Vector3(scale, scale, 1f);
+        _countdownDigitRoot.localScale = new Vector3(scale, scale, 1f);
 
+        float presence = Mathf.Lerp(0.55f, 1f, eased);
         Color color = RuntimeUiKit.TitleColor;
-        color.a = Mathf.Lerp(0.55f, 1f, eased);
+        color.a = presence;
         _countdownDigit.color = color;
+        Color shadowColor = _countdownDigitShadow.color;
+        shadowColor.a = 0.55f * presence;
+        _countdownDigitShadow.color = shadowColor;
     }
 
     private void DestroyCountdownUi()
@@ -525,8 +667,12 @@ public class LevelRuntimeController : MonoBehaviour
         SfxPlayer.StopLoop(); // ends the countdown clock on win, abort, or teardown
         Destroy(_countdownRoot);
         _countdownRoot = null;
-        _countdownLabel = null;
         _countdownDigit = null;
+        _countdownDigitShadow = null;
+        _countdownDigitRoot = null;
+        _countdownBarLeft = null;
+        _countdownBarRight = null;
+        _countdownCube = null;
     }
 
     // ---- Timed goals ---------------------------------------------------------------------------
@@ -570,7 +716,9 @@ public class LevelRuntimeController : MonoBehaviour
         UpdateTimerLabel();
         if (_timeRemaining > 0f) return;
 
-        if (ArmedGoalMetNow() && TryBeginVerification()) return;
+        // Clock expiry with the goal genuinely met arms WITHOUT the debounce: a player who
+        // crossed the line in the final fifth of a second must get the hold, not the timeout.
+        if (ArmedGoalMetNow() && TryBeginVerification(immediate: true)) return;
 
         _hasTimeLimit = false;
         GameManager.Instance.EndRunNow("Time ran out", RunEndCause.Timeout);
@@ -788,13 +936,15 @@ public class LevelRuntimeController : MonoBehaviour
             : null;
     }
 
-    /// <summary>A tier's hold-steady just survived its full window. Each hold banks EXACTLY the
-    /// armed rung: IsStillHeld enforced only that tier's threshold through the window, so a
-    /// higher threshold the tower happened to cross at expiry was never held and must not bank -
-    /// a tower already above the next rung's goal simply re-arms immediately and holds again.
-    /// The run's FIRST earned rung (any tier) adjudicates it as a win; bronze additionally runs
-    /// the completion side effects; the top rung shows the victory card, lower rungs toast and
-    /// play straight on.</summary>
+    /// <summary>A tier's hold-steady just survived its full window. Each hold banks the armed
+    /// rung's THRESHOLD, nothing above it: IsStillHeld enforced only that tier's threshold
+    /// through the window, so a higher threshold the tower happened to cross at expiry was
+    /// never held and must not bank - a tower already above the next rung's goal simply
+    /// re-arms and holds again. (The one exception: a rung whose CLAMPED-EQUAL threshold ties
+    /// the armed one is earned by the same value - see the highestNow upgrade below.)
+    /// The run's FIRST earned rung (any tier) adjudicates it as a win; bronze additionally
+    /// runs the completion side effects; the top rung shows the victory card, lower rungs
+    /// debut in-run (MedalHud) and play straight on.</summary>
     private void OnHoldSteadyComplete()
     {
         if (_armedTier == null || _level == null) return;
@@ -807,6 +957,14 @@ public class LevelRuntimeController : MonoBehaviour
         ProgressStore.ReportVerified(_level, _sessionVerifiedValue); // no-op for Custom Game (no identity)
 
         bool ladderDone = LevelTiers.LowestUnearned(_level, _sessionVerifiedValue) == null;
+
+        // Degenerate clamped-equal thresholds can earn rungs ABOVE the armed one in the same
+        // hold (they share its verified value). Announce the HIGHEST newly earned rung so every
+        // surface agrees - a run that just golded must never show a SILVER pill (Nick's repro
+        // 2026-08-29). Anything above the armed rung that reads earned now is new by
+        // construction: had it been earned before, the armed rung would have been higher.
+        MedalTier? highestNow = LevelTiers.HighestEarned(_level, _sessionVerifiedValue);
+        if (highestNow.HasValue && highestNow.Value > earnedTier) earnedTier = highestNow.Value;
         _highestTierEarnedThisRun = earnedTier;
 
         // Card content BEFORE the stores update: the run snapshot (score, coins) must be the
@@ -873,8 +1031,9 @@ public class LevelRuntimeController : MonoBehaviour
         GameManager.Instance.ReleasePhase(this);
         _armedTier = LevelTiers.LowestUnearned(_level, _sessionVerifiedValue);
         RebuildArmedCondition();
+        // The celebration itself is MedalHud's debut fly-in (big pill center-screen settling
+        // into its slot) - a text toast on top would double-tell it (Nick 2026-08-29).
         SfxPlayer.Play("ui-star-earned");
-        ShowBanner($"{MedalStyle.DisplayName(earnedTier)} COMPLETE!");
     }
 
     // The medal ladder as the results card shows it: thresholds + earned state AFTER this
@@ -898,7 +1057,6 @@ public class LevelRuntimeController : MonoBehaviour
         {
             Victory = true,
             Metric = ResolveEndOfRunMetric(result),
-            GoalReached = true,
             // The banked total: the run's skill coins plus the once-per-run win bonus - but
             // only when bronze completes THIS run (CoinLedger banks the bonus on the
             // LevelCompleted this run raises); a replay that golds a long-completed level
@@ -909,10 +1067,10 @@ public class LevelRuntimeController : MonoBehaviour
             VictorySentence = "Your tower still stands - keep stacking to push your best score even higher.",
             OnPrimary = ContinuePlaying,
         };
+        // PopulateTierContent already carries the top rung: this card only builds when the
+        // ladder is done, and the clamped-equal upgrade in OnHoldSteadyComplete lifts
+        // _highestTierEarnedThisRun to the highest rung before content is built.
         PopulateTierContent(ref content);
-        // The card that ends the ladder celebrates the TOP rung, even in the degenerate case
-        // where clamped-equal thresholds let a lower rung's hold finish the whole ladder.
-        content.TierEarnedThisRun = LevelTiers.MaxTier;
         return content;
     }
 

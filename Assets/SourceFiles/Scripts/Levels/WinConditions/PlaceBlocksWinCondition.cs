@@ -24,7 +24,7 @@ public sealed class PlaceBlocksWinCondition : WinCondition
     // level's best - not the live standing count, which a collapse rewinds right before the end.
     public override ResultMetric EndOfRunMetric(RunResult result, ProgressStore.LevelBest best)
         => new ResultMetric("BLOCKS", result.Score, best != null ? best.bestScore : 0f,
-            isMeters: false, targetText: Mathf.RoundToInt(_target).ToString());
+            isMeters: false);
 
     public override string MenuChallengeLabel => "BLOCK COUNT";
 

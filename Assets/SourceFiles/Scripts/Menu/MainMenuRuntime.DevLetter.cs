@@ -157,11 +157,8 @@ public static partial class MainMenuRuntime
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(W, 840f));
         Image panelImage = panel.gameObject.AddComponent<Image>();
-        panelImage.sprite = RuntimeSprites.RoundedPanel();
-        panelImage.type = Image.Type.Sliced;
-        panelImage.color = new Color(0.075f, 0.065f, 0.058f, 1f);
+        GameMenuStyle.StylePanel(panel.gameObject); // the one modal-panel treatment
         panelImage.raycastTarget = true;
-        RuntimeUiKit.AddOutline(panel, GoldOutline(0.3f));
 
         // The sign-in sheet's person badge: the letter IS a person, lead with that.
         Image ring = CreateImage(panel, "AvatarRing", MenuSprites.CircleBadge(

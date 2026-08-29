@@ -33,16 +33,12 @@ public static partial class MainMenuRuntime
         const float H = 1280f;
         const float pad = 44f;
         const float contentW = W - pad * 2f;
-        Color panelColor = new Color(0.075f, 0.065f, 0.058f, 1f);
         RectTransform panel = CreateRect(overlay.transform, "Panel",
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(W, H));
         Image panelImage = panel.gameObject.AddComponent<Image>();
-        panelImage.sprite = RuntimeSprites.RoundedPanel();
-        panelImage.type = Image.Type.Sliced;
-        panelImage.color = panelColor;
+        GameMenuStyle.StylePanel(panel.gameObject); // the one modal-panel treatment
         panelImage.raycastTarget = true;
-        RuntimeUiKit.AddOutline(panel, GoldOutline(0.22f));
 
         Image trophy = CreateImage(panel, "Trophy", MenuSprites.Trophy(accent), Color.white);
         trophy.preserveAspect = true;

@@ -42,8 +42,7 @@ public sealed class ClearWavesWinCondition : WinCondition
         HeightLimitWavesModifier run = HeightLimitWavesModifier.ActiveRun;
         int waves = run != null ? run.WavesCleared : 0;
         int bestWaves = HeightLimitWavesModifier.DecodeWaves(best != null ? best.bestScore : 0);
-        return new ResultMetric("WAVES CLEARED", waves, bestWaves, isMeters: false,
-            targetText: $"{_wavesToWin} WAVES");
+        return new ResultMetric("WAVES CLEARED", waves, bestWaves, isMeters: false);
     }
 
     public override string MenuChallengeLabel => "PUZZLE WAVES";

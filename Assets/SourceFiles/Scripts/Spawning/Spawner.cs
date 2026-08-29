@@ -796,18 +796,19 @@ public class Spawner : MonoBehaviour
 
         GameModeConfig activeConfig = ActiveGameModeConfig;
         float delay = activeConfig != null ? activeConfig.SpawnDelay : spawnDelay;
-        if (delay <= 0f)
-        {
-            SpawnNextBlock();
-            return;
-        }
-
+        // Always via the coroutine, even at zero delay (every shipped mode runs spawnDelay 0):
+        // a synchronous spawn here runs INSIDE the lock's event cascade, BEFORE
+        // LevelRuntimeController has seen the new standing count and claimed the WinVerifying
+        // phase - the next brick entered play in the same instant the hold-steady countdown
+        // began (Nick's repro 2026-08-29). One frame later the cascade has fully settled and
+        // the single spawn gate tells the truth.
         StartCoroutine(SpawnWithDelay(delay));
     }
 
     private IEnumerator SpawnWithDelay(float delay)
     {
-        yield return new WaitForSeconds(delay);
+        if (delay > 0f) yield return new WaitForSeconds(delay);
+        else yield return null;
         SpawnNextBlock();
     }
 }

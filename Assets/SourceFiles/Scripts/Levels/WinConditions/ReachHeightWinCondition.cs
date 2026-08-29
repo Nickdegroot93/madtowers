@@ -28,7 +28,7 @@ public sealed class ReachHeightWinCondition : WinCondition
 
     public override ResultMetric EndOfRunMetric(RunResult result, ProgressStore.LevelBest best)
         => new ResultMetric("HEIGHT", result.MaxHeight, best != null ? best.bestHeightMeters : 0f,
-            isMeters: true, targetText: $"{Mathf.RoundToInt(_target)}M");
+            isMeters: true);
 
     public override string MenuChallengeLabel => "HEIGHT CHALLENGE";
 

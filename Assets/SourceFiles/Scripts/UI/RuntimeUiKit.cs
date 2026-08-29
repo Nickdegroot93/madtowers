@@ -314,6 +314,16 @@ public static partial class RuntimeUiKit
         return tmp;
     }
 
+    /// <summary>Left-to-right vertex gradient on a TMP text - the display-number/wordmark
+    /// treatment (results-card hero, hold-steady wordmark). One owner for the corner
+    /// ordering, so "which side is the light anchor" can never drift between surfaces.</summary>
+    public static void ApplyHorizontalGradient(TextMeshProUGUI tmp, Color left, Color right)
+    {
+        tmp.color = Color.white; // the gradient multiplies with color; white = gradient as authored
+        tmp.enableVertexGradient = true;
+        tmp.colorGradient = new VertexGradient(left, right, left, right);
+    }
+
     /// <summary>TMP twin of CreateText (positioned).</summary>
     public static TextMeshProUGUI CreateTmp(Transform parent, string name, string value, int size, Color color,
         TextAnchor alignment, FontStyle style, Font font, Vector2 anchoredPosition, Vector2 rectSize, Vector2 anchor)

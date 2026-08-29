@@ -24,24 +24,27 @@ public static class GameMenuStyle
 
     // Modern neutral chrome: the chapter colour lives in the ACCENTS (title, border, primary
     // button), never the surfaces - panels stay near-black translucent like the rest of the HUD.
-    public static Color PanelColor => new Color(0.055f, 0.06f, 0.07f, 0.90f);
+    // #0E0E10, FULLY OPAQUE (modal redesign, Nick 2026-08-29): every modal panel shares this
+    // exact fill - no per-chapter tint, no translucency (whatever renders behind bleeding
+    // through reads as a bug, not atmosphere) and no border (the outline look was retired).
+    // NEUTRAL near-black on purpose: the mockup's #121016 carried a purple cast that read as
+    // "a weird color" at full opacity on the real screen (Nick 2026-08-29).
+    public static Color PanelColor => new Color(0.055f, 0.055f, 0.063f, 1f);
     public static Color BackdropColor => new Color(0f, 0f, 0f, 0.55f);
     public static Color BodyText => new Color(0.82f, 0.86f, 0.88f, 1f);
 
-    /// <summary>Tint a kit panel to the chapter palette and give it a soft accent outline.</summary>
+    /// <summary>The one modal-panel treatment: rounded, opaque near-black, borderless.</summary>
     public static void StylePanel(GameObject panel)
     {
         if (panel == null) return;
         Image image = panel.GetComponent<Image>();
         if (image != null)
         {
-            // The fill must share the outline's rounded geometry: a plain square Image under
-            // the RoundedOutline border left dark square corners poking past the radius.
             image.sprite = RuntimeSprites.RoundedPanel();
             image.type = Image.Type.Sliced;
             image.color = PanelColor;
         }
-        RuntimeUiKit.AddOutline(panel.transform, WithAlpha(Accent, 0.55f));
+        // Deliberately NO outline (modal redesign): borders on modal panels read old-school.
     }
 
     /// <summary>Style a kit button: primary = filled with the chapter accent; secondary = dark
@@ -75,7 +78,7 @@ public static class GameMenuStyle
         }
     }
 
-    private static Color WithAlpha(Color c, float a)
+    public static Color WithAlpha(Color c, float a)
     {
         c.a = a;
         return c;

@@ -12,6 +12,16 @@ public static class FxKit
         return 1f + amplitude * Mathf.Exp(-damping * t) * Mathf.Cos(frequency * t);
     }
 
+    /// <summary>Overshoot pop (the classic OutBack): 0 -> past 1 -> settle at 1 over t in
+    /// [0,1]. The celebration badge and the medal-pill debut share this exact curve so the
+    /// two moments feel identical - tune it HERE, never in a copy.</summary>
+    public static float EaseOutBack(float t)
+    {
+        const float Back = 1.70158f;
+        float f = Mathf.Clamp01(t) - 1f;
+        return f * f * ((Back + 1f) * f + Back) + 1f;
+    }
+
     /// <summary>
     /// The HUD pills' one settle-pop (CoinHud, WaveHud): a small elastic scale pulse on the
     /// target that runs itself to completion. `age` is the caller's state - set it to 0 to

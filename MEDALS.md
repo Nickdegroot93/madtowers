@@ -62,10 +62,10 @@ solving the last-frame-spike problem it had.
 - The record comparison uses `_preRunBest`, a field COPY captured at `Start` — the ladder
   banks results MID-run, and a card comparing the run against its own mid-run banked
   score could never say NEW BEST. Never hand the live `LevelBest` to a card.
-- Lower rungs celebrate in-run (toast + `ui-star-earned`); only the top rung shows the
-  victory card. A loss card after any rung earned this run headlines
-  "LEVEL COMPLETE — {TIER}" with the victory sting — a collapse after earning a medal is
-  a completion with a bruise, never a failure screen.
+- Lower rungs celebrate in-run (MedalHud's debut fly-in + `ui-star-earned`, §10 — no text
+  toast); only the top rung shows the victory card. A loss card after any rung earned
+  this run gets the full celebration treatment (badge + chip + confetti, victory sting) —
+  a collapse after earning a medal is a completion with a bruise, never a failure screen.
 
 ## 6. Adding a tier (platinum)
 
@@ -111,11 +111,11 @@ Two persistent surfaces so the chase always reads (Nick 2026-08-29):
   a previous run's bronze would read as this run's trophy. Appears when a rung lands
   (`TierEarned`), settle-pops per rung. On a wave run it sits one row below the
   wave-countdown pill (WaveHud outranks — live survival state owns the corner slot).
-- **Objective tier badge** (`UIManager.BuildObjectiveTierIcon`): a small medal at the
-  objective card's right edge naming WHICH rung the "/target" denominator belongs to —
-  "60/75" alone doesn't say if 75 is silver or gold. Rolls with the denominator on
-  `TierEarned`; full tier colour on purpose (it labels the target, earned state is the
-  pill's job).
+- **Objective tier icon** (`UIManager.BuildObjectiveCard`): the objective card's LEADING
+  icon is the target's tier cube — a bronze cube next to "0/50" says what reaching 50
+  earns, rolling to silver the moment bronze lands (`TierEarned`). It replaced the old
+  grey cube glyph (which survives only on ladder-less block goals); it labels the target,
+  earned state is the pill's job.
 
 **Medal art landed 2026-08-29**: Nick's rendered block icons live at
 `Assets/Resources/Menu/medal_{bronze,silver,gold}.png` (256px, downscaled from the 2048px
@@ -125,15 +125,53 @@ the procedural circle badge survives only as the fallback for a tier whose rende
 landed. One art per tier: EARNED state is a tint — pair every `Sprite()` call with
 `MedalStyle.IconTint(earned)` on the Image (unearned = dark ghost).
 
-## 9. TODO — celebration & framing pass (Nick 2026-08-29, not yet built)
+## 9. Celebration cards & modal restyle (as-built 2026-08-29)
 
-- **Replace the in-game banner look everywhere.** The current win/message strip
-  (`LevelRuntimeController.ShowBanner` + the hold-steady "Hold steady!" strip) is a black
-  bar with opacity and text — bland. Redesign the whole family: level instruction, "tower
-  fell", tier toasts, hold-steady countdown.
-- **Bronze/silver dopamine popup**: when a rung lands, a proper dopamine-hitting popup
-  with the medal block icon (not just the text toast) — the moment should slam, then
-  settle into the persistent pill. Build it around the rendered icons when they land.
+The results-card redesign (Nick's mockup + `unity_tier_modal_handoff.md`, adapted to the
+runtime-UI architecture — the handoff's camera-space canvas / Shuriken / DOTween /
+ScriptableObject configs were all replaced with our own idioms):
+
+- **Both tier-celebration cards** (gold mid-run victory AND bronze/silver newly earned on
+  death) share one treatment: the tier cube badge half-in/half-out over the card's top
+  edge (overshoot pop from scale 0 — NO header outside the card, Nick cut it: badge +
+  chip carry the story), a "{TIER} TIER REACHED" gradient chip as the card's first row,
+  the hero number in a
+  cream→tier vertex gradient, and `ResultsCelebrationFx` behind the card: a slowly
+  rotating per-tier ray fan + a 40-piece confetti burst of tumbling UI-Image paper.
+  Everything runs on UNSCALED time (the victory card opens under timeScale 0 — a
+  ParticleSystem would freeze; UI Images on the card's own overlay canvas, the CoinHud
+  flight precedent). Chip capsule + ray sprite are procedural (`MedalStyle.ChipSprite`,
+  `MedalStyle.RayBurstSprite`), tier gradients are code-owned data on `MedalStyle`.
+- The three-slot ladder row now shows only on the PLAIN game-over card (motivation to
+  retry); celebration cards tell the story with badge + chip alone.
+- **Game-over celebration rule (Nick 2026-08-29)**: ANY rung newly earned this run puts
+  the badge treatment on the game-over card - including a topple after the gold victory
+  card already showed (only its coin line stays 0: those coins were already advertised
+  and banked). A run that earns nothing new but sets a record gets the NEW BEST pill;
+  a run with neither is the only plain card. One hold that finishes multiple
+  clamped-equal rungs announces the HIGHEST one (a golding run must never show a silver
+  pill).
+- **All modals borderless + opaque NEUTRAL near-black `#0E0E10`** (`GameMenuStyle.
+  PanelColor`, StylePanel no longer adds an outline; the mockup's `#121016` was rejected —
+  its purple cast read as "a weird color" at full opacity): results card, pause-menu
+  sheets, block-debut modal, level
+  summary, boost picker, leaderboard, identity/sign-in, vault detail ×2, dev letter,
+  refill + notification offers. Inner cards/chips keep their neon edges (UI taste memory);
+  the Settings frosted side panel and inline message panels are screen layout, not modals.
+
+## 10. TODO — remaining framing pass
+
+- ~~Replace the in-game banner look~~ — done 2026-08-29: the black strips are gone.
+  "HOLD STEADY" is a free-floating Archivo wordmark in the chapter accent with a painted
+  shadow twin (`CreateShadowedText` - UI.Shadow does not touch TMP meshes, so the shadow
+  is a second TMP the main text parents under; scale the root to punch both), the digit
+  matches, and `ShowBanner` (instruction / "tower fell" / rung toasts) uses the same
+  shadowed free text.
+- ~~Mid-run rung toast → badge-slam popup~~ — done 2026-08-29: `MedalHud`'s debut fly-in.
+  The rung debuts as the pill itself at double size center-screen (overshoot pop), holds
+  a beat, then flies into the corner slot and hands off seamlessly (the debut IS the pill
+  at 1/DebutScale). No text toast, no confetti mid-run - the game is still going. The
+  hold-steady overlay likewise leads with the armed rung's cube + a light→accent gradient
+  wordmark + a draining accent progress bar (all chapter-accent tinted, no strip).
 - **Pause-menu quit relabels to "Finish Run"** once any rung is earned this run
   (psych review: quitting at a medal must feel like choosing to stop winning).
-- ~~Swap `MedalStyle.Sprite` to the rendered block icons~~ — done 2026-08-29 (see §8).
