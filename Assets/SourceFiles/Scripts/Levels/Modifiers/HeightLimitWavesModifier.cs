@@ -89,6 +89,12 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     private int _wavesCleared;
     private int _standing;
     private int _peakStanding;
+
+    // The level's bronze wave (authored targetValue). Waves past it are medal-ladder "overtime"
+    // (silver = +1, gold = +2, LevelTiers): quota and density growth FREEZE there so overtime
+    // waves stay as feasible as the bronze wave (WaveSolver's overtime note). NoGrowthFreeze
+    // for Endless pairings - free-play waves keep the authored endless curve.
+    private int _growthFreezeWave = WaveSolver.NoGrowthFreeze;
     private readonly List<float> _lineHeightsCells = new List<float>(); // [n-1] = line height while wave n runs
     private readonly List<float> _columnTops = new List<float>();       // sorted, cells above the datum
     private float _avgCellsPerPiece = WaveSolver.FallbackCellsPerPiece;
@@ -131,7 +137,7 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
     /// through to WaveSolver rather than a local running total - one owner for the quota rule
     /// AND its summation, so the played run and the editor report can't drift apart.</summary>
     public int StandingTargetForWave(int waveNumber)
-        => waveNumber <= 0 ? 0 : WaveSolver.CumulativeQuota(waveNumber);
+        => waveNumber <= 0 ? 0 : WaveSolver.CumulativeQuota(waveNumber, _growthFreezeWave);
 
     public int WavesCleared => _wavesCleared;
 
@@ -167,6 +173,10 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
         _waitingForReveal = false;
         _clearPending = false;
         _clearConfirmRemaining = 0f;
+        _growthFreezeWave = context.Level != null &&
+            context.Level.TargetType == LevelTargetType.ClearWaves
+            ? Mathf.Max(1, Mathf.RoundToInt(context.Level.TargetValue))
+            : WaveSolver.NoGrowthFreeze;
         WaveRevealGate.Reset(); // GameManager.Awake also clears it; belt-and-braces for a retry
 
         // The win comes from the level's ClearWaves goal; catch mismatched wiring early.
@@ -426,7 +436,7 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
         if (_lineHeightsCells.Count < waveNumber)
         {
             WaveSolver.SolveLineHeights(_columnTops, _avgCellsPerPiece, DifficultyRank,
-                waveNumber, _lineHeightsCells);
+                waveNumber, _lineHeightsCells, _growthFreezeWave);
         }
         return _lineHeightsCells[waveNumber - 1];
     }

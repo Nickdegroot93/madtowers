@@ -82,6 +82,14 @@ public static class ProgressStore
         // the clean fields; both pairs are per-metric max (monotonic).
         public int bestScoreBoosted;
         public float bestHeightMetersBoosted;
+        // Highest value (in the level's target units) that ever survived a hold-steady
+        // verification - medal tiers DERIVE from this at read time (LevelTiers), which is what
+        // makes later threshold recalibration retroactive. Board-agnostic by design (boosted
+        // runs earn medals). Additive field, no schema bump - JsonUtility defaults old saves
+        // to 0 and the legacy bronze-from-completion rule covers them; the generic server
+        // merge maxes numbers, so it cloud-syncs with no SQL change. Field name is the wire
+        // contract - never rename.
+        public float bestVerifiedValue;
     }
 
     private static PlayerProgress _data;
@@ -241,6 +249,40 @@ public static class ProgressStore
     {
         string id = LevelId(level);
         return id != null ? FindBest(id) : null;
+    }
+
+    /// <summary>
+    /// Record a hold-steady-verified value (target units; see LevelBest.bestVerifiedValue).
+    /// Deliberately separate from ReportResult: that method early-returns when the run's
+    /// score/height didn't improve, which would swallow a run whose VERIFIED value improved
+    /// (e.g. the same score finally held steady at a higher tier). Monotonic max; no-op for
+    /// runtime (Custom Game) levels with no identity.
+    /// </summary>
+    public static void ReportVerified(LevelDefinition level, float value)
+    {
+        string id = LevelId(level);
+        if (id == null || value <= 0f) return;
+
+        LevelBest best = FindBest(id);
+        if (best == null)
+        {
+            best = new LevelBest { levelId = id };
+            Data.bests.Add(best);
+        }
+        else if (value <= best.bestVerifiedValue)
+        {
+            return;
+        }
+
+        best.bestVerifiedValue = value;
+        Save();
+    }
+
+    /// <summary>The stored verified value for medal derivation; 0 when nothing was ever held.</summary>
+    public static float BestVerifiedValue(LevelDefinition level)
+    {
+        LevelBest best = GetBest(level);
+        return best != null ? best.bestVerifiedValue : 0f;
     }
 
     // ---- wallet (SHOP.md §10; spend/earn are the ONLY writers) ------------------------------

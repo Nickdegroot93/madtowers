@@ -96,7 +96,11 @@ public static class PuzzleWaveReport
             bool hasWin = level.TargetType == LevelTargetType.ClearWaves;
             int wavesToWin = hasWin ? Mathf.Max(1, Mathf.RoundToInt(level.TargetValue)) : 5;
             int shown = wavesToWin + ExtraWavesBeyondGoal;
-            WaveSolver.SolveLineHeights(columnTops, avgCells, waves.DifficultyRank, shown, heights);
+            // Same freeze the live run applies (HeightLimitWavesModifier.OnLevelStart): waves past
+            // the bronze/win wave are medal overtime and stop growing. Endless pairings never freeze.
+            int growthFreezeWave = hasWin ? wavesToWin : WaveSolver.NoGrowthFreeze;
+            WaveSolver.SolveLineHeights(columnTops, avgCells, waves.DifficultyRank, shown, heights,
+                growthFreezeWave);
 
             var table = new StringBuilder();
             table.AppendLine("| wave | quota | cumulative | density | line (cells) | laser | rise | capacity | fill | outward | flank/side |");
@@ -105,7 +109,7 @@ public static class PuzzleWaveReport
             float goalFlank = 0f;
             for (int n = 1; n <= shown; n++)
             {
-                int cumulative = WaveSolver.CumulativeQuota(n);
+                int cumulative = WaveSolver.CumulativeQuota(n, growthFreezeWave);
                 float line = heights[n - 1];
                 float rise = n > 1 ? line - heights[n - 2] : line;
                 float capacity = WaveSolver.CapacityAt(columnTops, line);
@@ -120,9 +124,9 @@ public static class PuzzleWaveReport
                     blockCells - WaveSolver.CapacityAt(footprintTops, usableRows)) * 0.5f;
                 if (n == wavesToWin) { goalOutward = outward; goalFlank = flankPerSide; }
                 string marker = !hasWin ? " *(endless)*"
-                    : n == wavesToWin ? " **(win)**" : (n > wavesToWin ? " *(endless)*" : "");
-                table.AppendLine($"| {n}{marker} | {WaveSolver.QuotaForWave(n)} | {cumulative} | " +
-                    $"{WaveSolver.DensityForWave(waves.DifficultyRank, n):F3} | {line:F1} | " +
+                    : n == wavesToWin ? " **(win)**" : (n > wavesToWin ? " *(overtime)*" : "");
+                table.AppendLine($"| {n}{marker} | {WaveSolver.QuotaForWave(n, growthFreezeWave)} | {cumulative} | " +
+                    $"{WaveSolver.DensityForWave(waves.DifficultyRank, n, growthFreezeWave):F3} | {line:F1} | " +
                     $"{WaveSolver.LaserCellsForSolvedHeight(line):F1} | {rise:F1} | " +
                     $"{capacity:F0} | {fill:F2} | {outward:F2} | {flankPerSide:F0} |");
             }

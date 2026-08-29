@@ -33,6 +33,10 @@ public static class GameEvents
     /// they burst from (the placed block), and the run total after this earn.</summary>
     public static event Action<int, Vector3, int> CoinsEarned;
     public static event Action<LevelDefinition, RunResult> LevelCompleted;
+    /// <summary>A medal tier's hold-steady just completed (LevelTiers). Raised once per NEWLY
+    /// earned tier, ascending, so a hold that jumps two rungs lands the HUD on the final state.
+    /// Bronze additionally raises LevelCompleted - completion IS bronze.</summary>
+    public static event Action<LevelDefinition, MedalTier> TierEarned;
     public static event Action<GamePhase, GamePhase> PhaseChanged;
     public static event Action<bool> SpawnAvailabilityChanged;
     public static event Action<int, float> GameOver;
@@ -61,6 +65,7 @@ public static class GameEvents
         BlockLocked = null;
         CoinsEarned = null;
         LevelCompleted = null;
+        TierEarned = null;
         PhaseChanged = null;
         SpawnAvailabilityChanged = null;
         GameOver = null;
@@ -102,6 +107,7 @@ public static class GameEvents
     public static void RaiseCoinsEarned(int amount, Vector3 worldPosition, int runTotal) =>
         CoinsEarned?.Invoke(amount, worldPosition, runTotal);
     public static void RaiseLevelCompleted(LevelDefinition level, RunResult result) => LevelCompleted?.Invoke(level, result);
+    public static void RaiseTierEarned(LevelDefinition level, MedalTier tier) => TierEarned?.Invoke(level, tier);
     public static void RaisePhaseChanged(GamePhase previous, GamePhase current) => PhaseChanged?.Invoke(previous, current);
     public static void RaiseSpawnAvailabilityChanged(bool canSpawn) => SpawnAvailabilityChanged?.Invoke(canSpawn);
     public static void RaiseGameOver(int score, float maxHeight) => GameOver?.Invoke(score, maxHeight);

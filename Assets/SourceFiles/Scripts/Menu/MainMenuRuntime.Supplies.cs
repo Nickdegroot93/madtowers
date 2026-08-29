@@ -107,9 +107,11 @@ public static partial class MainMenuRuntime
 
     /// <summary>The level modal's full height once supplies are on - shared with the boost
     /// picker, which must be EXACTLY this tall: a shorter overlay panel lets the modal underneath
-    /// peek out above and below it, which reads as broken borders (Nick, 2026-07-29).</summary>
+    /// peek out above and below it, which reads as broken borders (Nick, 2026-07-29).
+    /// Tiered levels are 136 taller: the medal TARGETS card + the moved YOUR BEST row
+    /// (LevelSummary's stat area) - the same delta the no-supplies height carries.</summary>
     private static float ModalHeightWithSupplies(LevelDefinition level)
-        => 768f + SuppliesSectionHeight(level);
+        => (LevelTiers.HasTiers(level) ? 904f : 768f) + SuppliesSectionHeight(level);
 
     private static string CoinText(int amount) => amount.ToString("N0", CultureInfo.InvariantCulture);
 

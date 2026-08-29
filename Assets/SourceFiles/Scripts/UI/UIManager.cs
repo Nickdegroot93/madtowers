@@ -115,6 +115,7 @@ public class UIManager : MonoBehaviour
         GameEvents.HeightChanged += HandleHeightChanged;
         GameEvents.LivesChanged += HandleLivesChanged;
         GameEvents.NextBlockChanged += HandleNextBlockChanged;
+        GameEvents.TierEarned += HandleTierEarned;
         SettingsService.Changed += ApplyNudgeHintColors; // live nudge-guide opacity
     }
 
@@ -124,6 +125,7 @@ public class UIManager : MonoBehaviour
         GameEvents.HeightChanged -= HandleHeightChanged;
         GameEvents.LivesChanged -= HandleLivesChanged;
         GameEvents.NextBlockChanged -= HandleNextBlockChanged;
+        GameEvents.TierEarned -= HandleTierEarned;
         SettingsService.Changed -= ApplyNudgeHintColors;
     }
 
@@ -194,7 +196,12 @@ public class UIManager : MonoBehaviour
             }
         }
 
-        int target = Mathf.RoundToInt(level.TargetValue);
+        // The denominator is the NEXT UNEARNED medal tier, not the authored (bronze) target: a
+        // replay with bronze banked opens straight onto silver's number, and a fully-golded
+        // level keeps showing gold's as the best-chase reference. Rolls live via TierEarned.
+        MedalTier? nextTier = LevelTiers.LowestUnearned(level);
+        int target = Mathf.RoundToInt(
+            LevelTiers.Threshold(level, nextTier ?? LevelTiers.MaxTier));
         switch (_objectiveType)
         {
             case LevelTargetType.PlaceBlocks:
@@ -202,6 +209,35 @@ public class UIManager : MonoBehaviour
             case LevelTargetType.ReachHeight:
             case LevelTargetType.TimedReachHeight: _targetHeightMeters = target; break;
             case LevelTargetType.ClearWaves: _targetWaves = target; break;
+        }
+    }
+
+    // A tier's hold-steady just completed: roll the objective denominator to the next rung.
+    // The threshold comes from the event's level, never re-derived from the store - Custom
+    // Game levels have no store identity, and the controller's session state isn't visible here.
+    private void HandleTierEarned(LevelDefinition level, MedalTier tier)
+    {
+        if (tier >= LevelTiers.MaxTier) return; // the top rung owns the victory card; the label stays put
+        if (level == null || level != LevelSelectionState.SelectedLevel) return;
+
+        UpdateObjectiveTierIcon(tier + 1);
+        int next = Mathf.RoundToInt(LevelTiers.Threshold(level, tier + 1));
+        switch (_objectiveType)
+        {
+            case LevelTargetType.PlaceBlocks:
+            case LevelTargetType.TimedPlaceBlocks:
+                _targetBlocks = next;
+                if (GameManager.Instance != null) HandleStandingBlocksChanged(GameManager.Instance.placedBlocks);
+                break;
+            case LevelTargetType.ReachHeight:
+            case LevelTargetType.TimedReachHeight:
+                _targetHeightMeters = next;
+                if (GameManager.Instance != null) HandleHeightChanged(GameManager.Instance.liveTowerHeight);
+                break;
+            case LevelTargetType.ClearWaves:
+                _targetWaves = next;
+                _shownWaveNumber = -1; // the polled readout redraws with the new denominator
+                break;
         }
     }
 
@@ -583,6 +619,7 @@ public class UIManager : MonoBehaviour
             RectTransform group = CreateCenteredGroup(card, new Vector2(150f, 60f), 0f);
             CreateBarCaption(group, _waveObjective ? "WAVE" : "HEIGHT", new Vector2(0f, 16f));
             if (scoreText != null) PlaceBarValue(scoreText, group, new Vector2(0f, -12f));
+            BuildObjectiveTierIcon(card);
             return;
         }
 
@@ -592,6 +629,39 @@ public class UIManager : MonoBehaviour
             new Color(0.90f, 0.90f, 0.90f, 0.85f));
         CreateBarCaption(iconGroup, "BLOCKS", new Vector2(60f, 16f));
         if (scoreText != null) PlaceBarValue(scoreText, iconGroup, new Vector2(60f, -12f));
+        BuildObjectiveTierIcon(card);
+    }
+
+    // The tier badge at the objective card's right edge: WHICH rung the "/target" denominator
+    // belongs to - "60/75" alone doesn't say whether 75 is bronze, silver or gold (Nick
+    // 2026-08-29). Rolls with the denominator via HandleTierEarned; on a fully-earned ladder
+    // it stays on the top rung, matching the best-chase denominator. Placeholder MedalStyle
+    // badge until Nick's rendered block icons land (MEDALS.md §8).
+    private Image _objectiveTierIcon;
+
+    private void BuildObjectiveTierIcon(RectTransform card)
+    {
+        LevelDefinition level = LevelSelectionState.SelectedLevel;
+        if (!LevelTiers.HasTiers(level)) return;
+
+        GameObject icon = new GameObject("TierIcon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        RectTransform rect = (RectTransform)icon.transform;
+        rect.SetParent(card, false);
+        rect.anchorMin = rect.anchorMax = new Vector2(1f, 0.5f);
+        rect.anchoredPosition = new Vector2(-32f, 0f);
+        rect.sizeDelta = new Vector2(34f, 34f);
+        _objectiveTierIcon = icon.GetComponent<Image>();
+        _objectiveTierIcon.preserveAspect = true;
+        _objectiveTierIcon.raycastTarget = false;
+        UpdateObjectiveTierIcon(LevelTiers.LowestUnearned(level) ?? LevelTiers.MaxTier);
+    }
+
+    // Full tier colour on purpose: this badge NAMES the target's rung (a label), it does not
+    // report earned state - the banked-state view is MedalHud's pill on the right.
+    private void UpdateObjectiveTierIcon(MedalTier tier)
+    {
+        if (_objectiveTierIcon == null) return;
+        _objectiveTierIcon.sprite = MedalStyle.Sprite(tier, earned: true);
     }
 
     // Right segment's inset card: the run's three life sockets and the pause glyph as ONE

@@ -794,7 +794,7 @@ public static partial class MainMenuRuntime
 
         BuildProgressLine(column, presentation, unlocked, completed, chapterDark, chapterLight);
 
-        BuildActionBadge(card, unlocked, completed, chapterLight);
+        BuildActionBadge(card, level, unlocked, completed, chapterLight);
 
         Button button = card.gameObject.AddComponent<Button>();
         button.targetGraphic = cardImage;
@@ -838,9 +838,14 @@ public static partial class MainMenuRuntime
         progressLayout.flexibleHeight = 0f;
     }
 
-    private static void BuildActionBadge(Transform card, bool unlocked, bool completed, Color chapterLight)
+    private static void BuildActionBadge(Transform card, LevelDefinition level, bool unlocked, bool completed, Color chapterLight)
     {
         Color green = new Color(0.58f, 0.86f, 0.18f, 1f);
+        // A completed level's badge carries its highest MEDAL, tinted to the tier - bronze on
+        // every legacy completion (the derive rule), gold when the ladder is done. The green
+        // check survives only for completed levels with no ladder (Endless).
+        MedalTier? medal = completed ? LevelTiers.HighestEarned(level) : null;
+        Color done = medal.HasValue ? MedalStyle.TierColor(medal.Value) : green;
         // Pinned to the card's top-right corner (anchor (1, 1)) and offset in by the right inset,
         // so the badge stays glued to the edge however wide the stretched card becomes.
         Vector2 anchor = new Vector2(1f, 1f);
@@ -849,17 +854,24 @@ public static partial class MainMenuRuntime
         if (completed)
         {
             Image completedGlow = CreateImage(card, "ActionGlow",
-                MenuSprites.CircleBadge(WithAlpha(green, 0.10f), WithAlpha(green, 0.20f)), Color.white);
+                MenuSprites.CircleBadge(WithAlpha(done, 0.10f), WithAlpha(done, 0.20f)), Color.white);
             SetCenteredAt(completedGlow.rectTransform, anchor, center, new Vector2(86f, 86f));
         }
 
         Color edgeColor = ChapterEdge(chapterLight);
-        Color fill = completed ? WithAlpha(green, 0.20f) : WithAlpha(Color.black, 0.18f);
-        Color border = completed ? WithAlpha(green, 0.95f) : WithAlpha(edgeColor, unlocked ? 1f : 0.42f);
+        Color fill = completed ? WithAlpha(done, 0.20f) : WithAlpha(Color.black, 0.18f);
+        Color border = completed ? WithAlpha(done, 0.95f) : WithAlpha(edgeColor, unlocked ? 1f : 0.42f);
         Image action = CreateImage(card, "Action", MenuSprites.CircleBadge(fill, border), Color.white);
         SetCenteredAt(action.rectTransform, anchor, center, new Vector2(74f, 74f));
 
-        if (completed)
+        if (medal.HasValue)
+        {
+            Image mark = CreateImage(action.transform, "ActionMedal",
+                MedalStyle.Sprite(medal.Value, earned: true), Color.white);
+            mark.preserveAspect = true;
+            SetCenteredAt(mark.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(38f, 38f));
+        }
+        else if (completed)
         {
             Image check = CreateImage(action.transform, "ActionCheck", MenuSprites.CheckMark(green), Color.white);
             check.preserveAspect = true;

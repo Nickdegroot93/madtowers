@@ -14,7 +14,7 @@ using UnityEngine;
 public sealed class RunSuppliesApplier : MonoBehaviour
 {
     private bool _attemptSpent;
-    private bool _completedThisRun;
+    private bool _wonThisRun;
     private RunSuppliesState.Loadout _loadout;
 
     private void Awake()
@@ -72,19 +72,25 @@ public sealed class RunSuppliesApplier : MonoBehaviour
 
     private void OnEnable()
     {
-        GameEvents.LevelCompleted += HandleLevelCompleted;
+        GameEvents.TierEarned += HandleTierEarned;
         GameEvents.GameOver += HandleGameOver;
     }
 
     private void OnDisable()
     {
-        GameEvents.LevelCompleted -= HandleLevelCompleted;
+        GameEvents.TierEarned -= HandleTierEarned;
         GameEvents.GameOver -= HandleGameOver;
     }
 
-    private void HandleLevelCompleted(LevelDefinition level, RunResult result)
+    // ANY newly earned medal rung adjudicates the run as a win - not just bronze/LevelCompleted:
+    // a replay that newly silvers or golds sees the win celebration, and charging its attempt
+    // while the card cheers would contradict the loss-only meter (SHOP.md §7 wins are free -
+    // and ONLINE the server refunds the same way, via the finish_run(won:true) the controller
+    // sends at the run's first earned rung). Idempotent per run: the refund is latched by
+    // _attemptSpent, NoteWin by its own removals.
+    private void HandleTierEarned(LevelDefinition level, MedalTier tier)
     {
-        _completedThisRun = true;
+        _wonThisRun = true;
         RunSuppliesState.NoteWin(level);
         if (!_attemptSpent) return;
         _attemptSpent = false; // wins are free (loss-only meter, SHOP.md §7)
@@ -93,10 +99,10 @@ public sealed class RunSuppliesApplier : MonoBehaviour
 
     private void HandleGameOver(int score, float maxHeight)
     {
-        // A game over AFTER completion (kept playing, tower fell) is not a loss: the win
-        // already refunded the attempt and cleared the streak. Streak tracking is
+        // A game over AFTER a rung was earned (kept playing, tower fell) is not a loss: the
+        // win already refunded the attempt and cleared the streak. Streak tracking is
         // independent of the meter - premium players still get the §7.2 nudge.
-        if (_completedThisRun) return;
+        if (_wonThisRun) return;
         RunSuppliesState.NoteLoss(LevelSelectionState.SelectedLevel);
     }
 

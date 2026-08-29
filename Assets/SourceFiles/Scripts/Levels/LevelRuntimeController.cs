@@ -23,16 +23,38 @@ public class LevelRuntimeController : MonoBehaviour
     private readonly List<LevelModifier> _activeModifiers = new List<LevelModifier>();
     private LevelModifierContext _modifierContext;
     private LevelDefinition _level;
-    private WinCondition _winCondition;        // the level's victory rule (polymorphic); cached for the run
+    // The BRONZE victory rule (the authored target) - the reference condition for XP progress,
+    // end-of-run metrics, HasGoal and the timed clock. The medal ladder arms _armedCondition.
+    private WinCondition _winCondition;
     private System.Func<float> _liveHeightFunc; // cached delegate so BuildWinContext never allocates
-    private bool _completed;
     private bool _completionPendingWhilePaused;
     private bool _victoryShown;
-    // Completed in a PREVIOUS run: the whole win flow (countdown, verification, completion
-    // screen) stays dormant - the target passes silently and the run continues for a best.
-    private bool _alreadyCompleted;
-    // The goal was met at least once THIS run (even if the tower later fell, and even on an
-    // already-completed level where nothing arms). Drives the game-over card's "level made" line.
+    // ---- Medal ladder (LevelTiers). The old completed/already-completed binary became a
+    // ladder: _armedTier is the lowest UNEARNED tier - the one the hold-steady flow verifies
+    // next - and null means the ladder is dormant (all tiers earned, Endless, or no level).
+    // _armedCondition is the same goal type re-aimed at that tier's threshold; rebuilt on every
+    // rung. _sessionVerifiedValue carries the run's own verified record so Custom Game levels
+    // (no store identity) still climb, and so derivation never waits on a save.
+    private MedalTier? _armedTier;
+    private WinCondition _armedCondition;
+    private float _sessionVerifiedValue;
+    private MedalTier? _highestTierEarnedThisRun; // feeds the end-of-run card's celebration
+    // The run was adjudicated as a WIN: its ReportFinish(won:true) went out (at the run's
+    // FIRST newly earned rung - ANY tier, so a replay that newly silvers/golds is a win too:
+    // finish_run refunds the attempt per-run, BACKEND.md §6.2, and SHOP.md wins are free).
+    // Every later report this run is a score IMPROVEMENT, never a second finish.
+    private bool _finishReportedThisRun;
+    // Bronze newly earned THIS run (LevelCompleted was raised, CoinLedger granted the win
+    // bonus): drives the cards' coin line - a replay never re-banks the bonus.
+    private bool _bronzeCompletedThisRun;
+    // The best as it stood when the run STARTED, on the board this run plays for (SHOP.md §5:
+    // a boosted run races the boosted best). A field copy, not the live LevelBest: the medal
+    // ladder banks results MID-run (the win adjudication), and the end-of-run record
+    // comparison must not race the run's own writes - a card comparing the run against its
+    // own mid-run banked score could never say NEW BEST.
+    private ProgressStore.LevelBest _preRunBest;
+    // The BRONZE goal was met at least once THIS run (even if the tower later fell, and even on
+    // a fully-earned level where nothing arms). Drives the game-over card's "level made" line.
     private bool _targetMetThisRun;
     private RunResultsScreen.Content _victoryContent; // built at CompleteLevel; shown possibly later (paused)
     private float _verificationRemaining;
@@ -64,7 +86,11 @@ public class LevelRuntimeController : MonoBehaviour
     {
         _level = LevelSelectionState.SelectedLevel;
         _winCondition = _level != null ? _level.WinCondition : null;
-        _alreadyCompleted = _level != null && ProgressStore.IsLevelCompleted(_level);
+        // Arm the lowest unearned tier; earned tiers never re-verify (a replay with bronze
+        // banked opens straight onto silver's target, and a fully-golded level stays dormant).
+        _armedTier = LevelTiers.LowestUnearned(_level);
+        RebuildArmedCondition();
+        _preRunBest = CapturePreRunBest(_level);
         _liveHeightFunc = LiveTowerHeight;
         _modifierContext = new LevelModifierContext
         {
@@ -183,10 +209,11 @@ public class LevelRuntimeController : MonoBehaviour
         AwardRunXp(won: false);
         // Server finish (BACKEND.md §6.2): score submission and the XP award ride the same
         // exchange. Local bests above stay local-first regardless.
-        if (_completed)
+        if (_finishReportedThisRun)
         {
-            // Toppling out of a post-win Keep Playing session. The win already banked the
-            // refund and its XP, but everything stacked SINCE is what the player was
+            // Toppling out of a run already adjudicated as a win (whether the player kept
+            // going for the next rung or past the victory card). The win already banked
+            // the refund and its XP, but everything stacked SINCE is what the player was
             // invited to chase - it has to reach the board, or every winner ends up tied
             // at the target score and the leaderboard says nothing.
             AwardOvershootXp();
@@ -203,9 +230,9 @@ public class LevelRuntimeController : MonoBehaviour
     /// <summary>Pause-menu quit or restart: the run ends without a game over, but it still
     /// HAPPENED - bank the bests and report the finish so the abandon pays its participation
     /// + progress XP (Nick 2026-08-01) exactly like a loss at the same point would.
-    /// Quitting out of a post-win Keep Playing session reports a score IMPROVEMENT instead
-    /// of a finish (that run was already adjudicated at the win): do not re-add a
-    /// `_completed` early return here, or the whole Keep Playing score is dropped again.
+    /// Quitting out of a run already adjudicated as a win reports a score IMPROVEMENT
+    /// instead of a finish (the finish went out at the first earned rung): do not
+    /// re-add an early return here, or the whole post-win score is dropped again.
     /// Double-reporting is prevented by construction - ProgressStore.ReportResult is
     /// monotonic, AwardRunXp is latched, and the improvement window is one-shot per run.</summary>
     public void ReportAbandonedRun()
@@ -216,7 +243,7 @@ public class LevelRuntimeController : MonoBehaviour
 
         if (_level != null) ProgressStore.ReportResult(_level, reportedScore, result.MaxHeight, RunSuppliesState.ActiveRunBoosted);
         AwardRunXp(won: false);   // latched by _xpAwarded: a no-op once the win awarded
-        if (_completed)
+        if (_finishReportedThisRun)
         {
             // Quitting out of a post-win Keep Playing session. The run is already finished
             // server-side, so this is a score improvement rather than a second finish - but
@@ -236,22 +263,31 @@ public class LevelRuntimeController : MonoBehaviour
     {
         RunResult result = GameManager.Instance != null ? GameManager.Instance.CurrentRunResult : default;
         bool endless = _winCondition == null || !_winCondition.HasGoal;
-        RunResultsScreen.Show(new RunResultsScreen.Content
+        RunResultsScreen.Content content = new RunResultsScreen.Content
         {
             Victory = false,
             Metric = ResolveEndOfRunMetric(result),
-            // "You made the level": only when it is genuinely complete AND this run actually
+            // "You made the level": only when bronze is genuinely earned AND this run actually
             // reached the goal - a replay that never got close doesn't get the line.
-            GoalReached = _targetMetThisRun && (_completed || _alreadyCompleted),
+            GoalReached = _targetMetThisRun && LevelTiers.IsEarned(_level, MedalTier.Bronze, _sessionVerifiedValue),
             EndlessHeight = endless ? result.MaxHeight : 0f,
-            // A run that already completed showed (and banked) its coins on the victory card,
-            // and the ledger blocks further earning - re-advertising them here would read as
-            // a second payout that never happens.
-            Coins = _completed ? 0 : result.CoinsEarned,
+            // A run that showed the victory card already advertised (and banked) its coins
+            // there - re-advertising them here would read as a second payout that never happens.
+            // A bronze earned via the in-run toast never got a card, so its win bonus (banked by
+            // CoinLedger when LevelCompleted was raised) surfaces here instead.
+            Coins = _victoryShown
+                ? 0
+                : result.CoinsEarned + (_bronzeCompletedThisRun ? CoinLedger.WinBonusCoins : 0),
             Boosted = RunSuppliesState.ActiveRunBoosted,
             PrimaryLabel = "Try Again",
             OnPrimary = () => { if (GameManager.Instance != null) GameManager.Instance.RestartGame(); },
-        });
+        };
+        PopulateTierContent(ref content);
+        // The gold victory card already celebrated this run's climb; toppling out of Keep
+        // Playing afterwards is a plain game over (the medal row still shows the earned set),
+        // not a second "LEVEL COMPLETE - GOLD" fanfare.
+        if (_victoryShown) content.TierEarnedThisRun = null;
+        RunResultsScreen.Show(content);
     }
 
     // The goal's own idea of "the score that matters" - a presentation-owning modifier wins
@@ -259,7 +295,7 @@ public class LevelRuntimeController : MonoBehaviour
     // uses; the provider lookup is shared so the two can never disagree.
     private ResultMetric ResolveEndOfRunMetric(RunResult result)
     {
-        ProgressStore.LevelBest best = BestForRunBoard();
+        ProgressStore.LevelBest best = _preRunBest;
 
         ILevelMenuProgressProvider provider = LevelMenuPresentation.FindProgressProvider(_level);
         ResultMetric? overrideMetric = provider?.EndOfRunMetric(_level, result, best);
@@ -286,16 +322,18 @@ public class LevelRuntimeController : MonoBehaviour
 
     // The results card compares against the board this run played for (SHOP.md §5): a boosted
     // run races the boosted best, never the clean one. Metric providers only read the clean
-    // fields, so a boosted run gets a view with the boosted pair mapped onto them.
-    private ProgressStore.LevelBest BestForRunBoard()
+    // fields, so a boosted run gets a view with the boosted pair mapped onto them. Always a
+    // field COPY, captured at Start - see _preRunBest for why the live instance won't do.
+    private static ProgressStore.LevelBest CapturePreRunBest(LevelDefinition level)
     {
-        ProgressStore.LevelBest best = _level != null ? ProgressStore.GetBest(_level) : null;
-        if (best == null || !RunSuppliesState.ActiveRunBoosted) return best;
+        ProgressStore.LevelBest best = level != null ? ProgressStore.GetBest(level) : null;
+        if (best == null) return null;
+        bool boosted = RunSuppliesState.ActiveRunBoosted;
         return new ProgressStore.LevelBest
         {
             levelId = best.levelId,
-            bestScore = best.bestScoreBoosted,
-            bestHeightMeters = best.bestHeightMetersBoosted,
+            bestScore = boosted ? best.bestScoreBoosted : best.bestScore,
+            bestHeightMeters = boosted ? best.bestHeightMetersBoosted : best.bestHeightMeters,
             achievedAtUnixUtc = best.achievedAtUnixUtc,
         };
     }
@@ -330,14 +368,14 @@ public class LevelRuntimeController : MonoBehaviour
 
     private void TickWinVerification()
     {
-        if (_completed || _level == null) return;
+        if (_armedTier == null || _level == null) return;
 
         if (IsVerifyingWin)
         {
-            // The goal must still hold through the countdown: a height collapse, or a block
-            // destroyed/dropped below the live count, hands the level back. The condition owns
-            // the rule (and any hysteresis slack); the controller stays goal-agnostic.
-            if (_winCondition != null && !_winCondition.IsStillHeld(BuildWinContext()))
+            // The armed tier's goal must still hold through the countdown: a height collapse, or
+            // a block destroyed/dropped below the live count, hands the level back. The condition
+            // owns the rule (and any hysteresis slack); the controller stays goal-agnostic.
+            if (_armedCondition != null && !_armedCondition.IsStillHeld(BuildWinContext()))
             {
                 AbortVerification();
                 return;
@@ -348,7 +386,7 @@ public class LevelRuntimeController : MonoBehaviour
             if (_verificationRemaining <= 0f)
             {
                 DestroyCountdownUi();
-                CompleteLevel(); // requests the Completed phase
+                OnHoldSteadyComplete(); // banks the tier; gold requests the Completed phase
             }
             return;
         }
@@ -357,13 +395,15 @@ public class LevelRuntimeController : MonoBehaviour
         // height record only rises) can never re-fire for the same peak - re-arm from the live
         // tower instead. Polled at 5 Hz, not per frame: LiveTowerHeight walks every landed block's
         // cells, and this watch can stay on for minutes while the player rebuilds a tall tower.
-        if (_targetMetThisRun && !_alreadyCompleted && _winCondition != null && _winCondition.ReArmsByPolling)
+        // Gate on the BRONZE goal having been met this run: any armed tier's threshold is at or
+        // above bronze, so a higher rung can never be met without this flag already set.
+        if (_targetMetThisRun && _armedCondition != null && _armedCondition.ReArmsByPolling)
         {
             _rearmPollTimer -= Time.deltaTime;
             if (_rearmPollTimer > 0f) return;
             _rearmPollTimer = RearmPollInterval;
 
-            if (_winCondition.IsMet(BuildWinContext())) TryBeginVerification();
+            if (_armedCondition.IsMet(BuildWinContext())) TryBeginVerification();
         }
     }
 
@@ -375,13 +415,11 @@ public class LevelRuntimeController : MonoBehaviour
     // assumes arming succeeded would freeze its clock forever (the bug this shape prevents).
     private bool TryBeginVerification()
     {
-        if (_completed || IsVerifyingWin) return false;
+        // No armed tier = ladder dormant (all tiers earned, Endless): the target passes
+        // silently and the player plays on for a best, exactly like the old already-completed
+        // rule. _targetMetThisRun is maintained by TryArmFromProgress, not here.
+        if (_armedTier == null || IsVerifyingWin) return false;
         if (GameManager.Instance == null || GameManager.Instance.isGameOver) return false;
-
-        _targetMetThisRun = true;
-        // A level beaten in an earlier run never re-enters the win flow: no countdown, no
-        // completion screen - the target passes silently and the player plays on for a best.
-        if (_alreadyCompleted) return false;
 
         GameManager.Instance.RequestPhase(this, GamePhase.WinVerifying);
         _verificationRemaining = WinVerificationSeconds;
@@ -505,20 +543,24 @@ public class LevelRuntimeController : MonoBehaviour
 
     private void TickTimedGoal()
     {
-        if (!_hasTimeLimit || _completed || _level == null || GameManager.Instance == null) return;
+        if (!_hasTimeLimit || _level == null || GameManager.Instance == null) return;
 
         // The main clock only burns during active play. The 5-second win verification explicitly
-        // freezes it; if verification aborts, the same remaining time resumes.
+        // freezes it (for EVERY tier's hold); if verification aborts, the same remaining time
+        // resumes. It never resets between tiers - bronze and silver holds spend no clock, but
+        // the chase for the next rung burns the same run's remaining time. Gold kills the clock
+        // (OnHoldSteadyComplete); expiry after bronze/silver ends the run through the game-over
+        // path, which celebrates whatever the run earned.
         if (GameManager.Instance.CurrentPhase != GamePhase.Playing || IsVerifyingWin)
         {
             UpdateTimerLabel();
             return;
         }
 
-        // Freeze the clock only when verification ACTUALLY armed. On an already-completed
-        // level the target passes without arming, so the branch falls through and the replay
-        // stays an honest best-score chase against the full timer.
-        if (GoalMetNow() && TryBeginVerification())
+        // Freeze the clock only when verification ACTUALLY armed. On a fully-earned level the
+        // target passes without arming, so the branch falls through and the replay stays an
+        // honest best-score chase against the full timer.
+        if (ArmedGoalMetNow() && TryBeginVerification())
         {
             UpdateTimerLabel();
             return;
@@ -528,7 +570,7 @@ public class LevelRuntimeController : MonoBehaviour
         UpdateTimerLabel();
         if (_timeRemaining > 0f) return;
 
-        if (GoalMetNow() && TryBeginVerification()) return;
+        if (ArmedGoalMetNow() && TryBeginVerification()) return;
 
         _hasTimeLimit = false;
         GameManager.Instance.EndRunNow("Time ran out", RunEndCause.Timeout);
@@ -728,65 +770,150 @@ public class LevelRuntimeController : MonoBehaviour
         TryArmFromProgress();
     }
 
-    private bool GoalMetNow() => _winCondition != null && _winCondition.IsMet(BuildWinContext());
+    // Two "met" reads with different owners: the BRONZE condition feeds _targetMetThisRun (the
+    // authored goal - what "made the level" means), the ARMED condition feeds the ladder.
+    private bool BronzeGoalMetNow() => _winCondition != null && _winCondition.IsMet(BuildWinContext());
+    private bool ArmedGoalMetNow() => _armedCondition != null && _armedCondition.IsMet(BuildWinContext());
 
     private void TryArmFromProgress()
     {
-        if (GoalMetNow()) TryBeginVerification();
+        if (!_targetMetThisRun && BronzeGoalMetNow()) _targetMetThisRun = true;
+        if (ArmedGoalMetNow()) TryBeginVerification();
     }
 
-    private void CompleteLevel()
+    private void RebuildArmedCondition()
     {
-        if (_completed || GameManager.Instance == null || GameManager.Instance.isGameOver) return;
+        _armedCondition = _armedTier.HasValue && _level != null
+            ? _level.WinConditionFor(LevelTiers.Threshold(_level, _armedTier.Value))
+            : null;
+    }
 
-        _completed = true;
-        DestroyTimerUi();
-        GameManager.Instance.RequestPhase(this, GamePhase.Completed);
+    /// <summary>A tier's hold-steady just survived its full window. Each hold banks EXACTLY the
+    /// armed rung: IsStillHeld enforced only that tier's threshold through the window, so a
+    /// higher threshold the tower happened to cross at expiry was never held and must not bank -
+    /// a tower already above the next rung's goal simply re-arms immediately and holds again.
+    /// The run's FIRST earned rung (any tier) adjudicates it as a win; bronze additionally runs
+    /// the completion side effects; the top rung shows the victory card, lower rungs toast and
+    /// play straight on.</summary>
+    private void OnHoldSteadyComplete()
+    {
+        if (_armedTier == null || _level == null) return;
+        if (GameManager.Instance == null || GameManager.Instance.isGameOver) return;
 
-        // Card content BEFORE the stores update: the record comparison needs the best as it
-        // stood when the run started, and ReportResult mutates that very LevelBest instance.
+        MedalTier earnedTier = _armedTier.Value;
+        bool bronzeWasEarned = LevelTiers.IsEarned(_level, MedalTier.Bronze, _sessionVerifiedValue);
+
+        _sessionVerifiedValue = Mathf.Max(_sessionVerifiedValue, LevelTiers.Threshold(_level, earnedTier));
+        ProgressStore.ReportVerified(_level, _sessionVerifiedValue); // no-op for Custom Game (no identity)
+
+        bool ladderDone = LevelTiers.LowestUnearned(_level, _sessionVerifiedValue) == null;
+        _highestTierEarnedThisRun = earnedTier;
+
+        // Card content BEFORE the stores update: the run snapshot (score, coins) must be the
+        // pre-adjudication view. The record comparison reads _preRunBest either way.
         RunResult result = GameManager.Instance.CurrentRunResult;
-        _victoryContent = BuildVictoryContent(result);
-
-        // Boosted completions still complete (SHOP.md §6) - only the best goes to the
-        // boosted board instead of the clean one.
-        bool firstCompletion = !ProgressStore.IsLevelCompleted(_level);
-        ProgressStore.MarkLevelCompleted(_level);
-        // A FIRST completion may unlock the next level or chapter; the menu plays that
-        // unlock as a reveal animation instead of showing it silently pre-unlocked.
-        if (firstCompletion) UnlockRevealPending.RecordFirstCompletion(_level);
-        int reportedScore = ReportedScore(result.Score);
-        ProgressStore.ReportResult(_level, reportedScore, result.MaxHeight, RunSuppliesState.ActiveRunBoosted);
-        AwardRunXp(won: true);
-        // Server finish (BACKEND.md §6.2): the win refunds the attempt and submits the
-        // score + XP in one exchange, against the run_id granted at start.
-        RunGate.ReportFinish(won: true, reportedScore, result.MaxHeight, XpProgressForReport());
-        GameEvents.RaiseLevelCompleted(_level, result);
-
-        if (GameManager.Instance.IsGamePaused)
+        if (ladderDone)
         {
-            _completionPendingWhilePaused = true;
+            _victoryContent = BuildVictoryContent(result,
+                bronzeCompletesThisRun: !bronzeWasEarned || _bronzeCompletedThisRun);
+        }
+
+        // The run's first earned rung adjudicates it as a WIN: bests, XP and the server finish
+        // in one exchange, against the run_id granted at start (BACKEND.md §6.2 - finish_run
+        // refunds the attempt PER-RUN, so a replay that newly silvers/golds is exactly as free
+        // as a first completion; SHOP.md §7 wins are free). Later rungs the same run are score
+        // improvements, reported at run end (HandleGameOver / ReportAbandonedRun).
+        if (!_finishReportedThisRun)
+        {
+            int reportedScore = ReportedScore(result.Score);
+            ProgressStore.ReportResult(_level, reportedScore, result.MaxHeight, RunSuppliesState.ActiveRunBoosted);
+            AwardRunXp(won: true);
+            RunGate.ReportFinish(won: true, reportedScore, result.MaxHeight, XpProgressForReport());
+            _finishReportedThisRun = true;
+        }
+
+        if (!bronzeWasEarned)
+        {
+            // Bronze IS completion - everything the old single-target win did, minus the
+            // full-screen card (lower rungs celebrate in-run; only the top rung owns the card).
+            // Boosted completions still complete (SHOP.md §6) - only the best goes to the
+            // boosted board instead of the clean one.
+            bool firstCompletion = !ProgressStore.IsLevelCompleted(_level);
+            ProgressStore.MarkLevelCompleted(_level);
+            // A FIRST completion may unlock the next level or chapter; the menu plays that
+            // unlock as a reveal animation instead of showing it silently pre-unlocked.
+            if (firstCompletion) UnlockRevealPending.RecordFirstCompletion(_level);
+            _bronzeCompletedThisRun = true;
+            GameEvents.RaiseLevelCompleted(_level, result);
+        }
+
+        // Announce the rung - the HUD's target label rolls to the next threshold on this.
+        GameEvents.RaiseTierEarned(_level, earnedTier);
+
+        if (ladderDone)
+        {
+            _armedTier = null;
+            _armedCondition = null;
+            _hasTimeLimit = false; // the ladder is done; Keep Playing is untimed, as post-win always was
+            DestroyTimerUi();
+            GameManager.Instance.RequestPhase(this, GamePhase.Completed);
+
+            if (GameManager.Instance.IsGamePaused)
+            {
+                _completionPendingWhilePaused = true;
+                return;
+            }
+
+            ShowCompletionPanel();
             return;
         }
 
-        ShowCompletionPanel();
+        // A lower rung: celebrate in-run and play straight on toward the next one - the same
+        // phase release the abort path uses, so spawning resumes on its own.
+        GameManager.Instance.ReleasePhase(this);
+        _armedTier = LevelTiers.LowestUnearned(_level, _sessionVerifiedValue);
+        RebuildArmedCondition();
+        SfxPlayer.Play("ui-star-earned");
+        ShowBanner($"{MedalStyle.DisplayName(earnedTier)} COMPLETE!");
     }
 
-    private RunResultsScreen.Content BuildVictoryContent(RunResult result)
+    // The medal ladder as the results card shows it: thresholds + earned state AFTER this
+    // run's writes, and the highest tier NEWLY earned this run (null = nothing new).
+    private void PopulateTierContent(ref RunResultsScreen.Content content)
     {
-        return new RunResultsScreen.Content
+        if (!LevelTiers.HasTiers(_level)) return;
+        content.TierEarnedThisRun = _highestTierEarnedThisRun;
+        content.TierThresholds = new float[LevelTiers.TierCount];
+        content.TierEarnedState = new bool[LevelTiers.TierCount];
+        for (int i = 0; i < LevelTiers.TierCount; i++)
+        {
+            content.TierThresholds[i] = LevelTiers.Threshold(_level, (MedalTier)i);
+            content.TierEarnedState[i] = LevelTiers.IsEarned(_level, (MedalTier)i, _sessionVerifiedValue);
+        }
+    }
+
+    private RunResultsScreen.Content BuildVictoryContent(RunResult result, bool bronzeCompletesThisRun)
+    {
+        RunResultsScreen.Content content = new RunResultsScreen.Content
         {
             Victory = true,
             Metric = ResolveEndOfRunMetric(result),
             GoalReached = true,
-            // The banked total: the run's skill coins plus the once-per-run win bonus
-            // (CoinLedger adds the bonus when LevelCompleted is raised below).
-            Coins = result.CoinsEarned + CoinLedger.WinBonusCoins,
+            // The banked total: the run's skill coins plus the once-per-run win bonus - but
+            // only when bronze completes THIS run (CoinLedger banks the bonus on the
+            // LevelCompleted this run raises); a replay that golds a long-completed level
+            // never re-banks, so advertising the bonus would promise a payout that never lands.
+            Coins = result.CoinsEarned + (bronzeCompletesThisRun ? CoinLedger.WinBonusCoins : 0),
             Boosted = RunSuppliesState.ActiveRunBoosted,
             PrimaryLabel = "Keep Playing",
             VictorySentence = "Your tower still stands - keep stacking to push your best score even higher.",
             OnPrimary = ContinuePlaying,
         };
+        PopulateTierContent(ref content);
+        // The card that ends the ladder celebrates the TOP rung, even in the degenerate case
+        // where clamped-equal thresholds let a lower rung's hold finish the whole ladder.
+        content.TierEarnedThisRun = LevelTiers.MaxTier;
+        return content;
     }
 
     private void ShowCompletionPanel()

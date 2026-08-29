@@ -128,22 +128,37 @@ public static class WaveSolver
     public static float LaserCellsForSolvedHeight(float solvedCells)
         => Mathf.Floor(solvedCells + 0.5f) + LaserGraceCells;
 
-    public static int QuotaForWave(int waveNumber)
-        => Mathf.Min(QuotaCap, FirstWaveQuota + Mathf.RoundToInt(QuotaGrowthPerWave * (waveNumber - 1)));
+    /// <summary>Sentinel for <c>growthFreezeWave</c>: no freeze - every wave grows as authored.</summary>
+    public const int NoGrowthFreeze = int.MaxValue;
+
+    // ---- Overtime waves (MEDALS): waves past a ClearWaves level's bronze wave are stretch
+    // content (silver = +1 wave, gold = +2), so difficulty growth FREEZES there: every wave past
+    // growthFreezeWave asks the frozen wave's quota at the frozen wave's density. Because the
+    // line is solved from cumulative quota / density, freezing BOTH keeps each overtime wave the
+    // same incremental length and tightness as the bronze wave - freezing quota alone would
+    // shrink the ask AND lower the line into a tighter squeeze (the coupling on the class doc).
+    // min(n, freeze) == n at or below the freeze wave, so authored behavior is bit-identical there.
+
+    public static int QuotaForWave(int waveNumber, int growthFreezeWave = NoGrowthFreeze)
+    {
+        int effective = Mathf.Min(waveNumber, growthFreezeWave);
+        return Mathf.Min(QuotaCap, FirstWaveQuota + Mathf.RoundToInt(QuotaGrowthPerWave * (effective - 1)));
+    }
 
     /// <summary>Standing blocks required to have CLEARED wave n (1-based).</summary>
-    public static int CumulativeQuota(int waveNumber)
+    public static int CumulativeQuota(int waveNumber, int growthFreezeWave = NoGrowthFreeze)
     {
         int total = 0;
-        for (int n = 1; n <= waveNumber; n++) total += QuotaForWave(n);
+        for (int n = 1; n <= waveNumber; n++) total += QuotaForWave(n, growthFreezeWave);
         return total;
     }
 
-    public static float DensityForWave(int difficultyRank, int waveNumber)
+    public static float DensityForWave(int difficultyRank, int waveNumber, int growthFreezeWave = NoGrowthFreeze)
     {
         int rank = Mathf.Clamp(difficultyRank, 1, 5) - 1;
+        int effective = Mathf.Min(waveNumber, growthFreezeWave);
         return Mathf.Min(DensityCapByRank[rank],
-            DensityStartByRank[rank] + DensityRampPerWave * (waveNumber - 1));
+            DensityStartByRank[rank] + DensityRampPerWave * (effective - 1));
     }
 
     /// <summary>Buildable cells between the column tops and height <paramref name="h"/>.</summary>
@@ -185,12 +200,13 @@ public static class WaveSolver
     /// <summary>Solved line heights (cells above the floor datum) for waves 1..count, each at
     /// least <see cref="MinRiseCells"/> above the previous.</summary>
     public static void SolveLineHeights(List<float> sortedColumnTops, float avgCellsPerPiece,
-        int difficultyRank, int count, List<float> into)
+        int difficultyRank, int count, List<float> into, int growthFreezeWave = NoGrowthFreeze)
     {
         into.Clear();
         for (int n = 1; n <= count; n++)
         {
-            float neededCells = CumulativeQuota(n) * avgCellsPerPiece / DensityForWave(difficultyRank, n);
+            float neededCells = CumulativeQuota(n, growthFreezeWave) * avgCellsPerPiece
+                / DensityForWave(difficultyRank, n, growthFreezeWave);
             float solved = SolveHeightForCapacity(sortedColumnTops, neededCells);
             float previous = n > 1 ? into[n - 2] : 0f;
             into.Add(Mathf.Max(solved, previous + MinRiseCells));

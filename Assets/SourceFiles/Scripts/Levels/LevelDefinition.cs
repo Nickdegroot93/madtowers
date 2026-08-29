@@ -24,6 +24,12 @@ public class LevelDefinition : ScriptableObject
     [Tooltip("Seconds available for timed block-count / height goals. Ignored by untimed goals.")]
     [Min(1)]
     [SerializeField] private float timeLimitSeconds = 120f;
+    [Tooltip("Silver medal target in target units. 0 = the LevelTiers formula (x1.25). Ignored by ClearWaves (always bronze+1 wave) and Endless.")]
+    [Min(0)]
+    [SerializeField] private float silverTargetOverride = 0f;
+    [Tooltip("Gold medal target in target units. 0 = the LevelTiers formula (x1.6). Ignored by ClearWaves (always bronze+2 waves) and Endless.")]
+    [Min(0)]
+    [SerializeField] private float goldTargetOverride = 0f;
     [Tooltip("One-sentence player instruction shown as a banner when the level starts. Empty = no banner.")]
     [SerializeField] private string instruction = "";
 
@@ -44,7 +50,32 @@ public class LevelDefinition : ScriptableObject
     public LevelTargetType TargetType => targetType;
     public float TargetValue => Mathf.Max(1f, targetValue);
     public float TimeLimitSeconds => Mathf.Max(1f, timeLimitSeconds);
+    public float SilverTargetOverride => Mathf.Max(0f, silverTargetOverride);
+    public float GoldTargetOverride => Mathf.Max(0f, goldTargetOverride);
     public string Instruction => instruction;
+
+#if UNITY_EDITOR
+    // Authoring guard for the medal ladder: LevelTiers.Threshold clamps each rung to at least
+    // the one below it at runtime, so an inverted override never corrupts derivation - but the
+    // clamp silently flattens the ladder (two rungs sharing one goal earn together). Flag it
+    // here, where the author is looking.
+    private void OnValidate()
+    {
+        if (!LevelTiers.HasTiers(this) || targetType == LevelTargetType.ClearWaves) return;
+
+        float bronze = TargetValue;
+        float silver = LevelTiers.Threshold(this, MedalTier.Silver);
+        float gold = LevelTiers.Threshold(this, MedalTier.Gold);
+        if ((silverTargetOverride > 0f && silverTargetOverride <= bronze) ||
+            (goldTargetOverride > 0f && goldTargetOverride <= silver) ||
+            (silverTargetOverride > 0f && goldTargetOverride <= 0f && gold <= silver))
+        {
+            Debug.LogWarning($"{name}: medal overrides don't rise (bronze {bronze} / silver " +
+                $"{silver} / gold {gold}) - runtime clamps them monotone, but rungs sharing a " +
+                "goal are earned together. Author bronze < silver < gold.", this);
+        }
+    }
+#endif
 
     /// <summary>The level's victory rule as a polymorphic <see cref="WinCondition"/>. This is the
     /// SINGLE place the authored <see cref="LevelTargetType"/> enum is translated into behaviour;
@@ -52,15 +83,20 @@ public class LevelDefinition : ScriptableObject
     /// add a new game type, add a WinCondition subclass and one case here. Built fresh on access
     /// (cheap, immutable target) so an inspector tweak to the target during play is never stale;
     /// the runtime controller caches one for the run.</summary>
-    public WinCondition WinCondition => targetType switch
+    public WinCondition WinCondition => WinConditionFor(TargetValue);
+
+    /// <summary>The same victory rule aimed at an arbitrary target - how the medal ladder arms
+    /// silver/gold: one condition instance per tier threshold (conditions are immutable), built
+    /// from the SAME translation so a tier can never disagree with the level's goal type.</summary>
+    public WinCondition WinConditionFor(float target) => targetType switch
     {
-        LevelTargetType.PlaceBlocks => new PlaceBlocksWinCondition(TargetValue),
-        LevelTargetType.ReachHeight => new ReachHeightWinCondition(TargetValue),
+        LevelTargetType.PlaceBlocks => new PlaceBlocksWinCondition(target),
+        LevelTargetType.ReachHeight => new ReachHeightWinCondition(target),
         LevelTargetType.TimedPlaceBlocks => new TimedWinCondition(
-            new PlaceBlocksWinCondition(TargetValue), TimeLimitSeconds),
+            new PlaceBlocksWinCondition(target), TimeLimitSeconds),
         LevelTargetType.TimedReachHeight => new TimedWinCondition(
-            new ReachHeightWinCondition(TargetValue), TimeLimitSeconds),
-        LevelTargetType.ClearWaves => new ClearWavesWinCondition(TargetValue),
+            new ReachHeightWinCondition(target), TimeLimitSeconds),
+        LevelTargetType.ClearWaves => new ClearWavesWinCondition(target),
         _ => new EndlessWinCondition(),
     };
     public IReadOnlyList<LevelModifier> Modifiers => modifiers;

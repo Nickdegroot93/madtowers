@@ -33,6 +33,7 @@ public static class GameSystemsInstaller
         Ensure<GoldenBlockDirector>(host);// the scheduled golden brick (economy metronome)
         Ensure<CoinHud>(host);            // the coin flight + counter pill (the ONLY celebration)
         Ensure<WaveHud>(host);            // puzzle-wave countdown pill (top-right, under lives)
+        Ensure<MedalHud>(host);           // banked-medal pill (top-right; drops a row on wave runs)
     }
 
     // == null (not ??) on purpose: the editor's fake-null wrapper passes a reference-null check and

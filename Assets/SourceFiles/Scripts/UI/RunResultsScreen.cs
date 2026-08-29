@@ -19,7 +19,7 @@ public sealed class RunResultsScreen : MonoBehaviour
 {
     public struct Content
     {
-        public bool Victory;            // level complete (hot) vs game over (warm)
+        public bool Victory;            // gold banked: the full victory treatment
         public ResultMetric Metric;     // the goal's one stat: run value + previous best
         public bool GoalReached;        // show the "GOAL ... REACHED" line (level was made)
         public float EndlessHeight;     // > 0 on endless runs only: quiet secondary height line
@@ -28,6 +28,11 @@ public sealed class RunResultsScreen : MonoBehaviour
         public string PrimaryLabel;     // "Try Again" / "Keep Playing"
         public System.Action OnPrimary;
         public string VictorySentence;  // why keep playing (victory only)
+        // ---- Medal ladder (LevelTiers). Null arrays = no medal row (Endless, no level).
+        public MedalTier? TierEarnedThisRun; // highest tier NEWLY earned this run - drives the
+                                             // "LEVEL COMPLETE - SILVER" kicker on a loss card
+        public float[] TierThresholds;       // bronze/silver/gold goals in the metric's own unit
+        public bool[] TierEarnedState;       // earned flags AFTER this run's writes
     }
 
     // Timeline (seconds, unscaled). Elements enter in reading order, buttons last, whole
@@ -90,9 +95,12 @@ public sealed class RunResultsScreen : MonoBehaviour
 
         // Muted on in-place rebuilds (an ad refill re-rendering the card must not
         // replay the game-over sting the player already heard).
+        // A loss that banked a medal this run gets the victory sting: the tower fell, but the
+        // headline is "LEVEL COMPLETE - {TIER}" and the game-over sting would talk over it.
         if (!muted)
         {
-            SfxPlayer.Play(content.Victory ? "ui-victory" : "game_over", content.Victory ? 0.9f : 0.85f, 0f);
+            bool celebrate = content.Victory || content.TierEarnedThisRun.HasValue;
+            SfxPlayer.Play(celebrate ? "ui-victory" : "game_over", celebrate ? 0.9f : 0.85f, 0f);
         }
     }
 
@@ -124,12 +132,20 @@ public sealed class RunResultsScreen : MonoBehaviour
 
         bool record = _content.Metric.IsNewRecord;
 
-        // Kicker: quiet on game over (the metric is the headline, not the death), loud on victory.
-        TextMeshProUGUI kicker = CreateRow(panel.transform, _content.Victory ? "LEVEL COMPLETE" : "GAME OVER",
-            _content.Victory ? 44 : 30,
-            _content.Victory ? GameMenuStyle.Accent : new Color(0.85f, 0.88f, 0.90f, 0.70f),
-            _content.Victory ? 60f : 42f, display: true);
+        // Kicker: quiet on a plain game over (the metric is the headline, not the death), hot
+        // whenever the run banked a medal - a collapse AFTER earning bronze is a completion
+        // with a bruise, never a failure screen. The tier names the card and colors it.
+        MedalTier? earnedTier = _content.TierEarnedThisRun;
+        bool hot = _content.Victory || earnedTier.HasValue;
+        string kickerText = earnedTier.HasValue
+            ? $"LEVEL COMPLETE - {MedalStyle.DisplayName(earnedTier.Value)}"
+            : _content.Victory ? "LEVEL COMPLETE" : "GAME OVER";
+        Color kickerColor = earnedTier.HasValue ? MedalStyle.TierColor(earnedTier.Value)
+            : _content.Victory ? GameMenuStyle.Accent : new Color(0.85f, 0.88f, 0.90f, 0.70f);
+        TextMeshProUGUI kicker = CreateRow(panel.transform, kickerText,
+            hot ? 44 : 30, kickerColor, hot ? 60f : 42f, display: true);
         kicker.characterSpacing = 8f;
+        if (earnedTier.HasValue) RuntimeUiKit.AutoSize(kicker, 26f, 44f); // "- SILVER" must fit the 660 panel
         AddReveal(kicker.gameObject, KickerAt);
 
         // The boosted honesty tag (SHOP.md §5): a quiet gold line under the kicker so an
@@ -160,6 +176,11 @@ public sealed class RunResultsScreen : MonoBehaviour
                 new Color(1f, 1f, 1f, 0.45f), 36f, display: false);
             best.characterSpacing = 4f;
             AddReveal(best.gameObject, RecordAt);
+        }
+
+        if (_content.TierThresholds != null && _content.TierEarnedState != null)
+        {
+            BuildMedalRow(panel.transform);
         }
 
         if (_content.GoalReached && !string.IsNullOrEmpty(_content.Metric.TargetText))
@@ -317,6 +338,59 @@ public sealed class RunResultsScreen : MonoBehaviour
         label.characterSpacing = 8f;
 
         AbilityCardShine.Attach(pill, new Color(1f, 0.92f, 0.65f, 0.30f), 1.8f);
+        AddReveal(row, RecordAt);
+    }
+
+    // The medal ladder: three slots with the tier's goal under each - earned in full color,
+    // unearned as the locked slate so the row always shows what is still on the table. The
+    // tier earned THIS run gets the card-shine sweep, the same visual word as NEW BEST.
+    private void BuildMedalRow(Transform parent)
+    {
+        GameObject row = new GameObject("MedalRow", typeof(RectTransform));
+        row.transform.SetParent(parent, false);
+        row.AddComponent<LayoutElement>().preferredHeight = 104f;
+
+        HorizontalLayoutGroup layout = row.AddComponent<HorizontalLayoutGroup>();
+        layout.childAlignment = TextAnchor.MiddleCenter;
+        layout.spacing = 34f;
+        layout.childControlWidth = false;
+        layout.childControlHeight = false;
+        layout.childForceExpandWidth = false;
+        layout.childForceExpandHeight = false;
+
+        // The arrays are the source of truth for the ladder's size (the controller fills them
+        // from LevelTiers.TierCount) - no literal rung count here.
+        for (int i = 0; i < _content.TierThresholds.Length && i < _content.TierEarnedState.Length; i++)
+        {
+            MedalTier tier = (MedalTier)i;
+            bool earned = _content.TierEarnedState[i];
+
+            RectTransform cell = RuntimeUiKit.CreateRect(row.transform, $"Medal{tier}",
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(110f, 96f));
+
+            RectTransform icon = RuntimeUiKit.CreateRect(cell, "Icon",
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -2f), new Vector2(54f, 54f));
+            Image image = icon.gameObject.AddComponent<Image>();
+            image.sprite = MedalStyle.Sprite(tier, earned);
+            image.raycastTarget = false;
+
+            string goal = _content.Metric.IsMeters
+                ? $"{Mathf.RoundToInt(_content.TierThresholds[i])}m"
+                : Mathf.RoundToInt(_content.TierThresholds[i]).ToString();
+            RuntimeUiKit.CreateTmp(cell, "Goal", goal, 22,
+                earned ? MedalStyle.TierColor(tier) : WithAlpha(MedalStyle.Unearned, 0.8f),
+                TextAnchor.LowerCenter, FontStyle.Normal, RuntimeUiKit.TitleFont,
+                new Vector2(0f, 2f), new Vector2(110f, 28f), new Vector2(0.5f, 0f));
+
+            if (earned && _content.TierEarnedThisRun.HasValue && tier == _content.TierEarnedThisRun.Value)
+            {
+                AbilityCardShine.Attach(icon,
+                    WithAlpha(Color.Lerp(MedalStyle.TierColor(tier), Color.white, 0.5f), 0.30f), 1.8f);
+            }
+        }
+
         AddReveal(row, RecordAt);
     }
 
