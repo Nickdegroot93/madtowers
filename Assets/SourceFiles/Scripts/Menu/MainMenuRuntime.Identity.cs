@@ -58,10 +58,10 @@ public static partial class MainMenuRuntime
         panelImage.raycastTarget = true;
 
         Image ring = CreateImage(panel, "AvatarRing", MenuSprites.CircleBadge(
-            new Color(0.12f, 0.11f, 0.09f, 1f), WithAlpha(GoldBase, 0.55f)), Color.white);
+            new Color(0.12f, 0.11f, 0.09f, 1f), WithAlpha(MenuAccent, 0.55f)), Color.white);
         SetRect(ring.rectTransform, new Vector2(0f, -36f), new Vector2(96f, 96f), new Vector2(0.5f, 1f));
         ring.rectTransform.pivot = new Vector2(0.5f, 1f);
-        Image person = CreateImage(ring.transform, "Person", MenuSprites.Person(WithAlpha(GoldBase, 0.85f)), Color.white);
+        Image person = CreateImage(ring.transform, "Person", MenuSprites.Person(WithAlpha(MenuAccent, 0.85f)), Color.white);
         person.preserveAspect = true;
         SetCenteredAt(person.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(48f, 48f));
 
@@ -71,7 +71,7 @@ public static partial class MainMenuRuntime
         title.characterSpacing = 2f;
 
         CreateTmp(panel, "Note", "SHOWN ON EVERY LEADERBOARD", 18,
-            WithAlpha(GoldBase, 0.75f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            WithAlpha(MenuAccent, 0.75f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -206f), new Vector2(contentW, 26f), new Vector2(0.5f, 1f));
 
         // Renaming pre-fills the current name; a fresh claim starts empty (never pre-fill
@@ -101,7 +101,7 @@ public static partial class MainMenuRuntime
         {
             TextMeshProUGUI signIn = CreateTmp(panel, "GuestSignIn",
                 "GUEST ACCOUNT - <u>SIGN IN</u> TO KEEP YOUR PROGRESS", 18,
-                WithAlpha(GoldBase, 0.9f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+                WithAlpha(MenuAccent, 0.9f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(0f, 34f), new Vector2(contentW, 64f), new Vector2(0.5f, 0f));
             signIn.rectTransform.pivot = new Vector2(0.5f, 0f);
             signIn.raycastTarget = true;
@@ -304,10 +304,10 @@ public static partial class MainMenuRuntime
         panelImage.raycastTarget = true;
 
         Image ring = CreateImage(panel, "AvatarRing", MenuSprites.CircleBadge(
-            new Color(0.12f, 0.11f, 0.09f, 1f), WithAlpha(GoldBase, 0.55f)), Color.white);
+            new Color(0.12f, 0.11f, 0.09f, 1f), WithAlpha(MenuAccent, 0.55f)), Color.white);
         SetRect(ring.rectTransform, new Vector2(0f, -40f), new Vector2(104f, 104f), new Vector2(0.5f, 1f));
         ring.rectTransform.pivot = new Vector2(0.5f, 1f);
-        Image person = CreateImage(ring.transform, "Person", MenuSprites.Person(WithAlpha(GoldBase, 0.85f)), Color.white);
+        Image person = CreateImage(ring.transform, "Person", MenuSprites.Person(WithAlpha(MenuAccent, 0.85f)), Color.white);
         person.preserveAspect = true;
         SetCenteredAt(person.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(52f, 52f));
 
@@ -322,7 +322,7 @@ public static partial class MainMenuRuntime
             new Vector2(0f, -226f), new Vector2(contentW, 62f), new Vector2(0.5f, 1f));
 
         TextMeshProUGUI status = CreateTmp(panel, "Status", string.Empty, 18,
-            WithAlpha(GoldBase, 0.9f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            WithAlpha(MenuAccent, 0.9f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -302f), new Vector2(contentW, 26f), new Vector2(0.5f, 1f));
 
         void LinkResult(bool ok, string message)
@@ -364,7 +364,7 @@ public static partial class MainMenuRuntime
         bg.type = Image.Type.Sliced;
         SetRect(bg.rectTransform, anchoredPosition, new Vector2(width, 92f), new Vector2(0f, 1f));
         bg.raycastTarget = true;
-        RuntimeUiKit.AddOutline(bg.transform, GoldOutline(0.35f));
+        RuntimeUiKit.AddOutline(bg.transform, AccentOutline(0.35f));
         CreateTmp(bg.transform, "Label", label, 26, TextPrimary,
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
         Button button = bg.gameObject.AddComponent<Button>();

@@ -19,7 +19,7 @@ public static partial class MainMenuRuntime
         GameObject overlay = RuntimeUiKit.CreateOverlayCanvas("Leaderboard", 5700);
         void Close() => UnityEngine.Object.Destroy(overlay);
 
-        Color accent = chapter != null ? ChapterLight(chapter) : GoldBase;
+        Color accent = chapter != null ? ChapterLight(chapter) : MenuAccent;
 
         // Dimmed backdrop; tap closes (same dismissal contract as the level modal above it).
         Image backdrop = CreateImage(overlay.transform, "Backdrop", null, new Color(0.02f, 0.02f, 0.03f, 0.88f));
@@ -107,7 +107,7 @@ public static partial class MainMenuRuntime
         }
 
         RuntimeUiKit.CreateSegmentedControl(tabs, new[] { "CLEAN", "BOOSTED" },
-            defaultBoosted ? 1 : 0, GoldBase, index =>
+            defaultBoosted ? 1 : 0, MenuAccent, index =>
             {
                 SfxPlayer.Play("ui-button-click");
                 showingBoosted = index == 1;
@@ -134,8 +134,8 @@ public static partial class MainMenuRuntime
         SetRect(bg.rectTransform, new Vector2(0f, -300f), new Vector2(320f, 80f), new Vector2(0.5f, 1f));
         bg.rectTransform.pivot = new Vector2(0.5f, 1f);
         bg.raycastTarget = true;
-        RuntimeUiKit.AddOutline(bg.transform, GoldOutline(0.35f));
-        CreateTmp(bg.transform, "Label", buttonLabel, 26, GoldBase,
+        RuntimeUiKit.AddOutline(bg.transform, AccentOutline(0.35f));
+        CreateTmp(bg.transform, "Label", buttonLabel, 26, MenuAccent,
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
         Button button = bg.gameObject.AddComponent<Button>();
         button.targetGraphic = bg;
@@ -203,10 +203,10 @@ public static partial class MainMenuRuntime
         if (isYou)
         {
             fill.color = new Color(0.15f, 0.13f, 0.10f, 1f);
-            RuntimeUiKit.AddOutline(row, GoldOutline(0.6f));
+            RuntimeUiKit.AddOutline(row, AccentOutline(0.6f));
         }
 
-        Color rankColor = entry.rank <= 3 ? GoldBase : WithAlpha(TextMuted, 0.9f);
+        Color rankColor = entry.rank <= 3 ? MenuAccent : WithAlpha(TextMuted, 0.9f);
         CreateTmp(row, "Rank", $"#{entry.rank}", 26, rankColor, TextAnchor.MiddleLeft,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(26f, 0f), new Vector2(96f, 34f), new Vector2(0f, 0.5f));
 

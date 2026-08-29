@@ -340,7 +340,7 @@ public static partial class MainMenuRuntime
         cardImage.sprite = RuntimeSprites.RoundedPanel();
         cardImage.type = Image.Type.Sliced;
         cardImage.color = cardFill;
-        RuntimeUiKit.AddOutline(card, GoldOutline(0.24f));
+        RuntimeUiKit.AddOutline(card, AccentOutline(0.24f));
 
         // The state-dependent visuals live in one stretched container so the unlock reveal can
         // swap locked -> unlocked content without touching the card root (fill, outline, button).
@@ -426,7 +426,7 @@ public static partial class MainMenuRuntime
         cardImage.sprite = RuntimeSprites.RoundedPanel();
         cardImage.type = Image.Type.Sliced;
         cardImage.color = cardFill;
-        RuntimeUiKit.AddOutline(card, GoldOutline(0.24f));
+        RuntimeUiKit.AddOutline(card, AccentOutline(0.24f));
 
         if (prev.MenuBackgroundImage != null)
         {
@@ -467,7 +467,7 @@ public static partial class MainMenuRuntime
         image.sprite = RuntimeSprites.RoundedPanel();
         image.type = Image.Type.Sliced;
         image.color = CardDark;
-        RuntimeUiKit.AddOutline(panel, GoldOutline(0.18f));
+        RuntimeUiKit.AddOutline(panel, AccentOutline(0.18f));
         CreateTmp(panel, "Locked", "LOCKED", 40, LockedColor, TextAnchor.MiddleCenter,
             FontStyle.Bold, RuntimeUiKit.TitleFont);
     }
@@ -560,7 +560,7 @@ public static partial class MainMenuRuntime
         handleImage.sprite = RuntimeSprites.RoundedPanel();
         handleImage.type = Image.Type.Sliced;
         handleImage.pixelsPerUnitMultiplier = 6f;
-        handleImage.color = WithAlpha(chapter != null ? ChapterLight(chapter) : GoldBase, 0.55f);
+        handleImage.color = WithAlpha(chapter != null ? ChapterLight(chapter) : MenuAccent, 0.55f);
         handleImage.raycastTarget = false;
         scrollbar.handleRect = handle;
         scrollbar.targetGraphic = handleImage;

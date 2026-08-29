@@ -468,7 +468,7 @@ public static partial class MainMenuRuntime
         AutoSize(name, 24f, 40f);
         TextMeshProUGUI status = CreateTmp(identity, "Status",
             guest ? "GUEST ACCOUNT" : "SIGNED IN", 19,
-            guest ? WithAlpha(TextMuted, 0.9f) : WithAlpha(GoldBase, 0.9f),
+            guest ? WithAlpha(TextMuted, 0.9f) : WithAlpha(MenuAccent, 0.9f),
             TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(172f, -84f), new Vector2(520f, 26f), new Vector2(0f, 1f));
         StretchIdentityText(status, -84f, 26f);
@@ -491,7 +491,7 @@ public static partial class MainMenuRuntime
             bool g = !OnlineService.IsLinked;
             name.text = OnlineService.DisplayName;
             status.text = g ? "GUEST ACCOUNT" : "SIGNED IN";
-            status.color = g ? WithAlpha(TextMuted, 0.9f) : WithAlpha(GoldBase, 0.9f);
+            status.color = g ? WithAlpha(TextMuted, 0.9f) : WithAlpha(MenuAccent, 0.9f);
             detail.text = g ? "UNINSTALLING LOSES YOUR PROGRESS" : "YOUR PROGRESS IS SAFE ON EVERY DEVICE";
             if (nameButtonLabel != null)
                 nameButtonLabel.text = HasClaimedName ? "CHANGE NAME" : "CLAIM YOUR NAME";
@@ -514,7 +514,7 @@ public static partial class MainMenuRuntime
             else
             {
                 bg = CreateImage(buttons, goName, RuntimeSprites.RoundedPanel(), new Color(0.13f, 0.12f, 0.10f, 1f));
-                RuntimeUiKit.AddOutline(bg.transform, GoldOutline(0.35f));
+                RuntimeUiKit.AddOutline(bg.transform, AccentOutline(0.35f));
             }
             bg.type = Image.Type.Sliced;
             RectTransform rt = bg.rectTransform;
@@ -801,7 +801,7 @@ public static partial class MainMenuRuntime
 
         // CANCEL: the big, bright, easy choice.
         Image cancelBg = CreateImage(panel.transform, "Cancel", MenuSprites.RoundedGradient(
-            Color.Lerp(GoldBase, Color.white, 0.12f), Color.Lerp(GoldBase, Color.black, 0.22f)), Color.white);
+            Color.Lerp(MenuAccent, Color.white, 0.12f), Color.Lerp(MenuAccent, Color.black, 0.22f)), Color.white);
         cancelBg.type = Image.Type.Sliced;
         SetRect(cancelBg.rectTransform, new Vector2(0f, 130f), new Vector2(640f, 96f), new Vector2(0.5f, 0f));
         cancelBg.raycastTarget = true;

@@ -75,12 +75,12 @@ public static partial class MainMenuRuntime
         }
 
         CreateTmp(parent, "ChaptersProgress", $"{cleared} / {_chapters.Length} CLEARED", 24,
-            GoldBase, TextAnchor.MiddleRight, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            MenuAccent, TextAnchor.MiddleRight, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(-ChapterCardSideInset, -206f), new Vector2(420f, 34f), new Vector2(1f, 1f));
 
         BuildCapsuleBar(parent, "ChaptersProgressTrack",
             new Vector2(-ChapterCardSideInset, -246f), new Vector2(300f, 8f), new Vector2(1f, 1f),
-            _chapters.Length > 0 ? (float)cleared / _chapters.Length : 0f, GoldBase);
+            _chapters.Length > 0 ? (float)cleared / _chapters.Length : 0f, MenuAccent);
     }
 
     // Thin capsule progress bar (the Vault header's track + fractional fill, shared here so the

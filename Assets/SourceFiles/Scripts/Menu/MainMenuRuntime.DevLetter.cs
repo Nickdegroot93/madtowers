@@ -162,10 +162,10 @@ public static partial class MainMenuRuntime
 
         // The sign-in sheet's person badge: the letter IS a person, lead with that.
         Image ring = CreateImage(panel, "AvatarRing", MenuSprites.CircleBadge(
-            new Color(0.12f, 0.11f, 0.09f, 1f), WithAlpha(GoldBase, 0.55f)), Color.white);
+            new Color(0.12f, 0.11f, 0.09f, 1f), WithAlpha(MenuAccent, 0.55f)), Color.white);
         SetRect(ring.rectTransform, new Vector2(0f, -40f), new Vector2(104f, 104f), new Vector2(0.5f, 1f));
         ring.rectTransform.pivot = new Vector2(0.5f, 1f);
-        Image person = CreateImage(ring.transform, "Person", MenuSprites.Person(WithAlpha(GoldBase, 0.85f)), Color.white);
+        Image person = CreateImage(ring.transform, "Person", MenuSprites.Person(WithAlpha(MenuAccent, 0.85f)), Color.white);
         person.preserveAspect = true;
         SetCenteredAt(person.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(52f, 52f));
 
@@ -204,7 +204,7 @@ public static partial class MainMenuRuntime
 
         // One exit, styled like a primary - the letter asks for nothing.
         Image keepBg = CreateImage(panel, "KeepPlaying", MenuSprites.RoundedGradient(
-            Color.Lerp(GoldBase, Color.white, 0.12f), Color.Lerp(GoldBase, Color.black, 0.22f)), Color.white);
+            Color.Lerp(MenuAccent, Color.white, 0.12f), Color.Lerp(MenuAccent, Color.black, 0.22f)), Color.white);
         keepBg.type = Image.Type.Sliced;
         SetRect(keepBg.rectTransform, new Vector2(pad, 44f), new Vector2(contentW, 96f), new Vector2(0f, 0f));
         keepBg.raycastTarget = true;

@@ -45,7 +45,9 @@ public static partial class MainMenuRuntime
     private static readonly Color TextMuted = new Color(0.74f, 0.7f, 0.64f, 1f);
     private static readonly Color LockedColor = new Color(0.44f, 0.46f, 0.48f, 1f);
     private static readonly Color CardDark = new Color(0.07f, 0.06f, 0.05f, 0.76f);
-    private static readonly Color GoldBase = new Color(1f, 0.9f, 0.68f, 1f);
+    // (GoldBase, the menu's old gold chrome constant, was retired 2026-08-30 - Nick: no gold
+    // chrome anywhere, chapter accent everywhere. Gold survives only as currency ART.)
+    private static readonly Color NeutralAccentFallback = new Color(0.9f, 0.9f, 0.9f, 1f);
     // The one hairline colour for glass chrome, CHAPTER-TINTED (Nick 2026-08-30: the old warm
     // cream constant read as a yellow cast on every card). A property, never a field
     // initialised from another partial's statics (the transparent-color trap) - and it must
@@ -95,9 +97,11 @@ public static partial class MainMenuRuntime
     private static MenuTab _activeTab = MenuTab.Home;
     private static RenderTexture _videoTexture;
 
-    private static Color GoldOutline(float alpha)
+    /// <summary>Chapter-accent outline at the given alpha - the replacement for the retired
+    /// gold outline (Nick 2026-08-30: chapter colours everywhere, no gold chrome).</summary>
+    private static Color AccentOutline(float alpha)
     {
-        Color color = GoldBase;
+        Color color = MenuAccent;
         color.a = alpha;
         return color;
     }
@@ -110,7 +114,7 @@ public static partial class MainMenuRuntime
 
     private static Color ChapterLight(ChapterDefinition chapter)
     {
-        return chapter != null ? Color.Lerp(chapter.MenuAccentColor, TextPrimary, 0.46f) : GoldBase;
+        return chapter != null ? Color.Lerp(chapter.MenuAccentColor, TextPrimary, 0.46f) : NeutralAccentFallback;
     }
 
     // Brighter, near-cream edge used for crisp thin borders (number diamond, action circle).
@@ -118,7 +122,7 @@ public static partial class MainMenuRuntime
 
     private static Color ChapterDark(ChapterDefinition chapter)
     {
-        if (chapter == null) return GoldBase;
+        if (chapter == null) return NeutralAccentFallback;
         return Color.Lerp(chapter.MenuAccentSecondaryColor, chapter.MenuAccentColor, 0.22f);
     }
 

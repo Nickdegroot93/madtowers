@@ -103,7 +103,7 @@ public static partial class MainMenuRuntime
         offerRect.pivot = new Vector2(0.5f, 1f);
         offerRect.offsetMin = new Vector2(24f, -84f - 356f);
         offerRect.offsetMax = new Vector2(-24f, -84f);
-        RuntimeUiKit.AddOutline(offerRect, WithAlpha(GoldBase, 0.55f));
+        RuntimeUiKit.AddOutline(offerRect, WithAlpha(MenuAccent, 0.55f));
 
         // Hero band: warm glow with full hearts spilling toward an infinity - the goods,
         // not an ornament. Mirrors the Profile hero's composition language.
@@ -117,7 +117,7 @@ public static partial class MainMenuRuntime
         glowRect.offsetMax = new Vector2(-6f, -6f);
         glow.raycastTarget = false;
 
-        TextMeshProUGUI infinity = CreateTmp(glow.transform, "Infinity", "∞", 64, GoldBase,
+        TextMeshProUGUI infinity = CreateTmp(glow.transform, "Infinity", "∞", 64, MenuAccent,
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, 2f), new Vector2(120f, 90f), new Vector2(0.5f, 0.5f));
         infinity.enableAutoSizing = false;
@@ -136,7 +136,7 @@ public static partial class MainMenuRuntime
         }
 
         TextMeshProUGUI offerTitle = CreateTmp(offer.transform, "Title", "HAZARD HEIGHTS UNLIMITED",
-            26, GoldBase, TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            26, MenuAccent, TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -104f), new Vector2(RefillPanelW - 100f, 34f), new Vector2(0.5f, 1f));
         offerTitle.characterSpacing = 2f;
         CreateTmp(offer.transform, "Pitch", "UNLIMITED LIVES - NEVER WAIT TO PLAY AGAIN", 15,

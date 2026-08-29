@@ -13,7 +13,7 @@ public static partial class MainMenuRuntime
     private static void BuildTopStatusBar(Transform parent, ChapterDefinition chapter)
     {
         PlayerProfileStore.Snapshot profile = PlayerProfileStore.Current;
-        Color chapterTint = chapter != null ? chapter.MenuAccentSecondaryColor : GoldBase;
+        Color chapterTint = chapter != null ? chapter.MenuAccentSecondaryColor : MenuAccent;
         Sprite statBackground = chapter != null ? chapter.MenuBackgroundImage : null;
 
         RectTransform bar = CreateRect(parent, "TopStatusBar",

@@ -15,7 +15,7 @@ public static partial class MainMenuRuntime
         image.sprite = RuntimeSprites.RoundedPanel();
         image.type = Image.Type.Sliced;
         image.color = CardDark;
-        RuntimeUiKit.AddOutline(panel, GoldOutline(0.18f));
+        RuntimeUiKit.AddOutline(panel, AccentOutline(0.18f));
 
         CreateTmp(panel, "Title", tab.ToString().ToUpperInvariant(), 58, TextPrimary,
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
@@ -55,7 +55,7 @@ public static partial class MainMenuRuntime
         _navHexImage = null; _navHouseImage = null; _navHomeLabel = null;
 
         ChapterDefinition chapter = _chapters.Length > 0 ? _chapters[_chapterIndex] : null;
-        Color gold = chapter != null ? ChapterLight(chapter) : GoldBase;
+        Color gold = chapter != null ? ChapterLight(chapter) : MenuAccent;
         _navOutline = RuntimeUiKit.AddOutline(nav, WithAlpha(gold, 0.55f));
 
         MenuTab[] tabs = { MenuTab.Profile, MenuTab.Chapters, MenuTab.Home, MenuTab.Vault, MenuTab.Settings };
@@ -188,7 +188,7 @@ public static partial class MainMenuRuntime
 
     private static Color HomeGlyphColor(ChapterDefinition chapter, bool active)
     {
-        Color gold = chapter != null ? ChapterLight(chapter) : GoldBase;
+        Color gold = chapter != null ? ChapterLight(chapter) : MenuAccent;
         return active ? Color.Lerp(gold, Color.white, 0.3f) : Color.Lerp(TextMuted, gold, 0.35f);
     }
 

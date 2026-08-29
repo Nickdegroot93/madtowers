@@ -29,7 +29,7 @@ public static partial class MainMenuRuntime
         scrollRect.offsetMax = new Vector2(-60f, -240f);
         scroll.GetComponent<Image>().color = Color.clear; // the chapter backdrop IS the background
 
-        Color accent = chapter != null ? ChapterLight(chapter) : GoldBase;
+        Color accent = chapter != null ? ChapterLight(chapter) : MenuAccent;
 
         BuildProfileIdentityCard(content, accent);
         BuildProfileUnlimitedCard(content);
@@ -58,7 +58,7 @@ public static partial class MainMenuRuntime
             new Vector2(188f, -44f), new Vector2(540f, 50f), new Vector2(0f, 1f));
         TextMeshProUGUI status = CreateTmp(card, "Status",
             guest ? "GUEST ACCOUNT" : "SIGNED IN", 19,
-            guest ? WithAlpha(TextMuted, 0.9f) : WithAlpha(GoldBase, 0.9f),
+            guest ? WithAlpha(TextMuted, 0.9f) : WithAlpha(MenuAccent, 0.9f),
             TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(188f, -104f), new Vector2(540f, 26f), new Vector2(0f, 1f));
         TextMeshProUGUI detail = CreateTmp(card, "Detail",
@@ -81,7 +81,7 @@ public static partial class MainMenuRuntime
             bool g = !OnlineService.IsLinked;
             name.text = OnlineService.DisplayName;
             status.text = g ? "GUEST ACCOUNT" : "SIGNED IN";
-            status.color = g ? WithAlpha(TextMuted, 0.9f) : WithAlpha(GoldBase, 0.9f);
+            status.color = g ? WithAlpha(TextMuted, 0.9f) : WithAlpha(MenuAccent, 0.9f);
             detail.text = g ? "UNINSTALLING LOSES YOUR PROGRESS" : "YOUR PROGRESS IS SAFE ON EVERY DEVICE";
             if (nameButtonLabel != null)
                 nameButtonLabel.text = HasClaimedName ? "CHANGE NAME" : "CLAIM YOUR NAME";
@@ -107,7 +107,7 @@ public static partial class MainMenuRuntime
             else
             {
                 bg = CreateImage(card, goName, RuntimeSprites.RoundedPanel(), new Color(0.13f, 0.12f, 0.10f, 1f));
-                RuntimeUiKit.AddOutline(bg.transform, GoldOutline(0.35f));
+                RuntimeUiKit.AddOutline(bg.transform, AccentOutline(0.35f));
             }
             bg.type = Image.Type.Sliced;
             RectTransform rt = bg.rectTransform;
@@ -151,12 +151,14 @@ public static partial class MainMenuRuntime
         const float heroH = 170f;
         RectTransform card = CreateProfileCard(content, 580f); // 4 benefit lines at the bigger 20pt size
         // The pitch card carries the gold edge - the single accent on this page.
-        RuntimeUiKit.AddOutline(card, WithAlpha(GoldBase, 0.55f));
+        RuntimeUiKit.AddOutline(card, WithAlpha(MenuAccent, 0.55f));
 
-        // Hero band: a warm glow field with the goods spilling out of it - the big coin
-        // flanked by full hearts. PLACEHOLDER composition; swap for painted key art later.
+        // Hero band: a quiet accent-tinted field with the goods spilling out of it - the big
+        // coin flanked by full hearts (the warm-brown glow field was retired 2026-08-30 with
+        // the rest of the gold chrome). PLACEHOLDER composition; swap for painted key art later.
         Image hero = CreateImage(card, "Hero", MenuSprites.VerticalFade(
-            new Color(0.24f, 0.16f, 0.05f, 1f), new Color(0.07f, 0.06f, 0.05f, 1f)), Color.white);
+            Color.Lerp(new Color(0.10f, 0.10f, 0.12f, 1f), MenuAccent, 0.14f),
+            new Color(0.055f, 0.055f, 0.065f, 1f)), Color.white);
         SetRect(hero.rectTransform, new Vector2(0f, 0f), new Vector2(0f, heroH), new Vector2(0.5f, 1f));
         hero.rectTransform.anchorMin = new Vector2(0f, 1f);
         hero.rectTransform.anchorMax = new Vector2(1f, 1f);
@@ -183,7 +185,7 @@ public static partial class MainMenuRuntime
             }
         }
 
-        TextMeshProUGUI title = CreateTmp(card, "Title", "HAZARD HEIGHTS UNLIMITED", 34, GoldBase,
+        TextMeshProUGUI title = CreateTmp(card, "Title", "HAZARD HEIGHTS UNLIMITED", 34, MenuAccent,
             TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -heroH - 26f), new Vector2(720f, 42f), new Vector2(0.5f, 1f));
         title.characterSpacing = 2f;
@@ -202,7 +204,7 @@ public static partial class MainMenuRuntime
         for (int i = 0; i < benefits.Length; i++)
         {
             float y = -heroH - 116f - i * 42f;
-            Image check = CreateImage(card, $"Check{i}", MenuSprites.CheckMark(GoldBase), Color.white);
+            Image check = CreateImage(card, $"Check{i}", MenuSprites.CheckMark(MenuAccent), Color.white);
             check.preserveAspect = true;
             SetRect(check.rectTransform, new Vector2(150f, y - 4f), new Vector2(28f, 28f), new Vector2(0f, 1f));
             CreateTmp(card, $"Benefit{i}", benefits[i], 20, WithAlpha(TextPrimary, 0.92f),
@@ -242,16 +244,16 @@ public static partial class MainMenuRuntime
     {
         if (PremiumStore.IsPremium)
         {
-            // Owned: a quiet gold-edged banner in the button's slot - state, not a button.
+            // Owned: a quiet accent-edged banner in the button's slot - state, not a button.
             Image owned = CreateImage(slot, "Owned", RuntimeSprites.RoundedPanel(),
-                new Color(0.13f, 0.11f, 0.06f, 1f));
+                new Color(0.12f, 0.12f, 0.14f, 1f));
             owned.type = Image.Type.Sliced;
             Stretch(owned.rectTransform);
-            RuntimeUiKit.AddOutline(owned.rectTransform, WithAlpha(GoldBase, 0.75f));
-            Image check = CreateImage(owned.transform, "Check", MenuSprites.CheckMark(GoldBase), Color.white);
+            RuntimeUiKit.AddOutline(owned.rectTransform, WithAlpha(MenuAccent, 0.75f));
+            Image check = CreateImage(owned.transform, "Check", MenuSprites.CheckMark(MenuAccent), Color.white);
             check.preserveAspect = true;
             SetCenteredAt(check.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(-170f, 0f), new Vector2(34f, 34f));
-            CreateTmp(owned.transform, "Label", "UNLIMITED - ACTIVE", 26, GoldBase,
+            CreateTmp(owned.transform, "Label", "UNLIMITED - ACTIVE", 26, MenuAccent,
                 TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(24f, 0f), new Vector2(440f, 34f), new Vector2(0.5f, 0.5f));
             return;
@@ -335,7 +337,7 @@ public static partial class MainMenuRuntime
         fill.sprite = RuntimeSprites.RoundedPanel();
         fill.type = Image.Type.Sliced;
         fill.color = CardDark;
-        RuntimeUiKit.AddOutline(card, GoldOutline(0.18f));
+        RuntimeUiKit.AddOutline(card, AccentOutline(0.18f));
         LayoutElement layout = card.gameObject.AddComponent<LayoutElement>();
         layout.preferredHeight = height;
         return card;
