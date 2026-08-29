@@ -172,7 +172,7 @@ public sealed class RunResultsScreen : MonoBehaviour
         if (_content.Boosted)
         {
             TextMeshProUGUI boosted = CreateRow(panel.transform, "BOOSTED RUN", 22,
-                WithAlpha(Gold, 0.85f), 30f, display: false);
+                WithAlpha(GameMenuStyle.Accent, 0.85f), 30f, display: false);
             boosted.characterSpacing = 10f;
             AddReveal(boosted.gameObject, KickerAt);
         }

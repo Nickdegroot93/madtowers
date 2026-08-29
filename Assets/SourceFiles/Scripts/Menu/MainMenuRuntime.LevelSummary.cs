@@ -52,12 +52,13 @@ public static partial class MainMenuRuntime
         // Supplies exist for campaign levels only (runtime levels have no save identity) and
         // stay invisible until Chapter 1 is done - the soft-landing rule.
         bool suppliesOn = AttemptsService.MetaEnabled && ProgressStore.LevelId(level) != null;
-        // 768/904 not 840/976: the description is one line, so the supplies section moves up
-        // into the slack instead of floating below dead space (Nick's whitespace note).
+        // 768 not 840: the description is one line, so the supplies section moves up into the
+        // slack instead of floating below dead space (Nick's whitespace note).
         // ModalHeightWithSupplies is shared with the boost picker, which must match exactly.
-        // Tiered levels are ~136 taller: the full-width medal TARGETS card + the moved BEST card.
+        // ONE height for tiered and untiered: the progress track (2026-08-29 redesign) fits
+        // the exact vertical the classic TARGET/BEST pair uses.
         bool tiered = LevelTiers.HasTiers(level);
-        float H = suppliesOn ? ModalHeightWithSupplies(level) : (tiered ? 976f : 840f);
+        float H = suppliesOn ? ModalHeightWithSupplies(level) : 840f;
         Color panelColor = GameMenuStyle.PanelColor; // kept local: the thumbnail fade blends into it
         RectTransform panel = CreateRect(overlay.transform, "Panel",
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
@@ -92,19 +93,19 @@ public static partial class MainMenuRuntime
         CreateTmp(panel, "Title", level.DisplayName.ToUpperInvariant(), 50, TextPrimary, TextAnchor.UpperLeft,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(pad, -290f), new Vector2(contentW, 64f), new Vector2(0f, 1f));
 
-        // Stat area. Tiered (goal-bearing) levels: a full-width medal TARGETS card - three
-        // thresholds with earned state - and YOUR BEST on its own row below. Endless keeps
-        // the classic TARGET / YOUR BEST pair.
+        // Stat area. Tiered (goal-bearing) levels: the PROGRESS TRACK (redesign, Nick
+        // 2026-08-29) - one line with the tier cubes sitting at their thresholds and the fill
+        // running to the player's best, because "your best" IS a position on the targets
+        // scale, not a separate stat. Endless keeps the classic TARGET / YOUR BEST pair.
         DeriveTargetAndBest(level, presentation, completed, out string targetText, out string bestText);
         float cardW = (contentW - 18f) / 2f;
-        float bestCardX;   // where the boosted caption hangs (under YOUR BEST)
+        float bestCardX;   // where the boosted caption hangs
         float belowStatsY; // baseline of the row under the stat area
         if (tiered)
         {
-            BuildSummaryMedalTargets(panel, level, pad, contentW, -394f, lightChapter);
-            BuildSummaryStat(panel, "Best", new Vector2(pad, -530f), cardW, "YOUR BEST", bestText, lightChapter, darkChapter);
+            BuildSummaryProgressTrack(panel, level, pad, contentW, -394f, lightChapter, darkChapter, bestText);
             bestCardX = pad;
-            belowStatsY = -638f;
+            belowStatsY = -502f;
         }
         else
         {
@@ -127,7 +128,7 @@ public static partial class MainMenuRuntime
                     ?? bestRecord.bestScoreBoosted.ToString())
                 : $"{bestRecord.bestHeightMetersBoosted:F1}m";
             CreateTmp(panel, "BoostedBest",
-                $"BOOSTED BEST  {boostedValue}", 15, WithAlpha(GoldBase, 0.75f),
+                $"BOOSTED BEST  {boostedValue}", 15, WithAlpha(lightChapter, 0.75f),
                 TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(bestCardX, belowStatsY), new Vector2(cardW, 20f), new Vector2(0f, 1f));
         }
@@ -145,7 +146,7 @@ public static partial class MainMenuRuntime
         SuppliesUi suppliesUi = null;
         if (suppliesOn)
         {
-            suppliesUi = BuildSuppliesSection(panel, level, pad, contentW, belowStatsY - 98f);
+            suppliesUi = BuildSuppliesSection(panel, level, lightChapter, pad, contentW, belowStatsY - 98f);
         }
 
         // Play (gradient gold) + Ranks (dark) buttons, pinned to the bottom.
@@ -241,7 +242,7 @@ public static partial class MainMenuRuntime
 
         float ranksX = pad + playW + 18f;
         float ranksW = contentW - playW - 18f;
-        Image ranksBg = CreateImage(panel, "Ranks", RuntimeSprites.RoundedPanel(), new Color(0.13f, 0.12f, 0.10f, 1f));
+        Image ranksBg = CreateImage(panel, "Ranks", RuntimeSprites.RoundedPanel(), new Color(0.13f, 0.13f, 0.15f, 1f));
         ranksBg.type = Image.Type.Sliced;
         SetRect(ranksBg.rectTransform, new Vector2(ranksX, 44f), new Vector2(ranksW, 112f), new Vector2(0f, 0f));
         ranksBg.raycastTarget = true;
@@ -277,50 +278,97 @@ public static partial class MainMenuRuntime
         }
     }
 
-    // The medal ladder card: full-width, label on top, then three tier columns (medal mark +
-    // that tier's goal). Earned tiers show in full tier colour, unearned in the locked slate -
-    // the row always shows what is still on the table. Replaces the single TARGET card on
-    // goal-bearing levels; Endless keeps the classic pair (no ladder to show).
-    private static void BuildSummaryMedalTargets(RectTransform panel, LevelDefinition level,
-        float pad, float contentW, float y, Color labelColor)
+    // YOUR PROGRESS: one track instead of the TARGETS card + YOUR BEST card (redesign, Nick
+    // 2026-08-29). The tier cubes sit ON the line at their thresholds - positions DERIVE from
+    // threshold/gold, never hardcoded x's, so any level's numbers lay out themselves - earned
+    // cubes in full art, unearned ghosted (the IconTint language); the fill runs to the
+    // player's best in target units. No card chrome: the track floats on the panel.
+    private static void BuildSummaryProgressTrack(RectTransform panel, LevelDefinition level,
+        float pad, float contentW, float y, Color labelColor, Color bestColor, string bestText)
     {
-        RectTransform card = CreateRect(panel, "StatTargets",
-            new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(pad, y), new Vector2(contentW, 120f));
-        Image fill = card.gameObject.AddComponent<Image>();
-        fill.sprite = RuntimeSprites.RoundedPanel();
-        fill.type = Image.Type.Sliced;
-        fill.color = new Color(0.11f, 0.10f, 0.085f, 1f);
-        RuntimeUiKit.AddOutline(card, GlassBorder);
-
-        // Timed goals carry the clock in the label so the three numbers stay bare.
+        // Label row: YOUR PROGRESS left (timed goals carry the clock), BEST right.
         string label = level.WinCondition.HasTimeLimit
-            ? $"TARGETS IN {TimedWinCondition.FormatDuration(level.TimeLimitSeconds)}"
-            : "TARGETS";
-        TextMeshProUGUI labelText = CreateTmp(card, "Label", label, 16, labelColor, TextAnchor.UpperLeft,
-            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(22f, -18f), new Vector2(contentW - 36f, 24f), new Vector2(0f, 1f));
+            ? $"YOUR PROGRESS - TARGETS IN {TimedWinCondition.FormatDuration(level.TimeLimitSeconds)}"
+            : "YOUR PROGRESS";
+        TextMeshProUGUI labelText = CreateTmp(panel, "ProgressLabel", label, 16, labelColor,
+            TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(pad, y), new Vector2(contentW - 220f, 24f), new Vector2(0f, 1f));
         labelText.characterSpacing = 3f;
+        CreateTmp(panel, "ProgressBest", $"BEST  {bestText.ToUpperInvariant()}", 16, bestColor,
+            TextAnchor.UpperRight, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(pad, y), new Vector2(contentW, 24f), new Vector2(0f, 1f));
+
+        // The line. Inset so the endpoint cubes (gold sits at 100%) stay inside the content.
+        // Chapter-colored fill on a quiet neutral track (a bronze->gold gradient scale was
+        // tried 2026-08-29 and rejected same day - "weird colors"; the chapter accent is the
+        // modal's one accent).
+        float gold = LevelTiers.Threshold(level, LevelTiers.MaxTier);
+        float trackX = pad + 6f;
+        float trackW = contentW - 52f;
+        const float trackH = 14f;
+        float barTop = y - 46f;
+        float barMid = barTop - trackH * 0.5f;
+        Image track = CreateImage(panel, "Track", RuntimeSprites.RoundedPanel(), new Color(1f, 1f, 1f, 0.10f));
+        track.type = Image.Type.Sliced;
+        SetRect(track.rectTransform, new Vector2(trackX, barTop), new Vector2(trackW, trackH), new Vector2(0f, 1f));
+        track.raycastTarget = false;
+
+        // Fill to the level's best IN TARGET UNITS (the same metric the tier numbers use).
+        float bestValue = SummaryBestInTargetUnits(level);
+        float fillPct = gold > 0f ? Mathf.Clamp01(bestValue / gold) : 0f;
+        if (fillPct > 0.01f)
+        {
+            Image fill = CreateImage(panel, "TrackFill", RuntimeSprites.RoundedPanel(),
+                WithAlpha(bestColor, 0.95f));
+            fill.type = Image.Type.Sliced;
+            SetRect(fill.rectTransform, new Vector2(trackX, barTop), new Vector2(trackW * fillPct, trackH), new Vector2(0f, 1f));
+            fill.raycastTarget = false;
+        }
 
         bool meters = level.TargetType == LevelTargetType.ReachHeight ||
             level.TargetType == LevelTargetType.TimedReachHeight;
-        float colW = (contentW - 44f) / LevelTiers.TierCount;
         for (int i = 0; i < LevelTiers.TierCount; i++)
         {
             MedalTier tier = (MedalTier)i;
             bool earned = LevelTiers.IsEarned(level, tier);
-            float x = 22f + i * colW;
+            float threshold = LevelTiers.Threshold(level, tier);
+            float cx = trackX + (gold > 0f ? threshold / gold : 1f) * trackW;
 
-            Image medal = CreateImage(card, $"Medal{tier}", MedalStyle.Sprite(tier, earned),
+            Image cube = CreateImage(panel, $"Stop{tier}", MedalStyle.Sprite(tier, earned),
                 MedalStyle.IconTint(earned));
-            medal.preserveAspect = true;
-            SetRect(medal.rectTransform, new Vector2(x, -52f), new Vector2(44f, 44f), new Vector2(0f, 1f));
+            cube.preserveAspect = true;
+            SetCenteredAt(cube.rectTransform, new Vector2(0f, 1f), new Vector2(cx, barMid), new Vector2(42f, 42f));
 
-            int goal = Mathf.RoundToInt(LevelTiers.Threshold(level, tier));
-            CreateTmp(card, $"Goal{tier}", meters ? $"{goal}m" : goal.ToString(), 30,
-                earned ? TextPrimary : WithAlpha(LockedColor, 0.9f),
-                TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-                new Vector2(x + 54f, -52f), new Vector2(colW - 58f, 44f), new Vector2(0f, 1f));
+            int goal = Mathf.RoundToInt(threshold);
+            CreateTmp(panel, $"StopGoal{tier}", meters ? $"{goal}m" : goal.ToString(), 20,
+                earned ? MedalStyle.TierColor(tier) : WithAlpha(LockedColor, 0.9f),
+                TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+                new Vector2(cx - 55f, barMid - 42f), new Vector2(110f, 26f), new Vector2(0f, 1f));
         }
+    }
+
+    // The best in the goal's own unit for the track fill: the stored menu best (blocks /
+    // meters / decoded waves), floored by the verified value AND by the highest EARNED tier's
+    // threshold. The tier floor matters on legacy saves (completed pre-medals: verified 0)
+    // and boosted-only wave levels (clean bestScore 0) - without it the bar showed an earned
+    // bronze cube on a completely empty line (Nick's puzzle-waves repro, 2026-08-29).
+    private static float SummaryBestInTargetUnits(LevelDefinition level)
+    {
+        ProgressStore.LevelBest best = ProgressStore.GetBest(level);
+        float raw = 0f;
+        if (best != null)
+        {
+            raw = level.TargetType switch
+            {
+                LevelTargetType.ReachHeight or LevelTargetType.TimedReachHeight => best.bestHeightMeters,
+                LevelTargetType.ClearWaves => HeightLimitWavesModifier.DecodeWaves(best.bestScore),
+                _ => best.bestScore,
+            };
+        }
+        raw = Mathf.Max(raw, ProgressStore.BestVerifiedValue(level));
+        MedalTier? earned = LevelTiers.HighestEarned(level);
+        if (earned.HasValue) raw = Mathf.Max(raw, LevelTiers.Threshold(level, earned.Value));
+        return raw;
     }
 
     // A small stat card (TARGET / YOUR BEST): label on top in the light chapter colour, value
@@ -334,7 +382,7 @@ public static partial class MainMenuRuntime
         Image fill = card.gameObject.AddComponent<Image>();
         fill.sprite = RuntimeSprites.RoundedPanel();
         fill.type = Image.Type.Sliced;
-        fill.color = new Color(0.11f, 0.10f, 0.085f, 1f);
+        fill.color = new Color(0.10f, 0.10f, 0.115f, 1f);
         RuntimeUiKit.AddOutline(card, GlassBorder);
 
         TextMeshProUGUI labelText = CreateTmp(card, "Label", label, 16, labelColor, TextAnchor.UpperLeft,

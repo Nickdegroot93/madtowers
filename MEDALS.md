@@ -77,10 +77,10 @@ them. The full list:
    wave step) and, if formula-driven, a `LevelDefinition` override field.
 3. `MedalStyle`: color + display name (the switches are exhaustive on purpose — a
    missing entry logs an error and renders gold).
-4. Re-check the two FIXED-HEIGHT medal layouts: the level-summary TARGETS card
-   (`MainMenuRuntime.LevelSummary`, modal heights 976/904 = 3-tier delta 136) and the
-   results-card medal row (`RunResultsScreen.BuildMedalRow`, 110px cells) — four columns
-   need a width/height pass.
+4. Re-check the fixed-size medal layouts: the results-card medal row
+   (`RunResultsScreen.BuildMedalRow`, 110px cells) needs a width pass for four columns.
+   The level-summary progress track (2026-08-29 redesign) needs nothing — stops derive
+   their positions from threshold/top-rung, so a fourth cube lays itself out.
 
 Everything else (controller ladder, HUD roll-over, events, persistence, adjudication) is
 tier-count agnostic.

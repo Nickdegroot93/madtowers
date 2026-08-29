@@ -65,12 +65,13 @@ public static partial class MainMenuRuntime
     {
         public LevelDefinition Level;
         public SupplySelection Selection;
+        public Color Accent;       // chapter accent - ALL supplies chrome; gold stays currency-only (Nick 2026-08-29)
         public RectTransform Panel;         // the modal panel (section parent)
         public GameObject SectionRoot;      // destroyed + rebuilt on every change
         public GameObject TrayOverlay;      // non-null while the boost tray is open
         public Image PlayBg;
         public TextMeshProUGUI PlayLabel;
-        public GameObject PlayOutline;      // gold edge, boosted only
+        public GameObject PlayOutline;      // accent edge, boosted only
         public Button PlayButton;
         public bool StartPending;           // a start_run grant is in flight - freeze the button
         public float SectionTop;            // y of the section inside the panel
@@ -108,21 +109,22 @@ public static partial class MainMenuRuntime
     /// <summary>The level modal's full height once supplies are on - shared with the boost
     /// picker, which must be EXACTLY this tall: a shorter overlay panel lets the modal underneath
     /// peek out above and below it, which reads as broken borders (Nick, 2026-07-29).
-    /// Tiered levels are 136 taller: the medal TARGETS card + the moved YOUR BEST row
-    /// (LevelSummary's stat area) - the same delta the no-supplies height carries.</summary>
+    /// One height for tiered and untiered levels: the progress track (2026-08-29 redesign)
+    /// occupies the same vertical as the classic TARGET/BEST pair.</summary>
     private static float ModalHeightWithSupplies(LevelDefinition level)
-        => (LevelTiers.HasTiers(level) ? 904f : 768f) + SuppliesSectionHeight(level);
+        => 768f + SuppliesSectionHeight(level);
 
     private static string CoinText(int amount) => amount.ToString("N0", CultureInfo.InvariantCulture);
 
     // ---- the section -------------------------------------------------------------------------
 
     private static SuppliesUi BuildSuppliesSection(RectTransform panel, LevelDefinition level,
-        float pad, float contentW, float sectionTop)
+        Color accent, float pad, float contentW, float sectionTop)
     {
         var ui = new SuppliesUi
         {
             Level = level,
+            Accent = accent,
             Selection = new SupplySelection { FreeLives = FreeLives(level) },
             Panel = panel,
             SectionTop = sectionTop,
@@ -252,36 +254,16 @@ public static partial class MainMenuRuntime
         RectTransform row = CreateSupplyCard(section, "LivesRow", y, ui.ContentW);
         int free = ui.Selection.FreeLives;   // pre-filled pips (authored/type-granted, SHOP.md §3.1)
 
-        // Text-only left edge, same x as the BOOSTS row below - the pips ARE the heart imagery,
-        // a leading icon on the label read as a duplicate (Nick, 2026-07-22).
-        CreateTmp(row, "Label", "RUN LIVES", 21, TextPrimary, TextAnchor.UpperLeft,
-            FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(24f, -20f), new Vector2(210f, 28f), new Vector2(0f, 1f));
-        CreateTmp(row, "Blurb", free > 0 ? $"{free} FREE - MAX 3" : "MAX 3", 14,
-            WithAlpha(TextMuted, 0.8f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(24f, -52f), new Vector2(210f, 20f), new Vector2(0f, 1f));
-
-        // Heart pips: free lives + the current pick, big and readable (display - the buttons
-        // do the work). Full/empty are the two-state heart art; while the dedicated empty
-        // socket asset is pending (HeartSprites), an unfilled pip is the full art dimmed.
-        // Fixed x so they don't jump when the [-] button appears; the rightmost pip stops
-        // short of the [-] slot (left edge at ContentW - 340).
-        for (int i = 0; i < RunState.MaxLives; i++)
-        {
-            bool filled = free + ui.Selection.Lives > i;
-            Sprite pipSprite = filled ? HeartSprites.Full() : HeartSprites.Empty();
-            Color pipColor = filled || HeartSprites.HasDedicatedEmpty
-                ? Color.white : new Color(1f, 1f, 1f, 0.16f);
-            Image pip = CreateImage(row, $"Pip{i}", pipSprite, pipColor);
-            pip.preserveAspect = true;
-            SetRect(pip.rectTransform, new Vector2(280f + i * 56f, 0f), new Vector2(48f, 48f), new Vector2(0f, 0.5f));
-        }
+        // Title top-left, heart pips UNDER it on the left (redesign, Nick 2026-08-29 - the old
+        // centered pips read as floating; the MAX-3 blurb was cut as overkill).
+        BuildLivesTitle(row);
+        BuildLivesPips(row, free + ui.Selection.Lives);
 
         // The stepper: [-] appears once something is picked; [+] carries the NEXT pip's price.
         if (ui.Selection.Lives > 0)
         {
             Button minus = CreateSupplyButton(row, "Minus", "-", 84f,
-                new Vector2(-256f, 0f), enabled: true, gold: false);
+                new Vector2(-256f, 0f), enabled: true, accented: false, ui.Accent);
             minus.onClick.AddListener(() =>
             {
                 SfxPlayer.Play("ui-button-click");
@@ -297,7 +279,7 @@ public static partial class MainMenuRuntime
             int price = SupplyCatalog.LifePipPrices[free + ui.Selection.Lives];
             bool affordable = ui.Selection.Total() + price <= wallet;
             Button plus = CreateSupplyButton(row, "Plus", "+ LIFE", 220f,
-                new Vector2(-24f, 0f), affordable, gold: true, price: price);
+                new Vector2(-24f, 0f), affordable, accented: true, ui.Accent, price: price);
             if (affordable)
             {
                 plus.onClick.AddListener(() =>
@@ -324,30 +306,39 @@ public static partial class MainMenuRuntime
     private static void BuildGrantedLivesRow(SuppliesUi ui, RectTransform section, float y)
     {
         RectTransform row = CreateSupplyCard(section, "LivesRow", y, ui.ContentW);
+        BuildLivesTitle(row);
+        BuildLivesPips(row, ui.Selection.FreeLives);
 
+        TextMeshProUGUI tag = CreateTmp(row, "Included", "INCLUDED", 18, ui.Accent,
+            TextAnchor.MiddleRight, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(-24f, 0f), new Vector2(200f, 30f), new Vector2(1f, 0.5f));
+        tag.characterSpacing = 2f;
+    }
+
+    // The lives row's shared left column: "RUN LIVES" top-left, heart pips UNDER the title
+    // (left-aligned; the old center-of-row pips read as floating, and the MAX-3 blurb was cut
+    // as overkill - Nick 2026-08-29). Full/empty are the two-state heart art; while the
+    // dedicated empty socket asset is pending (HeartSprites), an unfilled pip is the full art
+    // dimmed.
+    private static void BuildLivesTitle(RectTransform row)
+    {
         CreateTmp(row, "Label", "RUN LIVES", 21, TextPrimary, TextAnchor.UpperLeft,
             FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(24f, -20f), new Vector2(210f, 28f), new Vector2(0f, 1f));
-        int granted = ui.Selection.FreeLives;
-        CreateTmp(row, "Blurb", $"YOU START WITH {granted}", 14,
-            WithAlpha(TextMuted, 0.8f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(24f, -52f), new Vector2(210f, 20f), new Vector2(0f, 1f));
+            new Vector2(24f, -16f), new Vector2(220f, 28f), new Vector2(0f, 1f));
+    }
 
+    private static void BuildLivesPips(RectTransform row, int filledCount)
+    {
         for (int i = 0; i < RunState.MaxLives; i++)
         {
-            bool filled = i < granted;
+            bool filled = i < filledCount;
             Sprite pipSprite = filled ? HeartSprites.Full() : HeartSprites.Empty();
             Color pipColor = filled || HeartSprites.HasDedicatedEmpty
                 ? Color.white : new Color(1f, 1f, 1f, 0.16f);
             Image pip = CreateImage(row, $"Pip{i}", pipSprite, pipColor);
             pip.preserveAspect = true;
-            SetRect(pip.rectTransform, new Vector2(280f + i * 56f, 0f), new Vector2(48f, 48f), new Vector2(0f, 0.5f));
+            SetRect(pip.rectTransform, new Vector2(24f + i * 48f, 12f), new Vector2(40f, 40f), new Vector2(0f, 0f));
         }
-
-        TextMeshProUGUI tag = CreateTmp(row, "Included", "INCLUDED", 18, GoldBase,
-            TextAnchor.MiddleRight, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(-24f, 0f), new Vector2(200f, 30f), new Vector2(1f, 0.5f));
-        tag.characterSpacing = 2f;
     }
 
     // ---- BOOSTS: one big row, the picker does the choosing --------------------------------------
@@ -356,49 +347,81 @@ public static partial class MainMenuRuntime
     {
         RectTransform row = CreateSupplyCard(section, "BoostsRow", y, ui.ContentW);
 
-        CreateTmp(row, "Label", "BOOSTS", 22, TextPrimary, TextAnchor.UpperLeft,
+        CreateTmp(row, "Label", "BOOSTS", 21, TextPrimary, TextAnchor.UpperLeft,
             FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(24f, -24f), new Vector2(300f, 30f), new Vector2(0f, 1f));
+            new Vector2(24f, -16f), new Vector2(300f, 28f), new Vector2(0f, 1f));
 
-        // Picked boosts render as gold pill CHIPS, not a text list - the equipped state should
-        // look like equipment, and the chips echo the picker cards the player just chose from.
+        // Picked boosts render as their ICONS under the title (redesign, Nick 2026-08-29) -
+        // equipment looks like equipment, and the icons echo the picker cards.
         if (ui.Selection.Boosts.Count == 0)
         {
-            CreateTmp(row, "Picked", "NONE PICKED", 16, WithAlpha(TextMuted, 0.9f),
+            CreateTmp(row, "Picked", "NONE PICKED", 15, WithAlpha(TextMuted, 0.9f),
                 TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-                new Vector2(24f, -60f), new Vector2(ui.ContentW - 300f, 24f), new Vector2(0f, 1f));
+                new Vector2(24f, -54f), new Vector2(ui.ContentW - 300f, 24f), new Vector2(0f, 1f));
         }
         else
         {
-            float chipX = 24f;
             for (int i = 0; i < ui.Selection.Boosts.Count; i++)
             {
-                SupplyCatalog.BoostInfo info = SupplyCatalog.Info(ui.Selection.Boosts[i]);
-                if (info == null) continue;
-                string name = info.DisplayName.ToUpperInvariant();
-                float chipW = name.Length * 10.5f + 40f;
-                Image chip = CreateImage(row, $"Chip{i}", RuntimeSprites.RoundedPanel(),
-                    new Color(0.17f, 0.14f, 0.07f, 1f));
-                chip.type = Image.Type.Sliced;
-                chip.pixelsPerUnitMultiplier = 1.6f;
-                SetRect(chip.rectTransform, new Vector2(chipX, -56f), new Vector2(chipW, 40f), new Vector2(0f, 1f));
-                RuntimeUiKit.AddOutline(chip.rectTransform, WithAlpha(GoldBase, 0.6f));
-                TextMeshProUGUI chipText = CreateTmp(chip.transform, "Name", name, 16, GoldBase,
-                    TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
-                chipText.characterSpacing = 1f;
-                AutoSize(chipText, 11f, 16f);
-                chipX += chipW + 12f;
+                CreateBoostIconAt(row, ui.Selection.Boosts[i], ui.Accent,
+                    new Vector2(24f + i * 50f, 12f), 42f, new Vector2(0f, 0f));
             }
         }
 
         Button choose = CreateSupplyButton(row, "Choose",
             ui.Selection.Boosts.Count > 0 ? "CHANGE" : "CHOOSE", 220f,
-            new Vector2(-24f, 0f), enabled: true, gold: ui.Selection.Boosts.Count == 0);
+            new Vector2(-24f, 0f), enabled: true, accented: ui.Selection.Boosts.Count == 0, ui.Accent);
         choose.onClick.AddListener(() =>
         {
             SfxPlayer.Play("ui-button-click");
             OpenBoostTray(ui);
         });
+    }
+
+    // ---- boost icon art -----------------------------------------------------------------------
+    // Nick's rendered icons live at Resources/Menu/boost_<enum-name-lowercase>.png (e.g.
+    // boost_slowdescent.png) and are picked up with NO code change; until one lands, the
+    // placeholder is a gold-ring monogram badge. Cache includes misses - a menu session
+    // doesn't retry Resources.Load per rebuild (a domain reload clears it).
+    private static readonly Dictionary<BoostId, Sprite> BoostIconCache = new Dictionary<BoostId, Sprite>();
+
+    private static Sprite BoostIconArt(BoostId id)
+    {
+        if (!BoostIconCache.TryGetValue(id, out Sprite sprite))
+        {
+            sprite = Resources.Load<Sprite>("Menu/boost_" + id.ToString().ToLowerInvariant());
+            BoostIconCache[id] = sprite;
+        }
+        return sprite;
+    }
+
+    private static string BoostMonogram(BoostId id) => id switch
+    {
+        BoostId.SlowDescent => "S",
+        BoostId.ScarceHazards => "H",
+        BoostId.QuickStudy => "Q",
+        BoostId.StockedSloMo => "M",
+        BoostId.StockedZap => "Z",
+        _ => "?",
+    };
+
+    private static void CreateBoostIconAt(Transform parent, BoostId id, Color accent, Vector2 position,
+        float size, Vector2 anchor, float alpha = 1f)
+    {
+        Sprite art = BoostIconArt(id);
+        if (art != null)
+        {
+            Image icon = CreateImage(parent, $"BoostIcon{id}", art, new Color(1f, 1f, 1f, alpha));
+            icon.preserveAspect = true;
+            SetRect(icon.rectTransform, position, new Vector2(size, size), anchor);
+            return;
+        }
+
+        Image badge = CreateImage(parent, $"BoostIcon{id}", MenuSprites.CircleBadge(
+            new Color(0.10f, 0.10f, 0.12f, alpha), WithAlpha(accent, 0.7f * alpha)), Color.white);
+        SetRect(badge.rectTransform, position, new Vector2(size, size), anchor);
+        CreateTmp(badge.transform, "Letter", BoostMonogram(id), Mathf.RoundToInt(size * 0.42f),
+            WithAlpha(accent, alpha), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
     }
 
     // ---- the status row: running total, or the out-of-attempts block ---------------------------
@@ -424,7 +447,7 @@ public static partial class MainMenuRuntime
                 TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(4f, 0f), new Vector2(ui.ContentW - 210f, 52f), new Vector2(0f, 0.5f));
             Button retry = CreateSupplyButton(zone, "Retry", "RETRY", 170f,
-                new Vector2(0f, 0f), enabled: true, gold: !premium);
+                new Vector2(0f, 0f), enabled: true, accented: !premium, ui.Accent);
             retry.onClick.AddListener(() =>
             {
                 SfxPlayer.Play("ui-button-click");
@@ -455,7 +478,7 @@ public static partial class MainMenuRuntime
             if (adOffer)
             {
                 Button watch = CreateSupplyButton(zone, "WatchAd", "WATCH AD  +2", 236f,
-                    new Vector2(0f, 0f), enabled: true, gold: true);
+                    new Vector2(0f, 0f), enabled: true, accented: true, ui.Accent);
                 watch.onClick.AddListener(() =>
                 {
                     SfxPlayer.Play("ui-button-click");
@@ -482,10 +505,10 @@ public static partial class MainMenuRuntime
         float x = 4f;
         if (total > 0)
         {
-            CreateTmp(zone, "TotalLabel", "TOTAL", 17, GoldBase, TextAnchor.MiddleLeft,
+            CreateTmp(zone, "TotalLabel", "TOTAL", 17, ui.Accent, TextAnchor.MiddleLeft,
                 FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(x, 0f), new Vector2(80f, 30f), new Vector2(0f, 0.5f));
-            CreateCoinAmountLeft(zone, total, 17, GoldBase, x + 84f);
+            CreateCoinAmountLeft(zone, total, 17, ui.Accent, x + 84f);
             x += 84f + 110f + 36f;
         }
         CreateTmp(zone, "WalletLabel", "WALLET", 17, WithAlpha(TextMuted, 0.85f), TextAnchor.MiddleLeft,
@@ -523,7 +546,7 @@ public static partial class MainMenuRuntime
         Image fill = row.gameObject.AddComponent<Image>();
         fill.sprite = RuntimeSprites.RoundedPanel();
         fill.type = Image.Type.Sliced;
-        fill.color = new Color(0.11f, 0.10f, 0.085f, 1f);
+        fill.color = new Color(0.10f, 0.10f, 0.115f, 1f); // neutral - the warm brown fill read as off-palette (Nick 2026-08-29)
         RuntimeUiKit.AddOutline(row, GlassBorder);
         return row;
     }
@@ -534,19 +557,19 @@ public static partial class MainMenuRuntime
     /// a face, not a symbol - Nick, 2026-07-20): pass price ≥ 0 to get label-left, coin+number-
     /// right; price &lt; 0 keeps a centered label.</summary>
     private static Button CreateSupplyButton(RectTransform row, string name, string label,
-        float width, Vector2 rightOffset, bool enabled, bool gold, int price = -1)
+        float width, Vector2 rightOffset, bool enabled, bool accented, Color accent, int price = -1)
     {
         Image bg = CreateImage(row, name, RuntimeSprites.RoundedPanel(),
-            gold ? new Color(0.16f, 0.13f, 0.07f, 1f) : new Color(0.14f, 0.13f, 0.11f, 1f));
+            accented ? new Color(0.12f, 0.12f, 0.14f, 1f) : new Color(0.13f, 0.13f, 0.15f, 1f));
         bg.type = Image.Type.Sliced;
         // SetRect pivots at the anchor, so with anchor (1, 0.5) the offset is the button's
         // RIGHT edge relative to the row's right edge - callers pass e.g. (-24, 0).
         SetRect(bg.rectTransform, rightOffset, new Vector2(width, 80f), new Vector2(1f, 0.5f));
         bg.raycastTarget = true;
         RuntimeUiKit.AddOutline(bg.rectTransform,
-            gold ? WithAlpha(GoldBase, enabled ? 0.9f : 0.3f) : WithAlpha(TextMuted, enabled ? 0.5f : 0.2f));
+            accented ? WithAlpha(accent, enabled ? 0.8f : 0.3f) : WithAlpha(TextMuted, enabled ? 0.5f : 0.2f));
 
-        Color textColor = enabled ? (gold ? GoldBase : TextPrimary) : WithAlpha(LockedColor, 0.8f);
+        Color textColor = enabled ? (accented ? accent : TextPrimary) : WithAlpha(LockedColor, 0.8f);
         if (price < 0)
         {
             TextMeshProUGUI text = CreateTmp(bg.transform, "Label", label, 19, textColor,
@@ -649,7 +672,7 @@ public static partial class MainMenuRuntime
             new Vector2(pad, -82f), new Vector2(600f, 22f), new Vector2(0f, 1f));
 
         // The slot counter tells the player where the cap lives before they hit it.
-        TextMeshProUGUI slots = CreateTmp(panel, "Slots", "", 26, GoldBase, TextAnchor.UpperRight,
+        TextMeshProUGUI slots = CreateTmp(panel, "Slots", "", 26, ui.Accent, TextAnchor.UpperRight,
             FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(-pad - 76f, -38f), new Vector2(160f, 34f), new Vector2(1f, 1f));
         slots.characterSpacing = 2f;
@@ -704,12 +727,12 @@ public static partial class MainMenuRuntime
         // DONE: one big gold exit. Nothing to confirm - the cards already did the work and the
         // modal's TOTAL line carries the bill; this is just "back", styled like a primary.
         Image doneBg = CreateImage(panel, "Done", MenuSprites.RoundedGradient(
-            Color.Lerp(GoldBase, Color.white, 0.12f), Color.Lerp(GoldBase, Color.black, 0.22f)), Color.white);
+            Color.Lerp(ui.Accent, Color.white, 0.12f), Color.Lerp(ui.Accent, Color.black, 0.22f)), Color.white);
         doneBg.type = Image.Type.Sliced;
         SetRect(doneBg.rectTransform, new Vector2(pad, 40f), new Vector2(contentW, doneH), new Vector2(0f, 0f));
         doneBg.raycastTarget = true;
         TextMeshProUGUI doneLabel = CreateTmp(doneBg.transform, "Label", "DONE", 30,
-            new Color(0.10f, 0.08f, 0.03f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+            TextPrimary, TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
         doneLabel.characterSpacing = 3f;
         Button doneButton = doneBg.gameObject.AddComponent<Button>();
         doneButton.targetGraphic = doneBg;
@@ -732,54 +755,45 @@ public static partial class MainMenuRuntime
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
             position, new Vector2(width, height));
 
-        // The ability-card chrome: near-black gradient slab, all the accent in the neon edge.
-        // Equipped = gold ring + soft halo; available = quiet neutral ring; locked-out = barely
-        // there. Padded past the card rect so the ring's outer bloom has room (AbilityCardView).
-        Color bodyTop = selected ? new Color(0.16f, 0.13f, 0.06f, 0.985f) : new Color(0.10f, 0.095f, 0.085f, 0.985f);
-        Color bodyBottom = selected ? new Color(0.075f, 0.06f, 0.03f, 0.985f) : new Color(0.055f, 0.05f, 0.045f, 0.985f);
-        Image body = CreateImage(card, "Body", RuntimeSprites.CardGradient(bodyTop, bodyBottom), Color.white);
+        // Flat card with a plain hairline border (the ability-card neon ring + halo read as a
+        // glow smear here - Nick 2026-08-29): neutral like the supply rows; the equipped card
+        // carries the chapter accent on its border and a whisper of it in the fill.
+        Color accent = ui.Accent;
+        Image body = CreateImage(card, "Body", RuntimeSprites.RoundedPanel(), selected
+            ? Color.Lerp(new Color(0.10f, 0.10f, 0.12f, 1f), accent, 0.10f)
+            : new Color(0.10f, 0.10f, 0.115f, 1f));
         body.type = Image.Type.Sliced;
-        StretchPadded(body.rectTransform, RuntimeSprites.CardSpritePad);
+        Stretch(body.rectTransform);
         body.raycastTarget = true;
+        RuntimeUiKit.AddOutline(card, selected
+            ? WithAlpha(accent, 0.9f)
+            : WithAlpha(GlassBorder, interactable ? 1f : 0.5f));
 
-        if (selected)
-        {
-            Image halo = CreateImage(card, "Halo", MenuSprites.GlowFrame(), WithAlpha(GoldBase, 0.20f));
-            halo.type = Image.Type.Sliced;
-            StretchPadded(halo.rectTransform, RuntimeSprites.CardSpritePad + 10f);
-            halo.raycastTarget = false;
-        }
-        Image ring = CreateImage(card, "Ring", RuntimeSprites.CardNeonRing(), selected
-            ? WithAlpha(Color.Lerp(GoldBase, Color.white, 0.15f), 0.95f)
-            : WithAlpha(TextMuted, interactable ? 0.30f : 0.12f));
-        ring.type = Image.Type.Sliced;
-        StretchPadded(ring.rectTransform, RuntimeSprites.CardSpritePad);
-        ring.raycastTarget = false;
-
-        // Name + blurb as one block, vertically centred in the card (they sat high with the
-        // slack piled below the blurb - Nick, 2026-07-29): both anchored to the card's middle,
-        // name resting its baseline just above the midline, blurb just below it.
+        // Icon left (the boost's art, monogram placeholder until it lands), then name + blurb
+        // as one block, vertically centred in the card (they sat high with the slack piled
+        // below the blurb - Nick, 2026-07-29).
         float alpha = interactable ? 1f : 0.45f;
+        CreateBoostIconAt(card, boost.Id, ui.Accent, new Vector2(30f, 0f), 60f, new Vector2(0f, 0.5f), alpha);
         CreateTmp(card, "Name", boost.DisplayName.ToUpperInvariant(), 25, WithAlpha(TextPrimary, alpha),
             TextAnchor.LowerLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(32f, 20f), new Vector2(width - 280f, 32f), new Vector2(0f, 0.5f));
+            new Vector2(110f, 20f), new Vector2(width - 358f, 32f), new Vector2(0f, 0.5f));
         CreateTmp(card, "Blurb", boost.Blurb, 18, WithAlpha(TextMuted, alpha),
             TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont,
-            new Vector2(32f, -16f), new Vector2(width - 280f, 24f), new Vector2(0f, 0.5f));
+            new Vector2(110f, -16f), new Vector2(width - 358f, 24f), new Vector2(0f, 0.5f));
 
         if (selected)
         {
             // The check badge is the selected state's anchor - colour alone is not enough at a
             // glance (and never on a colour-blind player's screen).
-            Image badge = CreateImage(card, "CheckBadge", MenuSprites.CircleBadge(GoldBase, GoldBase), Color.white);
+            Image badge = CreateImage(card, "CheckBadge", MenuSprites.CircleBadge(accent, accent), Color.white);
             SetCenteredAt(badge.rectTransform, new Vector2(1f, 0.5f), new Vector2(-64f, 14f), new Vector2(52f, 52f));
             badge.raycastTarget = false;
             Image check = CreateImage(badge.transform, "Check",
-                MenuSprites.CheckMark(new Color(0.10f, 0.08f, 0.03f, 1f)), Color.white);
+                MenuSprites.CheckMark(new Color(0.06f, 0.06f, 0.08f, 1f)), Color.white);
             check.preserveAspect = true;
             SetCenteredAt(check.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(30f, 30f));
             check.raycastTarget = false;
-            CreateTmp(card, "Tag", "EQUIPPED", 14, GoldBase, TextAnchor.MiddleCenter,
+            CreateTmp(card, "Tag", "EQUIPPED", 14, accent, TextAnchor.MiddleCenter,
                 FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(-64f, -32f), new Vector2(140f, 20f), new Vector2(1f, 0.5f));
         }
@@ -827,13 +841,14 @@ public static partial class MainMenuRuntime
         bool canStart = premiumOffline || (!offline && AttemptsService.CanStartRun);
 
         // Plain "PLAY" for a clean run (labelling it CLEAN read as noise - Nick); the boosted
-        // state keeps its word + gold edge, that's the honesty tag. OFFLINE outranks the
-        // meter: without the server there is no grant to be had (BACKEND.md §5.1).
+        // state keeps its word + accent edge, that's the honesty tag (gold chrome was retired
+        // from this modal, Nick 2026-08-29 - gold is currency art only). OFFLINE outranks
+        // the meter: without the server there is no grant to be had (BACKEND.md §5.1).
         ui.PlayLabel.text = offline ? "OFFLINE" : !canStart ? "OUT OF ATTEMPTS" : boosted ? "PLAY - BOOSTED" : "PLAY";
         ui.PlayLabel.fontSize = boosted || !canStart ? 27f : 36f;
         if (ui.PlayOutline != null) UnityEngine.Object.Destroy(ui.PlayOutline);
         ui.PlayOutline = boosted && canStart
-            ? RuntimeUiKit.AddOutline(ui.PlayBg.rectTransform, WithAlpha(GoldBase, 0.95f)).gameObject
+            ? RuntimeUiKit.AddOutline(ui.PlayBg.rectTransform, WithAlpha(Color.Lerp(ui.Accent, Color.white, 0.35f), 0.95f)).gameObject
             : null;
         ui.PlayBg.color = canStart ? Color.white : new Color(0.45f, 0.45f, 0.45f, 1f);
         if (ui.PlayButton != null) ui.PlayButton.interactable = canStart;
