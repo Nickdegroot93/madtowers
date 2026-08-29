@@ -1,4 +1,13 @@
-# ICONS.md — Ability Icon Generation (binding)
+# ICONS.md — Ability Icon Generation (SUPERSEDED 2026-08-29)
+
+> **The neon icon set this file describes was RETIRED on 2026-08-29.** Nick replaced all 52
+> ability icons with a new hand-supplied painterly set (the medal-cube family; delivered as
+> 256px PNGs, overwritten in place in `Assets/Art/Abilities/` so every asset GUID survived).
+> Everything below documents the OLD v1 recipe and its `Tools/icon-gen/` pipeline — do NOT
+> use it to author or "fix" icons in the current style. `ABILITY_CATALOG.md` (all 52
+> abilities + descriptions) plus the brick renders at `Assets/Resources/VaultPosters/` are
+> the reference material the new set was designed from. A new-icon workflow for future
+> abilities is TBD with Nick (until then: ask him for the art).
 
 How every ability icon in `Assets/Art/Abilities/` was created, and how to create new ones that
 look identical. Follow this exactly when adding abilities — the set only reads as one coherent

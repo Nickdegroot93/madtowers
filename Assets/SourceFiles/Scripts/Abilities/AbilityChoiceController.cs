@@ -275,9 +275,9 @@ public class AbilityChoiceController : MonoBehaviour
         BuildChoicePanel();
     }
 
-    // The "See details" view: full presentation block (rarity chrome, icon, title, type,
-    // LONG description) with Choose/Back. The roll buffer is untouched, so Back rebuilds the
-    // same three cards - no reroll. Future home of the explainer video.
+    // The "See details" view: the icon-hero spec sheet (floating icon, title, type chip,
+    // LONG description) with equal Choose/Back. The roll buffer is untouched, so Back rebuilds
+    // the same three cards - no reroll. Future home of the explainer video.
     private void ShowDetailPanel(AbilityDefinition definition)
     {
         CloseChoicePanel();

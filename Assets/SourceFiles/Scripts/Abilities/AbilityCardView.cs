@@ -188,7 +188,8 @@ public static class AbilityCardView
 
     // Type badge (PASSIVE / INSTANT / CONSUMABLE): a solid pill tinted by the DERIVED ability
     // type (see ABILITIES.md - kind colour is a second information axis beside rarity).
-    private static void AddTypeChip(Transform root, AbilityType type, float centerY, float scale = 1f)
+    // Public: the Vault's ability detail modal shares this one chip builder.
+    public static void AddTypeChip(Transform root, AbilityType type, float centerY, float scale = 1f)
     {
         Color typeColor = AbilityTypeInfo.GetColor(type);
         Image pill = RuntimeUiKit.CreateImage(root, "TypeChip", RuntimeSprites.RoundedPanel(),
@@ -428,42 +429,81 @@ public static class AbilityCardView
 
     // ---- detail panel (offer's DETAILS view) -------------------------------------------------------
 
-    /// <summary>The full-presentation detail view: rarity chrome, big icon, title, type chip,
-    /// LONG description, and Choose/Back. Built on the caller's modal canvas.</summary>
+    /// <summary>The full-presentation detail view: the icon floating as the hero, title, type
+    /// chip, LONG description, and Choose/Back - on the opaque borderless modal panel. The
+    /// card-chrome + neon-ring + glow-tile + shine treatment was retired here (Nick 2026-08-29:
+    /// the glow read as old-school and the panel was mostly empty). Rarity speaks through the
+    /// accent on CHOOSE (taste contract: no rarity words).</summary>
     public static void CreateDetailPanel(Transform parent, AbilityDefinition definition, int stacks,
         Action onChoose, Action onBack)
     {
         Color accent = AbilityRarityInfo.GetColor(definition.Rarity);
-        TierStyle tier = GetTier(definition.Rarity);
 
         RectTransform panel = RuntimeUiKit.CreateRect(parent, "DetailPanel",
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            Vector2.zero, new Vector2(720f, 1020f));
-        Image body = BuildCardChrome(panel, accent, tier, discovered: true);
+            Vector2.zero, new Vector2(680f, 820f)); // height finalized below, once the text is measured
+        Image body = panel.gameObject.AddComponent<Image>();
+        GameMenuStyle.StylePanel(panel.gameObject); // the one modal-panel treatment
         body.raycastTarget = true;
 
-        AddTitle(panel, definition.DisplayName, -38f, 84f, 42f, RuntimeUiKit.TitleColor);
-        AddTypeChip(panel, definition.Type, -134f, 1.1f);
-        RectTransform tile = AddIconTile(panel, definition.Icon, accent, -188f, 216f, true, tier.IconGlow);
-        if (stacks > 0) AddOwnedBadge(tile, stacks);
+        // The hero block: a soft type-colored backlight behind the floating painterly icon
+        // (depth without the retired glow-border look), arriving with the house entrance pop.
+        AddIconHero(panel, definition, iconTop: -40f, iconSize: 180f);
 
+        AddTitle(panel, definition.DisplayName, -238f, 56f, 40f, RuntimeUiKit.TitleColor);
+        AddTypeChip(panel, definition.Type, -310f, 1.1f);
+        if (stacks > 0)
+        {
+            TextMeshProUGUI owned = RuntimeUiKit.CreateTmp(panel, "Owned", $"OWNED x{stacks}", 16,
+                WithAlpha(accent, 0.9f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+                new Vector2(0f, -352f), new Vector2(300f, 22f), new Vector2(0.5f, 1f));
+            owned.characterSpacing = 3f;
+        }
+
+        // The description SIZES the panel (Nick 2026-08-29: a fixed height left a dead band
+        // under short texts): measure at the fixed body size, then fit the panel around it.
+        const float DescTop = 386f;
         RectTransform bodyRect = RuntimeUiKit.CreateRect(panel, "LongDescription",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, Vector2.zero);
-        bodyRect.offsetMin = new Vector2(46f, -770f);
-        bodyRect.offsetMax = new Vector2(-46f, -444f);
-        TextMeshProUGUI longDesc = RuntimeUiKit.CreateTmp(bodyRect, "Text", definition.LongDescription, 26,
+        TextMeshProUGUI longDesc = RuntimeUiKit.CreateTmp(bodyRect, "Text", definition.LongDescription, 25,
             BodyColor, TextAnchor.UpperCenter, FontStyle.Normal, RuntimeUiKit.DefaultFont);
         longDesc.font = RuntimeUiKit.TmpTitleFont;
         longDesc.textWrappingMode = TextWrappingModes.Normal;
-        longDesc.overflowMode = TextOverflowModes.Truncate;
-        RuntimeUiKit.AutoSize(longDesc, 18f, 26f);
+        longDesc.overflowMode = TextOverflowModes.Overflow;
+        float descH = Mathf.Clamp(
+            longDesc.GetPreferredValues(definition.LongDescription, 680f - 92f, 0f).y, 36f, 320f);
+        bodyRect.offsetMin = new Vector2(46f, -(DescTop + descH));
+        bodyRect.offsetMax = new Vector2(-46f, -DescTop);
 
+        // Equal-height Choose/Back (Nick 2026-08-29), pulled up tight under the text.
+        const float ButtonZone = 36f + 92f + 14f + 92f; // back pad + back + gap + choose
+        panel.sizeDelta = new Vector2(680f, DescTop + descH + 24f + ButtonZone);
         CreateActionButton(panel, $"CHOOSE {definition.DisplayName.ToUpperInvariant()}",
-            new Vector2(0f, 134f), new Vector2(560f, 92f), primary: true, accent, onChoose);
+            new Vector2(0f, 36f + 92f + 14f), new Vector2(560f, 92f), primary: true, accent, onChoose);
         CreateActionButton(panel, "BACK",
-            new Vector2(0f, 44f), new Vector2(560f, 70f), primary: false, accent, onBack);
+            new Vector2(0f, 36f), new Vector2(560f, 92f), primary: false, accent, onBack);
+    }
 
-        if (tier.Shine) AbilityCardShine.Attach(panel, ShineColor(definition.Rarity, accent), tier.ShinePause);
+    /// <summary>The detail modals' hero: the painterly icon floating free (a type-colored
+    /// backlight was tried 2026-08-30 and cut same day - it spilled past the panel edge and
+    /// read as the retired glow look; the art carries itself), entering with the house
+    /// arrival pop. Shared by the in-run detail and the Vault's ability detail.</summary>
+    public static void AddIconHero(RectTransform panel, AbilityDefinition definition,
+        float iconTop, float iconSize)
+    {
+        RectTransform hero = RuntimeUiKit.CreateRect(panel, "Hero",
+            new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f),
+            new Vector2(0f, iconTop - iconSize * 0.5f), new Vector2(iconSize, iconSize));
+
+        Image icon = RuntimeUiKit.CreateImage(hero, "Icon", definition.Icon, Color.white);
+        icon.preserveAspect = true;
+        RectTransform iconRect = icon.rectTransform;
+        iconRect.anchorMin = Vector2.zero;
+        iconRect.anchorMax = Vector2.one;
+        iconRect.offsetMin = Vector2.zero;
+        iconRect.offsetMax = Vector2.zero;
+
+        UiEntranceFx.Play(hero.gameObject);
     }
 
     // A hand-anchored rounded button: primary = filled with the accent (dark label);

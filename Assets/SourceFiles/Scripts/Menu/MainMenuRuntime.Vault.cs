@@ -650,23 +650,38 @@ public static partial class MainMenuRuntime
         backdropButton.transition = Selectable.Transition.None;
         backdropButton.onClick.AddListener(Close);
 
+        // Compact spec sheet (redesign, Nick 2026-08-29 - the old embedded offer card
+        // duplicated the short description inside a mostly-empty 1160-tall panel): floating
+        // icon as the hero, title, type chip, ONE description. Height fits the content.
+        // The panel's height FITS the description (Nick 2026-08-29: a fixed height left a
+        // dead band under short texts like Extra Life's one-liner).
         RectTransform panel = CreateRect(overlay.transform, "Panel",
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            Vector2.zero, new Vector2(880f, 1160f));
+            Vector2.zero, new Vector2(680f, 660f)); // height finalized below
         Image panelImage = panel.gameObject.AddComponent<Image>();
         GameMenuStyle.StylePanel(panel.gameObject); // the one modal-panel treatment
         panelImage.raycastTarget = true;
 
-        // The glass-slab card, large (rarity chrome + type chip + short description built in).
-        RectTransform cardHolder = CreateRect(panel, "CardHolder",
-            new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0f, -36f), new Vector2(470f, 640f));
-        AbilityCardView.CreateCollectionCard(cardHolder, ability, discovered: true, large: true);
+        // The hero: painterly icon over a soft type-colored backlight, house entrance pop.
+        AbilityCardView.AddIconHero(panel, ability, iconTop: -44f, iconSize: 196f);
 
-        TextMeshProUGUI bodyText = CreateTmp(panel, "Body", ability.LongDescription, 26,
+        TextMeshProUGUI title = CreateTmp(panel, "Title", ability.DisplayName.ToUpperInvariant(), 42,
+            TextPrimary, TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(0f, -258f), new Vector2(600f, 54f), new Vector2(0.5f, 1f));
+        title.font = RuntimeUiKit.TmpDisplayFont;
+        title.characterSpacing = 2f;
+        AutoSize(title, 26f, 42f);
+
+        AbilityCardView.AddTypeChip(panel, ability.Type, -332f, 1.1f);
+
+        const float DescTop = 404f;
+        TextMeshProUGUI bodyText = CreateTmp(panel, "Body", ability.LongDescription, 25,
             new Color(0.85f, 0.88f, 0.9f, 1f), TextAnchor.UpperCenter, FontStyle.Normal,
-            RuntimeUiKit.DefaultFont, new Vector2(0f, -716f), new Vector2(760f, 380f), new Vector2(0.5f, 1f));
+            RuntimeUiKit.DefaultFont, new Vector2(0f, -DescTop), new Vector2(580f, 216f), new Vector2(0.5f, 1f));
         bodyText.textWrappingMode = TextWrappingModes.Normal;
+        float descH = Mathf.Clamp(bodyText.GetPreferredValues(ability.LongDescription, 580f, 0f).y, 36f, 320f);
+        bodyText.rectTransform.sizeDelta = new Vector2(580f, descH);
+        panel.sizeDelta = new Vector2(680f, DescTop + descH + 48f);
 
         AddDetailClose(panel, Close);
     }
