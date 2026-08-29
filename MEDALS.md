@@ -97,10 +97,10 @@ tier-count agnostic.
   wave levels, let quota creep slightly in overtime instead of freezing.
 - **Crash between bronze and run end loses the run's skill coins** (the win bonus is
   safe). Pre-medal, a crash after the win lost nothing; accepted as minor.
-- Medal art is a procedural placeholder (`MedalStyle.Sprite`, MenuSprites circle badge);
-  swap its body for a `Resources.Load` when real art lands.
+- ~~Medal art is a procedural placeholder~~ — real renders landed 2026-08-29 (§8); the
+  circle badge remains only as the missing-art fallback.
 
-## 8. In-run medal HUD (as-built 2026-08-29, placeholder art)
+## 8. In-run medal HUD & medal art (as-built 2026-08-29)
 
 Two persistent surfaces so the chase always reads (Nick 2026-08-29):
 
@@ -117,10 +117,13 @@ Two persistent surfaces so the chase always reads (Nick 2026-08-29):
   `TierEarned`; full tier colour on purpose (it labels the target, earned state is the
   pill's job).
 
-Both render the `MedalStyle.Sprite` placeholder badge. Nick is rendering three block
-icons (bronze/silver/gold block) that become THE medal mark everywhere — swap point is
-`MedalStyle.Sprite` alone; every surface (level cards, summary modal, results card,
-in-run pill, objective badge) inherits.
+**Medal art landed 2026-08-29**: Nick's rendered block icons live at
+`Assets/Resources/Menu/medal_{bronze,silver,gold}.png` (256px, downscaled from the 2048px
+renders — keep PNG, the transparency is load-bearing). `MedalStyle.Sprite` serves them on
+every surface (level cards, summary modal, results card, in-run pill, objective badge);
+the procedural circle badge survives only as the fallback for a tier whose render hasn't
+landed. One art per tier: EARNED state is a tint — pair every `Sprite()` call with
+`MedalStyle.IconTint(earned)` on the Image (unearned = dark ghost).
 
 ## 9. TODO — celebration & framing pass (Nick 2026-08-29, not yet built)
 
@@ -133,4 +136,4 @@ in-run pill, objective badge) inherits.
   settle into the persistent pill. Build it around the rendered icons when they land.
 - **Pause-menu quit relabels to "Finish Run"** once any rung is earned this run
   (psych review: quitting at a medal must feel like choosing to stop winning).
-- Swap `MedalStyle.Sprite` to the rendered bronze/silver/gold block icons (see §8).
+- ~~Swap `MedalStyle.Sprite` to the rendered block icons~~ — done 2026-08-29 (see §8).

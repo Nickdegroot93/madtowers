@@ -374,6 +374,8 @@ public sealed class RunResultsScreen : MonoBehaviour
                 new Vector2(0f, -2f), new Vector2(54f, 54f));
             Image image = icon.gameObject.AddComponent<Image>();
             image.sprite = MedalStyle.Sprite(tier, earned);
+            image.color = MedalStyle.IconTint(earned);
+            image.preserveAspect = true;
             image.raycastTarget = false;
 
             string goal = _content.Metric.IsMeters

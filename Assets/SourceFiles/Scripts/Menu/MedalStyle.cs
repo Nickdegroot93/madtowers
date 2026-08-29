@@ -2,10 +2,11 @@ using UnityEngine;
 
 /// <summary>
 /// The one owner of how medal tiers LOOK (colors, sprite, display name) - every surface
-/// (level cards, summary modal, results card, in-run toast) reads this so the three medals
-/// can never drift apart. The sprite is currently a procedural placeholder (MenuSprites
-/// circle badge); when Nick's real medal art lands, swap the body of <see cref="Sprite"/>
-/// for a Resources.Load and nothing else changes.
+/// (level cards, summary modal, results card, in-run pills) reads this so the medals can
+/// never drift apart. The mark is Nick's rendered block icon (Resources/Menu/medal_*,
+/// 2026-08-29); the original procedural circle badge remains as the fallback for a tier
+/// whose render hasn't landed yet. One art per tier: EARNED state is a TINT, not separate
+/// art - pair every <see cref="Sprite"/> with <see cref="IconTint"/> on the Image.
 /// </summary>
 public static class MedalStyle
 {
@@ -48,10 +49,14 @@ public static class MedalStyle
         return tier.ToString().ToUpperInvariant();
     }
 
-    /// <summary>The tier's medal mark. Earned = full tier color with a lifted rim; unearned =
-    /// the locked slate at low presence, so an empty slot reads as "still to do", not as art.</summary>
+    /// <summary>The tier's medal mark: the rendered block icon, or the procedural badge when
+    /// the art is missing (fallback keeps the old earned/ghost look baked in; the real art
+    /// relies on <see cref="IconTint"/> instead).</summary>
     public static Sprite Sprite(MedalTier tier, bool earned)
     {
+        Sprite art = LoadMedalArt(tier);
+        if (art != null) return art;
+
         if (!earned)
         {
             Color ghost = Unearned;
@@ -61,5 +66,27 @@ public static class MedalStyle
         Color fill = TierColor(tier);
         Color rim = Color.Lerp(fill, Color.white, 0.45f);
         return MenuSprites.CircleBadge(fill, rim);
+    }
+
+    /// <summary>Image tint pairing <see cref="Sprite"/>: white when earned; unearned drops to
+    /// a dark ghost so the slot reads as "still to do" without repainting the art.</summary>
+    public static Color IconTint(bool earned)
+        => earned ? Color.white : new Color(0.32f, 0.34f, 0.36f, 0.55f);
+
+    // Loaded once per tier per domain; a missing file is remembered so the fallback path
+    // doesn't hit Resources.Load every frame a card rebuilds.
+    private static readonly Sprite[] MedalArt = new Sprite[LevelTiers.TierCount];
+    private static readonly bool[] MedalArtMissing = new bool[LevelTiers.TierCount];
+
+    private static Sprite LoadMedalArt(MedalTier tier)
+    {
+        int i = (int)tier;
+        if (i < 0 || i >= MedalArt.Length) return null;
+        if (MedalArt[i] == null && !MedalArtMissing[i])
+        {
+            MedalArt[i] = Resources.Load<Sprite>("Menu/medal_" + tier.ToString().ToLowerInvariant());
+            MedalArtMissing[i] = MedalArt[i] == null;
+        }
+        return MedalArt[i];
     }
 }

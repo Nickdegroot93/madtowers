@@ -313,7 +313,9 @@ public static partial class MainMenuRuntime
             bool earned = LevelTiers.IsEarned(level, tier);
             float x = 22f + i * colW;
 
-            Image medal = CreateImage(card, $"Medal{tier}", MedalStyle.Sprite(tier, earned), Color.white);
+            Image medal = CreateImage(card, $"Medal{tier}", MedalStyle.Sprite(tier, earned),
+                MedalStyle.IconTint(earned));
+            medal.preserveAspect = true;
             SetRect(medal.rectTransform, new Vector2(x, -52f), new Vector2(44f, 44f), new Vector2(0f, 1f));
 
             int goal = Mathf.RoundToInt(LevelTiers.Threshold(level, tier));
