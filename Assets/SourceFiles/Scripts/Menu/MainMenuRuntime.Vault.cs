@@ -45,7 +45,7 @@ public static partial class MainMenuRuntime
             : AbilityCollectionCounts();
 
         CreateTmp(parent, "VaultProgress", $"{discovered} / {total} DISCOVERED", 24,
-            GoldBase, TextAnchor.MiddleRight, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            MenuAccent, TextAnchor.MiddleRight, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(-VaultSideInset, -206f), new Vector2(420f, 34f), new Vector2(1f, 1f));
 
         // Thin capsule progress bar under the counter.
@@ -69,7 +69,7 @@ public static partial class MainMenuRuntime
             fillImage.sprite = RuntimeSprites.RoundedPanel();
             fillImage.type = Image.Type.Sliced;
             fillImage.pixelsPerUnitMultiplier = 6f;
-            fillImage.color = GoldBase;
+            fillImage.color = MenuAccent;
             fillImage.raycastTarget = false;
         }
     }
@@ -105,8 +105,8 @@ public static partial class MainMenuRuntime
         Image fill = half.gameObject.AddComponent<Image>();
         fill.sprite = RuntimeSprites.RoundedPanel();
         fill.type = Image.Type.Sliced;
-        fill.color = selected ? WithAlpha(GoldBase, 0.16f) : Color.clear;
-        if (selected) RuntimeUiKit.AddOutline(half, WithAlpha(GoldBase, 0.55f));
+        fill.color = selected ? WithAlpha(MenuAccent, 0.16f) : Color.clear;
+        if (selected) RuntimeUiKit.AddOutline(half, WithAlpha(MenuAccent, 0.55f));
 
         Button button = half.gameObject.AddComponent<Button>();
         button.targetGraphic = fill;
@@ -219,10 +219,10 @@ public static partial class MainMenuRuntime
         pill.sprite = RuntimeSprites.RoundedPanel();
         pill.type = Image.Type.Sliced;
         pill.pixelsPerUnitMultiplier = 3f;
-        pill.color = GoldBase;
+        pill.color = MenuAccent;
         pill.raycastTarget = false;
         TextMeshProUGUI text = CreateTmp(badge, "Text", "NEW", 18,
-            new Color(0.12f, 0.1f, 0.05f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold,
+            new Color(0.08f, 0.08f, 0.1f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold,
             RuntimeUiKit.TitleFont);
         text.characterSpacing = 2f;
     }
@@ -469,9 +469,9 @@ public static partial class MainMenuRuntime
         image.sprite = RuntimeSprites.RoundedPanel();
         image.type = Image.Type.Sliced;
         image.color = WithAlpha(CardDark, 0.9f);
-        RuntimeUiKit.AddOutline(banner, GoldOutline(0.4f));
+        RuntimeUiKit.AddOutline(banner, WithAlpha(MenuAccent, 0.4f));
 
-        CreateTmp(banner, "Title", title, 32, GoldBase, TextAnchor.MiddleCenter, FontStyle.Bold,
+        CreateTmp(banner, "Title", title, 32, MenuAccent, TextAnchor.MiddleCenter, FontStyle.Bold,
             RuntimeUiKit.TitleFont, new Vector2(0f, -46f), new Vector2(700f, 44f), new Vector2(0.5f, 1f));
         CreateTmp(banner, "Body", body, 22, TextMuted, TextAnchor.MiddleCenter, FontStyle.Normal,
             RuntimeUiKit.DefaultFont, new Vector2(0f, -102f), new Vector2(760f, 40f), new Vector2(0.5f, 1f));

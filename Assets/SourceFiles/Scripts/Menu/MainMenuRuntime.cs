@@ -46,7 +46,25 @@ public static partial class MainMenuRuntime
     private static readonly Color LockedColor = new Color(0.44f, 0.46f, 0.48f, 1f);
     private static readonly Color CardDark = new Color(0.07f, 0.06f, 0.05f, 0.76f);
     private static readonly Color GoldBase = new Color(1f, 0.9f, 0.68f, 1f);
-    private static readonly Color GlassBorder = new Color(1f, 0.92f, 0.74f, 0.18f);
+    // The one hairline colour for glass chrome, CHAPTER-TINTED (Nick 2026-08-30: the old warm
+    // cream constant read as a yellow cast on every card). A property, never a field
+    // initialised from another partial's statics (the transparent-color trap) - and it must
+    // track the chapter the menu is currently showing.
+    private static Color GlassBorder => WithAlpha(MenuAccent, 0.24f);
+
+    /// <summary>The current menu chapter's light accent - THE accent for menu chrome
+    /// (Nick 2026-08-30: everything relates to the chapter colour; gold is currency art
+    /// only). Neutral warm-white fallback before chapters load.</summary>
+    private static Color MenuAccent
+    {
+        get
+        {
+            ChapterDefinition chapter = _chapters.Length > 0
+                ? _chapters[Mathf.Clamp(_chapterIndex, 0, _chapters.Length - 1)]
+                : null;
+            return chapter != null ? ChapterLight(chapter) : new Color(0.9f, 0.9f, 0.9f, 1f);
+        }
+    }
 
     private enum MenuTab
     {

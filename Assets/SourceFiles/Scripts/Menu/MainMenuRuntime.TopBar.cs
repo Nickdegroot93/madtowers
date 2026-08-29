@@ -99,7 +99,7 @@ public static partial class MainMenuRuntime
         expLayout.preferredHeight = 7f;
         expLayout.flexibleWidth = 0f;
         Image expFill = CreateImage(expTrack.transform, "ExpFill", RuntimeSprites.RoundedPanel(),
-            new Color(1f, 0.72f, 0.32f, 1f));
+            chapter != null ? ChapterLight(chapter) : new Color(1f, 0.72f, 0.32f, 1f));
         expFill.type = Image.Type.Sliced;
         RectTransform expFillRect = expFill.rectTransform;
         expFillRect.anchorMin = new Vector2(0f, 0f);

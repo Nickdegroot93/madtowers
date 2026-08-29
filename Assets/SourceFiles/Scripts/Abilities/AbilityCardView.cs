@@ -5,18 +5,15 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Runtime UGUI renderer for ability cards: the offer picker's three cards, the Vault's
-/// collection cards, and the shared detail panel. Cards are neon glass slabs drawn from
-/// procedural sprites (no authored frame art): a rounded vertical-gradient body tinted by
-/// the rarity, wrapped in a bright NEON RING with a real outer bloom, heavy Archivo Black
-/// display type, a solid type chip, the icon on a glowing white tile, and a ghost DETAILS
-/// pill. AbilityChoiceController owns scheduling, pick routing, and modal flow.
+/// collection cards, and the shared detail panel. Cards are FLAT near-black slabs with a
+/// plain hairline border (the neon ring / halo / gradient chrome was retired 2026-08-30 -
+/// Nick: no neon anywhere): heavy Archivo Black display type, a solid type chip, the icon
+/// on a dark tile, and a ghost DETAILS pill. AbilityChoiceController owns scheduling, pick
+/// routing, and modal flow.
 ///
-/// Rarity is never written as a word - the colour of the neon edge carries it (the body
-/// stays near-black at every tier), escalating from restraint to spectacle:
-///   Common     faint silver ring
-///   Rare       bright blue ring
-///   Epic       hot violet ring + extra halo + a slow shine sweep
-///   Legendary  gold ring, breathing halo, fast warm sweep
+/// Rarity is never written as a word - the colour of the hairline carries it (the body
+/// stays near-black at every tier); Epic and up keep the shine sweep (the sanctioned sheen
+/// language, not neon).
 /// </summary>
 public static class AbilityCardView
 {
@@ -41,15 +38,11 @@ public static class AbilityCardView
 
     // ---- rarity tiers -------------------------------------------------------------------------
 
+    // Shrunk with the neon chrome's retirement (2026-08-30): the sweep is all that
+    // escalates per rarity now - the ring/halo/glow strengths went with their visuals.
     private struct TierStyle
     {
-        public float RingAlpha;      // neon edge strength - where the rarity colour lives
-        public float TopLerp;        // body top = Lerp(accent, black, TopLerp); the body stays
-                                     // NEAR-BLACK at every tier - only the tint whisper varies
-        public float HaloAlpha;      // extra outer bloom beyond the ring's own (0 = none)
-        public float IconGlow;       // soft accent glow behind the icon tile
-        public bool Shine;           // periodic light sweep across the card
-        public bool Pulse;           // the halo breathes (legendary only)
+        public bool Shine;           // periodic light sweep across the card (Epic and up)
         public float ShinePause;     // seconds between sweeps
     }
 
@@ -58,13 +51,11 @@ public static class AbilityCardView
         switch (rarity)
         {
             case AbilityRarity.Legendary:
-                return new TierStyle { RingAlpha = 1f, TopLerp = 0.78f, HaloAlpha = 0.22f, IconGlow = 0.30f, Shine = true, Pulse = true, ShinePause = 2.0f };
+                return new TierStyle { Shine = true, ShinePause = 2.0f };
             case AbilityRarity.Epic:
-                return new TierStyle { RingAlpha = 1f, TopLerp = 0.80f, HaloAlpha = 0.14f, IconGlow = 0.26f, Shine = true, ShinePause = 3.6f };
-            case AbilityRarity.Rare:
-                return new TierStyle { RingAlpha = 0.85f, TopLerp = 0.84f, IconGlow = 0.22f };
+                return new TierStyle { Shine = true, ShinePause = 3.6f };
             default:
-                return new TierStyle { RingAlpha = 0.35f, TopLerp = 0.90f, IconGlow = 0.10f };
+                return new TierStyle();
         }
     }
 
@@ -127,47 +118,20 @@ public static class AbilityCardView
 
     // ---- shared card pieces ---------------------------------------------------------------------
 
-    // The gradient body and neon ring live on a PADDED canvas (room for the outer bloom), so
-    // both stretch CardSpritePad past the card rect on every side.
-    private static Image AddPaddedSprite(Transform root, string name, Sprite sprite, Color color, float extra = 0f)
-    {
-        Image image = RuntimeUiKit.CreateImage(root, name, sprite, color);
-        image.type = Image.Type.Sliced;
-        RectTransform rect = image.rectTransform;
-        rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one;
-        float pad = RuntimeSprites.CardSpritePad + extra;
-        rect.offsetMin = new Vector2(-pad, -pad);
-        rect.offsetMax = new Vector2(pad, pad);
-        return image;
-    }
-
-    // Body + halo + ring. No ornaments - the card is a clean near-black slab and the neon
-    // edge carries the rarity. Content goes on top; the shine sweep (tier.Shine) must be
-    // attached AFTER content so it sweeps over everything. Returns the body Image (the pick
-    // button's target graphic).
+    // Flat card + plain hairline border (the neon ring / halo / gradient chrome was retired
+    // 2026-08-30 - Nick: no neon anywhere). Discovered cards carry the rarity accent on the
+    // hairline; locked cards stay neutral - the colour remains part of the discovery reward.
+    // Content goes on top; the shine sweep (tier.Shine) attaches AFTER content so it sweeps
+    // over everything. Returns the body Image (the pick button's target graphic).
     private static Image BuildCardChrome(Transform root, Color accent, TierStyle tier, bool discovered)
     {
-        Color top = discovered
-            ? WithAlpha(Color.Lerp(accent, Color.black, tier.TopLerp), 0.985f)
-            : new Color(0.075f, 0.08f, 0.09f, 0.98f);
-        Color bottom = discovered
-            ? WithAlpha(Color.Lerp(accent, Color.black, 0.94f), 0.985f)
-            : new Color(0.04f, 0.045f, 0.055f, 0.98f);
-        Image body = AddPaddedSprite(root, "Body", RuntimeSprites.CardGradient(top, bottom), Color.white);
-
-        if (discovered && tier.HaloAlpha > 0f)
-        {
-            Image halo = AddPaddedSprite(root, "Halo", MenuSprites.GlowFrame(),
-                WithAlpha(accent, tier.HaloAlpha), extra: 10f);
-            if (tier.Pulse) halo.gameObject.AddComponent<UiGlowPulse>();
-        }
-
-        // Locked cards keep a NEUTRAL ring - the rarity colour is part of the discovery reward.
-        AddPaddedSprite(root, "Ring", RuntimeSprites.CardNeonRing(), discovered
-            ? WithAlpha(Color.Lerp(accent, Color.white, 0.15f), tier.RingAlpha)
-            : WithAlpha(LockedColor, 0.25f));
-
+        Image body = RuntimeUiKit.CreateImage(root, "Body", RuntimeSprites.RoundedPanel(), discovered
+            ? new Color(0.075f, 0.075f, 0.09f, 1f)
+            : new Color(0.055f, 0.06f, 0.07f, 1f));
+        body.type = Image.Type.Sliced;
+        RuntimeUiKit.Stretch(body.rectTransform);
+        RuntimeUiKit.AddOutline(root,
+            discovered ? WithAlpha(accent, 0.55f) : WithAlpha(LockedColor, 0.25f));
         return body;
     }
 
@@ -211,24 +175,13 @@ public static class AbilityCardView
     // slabs on a matching near-black ground, so the tile reads as their frame). Locked entries
     // flip to a near-black silhouette tease.
     private static RectTransform AddIconTile(Transform root, Sprite icon, Color accent, float top,
-        float size, bool discovered, float glowAlpha)
+        float size, bool discovered)
     {
         RectTransform holder = RuntimeUiKit.CreateRect(root, "IconSlot",
             new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
             new Vector2(0f, top), new Vector2(size, size));
 
-        if (discovered && glowAlpha > 0f)
-        {
-            Image glow = RuntimeUiKit.CreateImage(holder, "Glow", MenuSprites.GlowFrame(),
-                WithAlpha(accent, glowAlpha));
-            glow.type = Image.Type.Sliced;
-            RectTransform glowRect = glow.rectTransform;
-            glowRect.anchorMin = Vector2.zero;
-            glowRect.anchorMax = Vector2.one;
-            glowRect.offsetMin = new Vector2(-12f, -12f);
-            glowRect.offsetMax = new Vector2(12f, 12f);
-        }
-
+        // (The soft glow that used to sit behind the tile was retired with the neon chrome.)
         Image tile = RuntimeUiKit.CreateImage(holder, "IconTile", RuntimeSprites.RoundedPanel(),
             discovered ? new Color(0.043f, 0.055f, 0.075f, 1f) : new Color(0.03f, 0.03f, 0.035f, 1f));
         tile.type = Image.Type.Sliced;
@@ -362,7 +315,7 @@ public static class AbilityCardView
         AddTitle(cardObject.transform, definition.DisplayName, -28f, 62f, 29f, RuntimeUiKit.TitleColor);
         AddTypeChip(cardObject.transform, definition.Type, -100f);
         RectTransform tile = AddIconTile(cardObject.transform, definition.Icon, accent, -146f, 158f,
-            true, tier.IconGlow);
+            true);
         if (stacks > 0) AddOwnedBadge(tile, stacks);
         AddDescription(cardObject.transform, definition.ShortDescriptionFor(stacks), -324f, -402f, 24f);
         AbilityDefinition detailDef = definition;
@@ -398,7 +351,7 @@ public static class AbilityCardView
             AddTitle(cardObject.transform, discovered ? definition.DisplayName : "???",
                 -36f, 80f, 38f, discovered ? RuntimeUiKit.TitleColor : LockedColor);
             if (discovered) AddTypeChip(cardObject.transform, definition.Type, -132f, 1.15f);
-            AddIconTile(cardObject.transform, definition.Icon, accent, -190f, 240f, discovered, tier.IconGlow);
+            AddIconTile(cardObject.transform, definition.Icon, accent, -190f, 240f, discovered);
             if (discovered)
                 AddDescription(cardObject.transform, definition.ShortDescriptionFor(0), -450f, -602f, 24f);
         }
@@ -418,7 +371,7 @@ public static class AbilityCardView
                 RuntimeUiKit.SetRect(lockIcon.rectTransform, new Vector2(0f, -102f),
                     new Vector2(34f, 34f), new Vector2(0.5f, 1f));
             }
-            AddIconTile(cardObject.transform, definition.Icon, accent, -152f, 194f, discovered, tier.IconGlow);
+            AddIconTile(cardObject.transform, definition.Icon, accent, -152f, 194f, discovered);
         }
 
         if (discovered && tier.Shine)
@@ -557,22 +510,19 @@ public static class AbilityCardView
 
     // ---- restyle helpers for kit-built panels/buttons (swap dialog, reroll) -------------------------
 
-    /// <summary>Give a kit panel (CreateCenteredPanel, drawBackground:false) the card look:
-    /// gradient glass + the neon ring, tinted by `accent`.</summary>
+    /// <summary>Give a kit panel (CreateCenteredPanel, drawBackground:false) the one flat
+    /// modal treatment (the gradient-glass + neon-ring look was retired 2026-08-30 - Nick:
+    /// no neon anywhere). `accent` is kept for signature stability but no longer painted.</summary>
     public static void StyleModalPanel(GameObject panel, Color accent)
     {
-        Image body = AddPaddedSprite(panel.transform, "Body",
-            RuntimeSprites.CardGradient(
-                WithAlpha(Color.Lerp(accent, Color.black, 0.72f), 0.98f),
-                WithAlpha(Color.Lerp(accent, Color.black, 0.92f), 0.98f)), Color.white);
+        Image body = RuntimeUiKit.CreateImage(panel.transform, "Body",
+            RuntimeSprites.RoundedPanel(), GameMenuStyle.PanelColor);
+        body.type = Image.Type.Sliced;
+        RuntimeUiKit.Stretch(body.rectTransform);
         body.raycastTarget = true;
         body.transform.SetAsFirstSibling();
-        Image ring = AddPaddedSprite(panel.transform, "Ring", RuntimeSprites.CardNeonRing(),
-            WithAlpha(Color.Lerp(accent, Color.white, 0.2f), 0.7f));
-        ring.transform.SetSiblingIndex(1);
         // Keep the chrome out of the panel's vertical layout flow.
         body.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-        ring.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
     }
 
     /// <summary>Restyle a kit button (legacy Text child) as a filled accent primary.</summary>
