@@ -68,6 +68,15 @@ public sealed class RunSuppliesApplier : MonoBehaviour
 
         TryGrantStocked(BoostId.StockedSloMo);
         TryGrantStocked(BoostId.StockedZap);
+        TryGrantStocked(BoostId.StockedVine);
+
+        // The hold pocket, bought for the run: exactly what PocketCacheAbility.OnAcquired
+        // does - HoldCache owns all the behaviour, this just switches it on.
+        if (RunSuppliesState.HasActiveBoost(BoostId.PocketCache))
+        {
+            HoldCache hold = GetComponent<HoldCache>();
+            if (hold != null) hold.Enable();
+        }
     }
 
     private void OnEnable()

@@ -92,6 +92,7 @@ public class VoidZoneModifier : LevelModifier, ILevelMenuProgressProvider
     private const float QuotaRetryInterval = 0.75f;
 
     private float _nextZoneY;
+    private bool _wardUsed;   // VOID WARD boost: one spare per run (clone field - resets per run)
     private int _zonesSpawned;
     private int _blocksPlaced;
     private float _quotaTimer;
@@ -103,6 +104,7 @@ public class VoidZoneModifier : LevelModifier, ILevelMenuProgressProvider
     {
         _context = context;
         _zones.Clear();
+        _wardUsed = false;
         _zonesSpawned = 0;
         _blocksPlaced = 0;
         _quotaTimer = 0f;
@@ -306,6 +308,10 @@ public class VoidZoneModifier : LevelModifier, ILevelMenuProgressProvider
         return false;
     }
 
+    /// <summary>Marker: this block was spared by the Void Ward boost and is exempt from every
+    /// later sweep (it may still be standing inside the zone).</summary>
+    private sealed class VoidWardedMark : MonoBehaviour { }
+
     private static Rect Grow(Rect rect, float by)
     {
         return new Rect(rect.xMin - by, rect.yMin - by, rect.width + 2f * by, rect.height + 2f * by);
@@ -324,6 +330,7 @@ public class VoidZoneModifier : LevelModifier, ILevelMenuProgressProvider
             if (block == null || !block.HasLanded) continue;
             if (block.IsFallingAway) continue; // already doomed - the loss line owns it, no double jeopardy
             if (block.GetComponent<VoidSuckFx>() != null) continue; // already being devoured
+            if (block.GetComponent<VoidWardedMark>() != null) continue; // spared by the ward - permanently exempt
             // Maws are exempt (the Extract precedent: maws never participate in removal
             // effects) - their welds are UNBREAKABLE by design, and dragging one member of
             // a fused cluster kinematically would haul the rest through the tower.
@@ -337,6 +344,19 @@ public class VoidZoneModifier : LevelModifier, ILevelMenuProgressProvider
                 for (int c = 0; c < _cellScratch.Count; c++)
                 {
                     if (!inset.Contains(_cellScratch[c])) continue;
+
+                    // VOID WARD (boost, SHOP.md §3): the FIRST grabbed block this run is
+                    // spared - and marked permanently exempt (the maw-exemption pattern),
+                    // or the next sweep would devour it where it stands.
+                    if (!_wardUsed && RunSuppliesState.HasActiveBoost(BoostId.VoidWard))
+                    {
+                        _wardUsed = true;
+                        block.gameObject.AddComponent<VoidWardedMark>();
+                        TransmutePulseFx.Play(block);
+                        SfxPlayer.Play("transmute", 0.8f);
+                        z = _zones.Count;
+                        break;
+                    }
 
                     VoidSuckFx.Begin(block, _zones[z].WorldRect.center, suckSeconds, _context.GameManager);
                     if (_zones[z].Fx != null) _zones[z].Fx.Feed(suckSeconds + 0.4f);

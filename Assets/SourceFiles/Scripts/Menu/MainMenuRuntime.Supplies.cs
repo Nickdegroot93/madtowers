@@ -402,6 +402,10 @@ public static partial class MainMenuRuntime
         BoostId.QuickStudy => "Q",
         BoostId.StockedSloMo => "M",
         BoostId.StockedZap => "Z",
+        BoostId.StockedVine => "V",
+        BoostId.LowTide => "L",
+        BoostId.VoidWard => "W",
+        BoostId.PocketCache => "P",
         _ => "?",
     };
 
@@ -689,27 +693,35 @@ public static partial class MainMenuRuntime
 
         // Cards live in their own container so a toggle rebuilds ONLY the cards, in place -
         // the panel, header and backdrop never blink. The block centres vertically in the
-        // fixed frame's space between the header and the DONE button, so a level with three
-        // relevant boosts doesn't leave all its slack piled at the bottom.
-        // The frame must stay EXACTLY the modal's height, so if the roster ever outgrows it,
-        // COMPRESS the cards to fit instead of overflowing: the shorter one-row frame era
-        // proved a card sliding under DONE loses its price row AND its taps (review
-        // 2026-08-11). Card internals are middle-anchored within ±42px, so anything at the
-        // 120px floor keeps them intact. (The section is two rows for every level now - the
-        // Flood's lives row came back as the INCLUDED acknowledgment - so today this only
-        // fires if a 6th relevant boost ships.)
-        float cardHFit = cardH;
-        float cardsBlockH = relevant.Count * (cardHFit + cardGap) - cardGap;
+        // fixed frame's space when it fits; a roster that outgrows the frame SCROLLS inside a
+        // masked viewport instead (the 2026-08-29 boosts took the worst case to 8 relevant
+        // cards - the old 120px compression floor stopped being enough, and the 2026-08-11
+        // rule stands: a card must never slide under DONE with live taps).
+        float cardsBlockH = relevant.Count * (cardH + cardGap) - cardGap;
         float availableH = H - headH - (40f + doneH + 24f);
-        if (relevant.Count > 0 && cardsBlockH > availableH)
-        {
-            cardHFit = Mathf.Max(120f, (availableH - (relevant.Count - 1) * cardGap) / relevant.Count);
-            cardsBlockH = relevant.Count * (cardHFit + cardGap) - cardGap;
-        }
-        float cardsTop = -headH - Mathf.Max(0f, (availableH - cardsBlockH) * 0.5f);
-        RectTransform cardsRoot = CreateRect(panel, "Cards",
+        RectTransform viewport = CreateRect(panel, "CardsViewport",
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(pad, cardsTop), new Vector2(contentW, cardsBlockH));
+            new Vector2(pad, -headH), new Vector2(contentW, availableH));
+        viewport.gameObject.AddComponent<RectMask2D>();
+        float cardsTop = cardsBlockH < availableH ? -(availableH - cardsBlockH) * 0.5f : 0f;
+        RectTransform cardsRoot = CreateRect(viewport, "Cards",
+            new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
+            new Vector2(0f, cardsTop), new Vector2(contentW, cardsBlockH));
+        if (cardsBlockH > availableH)
+        {
+            // A ScrollRect needs a Graphic on the viewport to catch drags; fully transparent
+            // still raycasts. Buttons on the cards keep their taps (drag vs click is the
+            // standard uGUI split).
+            Image dragSurface = viewport.gameObject.AddComponent<Image>();
+            dragSurface.color = Color.clear;
+            ScrollRect scroll = viewport.gameObject.AddComponent<ScrollRect>();
+            scroll.content = cardsRoot;
+            scroll.viewport = viewport;
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 30f;
+        }
 
         void RebuildCards()
         {
@@ -719,7 +731,7 @@ public static partial class MainMenuRuntime
             for (int i = 0; i < relevant.Count; i++)
             {
                 BuildBoostCard(ui, cardsRoot, relevant[i], wallet,
-                    new Vector2(0f, -i * (cardHFit + cardGap)), contentW, cardHFit, RebuildCards);
+                    new Vector2(0f, -i * (cardH + cardGap)), contentW, cardH, RebuildCards);
             }
         }
         RebuildCards();

@@ -123,6 +123,9 @@ public class RisingFloodModifier : LevelModifier, ILevelMenuProgressProvider
                              "against a 20m stand-in. Author flood levels with ReachHeight.");
         }
         _riseSpeed = (goalHeight + startBelowFloor) / Mathf.Max(10f, secondsToGoal);
+        // LOW TIDE (boost, SHOP.md §3): the flood is this type's only clock, and its pacing
+        // has the one dial - the boost turns it, nothing else changes.
+        if (RunSuppliesState.HasActiveBoost(BoostId.LowTide)) _riseSpeed *= SupplyCatalog.LowTideFloodScale;
 
         // WATER-BIASED palette: a base teal pulled 25% toward the chapter accents. Pure
         // accent derivation failed its first contact (Jungle: green accents + green bricks

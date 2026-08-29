@@ -9,11 +9,17 @@ using System.Collections.Generic;
 /// </summary>
 public enum BoostId
 {
+    // DATA.md rule 2: these names are the stable save/analytics ids (start_run loadout json,
+    // RunSuppliesState) - never rename a shipped one.
     SlowDescent,
     ScarceHazards,
     QuickStudy,
     StockedSloMo,
     StockedZap,
+    LowTide,
+    VoidWard,
+    PocketCache,
+    StockedVine,
 }
 
 public static class SupplyCatalog
@@ -25,8 +31,9 @@ public static class SupplyCatalog
     public static readonly int[] LifePipPrices = { 40, 60, 90 };
 
     public const float SlowDescentSpeedScale = 0.9f;  // never deeper - below ×0.9 the run stops resembling the level
-    public const float ScarceHazardsReduction = 0.5f; // fraction removed from every hazard chance
+    public const float ScarceHazardsReduction = 0.3f; // fraction removed from every hazard chance (0.5 read as OP - Nick 2026-08-29)
     public const int QuickStudyAtBlocks = 3;
+    public const float LowTideFloodScale = 0.85f;     // flood rise speed multiplier (~17% more time to the goal)
 
     public sealed class BoostInfo
     {
@@ -38,20 +45,37 @@ public static class SupplyCatalog
         public string ConsumableAssetName;
     }
 
+    // LIST ORDER IS PICKER ORDER (irrelevant boosts are hidden, so the visible subset keeps
+    // this ranking - Nick 2026-08-29): TYPE-SPECIFIC first (they exist only on their game
+    // type and are that type's headline), then CONDITIONAL (only shown where their trigger
+    // exists, so they're always pointed when visible), then the basics. Never sort by price
+    // or name.
     public static readonly IReadOnlyList<BoostInfo> Boosts = new[]
     {
-        new BoostInfo { Id = BoostId.SlowDescent, DisplayName = "SLOW DESCENT",
-            Blurb = "Blocks fall 10% slower, all run long.", Price = 80 },
+        // -- type-specific --
+        new BoostInfo { Id = BoostId.LowTide, DisplayName = "LOW TIDE",
+            Blurb = "The flood rises 15% slower, all run long.", Price = 70 },
+        new BoostInfo { Id = BoostId.VoidWard, DisplayName = "VOID WARD",
+            Blurb = "The first block the void grabs is spared.", Price = 60 },
+        // -- conditional --
         new BoostInfo { Id = BoostId.ScarceHazards, DisplayName = "SCARCE HAZARDS",
-            Blurb = "Hostile bricks show up half as often.", Price = 60 },
+            Blurb = "Hostile bricks show up 30% less often.", Price = 60 },
         new BoostInfo { Id = BoostId.QuickStudy, DisplayName = "QUICK STUDY",
             Blurb = "Your first ability choice arrives after 3 blocks.", Price = 30 },
+        // -- basics --
+        new BoostInfo { Id = BoostId.SlowDescent, DisplayName = "SLOW DESCENT",
+            Blurb = "Blocks fall 10% slower, all run long.", Price = 20 }, // repriced 80->20: x0.9 played as comfort, not power (Nick 2026-08-29)
+        new BoostInfo { Id = BoostId.PocketCache, DisplayName = "POCKET CACHE",
+            Blurb = "Unlocks the hold pocket - bank a block, swap it back anytime.", Price = 140 },
         new BoostInfo { Id = BoostId.StockedSloMo, DisplayName = "STOCKED: SLO-MO",
             Blurb = "Start the run holding one Slo-Mo charge.", Price = 30,
             ConsumableAssetName = "SloMo" },
         new BoostInfo { Id = BoostId.StockedZap, DisplayName = "STOCKED: ZAP",
             Blurb = "Start the run holding one Zap charge.", Price = 40,
             ConsumableAssetName = "Zap" },
+        new BoostInfo { Id = BoostId.StockedVine, DisplayName = "STOCKED: VINE",
+            Blurb = "Start holding one Vine charge - the next 2 bricks turn to vine.", Price = 60,
+            ConsumableAssetName = "VineBrick" },
     };
 
     /// <summary>Stable save/analytics id (DATA.md rule 2) - the enum name, never its ordinal.</summary>
@@ -90,8 +114,19 @@ public static class SupplyCatalog
                 // actually beats.
                 return config.PowerUpChoiceEveryBlocks > QuickStudyAtBlocks
                     && config.PowerUpChoicePool != null && config.PowerUpChoicePool.Count > 0;
+            case BoostId.LowTide:
+                // Only the Flood has a clock today (no timed goal levels shipped) - the boost
+                // slows the ONE pacing dial (RisingFloodModifier consumes it at level start).
+                return HasModifier<RisingFloodModifier>(level);
+            case BoostId.VoidWard:
+                return HasModifier<VoidZoneModifier>(level);
+            case BoostId.PocketCache:
+                // The hold pocket is an ability in boost clothing (PocketCacheAbility grants
+                // the same thing) - the wave-mode ability ban applies (Nick 2026-08-29).
+                return level.TargetType != LevelTargetType.ClearWaves;
             case BoostId.StockedSloMo:
             case BoostId.StockedZap:
+            case BoostId.StockedVine:
                 // Wave mode runs WITHOUT abilities (HeightLimitWavesModifier.BansAbility,
                 // Nick 2026-08-24) - stocked consumables ARE abilities, so the tray must
                 // not sell them into the one mode they'd cheese. SlowDescent stays: a
@@ -124,6 +159,17 @@ public static class SupplyCatalog
             if (Boosts[i].Id == id) return Boosts[i];
         }
         return null;
+    }
+
+    private static bool HasModifier<T>(LevelDefinition level) where T : LevelModifier
+    {
+        System.Collections.Generic.IReadOnlyList<LevelModifier> modifiers =
+            level != null ? level.Modifiers : null;
+        for (int i = 0; modifiers != null && i < modifiers.Count; i++)
+        {
+            if (modifiers[i] is T) return true;
+        }
+        return false;
     }
 
     private static bool LevelHasHazards(GameModeConfig config)

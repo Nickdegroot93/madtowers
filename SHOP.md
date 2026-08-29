@@ -99,16 +99,30 @@ Passive run modifiers. Design rules:
   and REJECTED by Nick 2026-07-20 — everything costs its listed price, always. Don't
   re-add without him.
 
-The launch catalog (5, deliberately small; all in `SupplyCatalog` - a code-owned
-static class, not an asset, so price tuning can't go stale in serialized defaults):
+The catalog (grown to 9 on 2026-08-29 - the 5-boost screen read as thin; all in
+`SupplyCatalog`, a code-owned static class, not an asset, so price tuning can't go
+stale in serialized defaults):
 
-| Boost | Effect | Dial it turns | Price |
-|---|---|---|---|
-| **Slow Descent** | fall speed ×0.9 (start AND cap) | `DifficultyController.ScaleSpeeds` | 80 |
-| **Scarce Hazards** | hostile-brick spawn chances ×0.5 | `Spawner.ReduceHazardChances` (run-local) | 60 |
-| **Quick Study** | first ability choice arrives at 3 blocks instead of the level's cadence | `AbilityChoiceController` first-fire | 30 |
-| **Stocked: Slo-Mo** | start the run holding one Slo-Mo charge | consumable pre-grant | 30 |
-| **Stocked: Zap** | start the run holding one Zap charge | consumable pre-grant | 40 |
+| Boost | Effect | Dial it turns | Shows on | Price |
+|---|---|---|---|---|
+| **Slow Descent** | fall speed ×0.9 (start AND cap) | `DifficultyController.ScaleSpeeds` | every level | 20 |
+| **Scarce Hazards** | hostile-brick spawn chances ×0.7 (was ×0.5; halving read as OP, Nick 2026-08-29) | `Spawner.ReduceHazardChances` (run-local) | hazard levels | 60 |
+| **Quick Study** | first ability choice arrives at 3 blocks instead of the level's cadence | `AbilityChoiceController` first-fire | draft levels | 30 |
+| **Stocked: Slo-Mo** | start the run holding one Slo-Mo charge | consumable pre-grant | non-wave | 30 |
+| **Stocked: Zap** | start the run holding one Zap charge | consumable pre-grant | non-wave | 40 |
+| **Stocked: Vine** | start holding one Vine charge (next 2 bricks turn to vine) | consumable pre-grant (`VineBrick`) | non-wave | 60 |
+| **Low Tide** | the flood rises ×0.85 (~17% more time to the goal) | `RisingFloodModifier._riseSpeed` at level start | Flood levels | 70 |
+| **Void Ward** | the FIRST block the void grabs is spared (marked permanently exempt) | `VoidZoneModifier` sweep, once per run | Void Zones levels | 60 |
+| **Pocket Cache** | unlocks the hold pocket for the run (exactly `PocketCacheAbility`) | `HoldCache.Enable` at run start | non-wave (ability rule) | 140 |
+
+Picker order = the `SupplyCatalog.Boosts` list order (Nick 2026-08-29): TYPE-SPECIFIC
+boosts first (Low Tide, Void Ward), then CONDITIONAL (Scarce Hazards, Quick Study),
+then the basics - never sorted by price or name. Irrelevant boosts stay hidden, so the
+visible subset keeps the ranking.
+
+The picker SCROLLS when the relevant roster outgrows the fixed frame (worst case is
+now 8 cards on a hazard+draft Flood level) - the old 120px compression floor was
+retired; the 2026-08-11 rule stands (no card ever slides under DONE).
 
 (A "Steady Hands" wind-reduction boost was designed and cut at build time: the game
 has no weather/wind system yet, and a Rare ability already owns that name. Revisit
@@ -116,8 +130,9 @@ when weather ships.)
 
 Notes:
 - Slow Descent at ×0.9 ≈ two-and-a-half chapter rows of relief (rows grow ~4%,
-  PROGRESSION.md §2.1) — the strongest boost, priced accordingly. Never offer a
-  deeper slow; below ×0.9 runs stop resembling the level.
+  PROGRESSION.md §2.1). Repriced 80→20 (2026-08-29): in play it reads as comfort,
+  not power - a light-touch impulse buy. Never offer a deeper slow; below ×0.9
+  runs stop resembling the level.
 - Scarce Hazards halves only entries whose brick is hostile (Feather/Ice/Locked/
   Sandstone/Vortex/Boulder/Magma/Bomb/Maw/Tremor); helpers (Vine/Anchor) and the
   Pyramid monument are untouched.
