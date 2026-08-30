@@ -5,8 +5,8 @@ using UnityEngine.UI;
 /// The two consumable slots: right-side buttons, built in code like the rest of the
 /// runtime UI. The authored ability icon IS the button - drawn full bleed (its opaque
 /// near-black ground is the body), corners clipped to the card chrome's rounded geometry
-/// by a stencil mask, with the neon ring as a border sitting right on the icon's edge
-/// (bloom overhangs outward). A dark slab backing shows only for icon-less abilities.
+/// by a stencil mask, with the hairline ring as a border sitting right on the icon's edge
+/// (the padded sprite overhangs outward). A dark slab backing shows only for icon-less abilities.
 /// A gesture exclusion rect is registered over the visible buttons so activating a
 /// consumable never steers or rotates the piece.
 /// Buttons dim whenever the blanket gates refuse activation (paused, game over, win
@@ -16,7 +16,7 @@ using UnityEngine.UI;
 public class AbilityHud : MonoBehaviour
 {
     private const float DefaultSlotSize = 124f; // initial rect size; the real size comes from HudLayout
-    // The chrome sprites carry their neon bloom on a padded canvas; overhang them past the
+    // The chrome sprites live on a padded canvas (shared card geometry); overhang them past the
     // slot rect by that pad so the ring's bright line sits exactly ON the rect edge and the
     // icon fills the full HudLayout size - no container band eating into the art.
     private const float ChromePad = RuntimeSprites.CardSpritePad;
@@ -117,7 +117,7 @@ public class AbilityHud : MonoBehaviour
         // anchor + size are applied from HudLayout in ApplyLayout().
 
         // The root Image is a pure touch target (and the layout/punch-scale rect); the
-        // visible chrome is the full-bleed icon behind a neon ring, per the card recipe.
+        // visible chrome is the full-bleed icon behind a hairline ring, per the card recipe.
         Image frame = slot.GetComponent<Image>();
         frame.color = Color.clear;
         _slotFrames[index] = frame;
@@ -142,7 +142,7 @@ public class AbilityHud : MonoBehaviour
 
     /// <summary>The slot's visual recipe - dark slab, full-bleed icon clipped to the rounded
     /// card geometry (border and icon edge stay aligned at any size; square icon corners are
-    /// clipped instead of poking past the rounded border), neon ring over the clipped edge,
+    /// clipped instead of poking past the rounded border), hairline ring over the clipped edge,
     /// fallback name label. Shared with ConsumableSwapOverlay's flying puppets so an enlarged
     /// copy is indistinguishable from the real button.</summary>
     public static void BuildSlotChrome(RectTransform slot, out Image icon, out Image ring, out Text label)
@@ -177,7 +177,7 @@ public class AbilityHud : MonoBehaviour
         icon.preserveAspect = true;
         icon.raycastTarget = false;
 
-        ring = RuntimeUiKit.CreateImage(slot, "Ring", RuntimeSprites.CardNeonRing(), RingColor);
+        ring = RuntimeUiKit.CreateImage(slot, "Ring", RuntimeSprites.CardHairlineRing(), RingColor);
         ring.type = Image.Type.Sliced;
         ring.raycastTarget = false;
         StretchPadded(ring.rectTransform);
@@ -303,7 +303,7 @@ public class AbilityHud : MonoBehaviour
         }
     }
 
-    // Chrome pieces overhang the slot rect by the sprites' padded bloom margin, so the neon
+    // Chrome pieces overhang the slot rect by the sprites' padded margin, so the ring's
     // line lands exactly on the rect edge (see ChromePad).
     private static void StretchPadded(RectTransform rect)
     {

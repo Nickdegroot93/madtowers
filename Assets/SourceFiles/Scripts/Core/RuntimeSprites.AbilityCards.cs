@@ -56,11 +56,15 @@ public static partial class RuntimeSprites
         return _cardGradients[key] = Finish(tex, 100f, new Vector4(border, border, border, border));
     }
 
-    private static Sprite _cardNeonRing;
+    private static Sprite _cardHairlineRing;
 
-    public static Sprite CardNeonRing()
+    // The NEON ring this replaced (crisp core + outer bloom + inner glow) is the retired
+    // language (Nick 2026-08-30, last holdout: the HUD ability slots) - this is the same
+    // card geometry as a PLAIN HAIRLINE stroke, so existing StretchPadded chrome swaps in
+    // place with fill and border still aligned.
+    public static Sprite CardHairlineRing()
     {
-        if (_cardNeonRing != null) return _cardNeonRing;
+        if (_cardHairlineRing != null) return _cardHairlineRing;
 
         const int S = CardTexSize;
         const float half = S * 0.5f - CardSpritePad;
@@ -70,22 +74,12 @@ public static partial class RuntimeSprites
             for (int x = 0; x < S; x++)
             {
                 float d = CardBoxDistance(x + 0.5f - S * 0.5f, y + 0.5f - S * 0.5f, half, CardCornerRadius);
-
-                // A crisp bright core stroke, an outer bloom forced to zero before the canvas
-                // edge (an exponential alone leaves a visible cut-off square), and a faint
-                // inner glow so the interior reads lit from its edges (the card BODY stays
-                // near-black - the edge light is where the rarity colour lives).
-                float core = Mathf.Clamp01(1.7f - Mathf.Abs(d) + 0.5f);
-                float outer = d > 0f
-                    ? Mathf.Exp(-d / 5f) * 0.5f * Mathf.Clamp01((CardSpritePad - 2f - d) / 6f)
-                    : 0f;
-                float inner = d < 0f ? Mathf.Exp(d / 5.5f) * 0.28f : 0f;
-
-                tex.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Clamp01(core + outer + inner)));
+                float core = Mathf.Clamp01(1.5f - Mathf.Abs(d)); // ~2px soft-edged stroke, no glow
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, core));
             }
         }
         float border = CardSpritePad + CardCornerRadius + 2f;
-        return _cardNeonRing = Finish(tex, 100f, new Vector4(border, border, border, border));
+        return _cardHairlineRing = Finish(tex, 100f, new Vector4(border, border, border, border));
     }
 
     // ---- placeholder ability glyph --------------------------------------------------------

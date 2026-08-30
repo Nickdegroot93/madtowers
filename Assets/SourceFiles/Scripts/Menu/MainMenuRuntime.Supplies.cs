@@ -613,7 +613,7 @@ public static partial class MainMenuRuntime
     }
 
     // ---- the boost picker -------------------------------------------------------------------
-    // A centered modal of neon-edged toggle cards - the same CardGradient + CardNeonRing chrome
+    // A centered modal of toggle cards - the same CardGradient chrome
     // as the in-run ability picker, the game's flagship surface, so pre-run and in-run choices
     // read as one system. Replaced the bottom sheet (Nick, 2026-07-29: "the list that pops up
     // from the bottom looks bad... text way too small... a bit buggy"): cards toggle IN PLACE
