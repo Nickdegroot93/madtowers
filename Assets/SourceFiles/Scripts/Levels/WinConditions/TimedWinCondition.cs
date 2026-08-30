@@ -23,6 +23,7 @@ public sealed class TimedWinCondition : WinCondition
 
     public override bool IsMet(in WinContext ctx) => _inner.IsMet(in ctx);
     public override bool IsStillHeld(in WinContext ctx) => _inner.IsStillHeld(in ctx);
+    public override bool SpeedCapChasesTiers => _inner.SpeedCapChasesTiers;
     public override float RunProgress01(GameManager gameManager) => _inner.RunProgress01(gameManager);
     public override float RunProgressRaw(GameManager gameManager) => _inner.RunProgressRaw(gameManager);
 

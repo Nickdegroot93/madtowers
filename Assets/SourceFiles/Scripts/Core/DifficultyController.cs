@@ -12,6 +12,11 @@ public sealed class DifficultyController
     [SerializeField] private float _speedIncreasePerInterval = 0.1f;
 
     private float _speedTimer;
+    // The authored cap (after any ScaleSpeeds boost), kept separate from the LIVE cap so the
+    // medal ladder can scale it per armed rung (SetCapScale) without compounding: live cap =
+    // base cap x tier scale, whatever order the boost and the ladder apply in.
+    private float _baseMaxFallSpeed = 5.0f;
+    private float _capScale = 1f;
 
     public float BaseFallSpeed => _currentFallSpeed;
 
@@ -21,6 +26,8 @@ public sealed class DifficultyController
 
         _currentFallSpeed = config.InitialFallSpeed;
         _maxFallSpeed = config.MaxFallSpeed;
+        _baseMaxFallSpeed = config.MaxFallSpeed;
+        _capScale = 1f;
         _scalingMode = config.DifficultyScalingMode;
         _adjustmentMode = config.DifficultyAdjustmentMode;
         _speedIncreasePerBlock = config.SpeedIncreasePerBlock;
@@ -38,7 +45,8 @@ public sealed class DifficultyController
         if (multiplier <= 0f) return;
 
         _currentFallSpeed *= multiplier;
-        _maxFallSpeed *= multiplier;
+        _baseMaxFallSpeed *= multiplier;
+        _maxFallSpeed = _baseMaxFallSpeed * _capScale;
         // Additive ramps are absolute speed-per-step and must shrink with the band; percent
         // ramps are already relative, so scaled start+cap alone keeps the authored shape.
         if (_adjustmentMode == DifficultyAdjustmentMode.Additive)
@@ -46,6 +54,16 @@ public sealed class DifficultyController
             _speedIncreasePerBlock *= multiplier;
             _speedIncreasePerInterval *= multiplier;
         }
+    }
+
+    /// <summary>Scale the speed CAP (only) relative to its authored value - the medal
+    /// ladder's silver/gold escalation on block-count levels. The current speed is never
+    /// touched: the ordinary per-block ramp climbs into the raised ceiling at its authored
+    /// slope, so earning a rung never jolts the falling piece.</summary>
+    public void SetCapScale(float scale)
+    {
+        _capScale = Mathf.Max(0.1f, scale);
+        _maxFallSpeed = _baseMaxFallSpeed * _capScale;
     }
 
     public void Tick(float deltaTime)

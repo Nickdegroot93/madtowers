@@ -83,6 +83,13 @@ public abstract class WinCondition
     /// whose live count re-crosses the target) don't need it. Default off.</summary>
     public virtual bool ReArmsByPolling => false;
 
+    /// <summary>True when the fall-speed ramp IS this goal's difficulty (block count: nothing
+    /// else pushes back), so the medal ladder raises the speed CAP per armed rung - the
+    /// authored caps land right at bronze, and silver/gold would otherwise run at bronze
+    /// speed forever (Nick 2026-08-30). Type-claiming modifiers (Void Zones, Airtight, ...)
+    /// carry their own difficulty and veto it at the call site. Default off.</summary>
+    public virtual bool SpeedCapChasesTiers => false;
+
     /// <summary>True when the run has a main clock that fails the level on expiry.</summary>
     public virtual bool HasTimeLimit => false;
 

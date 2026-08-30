@@ -9,6 +9,8 @@ public sealed class PlaceBlocksWinCondition : WinCondition
 
     public PlaceBlocksWinCondition(float target) => _target = target;
 
+    public override bool SpeedCapChasesTiers => true; // speed IS block count's difficulty
+
     public override bool IsMet(in WinContext ctx)
         => ctx.GameManager != null && ctx.GameManager.placedBlocks >= _target;
 

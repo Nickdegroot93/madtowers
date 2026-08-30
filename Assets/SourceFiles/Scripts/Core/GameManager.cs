@@ -494,6 +494,14 @@ public class GameManager : MonoBehaviour
         _difficulty.ScaleSpeeds(multiplier);
     }
 
+    /// <summary>Scale the speed CAP relative to its authored value - the medal ladder's
+    /// silver/gold escalation (LevelRuntimeController.ApplyTierSpeedCap). The per-block
+    /// ramp climbs into the raised ceiling; the current speed is never jolted.</summary>
+    public void SetSpeedCapScale(float scale)
+    {
+        _difficulty.SetCapScale(scale);
+    }
+
     /// <summary>Composed multiplier from abilities/status effects; pushed by AbilityRuntime
     /// on inventory/lives/status changes, never per frame.</summary>
     public void SetAbilityFallSpeedMultiplier(float multiplier)

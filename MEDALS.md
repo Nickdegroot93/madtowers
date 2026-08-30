@@ -35,6 +35,19 @@ the next rung's goal re-arms immediately and holds again (5s per rung, worst cas
 "measure what the hold ended at" value (the removed `WinCondition.VerifiedValue`) without
 solving the last-frame-spike problem it had.
 
+## 2b. Speed escalation per rung (Nick 2026-08-30)
+
+On levels where the fall-speed ramp IS the difficulty — pure **BLOCK COUNT** (incl. timed;
+`WinCondition.SpeedCapChasesTiers`) — the speed CAP scales with the **armed** rung:
+×1.0 bronze, ×1.15 silver, ×1.30 gold (`LevelRuntimeController.TierSpeedCapStep`). The
+authored caps land right at the bronze target, so silver/gold otherwise played at bronze
+speed forever. Only the CEILING moves: the per-block ramp climbs into it at its authored
+slope (`DifficultyController.SetCapScale` never touches the current speed), so earning a
+rung never jolts the falling piece, and a replay chasing silver/gold ramps toward its own
+cap from the first brick. Levels whose game type is claimed by a modifier (Void Zones,
+Airtight, The Flood, Puzzle Waves) and height goals are untouched — they carry their own
+difficulty. Keep Playing after gold holds the gold cap.
+
 ## 3. Run adjudication (attempts / XP / server)
 
 - **The run's FIRST newly earned rung — ANY tier — adjudicates it as a win**: local bests

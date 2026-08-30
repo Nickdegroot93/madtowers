@@ -108,13 +108,16 @@ public class LevelRuntimeController : MonoBehaviour
 
         StartModifiers();
         InitializeTimedGoal();
+        // After StartModifiers - the type-claim veto reads _activeModifiers. A silver/gold
+        // chase ramps toward ITS cap from the first brick.
+        ApplyTierSpeedCap();
 
-        // A modifier that owns the intro messaging (the first-run tutorial) suppresses the goal
-        // banner - it would talk over the lessons; the tutorial shows the goal itself instead.
-        if (_level != null && !string.IsNullOrWhiteSpace(_level.Instruction) && !GoalBannerSuppressed())
-        {
-            ShowBanner(_level.Instruction);
-        }
+        // The level-start goal text ("Stack 100 blocks - ...") is RETIRED (Nick 2026-08-30:
+        // it read as awful over the intro camera pan). Its slot will show the game-type LOGO
+        // instead once the logo art lands - the banner machinery below stays for that, and
+        // for the mid-run "tower fell" abort message. The pre-run modal still carries the
+        // goal sentence, so the information is not lost. (GoalBannerSuppressed() remains for
+        // the tutorial, which owns the intro messaging when it runs.)
     }
 
     // Only one banner at a time: the verification abort/re-arm cycle can fire repeatedly
@@ -853,6 +856,28 @@ public class LevelRuntimeController : MonoBehaviour
     }
 
     // Checked after StartModifiers so each clone has decided whether it actually runs.
+    // The medal ladder's speed escalation (MEDALS.md addendum, Nick 2026-08-30): on levels
+    // where the fall-speed ramp IS the difficulty (pure BLOCK COUNT - the authored caps land
+    // right at bronze), the cap scales with the ARMED rung: x1.0 bronze, x1.15 silver,
+    // x1.30 gold. Applied at run start (a silver chase ramps toward the silver cap from the
+    // first brick) and on every rung advance; never after the ladder completes (Keep Playing
+    // holds the last cap). Levels whose game type is claimed by a modifier (Void Zones,
+    // Airtight, The Flood, Puzzle Waves) carry their own difficulty and are untouched.
+    private const float TierSpeedCapStep = 0.15f;
+
+    private void ApplyTierSpeedCap()
+    {
+        if (_armedTier == null || GameManager.Instance == null) return;
+        if (_winCondition == null || !_winCondition.SpeedCapChasesTiers) return;
+        for (int i = 0; i < _activeModifiers.Count; i++)
+        {
+            if (_activeModifiers[i] is ILevelMenuProgressProvider claim &&
+                !string.IsNullOrEmpty(claim.MenuChallengeLabel)) return;
+        }
+
+        GameManager.Instance.SetSpeedCapScale(1f + TierSpeedCapStep * (int)_armedTier.Value);
+    }
+
     private bool GoalBannerSuppressed()
     {
         for (int i = 0; i < _activeModifiers.Count; i++)
@@ -1072,6 +1097,7 @@ public class LevelRuntimeController : MonoBehaviour
         GameManager.Instance.ReleasePhase(this);
         _armedTier = LevelTiers.LowestUnearned(_level, _sessionVerifiedValue);
         RebuildArmedCondition();
+        ApplyTierSpeedCap(); // raise the ceiling for the new rung; the ramp climbs into it
         // The celebration itself is MedalHud's debut fly-in (big pill center-screen settling
         // into its slot) - a text toast on top would double-tell it (Nick 2026-08-29).
         SfxPlayer.Play("ui-star-earned");
