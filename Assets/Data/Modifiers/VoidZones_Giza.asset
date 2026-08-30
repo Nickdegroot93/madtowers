@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: VoidZones_Giza
   m_EditorClassIdentifier: Assembly-CSharp::VoidZoneModifier
   firstZoneHeight: 9
-  heightInterval: 7
-  spawnChance: 0.9
+  heightInterval: 9
+  spawnChance: 0.75
   spawnAheadHeight: 7
   zoneWidthMin: 2
   zoneWidthMax: 3

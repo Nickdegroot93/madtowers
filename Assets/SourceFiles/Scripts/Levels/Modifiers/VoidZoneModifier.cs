@@ -53,11 +53,13 @@ public class VoidZoneModifier : LevelModifier, ILevelMenuProgressProvider
     [Min(0)]
     [SerializeField] private int maxZonesPerRun = 0;
     [Tooltip("The RNG floor (0 = off): by 85% of the goal, at least this many zones have " +
-             "spawned, paced proportionally (at 42% of the goal, half the minimum is owed). " +
+             "spawned, paced proportionally but TRAILING the dice (nothing is owed until a " +
+             "full pace-step of the goal has passed; at 43% of the goal, half the minimum). " +
              "The dice keep owning WHERE and exactly WHEN - the quota only forces a spawn " +
              "when a lucky streak of missed rolls falls behind it, so a run can never " +
              "cruise to the win without meeting the mechanic (Nick 2026-08-24: one zone " +
-             "all round on the chapter-3 debut).")]
+             "all round on the chapter-3 debut). A forced zone also consumes the next " +
+             "height-row roll, so quota and dice can never double-spawn in one band.")]
     [Min(0)]
     [SerializeField] private int minZonesPerRun = 0;
 
@@ -151,15 +153,24 @@ public class VoidZoneModifier : LevelModifier, ILevelMenuProgressProvider
         // placement failed and was silently lost) falls behind that pace, force a spawn at
         // the normal ahead-of-peak position - same placement RNG, same route guarantee,
         // just no dice for WHETHER. Retries on a beat while placement keeps failing.
+        // FloorToInt so the quota TRAILS the dice instead of leading them: nothing is owed
+        // until a full pace-step of the goal has passed (CeilToInt owed a zone after the
+        // very first block - the chapter-8 opening ambush, Nick 2026-08-30).
         _quotaTimer -= deltaTime;
         if (minZonesPerRun > 0 && _zonesSpawned < minZonesPerRun && _quotaTimer <= 0f
             && (maxZonesPerRun <= 0 || _zonesSpawned < maxZonesPerRun))
         {
-            int owed = Mathf.CeilToInt(Mathf.Clamp01(GoalProgress01(context) / 0.85f) * minZonesPerRun);
+            int owed = Mathf.FloorToInt(Mathf.Clamp01(GoalProgress01(context) / 0.85f) * minZonesPerRun);
             if (_zonesSpawned < owed)
             {
                 _quotaTimer = QuotaRetryInterval;
-                TrySpawnZone(peak + spawnAheadHeight);
+                float spawnY = peak + spawnAheadHeight;
+                if (TrySpawnZone(spawnY))
+                {
+                    // A forced zone consumes the roller's next row - otherwise the dice
+                    // fire again in the same band moments later and two zones cluster.
+                    _nextZoneY = Mathf.Max(_nextZoneY, spawnY + heightInterval);
+                }
             }
         }
 
@@ -195,11 +206,11 @@ public class VoidZoneModifier : LevelModifier, ILevelMenuProgressProvider
 
     // ---- Spawning ---------------------------------------------------------------------------
 
-    private void TrySpawnZone(float bottomY)
+    private bool TrySpawnZone(float bottomY)
     {
         GameModeConfig config = _context.GameManager != null ? _context.GameManager.ActiveConfig : null;
-        if (config == null) return;
-        if (!TryGetReachableColumnRange(config, out int reachMin, out int reachMax)) return;
+        if (config == null) return false;
+        if (!TryGetReachableColumnRange(config, out int reachMin, out int reachMax)) return false;
 
         int bandMin = Mathf.Max(minColumn, reachMin);
         int bandMax = Mathf.Min(maxColumn, reachMax);
@@ -237,8 +248,9 @@ public class VoidZoneModifier : LevelModifier, ILevelMenuProgressProvider
             _zones.Add(zone);
             _zonesSpawned++;
             SfxPlayer.Play("void_open", 1f);
-            return;
+            return true;
         }
+        return false;
     }
 
     // The island guardrail math (StaticSupportIslandManager.TryGetReachableColumnRange is

@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: VoidZones_Standard
   m_EditorClassIdentifier: Assembly-CSharp::VoidZoneModifier
   firstZoneHeight: 10
-  heightInterval: 8
-  spawnChance: 0.85
+  heightInterval: 10
+  spawnChance: 0.7
   spawnAheadHeight: 7
   zoneWidthMin: 2
   zoneWidthMax: 3
@@ -22,6 +22,6 @@ MonoBehaviour:
   minColumn: -6
   maxColumn: 6
   maxZonesPerRun: 0
-  minZonesPerRun: 4
+  minZonesPerRun: 3
   suckSeconds: 0.45
   overlapInset: 0.15
