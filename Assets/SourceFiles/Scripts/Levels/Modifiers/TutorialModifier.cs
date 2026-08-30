@@ -83,7 +83,11 @@ public class TutorialModifier : LevelModifier
     private const float NudgeBoostTeaching = 1f;
     private const float NudgeBoostAfter = 0.45f;
 
-    private static readonly Color Accent = new Color(0.42f, 0.78f, 1f, 1f);
+    // The ACTIVE chapter's menu accent (GameMenuStyle resolves it with a neutral fallback),
+    // cached once per run at OnLevelStart - never a hardcoded hue (Nick 2026-08-30): the
+    // tutorial ships on chapter 1 today, but its strip, dots and recap card must match
+    // whatever chapter it ever renders on, like every other in-game menu surface.
+    private Color Accent = new Color(0.42f, 0.78f, 1f, 1f);
     private static readonly Color DotIdle = new Color(1f, 1f, 1f, 0.22f);
     private static readonly Color DimColor = new Color(0f, 0f, 0f, 0.24f);
 
@@ -150,6 +154,7 @@ public class TutorialModifier : LevelModifier
         _stepIndex = 0;
         _reps = 0;
         _armWithoutSettle = false;
+        Accent = GameMenuStyle.Accent; // the run's chapter accent, resolved once (see the field)
         _goalText = context != null && context.Level != null ? context.Level.Instruction : null;
         BlockController.AllowedGestures = PieceGestures.None;
         ForceTeachingShapes(context);
@@ -301,13 +306,16 @@ public class TutorialModifier : LevelModifier
             piece.PinNormalFallSpeedFactor(PreRollSpeedFactor);
         }
 
-        // The whole lesson is visible from the first pre-roll frame - caption, ghost hand AND
-        // (for the nudge step) the lit corner pills - so the ask is never ambiguous while the
-        // piece rides in. The demo anchors to the live piece, so it simply tracks the descent.
+        // The strip (caption + dots + SKIP) is visible from the first pre-roll frame, so the
+        // lesson announces itself while the piece rides in - but NOT the ghost hand: the hand
+        // is a "you can act NOW" signal, and anchored to the live piece it slid down the
+        // screen beside an untappable brick (Nick 2026-08-30). It appears at ArmStep, the
+        // moment the piece hovers and input actually unlocks.
         ApplyStepVisuals();
         _groupVisible = true;
-        // The lessons are now genuinely on screen - SKIP earns its place (built hidden).
-        if (_skipRoot != null) _skipRoot.SetActive(true);
+        // SKIP does not show yet: it appears with the ghost hand at ArmStep (Nick
+        // 2026-08-30) - the player should see WHAT they'd be skipping before the exit
+        // offers itself. Once shown it stays for the rest of the tutorial.
     }
 
     private void UpdatePreRoll(float deltaTime)
@@ -323,8 +331,9 @@ public class TutorialModifier : LevelModifier
         }
 
         _preRollTime += deltaTime;
-        _animTime += deltaTime;
-        UpdateHandAnimation(); // the demo already plays while the piece rides in
+        // No ghost hand during the ride-in - input is locked, so demonstrating the gesture
+        // here would be an invitation the game refuses (see BeginPreRoll).
+        HideDemo();
 
         // Degraded mode (a previous pre-roll landed before settling: the tower is tall) uses a
         // relaxed line - just below the strip - so the lesson is still fully visible, plus a
@@ -376,6 +385,10 @@ public class TutorialModifier : LevelModifier
         RestoreNormalSpeed(_piece);
         SetInputGate(AllowedThrough(_stepIndex));
 
+        // SKIP earns its place HERE, with the hand and the live controls (built hidden;
+        // idempotent on later arms) - never over the "quick tour" announcement.
+        if (_skipRoot != null) _skipRoot.SetActive(true);
+
         // A piece that cannot rotate (a Locked-style variant on an unpinned level) could never
         // raise the Rotate gesture - skip that lesson rather than strand it behind its gate.
         // Input is already unlocked above, so the success beat plays with live controls.
@@ -385,9 +398,10 @@ public class TutorialModifier : LevelModifier
             return;
         }
 
-        // No _animTime reset: the demo has been looping since the pre-roll began and must not
-        // stutter at the moment input unlocks. Seeding _idleTime at the threshold keeps the
-        // demo visible from the first armed frame without registering as a reshow crossing.
+        // The demo starts HERE, not in the pre-roll (the hand means "you can act now"):
+        // restart the loop so its first beat plays whole. Seeding _idleTime at the threshold
+        // keeps it visible from the first armed frame without registering as a reshow crossing.
+        _animTime = 0f;
         _phase = Phase.Armed;
         _idleTime = HandIdleReshowSeconds;
         ApplyStepVisuals();
@@ -651,7 +665,9 @@ public class TutorialModifier : LevelModifier
         {
             hudBottomVp = Mathf.Clamp(cam.WorldToViewportPoint(new Vector3(0f, hudWorldY, 0f)).y, 0.7f, 0.95f);
         }
-        _stripTopVp = hudBottomVp - 0.006f;
+        // 0.016, not the original 0.006: the strip's top edge nearly kissed the NEXT card
+        // (Nick 2026-08-30) - give the HUD a visible breath of backdrop.
+        _stripTopVp = hudBottomVp - 0.016f;
 
         float scale = _canvas.scaleFactor > 0f ? _canvas.scaleFactor : 1f;
         float stripHeightVp = StripHeight * scale / Mathf.Max(1f, Screen.height);
@@ -707,15 +723,17 @@ public class TutorialModifier : LevelModifier
             RuntimeUiKit.TitleFont, new Vector2(0f, -18f), new Vector2(400f, 26f), new Vector2(0.5f, 1f));
         tag.characterSpacing = 12f;
 
-        // Caption band sits at the optical centre of the strip (tag above, dots below).
+        // Caption band centred on the strip's TRUE middle (-105 of the 210 band), which is
+        // also where the SKIP pill centres - the old -46..-142 band floated 11px high and
+        // read as misaligned against both (Nick 2026-08-30).
         _caption = RuntimeUiKit.CreateTmp(_stripRect, "Caption", "", 46, RuntimeUiKit.TitleColor,
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
         RectTransform captionRect = _caption.rectTransform;
         captionRect.anchorMin = new Vector2(0f, 1f);
         captionRect.anchorMax = new Vector2(1f, 1f);
-        captionRect.offsetMin = new Vector2(150f, -142f);
-        captionRect.offsetMax = new Vector2(-150f, -46f);
+        captionRect.offsetMin = new Vector2(150f, -153f);
+        captionRect.offsetMax = new Vector2(-150f, -57f);
         RuntimeUiKit.AutoSize(_caption, 26f, 46f);
 
         // Second line: rep progress during a step, the level goal during the coda.
@@ -725,8 +743,8 @@ public class TutorialModifier : LevelModifier
         RectTransform sublineRect = _subline.rectTransform;
         sublineRect.anchorMin = new Vector2(0f, 1f);
         sublineRect.anchorMax = new Vector2(1f, 1f);
-        sublineRect.offsetMin = new Vector2(60f, -176f);
-        sublineRect.offsetMax = new Vector2(-60f, -144f);
+        sublineRect.offsetMin = new Vector2(60f, -182f);
+        sublineRect.offsetMax = new Vector2(-60f, -152f);
         RuntimeUiKit.AutoSize(_subline, 17f, 24f);
 
         BuildStepDots(_stripRect);
@@ -761,12 +779,20 @@ public class TutorialModifier : LevelModifier
         _arrow.anchorMin = _arrow.anchorMax = new Vector2(0.5f, 0.5f);
         _arrow.sizeDelta = new Vector2(84f, 84f);
 
-        _handImage = RuntimeUiKit.CreateImage(parent, "Hand", RuntimeSprites.Hand(),
-            new Color(1f, 0.97f, 0.92f, 1f));
+        // Nick's tap-hand art (Resources/Menu/tap_hand, 2026-08-30) replaces the procedural
+        // ghost hand. The rect PIVOTS on the FINGERTIP (measured in the art's alpha), so
+        // SetHand places the tip at the gesture point, the press-scale shrinks toward the
+        // touch, and the tap ripple blooms exactly on the finger.
+        Sprite handArt = Resources.Load<Sprite>("Menu/tap_hand");
+        _handImage = RuntimeUiKit.CreateImage(parent, "Hand",
+            handArt != null ? handArt : RuntimeSprites.Hand(),
+            handArt != null ? Color.white : new Color(1f, 0.97f, 0.92f, 1f));
         _hand = _handImage.rectTransform;
         _hand.anchorMin = _hand.anchorMax = new Vector2(0.5f, 0.5f);
-        _hand.pivot = new Vector2(0.5f, 0.5f);
-        _hand.sizeDelta = new Vector2(140f, 163f);
+        _hand.pivot = handArt != null
+            ? new Vector2(0.248f, 0.906f)   // the art's index fingertip
+            : new Vector2(0.469f, 0.875f);  // the procedural fallback's fingertip
+        _hand.sizeDelta = handArt != null ? new Vector2(200f, 200f) : new Vector2(140f, 163f);
         HideDemo();
     }
 
@@ -822,13 +848,20 @@ public class TutorialModifier : LevelModifier
             CornerBuffer[2].x - CornerBuffer[0].x, CornerBuffer[2].y - CornerBuffer[0].y);
     }
 
+    // While the piece rides in (input locked, no hand yet) the strip must not ask for a
+    // gesture the game refuses (Nick 2026-08-30: "Tap to rotate" over an untappable brick).
+    // The first ride-in introduces the tutorial; later ones just bridge to the next lesson.
+    // The gesture caption lands together with the ghost hand, at ArmStep.
+    private static string PreRollCaption(int stepIndex) =>
+        stepIndex == 0 ? "A quick tour of the controls" : "Get ready...";
+
     private void ApplyStepVisuals()
     {
         if (_stepIndex >= Steps.Length) return;
         UIManager.SetNudgeGuideBoost(NudgeBoostFor(_stepIndex));
         if (_caption != null)
         {
-            string caption = Steps[_stepIndex].Caption;
+            string caption = _phase == Phase.PreRoll ? PreRollCaption(_stepIndex) : Steps[_stepIndex].Caption;
             if (_caption.text != caption)
             {
                 _caption.text = caption;
@@ -999,10 +1032,11 @@ public class TutorialModifier : LevelModifier
         float alpha = FadeInOut(p);
         SetHand(pos, Mathf.Lerp(1f, 0.82f, press), alpha);
 
-        Vector2 tip = pos + new Vector2(0f, 62f); // fingertip is at the top of the hand sprite
+        // The hand rect pivots on the fingertip (BuildDemo), so `pos` IS the tip - the
+        // ripple blooms exactly where the finger touches.
         float rp = Mathf.Clamp01((p - 0.35f) / 0.5f);
         float ringAlpha = p > 0.35f ? Mathf.Lerp(0.55f, 0f, rp) : 0f;
-        SetRing(tip, Mathf.Lerp(0.5f, 1.6f, rp), ringAlpha);
+        SetRing(pos, Mathf.Lerp(0.5f, 1.6f, rp), ringAlpha);
     }
 
     private void AnimateSwipe(Vector2 from, Vector2 to, float period, ArrowDir dir, bool easeIn)
@@ -1166,20 +1200,12 @@ public class TutorialModifier : LevelModifier
         _recapGroup = _recapPanel.gameObject.AddComponent<CanvasGroup>();
         _recapGroup.alpha = 0f;
 
-        // The ability-card chrome: soft halo behind, near-black gradient slab, accent neon ring.
-        Image halo = RuntimeUiKit.CreateImage(_recapPanel, "Halo", MenuSprites.GlowFrame(),
-            new Color(Accent.r, Accent.g, Accent.b, 0.22f));
-        halo.type = Image.Type.Sliced;
-        RuntimeUiKit.StretchPadded(halo.rectTransform, RuntimeSprites.CardSpritePad + 12f);
-        Image body = RuntimeUiKit.CreateImage(_recapPanel, "Body", RuntimeSprites.CardGradient(
-            new Color(0.045f, 0.075f, 0.115f, 0.99f), new Color(0.015f, 0.035f, 0.06f, 0.99f)), Color.white);
-        body.type = Image.Type.Sliced;
-        RuntimeUiKit.StretchPadded(body.rectTransform, RuntimeSprites.CardSpritePad);
+        // The one modal-panel treatment (GameMenuStyle.StylePanel): opaque near-black,
+        // rounded, borderless. The neon chrome this card launched with (halo + gradient
+        // slab + accent ring) is the retired language - Nick 2026-08-30.
+        Image body = _recapPanel.gameObject.AddComponent<Image>();
+        GameMenuStyle.StylePanel(_recapPanel.gameObject);
         body.raycastTarget = true; // the panel eats taps; only GOT IT closes
-        Image ring = RuntimeUiKit.CreateImage(_recapPanel, "Ring", RuntimeSprites.CardNeonRing(),
-            new Color(Accent.r, Accent.g, Accent.b, 0.85f));
-        ring.type = Image.Type.Sliced;
-        RuntimeUiKit.StretchPadded(ring.rectTransform, RuntimeSprites.CardSpritePad);
 
         // Hero: the earned checkmark, big - the same accent language as the step dots.
         Image badge = RuntimeUiKit.CreateImage(_recapPanel, "Badge",
@@ -1190,7 +1216,7 @@ public class TutorialModifier : LevelModifier
         badgeRect.anchoredPosition = new Vector2(0f, -44f);
         badgeRect.sizeDelta = new Vector2(92f, 92f);
         Image check = RuntimeUiKit.CreateImage(badge.transform, "Check",
-            MenuSprites.CheckMark(new Color(0.02f, 0.07f, 0.12f, 1f)), Color.white);
+            MenuSprites.CheckMark(Color.Lerp(Accent, Color.black, 0.82f)), Color.white);
         check.preserveAspect = true;
         RectTransform checkRect = check.rectTransform;
         checkRect.anchorMin = checkRect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -1216,7 +1242,7 @@ public class TutorialModifier : LevelModifier
         {
             float y = -228f - i * (rowH + rowGap);
             Image pill = RuntimeUiKit.CreateImage(_recapPanel, $"Row{i}",
-                RuntimeSprites.RoundedPanel(), new Color(0.05f, 0.10f, 0.155f, 0.92f));
+                RuntimeSprites.RoundedPanel(), new Color(0.095f, 0.10f, 0.11f, 1f)); // neutral row slab, no blue cast
             pill.type = Image.Type.Sliced;
             RectTransform pillRect = pill.rectTransform;
             pillRect.anchorMin = pillRect.anchorMax = new Vector2(0.5f, 1f);
@@ -1238,14 +1264,14 @@ public class TutorialModifier : LevelModifier
                 TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(44f, 0f), new Vector2(380f, rowH), new Vector2(0f, 0.5f));
             TextMeshProUGUI effect = RuntimeUiKit.CreateTmp(pillRect, "Effect", rows[i].effect, 20,
-                new Color(0.72f, 0.85f, 0.96f, 0.95f), TextAnchor.MiddleRight, FontStyle.Normal,
+                new Color(0.80f, 0.83f, 0.85f, 0.95f), TextAnchor.MiddleRight, FontStyle.Normal,
                 RuntimeUiKit.TitleFont, new Vector2(-24f, 0f), new Vector2(320f, rowH), new Vector2(1f, 0.5f));
             RuntimeUiKit.AutoSize(effect, 16f, 20f);
         }
 
         // Info badge (not small print): the one thing the player must know leaving here.
         Image note = RuntimeUiKit.CreateImage(_recapPanel, "Note", RuntimeSprites.RoundedPanel(),
-            new Color(0.06f, 0.11f, 0.17f, 0.96f));
+            new Color(0.10f, 0.105f, 0.115f, 1f)); // neutral, no blue cast
         note.type = Image.Type.Sliced;
         RectTransform noteRect = note.rectTransform;
         noteRect.anchorMin = noteRect.anchorMax = new Vector2(0.5f, 1f);
@@ -1262,14 +1288,15 @@ public class TutorialModifier : LevelModifier
         infoRect.sizeDelta = new Vector2(40f, 40f);
         TextMeshProUGUI noteText = RuntimeUiKit.CreateTmp(noteRect, "Text",
             "The nudge buttons are invisible by default.\nTurn them on in Settings > Controls.",
-            22, new Color(0.85f, 0.93f, 1f, 0.95f), TextAnchor.MiddleLeft, FontStyle.Normal,
+            22, new Color(0.86f, 0.89f, 0.91f, 0.95f), TextAnchor.MiddleLeft, FontStyle.Normal,
             RuntimeUiKit.TitleFont, new Vector2(88f, 0f), new Vector2(contentW - 112f, 92f), new Vector2(0f, 0.5f));
         noteText.lineSpacing = 6f;
         RuntimeUiKit.AutoSize(noteText, 17f, 22f);
 
-        // GOT IT: the accent CTA, gradient like every primary button in the game.
-        Image button = RuntimeUiKit.CreateImage(_recapPanel, "GotIt", MenuSprites.RoundedGradient(
-            Color.Lerp(Accent, Color.white, 0.18f), Color.Lerp(Accent, Color.black, 0.28f)), Color.white);
+        // GOT IT: flat accent fill, the GameMenuStyle primary-button language (gradients
+        // went out with the neon chrome).
+        Image button = RuntimeUiKit.CreateImage(_recapPanel, "GotIt", RuntimeSprites.RoundedPanel(),
+            Color.Lerp(Accent, Color.white, 0.10f));
         button.type = Image.Type.Sliced;
         RectTransform buttonRect = button.rectTransform;
         buttonRect.anchorMin = new Vector2(0f, 0f);
@@ -1279,7 +1306,7 @@ public class TutorialModifier : LevelModifier
         buttonRect.offsetMax = new Vector2(-pad, 44f + 96f);
         button.raycastTarget = true;
         TextMeshProUGUI gotItLabel = RuntimeUiKit.CreateTmp(button.transform, "Label", "GOT IT", 30,
-            new Color(0.02f, 0.07f, 0.12f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold,
+            Color.Lerp(Accent, Color.black, 0.82f), TextAnchor.MiddleCenter, FontStyle.Bold,
             RuntimeUiKit.TitleFont);
         gotItLabel.characterSpacing = 4f;
         Button gotIt = button.gameObject.AddComponent<Button>();
