@@ -206,12 +206,16 @@ public static partial class MainMenuRuntime
         {
             OnlineService.StateChanged += HandleChanged;
             AttemptsSync.Changed += HandleChanged;
+            // A buy in the refill offer (opened from this row's UNLIMITED button) must
+            // reshape this section the moment it lands, not a tick later.
+            PremiumStore.Changed += HandleChanged;
         }
 
         private void OnDisable()
         {
             OnlineService.StateChanged -= HandleChanged;
             AttemptsSync.Changed -= HandleChanged;
+            PremiumStore.Changed -= HandleChanged;
         }
 
         private void HandleChanged()
@@ -465,7 +469,8 @@ public static partial class MainMenuRuntime
         // the rewarded ad are the only refills.) The WATCH AD button is one of the two entries
         // to the game's single ad surface (the other is the top-bar meter chip's "+",
         // SHOP.md §7): opt-in, explicit "+2" copy, and only rendered when an ad can actually
-        // show AND pay out (no SDK / rate-limited = the row is countdown-only).
+        // show AND pay out. No ad to offer = the Unlimited button takes the slot (store
+        // permitting); no store either = countdown-only.
         if (AttemptsService.MeterActive && !AttemptsService.CanStartRun)
         {
             // First time the meter ever blocks play: offer the notification permission
@@ -473,11 +478,20 @@ public static partial class MainMenuRuntime
             MaybeOfferNotificationPrompt();
 
             bool adOffer = AttemptsService.AdRefillAvailable;
+            // No ad in hand (daily cap spent, or no SDK/fill): the row used to be a
+            // countdown-only dead end - and a player with zero free options left is the
+            // one audience for whom the Unlimited pitch is a favor, not a nag (Nick
+            // 2026-08-30). The button opens the standard refill offer (full pitch, the
+            // shared store CTA), never a raw Purchase from this sliver: one converting
+            // surface, so store states can never drift (SHOP.md §7.2). Gated on a live
+            // store - a tap that dead-ends in COMING SOON at the moment of maximum
+            // frustration is worse than no button at all.
+            bool unlimitedOffer = !adOffer && !PremiumStore.IsPremium && PremiumStore.HasStore;
             TimeSpan regen = AttemptsService.NextRegenIn;
             TextMeshProUGUI blocked = CreateTmp(zone, "Blocked",
                 $"OUT OF ATTEMPTS - NEXT IN {(int)regen.TotalMinutes:00}:{regen.Seconds:00}",
                 18, LockedColor, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-                new Vector2(4f, 0f), new Vector2(ui.ContentW - (adOffer ? 250f : 8f), 30f),
+                new Vector2(4f, 0f), new Vector2(ui.ContentW - (adOffer || unlimitedOffer ? 250f : 8f), 30f),
                 new Vector2(0f, 0.5f));
             if (adOffer)
             {
@@ -498,6 +512,17 @@ public static partial class MainMenuRuntime
                         if (earned) AttemptsService.RequestAdRefill(ok => RefreshIfAlive());
                         else RefreshIfAlive();
                     });
+                });
+            }
+            else if (unlimitedOffer)
+            {
+                Button unlimited = CreateSupplyButton(zone, "Unlimited",
+                    $"UNLIMITED {PremiumStore.PriceText}", 236f,
+                    new Vector2(0f, 0f), enabled: true, accented: true, ui.Accent);
+                unlimited.onClick.AddListener(() =>
+                {
+                    SfxPlayer.Play("ui-button-click");
+                    OpenRefillOffer();
                 });
             }
             return blocked;

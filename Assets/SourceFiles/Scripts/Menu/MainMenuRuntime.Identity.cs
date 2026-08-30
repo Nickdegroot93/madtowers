@@ -259,6 +259,9 @@ public static partial class MainMenuRuntime
         // So does the dev letter (DEVLETTER.md beat 1): it explains the systems that just
         // switched on, and one-shots never stack - the prompt takes the NEXT visit.
         if (DevLetterOwnsAVisit()) yield break;
+        // And so does an open refill offer (the boot auto-open when the meter is empty,
+        // or a fast chip tap): same sort order 5900 - stacking would bury one of them.
+        if (GameObject.Find("Refill Offer") != null) yield break;
         ShowLinkPromptCard();
     }
 

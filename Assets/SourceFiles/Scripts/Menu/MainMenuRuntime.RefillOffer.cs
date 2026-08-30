@@ -30,8 +30,11 @@ public static partial class MainMenuRuntime
     private static GameObject _refillOverlay;
 
     /// <summary>Open the offer (tap-outside and X both dismiss). Safe to call from any
-    /// chip tap: no-ops when it is already up or when the player owns Unlimited.</summary>
-    private static void OpenRefillOffer()
+    /// chip tap: no-ops when it is already up or when the player owns Unlimited.
+    /// <paramref name="title"/> overrides the "MORE ATTEMPTS" header - the boot auto-open
+    /// says "OUT OF ATTEMPTS" instead, because there the modal must STATE the problem
+    /// before pitching the fixes (nobody tapped anything).</summary>
+    private static void OpenRefillOffer(string title = null)
     {
         if (_refillOverlay != null) return;
         if (PremiumStore.IsPremium) return;
@@ -62,7 +65,7 @@ public static partial class MainMenuRuntime
             new Vector2(0.5f, 0.5f));
         panel.raycastTarget = true;   // swallow taps so only the backdrop dismisses
 
-        BuildRefillContent(panel.rectTransform);
+        BuildRefillContent(panel.rectTransform, title ?? "MORE ATTEMPTS");
         if (showNotifyAsk) BuildNotifyAskRow(panel.rectTransform);
 
         // Pop-in on unscaled time (the menu runs at timeScale = 0): scale + backdrop
@@ -80,9 +83,81 @@ public static partial class MainMenuRuntime
         _refillOverlay = null;
     }
 
-    private static void BuildRefillContent(RectTransform panel)
+    // ---- boot auto-open ---------------------------------------------------------------
+    // Launching the app straight into an empty meter used to be silent: the player had to
+    // discover the wall by tapping a level. Now the offer opens ITSELF, once per process,
+    // titled "OUT OF ATTEMPTS" - state the problem, then the two ways out (Unlimited / ad),
+    // both dismissible as ever (Nick 2026-08-30). Once per process means a menu return from
+    // a run never re-pops it; the chip stays the deliberate way back in.
+
+    /// <summary>Latched once the boot verdict is settled - shown, or decided not to show.
+    /// Never re-armed by ReturnToMenu's scene reloads (statics survive those).</summary>
+    private static bool _bootRefillOfferResolved;
+
+    /// <summary>Called on every menu show; the latch makes it first-boot-only. A watcher
+    /// waits out the boot unknowns (splash up, server verdict in flight) instead of
+    /// deciding on the spot - at menu build the online meter is usually unanswered.</summary>
+    private static void ArmBootRefillOffer()
     {
-        TextMeshProUGUI title = CreateTmp(panel, "Title", "MORE ATTEMPTS", 34, TextPrimary,
+        if (_bootRefillOfferResolved || _root == null) return;
+        _root.AddComponent<BootRefillOfferWatch>();
+    }
+
+    /// <summary>Ticks on unscaled time (menu runs at timeScale 0) until the out-of-attempts
+    /// verdict is in, then opens the offer or retires. WAITS OUT every surface that owns a
+    /// boot moment - splash (sort 12000 covers the offer's 5900: the pop-in must be SEEN),
+    /// a playing unlock reveal (the record is consumed at BUILD time, so the live runner is
+    /// the real signal - the dev-beats precedent), the dev letter and the link prompt (both
+    /// 5900 boot one-shots; one-shots never stack) - opening only once the screen is clear.
+    /// The verdict window counts only UNBLOCKED waiting (a long dev-letter read must not
+    /// eat it), and expiring it retires quietly: a sales modal popping out of nowhere a
+    /// minute into browsing reads as an ambush, not a favor.</summary>
+    private sealed class BootRefillOfferWatch : MonoBehaviour
+    {
+        private const float VerdictWindow = 20f;   // covers a slow first get_profile, not more
+
+        private float _unblockedElapsed;
+        private float _nextTick;
+
+        private void Update()
+        {
+            if (_bootRefillOfferResolved) { Destroy(this); return; }
+            if (Time.unscaledTime < _nextTick) return;
+            float sinceLastTick = _nextTick > 0f ? 0.25f : 0f;
+            _nextTick = Time.unscaledTime + 0.25f;
+
+            if (SplashOverlay.IsVisible) return;
+            if (UnlockRevealPending.PeekLevelId() != null) return;
+            if (UnityEngine.Object.FindFirstObjectByType<MenuUnlockRevealRunner>() != null) return;
+            if (GameObject.Find("Dev Letter") != null) return;
+            if (GameObject.Find("Link Prompt") != null) return;
+
+            if (PremiumStore.IsPremium) { Retire(); return; }
+            // Online: no verdict until the first server answer lands (MeterActive is
+            // false-by-unknown before it, which must not read as "attempts available").
+            if (OnlineService.Enabled && !AttemptsSync.HasServerState)
+            {
+                _unblockedElapsed += sinceLastTick;
+                if (_unblockedElapsed > VerdictWindow) Retire();
+                return;
+            }
+            if (!AttemptsService.MeterActive || AttemptsService.Count > 0) { Retire(); return; }
+
+            _bootRefillOfferResolved = true;
+            OpenRefillOffer("OUT OF ATTEMPTS");
+            Destroy(this);
+        }
+
+        private void Retire()
+        {
+            _bootRefillOfferResolved = true;
+            Destroy(this);
+        }
+    }
+
+    private static void BuildRefillContent(RectTransform panel, string titleText)
+    {
+        TextMeshProUGUI title = CreateTmp(panel, "Title", titleText, 34, TextPrimary,
             TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -26f), new Vector2(RefillPanelW - 120f, 42f), new Vector2(0.5f, 1f));
         title.characterSpacing = 4f;

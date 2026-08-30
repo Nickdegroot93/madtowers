@@ -22,6 +22,11 @@ public static class SplashOverlay
     private const int SortingOrder = 12000;
 
     private static bool _shownThisProcess;
+    private static GameObject _live;
+
+    /// <summary>Is the splash still covering the screen? Boot-time surfaces that want to be
+    /// SEEN appearing (the out-of-attempts refill offer) hold their entrance on this.</summary>
+    public static bool IsVisible => _live != null;
 
     public static void ShowIfFirstBoot()
     {
@@ -32,6 +37,7 @@ public static class SplashOverlay
         if (art == null) return; // art missing: boot straight to the menu, never block on it
 
         GameObject root = CreateOverlayCanvas("Splash", SortingOrder);
+        _live = root;
 
         // Solid backing behind the cover-fit art so no menu pixel shows through on any aspect.
         Image backing = CreateImage(root.transform, "Backing", null, new Color(0.05f, 0.035f, 0.03f, 1f));

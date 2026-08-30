@@ -182,6 +182,7 @@ public static partial class MainMenuRuntime
         _activeTab = MenuTab.Home;
         _activeSettingsTab = SettingsTab.Sound;
         _activeVaultTab = VaultTab.Bricks;
+        _bootRefillOfferResolved = false;
         ReleaseVideoTexture();
     }
 
@@ -228,6 +229,7 @@ public static partial class MainMenuRuntime
         RuntimeUiKit.EnsureEventSystem();
         SplashOverlay.ShowIfFirstBoot(); // created before BuildMenu so it covers the first rendered frame
         BuildMenu();
+        ArmBootRefillOffer(); // booting into an empty meter auto-opens the refill offer (once)
         MusicPlayer.PlayMenu(); // menu soundtrack plays everywhere outside a level
     }
 
