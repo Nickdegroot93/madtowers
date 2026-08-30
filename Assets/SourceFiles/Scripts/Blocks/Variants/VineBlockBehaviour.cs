@@ -9,6 +9,11 @@ using UnityEngine;
 public class VineBlockBehaviour : MonoBehaviour
 {
     private const int MaxWelds = 8;
+    // A weld needs a REAL shared edge (world units of face-to-face overlap): a corner kiss
+    // or a sliver graze must not glue (Nick 2026-08-30 - the vine's reach had crept up to
+    // "anything near it"). ~40% of a cell keeps honest half-offset contacts welding while
+    // corner-diagonal neighbours stay free.
+    private const float MinSharedEdge = 0.4f;
 
     private readonly Collider2D[] _overlapBuffer = new Collider2D[24];
 
@@ -53,12 +58,18 @@ public class VineBlockBehaviour : MonoBehaviour
         var touching = new HashSet<Collider2D>();
         BlockTouchScanner.CollectTouchingColliders(gameObject, _touchRange, touching, _overlapBuffer);
 
+        // The scanner's expanded box also catches corner-diagonal neighbours (it grows the
+        // probe in BOTH axes) - vine demands a real shared edge on top (see MinSharedEdge).
+        Collider2D[] ownColliders = GetComponentsInChildren<Collider2D>();
+
         var weldedBodies = new HashSet<Rigidbody2D>();
         foreach (Collider2D hit in touching)
         {
             Rigidbody2D otherBody = hit.attachedRigidbody;
             if (otherBody == null || otherBody == ownBody) continue;
-            if (!weldedBodies.Add(otherBody)) continue;
+            if (weldedBodies.Contains(otherBody)) continue;
+            if (!SharesRealEdge(ownColliders, hit)) continue;
+            weldedBodies.Add(otherBody);
 
             FixedJoint2D joint = gameObject.AddComponent<FixedJoint2D>();
             joint.connectedBody = otherBody;
@@ -69,6 +80,28 @@ public class VineBlockBehaviour : MonoBehaviour
 
             if (weldedBodies.Count >= MaxWelds) return;
         }
+    }
+
+    // True when ANY of the vine's own colliders shares a real face with the hit: the pair's
+    // bounds must genuinely overlap along one axis (>= MinSharedEdge) while merely meeting
+    // (within touchRange) on the other. A corner contact fails both arms - its overlap is
+    // ~0 on BOTH axes. Bounds are AABBs, so a strongly tilted brick is judged by its box -
+    // acceptable: welds happen at lock, when the tower sits essentially axis-aligned.
+    private bool SharesRealEdge(Collider2D[] ownColliders, Collider2D hit)
+    {
+        Bounds b = hit.bounds;
+        for (int i = 0; i < ownColliders.Length; i++)
+        {
+            Collider2D own = ownColliders[i];
+            if (own == null || own.isTrigger) continue;
+            Bounds a = own.bounds;
+            float overlapX = Mathf.Min(a.max.x, b.max.x) - Mathf.Max(a.min.x, b.min.x);
+            float overlapY = Mathf.Min(a.max.y, b.max.y) - Mathf.Max(a.min.y, b.min.y);
+            bool sideBySide = overlapX >= -_touchRange && overlapY >= MinSharedEdge;
+            bool stacked = overlapY >= -_touchRange && overlapX >= MinSharedEdge;
+            if (sideBySide || stacked) return true;
+        }
+        return false;
     }
 
     // Phase 2: creep vines onto a welded block from the contact side. Only real blocks (BlockController)
