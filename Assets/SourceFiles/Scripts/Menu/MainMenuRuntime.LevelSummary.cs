@@ -82,11 +82,23 @@ public static partial class MainMenuRuntime
         SetRect(scrim.rectTransform, new Vector2(0f, -120f), new Vector2(W, imgH - 120f), new Vector2(0.5f, 1f));
         scrim.raycastTarget = false;
 
-        // Challenge type + title sit on the image's lower-left, over the scrim.
+        // Challenge type + title sit on the image's lower-left, over the scrim. A game type
+        // with a hazard badge (Airtight) leads with its icon - the same mark the in-run pill
+        // shows, taught here next to the label + the instruction line below.
         LevelMenuPresentation.Snapshot presentation = LevelMenuPresentation.Build(level, completed);
+        Sprite badgeIcon = LevelMenuPresentation.FindBadgeIcon(level);
+        float challengeX = pad;
+        if (badgeIcon != null)
+        {
+            Image badge = CreateImage(panel, "ChallengeBadge", badgeIcon, Color.white);
+            SetRect(badge.rectTransform, new Vector2(pad - 2f, -254f), new Vector2(32f, 32f), new Vector2(0f, 1f));
+            badge.preserveAspect = true;
+            badge.raycastTarget = false;
+            challengeX = pad + 40f;
+        }
         TextMeshProUGUI challenge = CreateTmp(panel, "Challenge", presentation.ChallengeLabel, 20,
             lightChapter, TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(pad, -258f), new Vector2(contentW, 28f), new Vector2(0f, 1f));
+            new Vector2(challengeX, -258f), new Vector2(contentW, 28f), new Vector2(0f, 1f));
         challenge.characterSpacing = 4f;
 
         // Title (bold white), baseline near the image bottom.

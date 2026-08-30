@@ -18,6 +18,6 @@ MonoBehaviour:
   gameModeConfig: {fileID: 11400000, guid: b19f7cd20ba0494cb0b937677c46927b, type: 2}
   targetType: 1
   targetValue: 100
-  instruction: Stack 100 blocks airtight - sealed hollows detonate!
+  instruction: Stack 100 blocks - never seal a gap, trapped air explodes!
   modifiers:
   - {fileID: 11400000, guid: dfd2ed6d4bbb486faf213ba3cf0cbcc4, type: 2}

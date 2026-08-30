@@ -34,6 +34,7 @@ public static class GameSystemsInstaller
         Ensure<CoinHud>(host);            // the coin flight + counter pill (the ONLY celebration)
         Ensure<WaveHud>(host);            // puzzle-wave countdown pill (top-right, under lives)
         Ensure<MedalHud>(host);           // banked-medal pill (top-right; drops a row on wave runs)
+        Ensure<GameTypeBadgeHud>(host);   // invisible-ruleset badge (top-left; Airtight's reminder + fuse alarm)
     }
 
     // == null (not ??) on purpose: the editor's fake-null wrapper passes a reference-null check and

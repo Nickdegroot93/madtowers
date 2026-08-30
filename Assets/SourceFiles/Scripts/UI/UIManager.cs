@@ -454,6 +454,12 @@ public class UIManager : MonoBehaviour
         slot.enabled = ghost != null;
     }
 
+    /// <summary>The NEXT card's LIVE bottom edge, in canvas px below the safe-area top - grows
+    /// when Foresight adds the second slot. GameTypeBadgeHud hangs its pill off this, so the
+    /// badge rides the card instead of overlapping it.</summary>
+    public static float NextCardBottomBelowSafeArea { get; private set; } =
+        TopMarginBelowSafeArea - NextCardOverhang + OneSlotCardHeight;
+
     // Grows/shrinks the NEXT card to fit the previewed count (1 vs 2 slots). Touches the
     // card only when the count actually changes, so the common per-spawn update is O(1)
     // with no layout churn. The card is top-pivoted, so the extra height extends downward.
@@ -465,6 +471,7 @@ public class UIManager : MonoBehaviour
         _activeSlotCount = layout;
         float height = layout >= 2 ? TwoSlotCardHeight : OneSlotCardHeight;
         ((RectTransform)_nextPanel.transform).sizeDelta = new Vector2(NextCardWidth, height);
+        NextCardBottomBelowSafeArea = TopMarginBelowSafeArea - NextCardOverhang + height;
     }
 
     // Desaturated copy of the piece sprite so the preview reads as "coming up", not as a
@@ -818,6 +825,9 @@ public class UIManager : MonoBehaviour
         card.anchorMin = card.anchorMax = new Vector2(0.5f, 1f);
         card.pivot = new Vector2(0.5f, 1f);
         card.sizeDelta = new Vector2(NextCardWidth, OneSlotCardHeight);
+        // The published bottom edge starts over with the card: statics outlive scene reloads,
+        // and a fresh run must not inherit the previous run's Foresight height.
+        NextCardBottomBelowSafeArea = TopMarginBelowSafeArea - NextCardOverhang + OneSlotCardHeight;
 
         Image fill = _nextPanel.GetComponent<Image>();
         fill.sprite = RuntimeSprites.RoundedPanel();

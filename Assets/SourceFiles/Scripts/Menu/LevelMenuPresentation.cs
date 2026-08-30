@@ -111,4 +111,18 @@ public static class LevelMenuPresentation
         }
         return null;
     }
+
+    /// <summary>The hazard-badge icon for this level's game type, if a modifier claims one
+    /// (IGameTypeBadgeProvider) AND its art exists - callers get null for "draw nothing".</summary>
+    public static UnityEngine.Sprite FindBadgeIcon(LevelDefinition level)
+    {
+        IReadOnlyList<LevelModifier> modifiers = level != null ? level.Modifiers : null;
+        if (modifiers == null) return null;
+
+        for (int i = 0; i < modifiers.Count; i++)
+        {
+            if (modifiers[i] is IGameTypeBadgeProvider badge && badge.BadgeIcon != null) return badge.BadgeIcon;
+        }
+        return null;
+    }
 }

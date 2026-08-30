@@ -28,7 +28,7 @@ using UnityEngine;
 /// honest pockets in any leaning tower - the false-negative bug this v2 replaces.)
 /// </summary>
 [CreateAssetMenu(fileName = "AirPocket", menuName = "Stacking/Levels/Modifiers/Air Pockets (Airtight)")]
-public class AirPocketModifier : LevelModifier, ILevelMenuProgressProvider
+public class AirPocketModifier : LevelModifier, ILevelMenuProgressProvider, IGameTypeBadgeProvider
 {
     // The GAME TYPE this modifier turns a level into: the menu and results card read
     // "AIRTIGHT" as the challenge, while the goal (place N / reach X) keeps owning the
@@ -36,6 +36,31 @@ public class AirPocketModifier : LevelModifier, ILevelMenuProgressProvider
     public string MenuChallengeLabel => "Airtight";
     public string MenuProgressLabel(LevelDefinition level, ProgressStore.LevelBest best, bool completed) => null;
     public ResultMetric? EndOfRunMetric(LevelDefinition level, RunResult result, ProgressStore.LevelBest best) => null;
+
+    // The hazard badge (IGameTypeBadgeProvider): Airtight is the only game type whose rule is
+    // invisible in-world, so it wears the reminder. The icon is a frozen frame of the live
+    // pocket-smoke effect baked in code (AirPocketFx.BadgeSprite) - the badge IS the hazard's
+    // look, and authored art can never drift from it.
+    public Sprite BadgeIcon => AirPocketFx.BadgeSprite();
+    public string BadgeLabel => "AIRTIGHT";
+
+    /// <summary>The furthest-along armed fuse: the HUD pill pulses harder as the closest
+    /// detonation approaches. Pending (not yet persistent) seals don't count - they may vent
+    /// on the next scan, and a pulse for those would cry wolf.</summary>
+    public float BadgeDanger01
+    {
+        get
+        {
+            float max = 0f;
+            for (int i = 0; i < _pockets.Count; i++)
+            {
+                Pocket pocket = _pockets[i];
+                if (pocket.FuseTotal <= 0f) continue;
+                max = Mathf.Max(max, Mathf.Clamp01(pocket.Elapsed / pocket.FuseTotal));
+            }
+            return max;
+        }
+    }
 
     [Header("Fuse")]
     [Tooltip("Seconds for the smoke to fill a 1-cell pocket. The rescue window: destroy a sealing block before it fills to vent the pocket harmlessly.")]
@@ -125,10 +150,13 @@ public class AirPocketModifier : LevelModifier, ILevelMenuProgressProvider
 
         // Destroys re-open regions (the rescue path); locks are covered by OnBlockLocked.
         GameEvents.BlockDestroyed += HandleBlockDestroyed;
+
+        GameTypeBadgeHud.ActiveSource = this; // the run clone owns the in-game badge
     }
 
     public override void OnLevelEnd(LevelModifierContext context)
     {
+        if (ReferenceEquals(GameTypeBadgeHud.ActiveSource, this)) GameTypeBadgeHud.ActiveSource = null;
         GameEvents.BlockDestroyed -= HandleBlockDestroyed;
         for (int i = 0; i < _pockets.Count; i++)
         {

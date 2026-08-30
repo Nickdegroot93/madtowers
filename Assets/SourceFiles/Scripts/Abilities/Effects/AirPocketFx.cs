@@ -46,6 +46,100 @@ public sealed class AirPocketFx : MonoBehaviour
         return fx;
     }
 
+    // ---- badge sprite -------------------------------------------------------------------------
+
+    private static Sprite _badgeSprite;
+
+    /// <summary>The Airtight hazard badge (level modal + GameTypeBadgeHud pill): a frozen frame
+    /// of THIS effect - the AirPocketSmoke recipe (same value noise, torn min(radial, mask)
+    /// boundary, smoke/ember palette) baked on the CPU for one circular cell at high fill, so
+    /// the badge is literally the thing the player must not create. Icon-size departures from
+    /// the shader: the ember band straddles the boundary symmetrically and burns hotter, because
+    /// at 34px the ring IS the silhouette (the shader's thin one-sided rim reads as nothing).</summary>
+    public static Sprite BadgeSprite()
+    {
+        if (_badgeSprite != null) return _badgeSprite;
+
+        const int size = 128;
+        const float seed = 3.7f, time = 2.3f, fill = 0.85f, noiseScale = 2.6f;
+        Color smokeCol = new Color(0.09f, 0.055f, 0.075f, 0.95f);
+        Color deepCol = new Color(0.02f, 0.012f, 0.022f, 0.97f);
+        Color emberCol = new Color(1f, 0.36f, 0.15f, 1f);
+
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+        {
+            name = "AirtightBadge",
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear,
+        };
+        float ang = 0.35f * Mathf.Sin(time * 0.5f + seed);
+        float ca = Mathf.Cos(ang), sa = Mathf.Sin(ang);
+        var pixels = new Color[size * size];
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                var p = new Vector2((x + 0.5f) / size * 2f - 1f, (y + 0.5f) / size * 2f - 1f);
+                float d = p.magnitude;
+                var sw = new Vector2(p.x * ca - p.y * sa, p.x * sa + p.y * ca);
+                float n = BadgeSmoke(sw * noiseScale, time, seed);
+                float radialEdge = fill * 1.35f - d - (n - 0.5f) * 0.38f;
+                float mask = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.52f, 0.9f, d));
+                float nEdge = BadgeSmoke(sw * (noiseScale * 1.9f) + new Vector2(37f, 37f), time * 0.7f, seed);
+                float edge = Mathf.Min(radialEdge, (mask - 0.5f + (nEdge - 0.5f) * 0.5f) * 1.5f);
+                float density = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0f, 0.22f, edge));
+
+                float band = 1f - Mathf.Clamp01(Mathf.Abs(edge) * 2.4f);
+                float rim = band * band * (2.2f + 1.6f * nEdge);
+                if (density <= 0.003f && rim <= 0.02f) continue; // stays clear
+
+                Color body = Color.Lerp(smokeCol, deepCol, Mathf.Clamp01(edge * 1.6f));
+                float mottle = 0.85f + 0.3f * n;
+                body.r *= mottle; body.g *= mottle; body.b *= mottle;
+                body.a *= density;
+                body.r += emberCol.r * rim; body.g += emberCol.g * rim; body.b += emberCol.b * rim;
+                body.a = Mathf.Max(body.a, Mathf.Clamp01(rim));
+                pixels[y * size + x] = body;
+            }
+        }
+        tex.SetPixels(pixels);
+        tex.Apply(updateMipmaps: false, makeNoLongerReadable: true);
+
+        _badgeSprite = Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f));
+        _badgeSprite.name = "AirtightBadge";
+        return _badgeSprite;
+    }
+
+    // The shader's hash21/vnoise/smoke, transcribed 1:1 so the baked badge and the live smoke
+    // can never drift apart in character.
+    private static float BadgeHash(Vector2 p, float seed)
+    {
+        p = new Vector2(Frac(p.x * 234.34f + seed), Frac(p.y * 435.345f + seed));
+        float dt = Vector2.Dot(p, p + new Vector2(34.23f, 34.23f));
+        p += new Vector2(dt, dt);
+        return Frac(p.x * p.y);
+    }
+
+    private static float BadgeNoise(Vector2 p, float seed)
+    {
+        var i = new Vector2(Mathf.Floor(p.x), Mathf.Floor(p.y));
+        Vector2 f = p - i;
+        var u = new Vector2(f.x * f.x * (3f - 2f * f.x), f.y * f.y * (3f - 2f * f.y));
+        float a = BadgeHash(i, seed);
+        float b = BadgeHash(i + Vector2.right, seed);
+        float c = BadgeHash(i + Vector2.up, seed);
+        float d = BadgeHash(i + Vector2.one, seed);
+        return Mathf.Lerp(Mathf.Lerp(a, b, u.x), Mathf.Lerp(c, d, u.x), u.y);
+    }
+
+    private static float BadgeSmoke(Vector2 p, float t, float seed)
+    {
+        float n = BadgeNoise(p + new Vector2(t * 0.5f, t * 0.3f), seed);
+        return 0.6f * n + 0.4f * BadgeNoise(p * 2.2f - new Vector2(t * 0.35f, t * 0.6f), seed);
+    }
+
+    private static float Frac(float v) => v - Mathf.Floor(v);
+
     private void Build(List<Vector2> cellWorldCenters, float gridSpacing)
     {
         if (_smokeShader == null) _smokeShader = Resources.Load<Shader>("AirPocketSmoke");
