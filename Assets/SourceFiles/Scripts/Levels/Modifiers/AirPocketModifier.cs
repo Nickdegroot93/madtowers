@@ -13,19 +13,19 @@ using UnityEngine;
 /// INERT - the stack above is untouched, and spent space can never charge a second life.
 ///
 /// Pure modifier - no engine changes. Pair it on a LevelDefinition with a normal PlaceBlocks
-/// goal. Detection rasterizes the settled stack onto the placement grid (landed block cells +
-/// floor terrain + islands) and flood-fills open air from the outside; anything the flood
-/// can't reach is sealed. 4-connectivity on purpose: a diagonal crack is not an opening.
-///
-/// The raster alone lies once a tower TILTS (cell centres round on and off the lattice, and
-/// hairline cracks open between leaning bricks), so a coarse sealed region must pass two
-/// stricter gates before it can cost a life:
-///  - coverage: every candidate cell is measured against the blocks' live colliders. A cell
-///    that is mostly brick is brick (a tilt artifact, not air); a half-covered sliver is
-///    passable crack but never pocket volume; and a "solid" wall cell that is physically
-///    cracked open is a LEAK - the region is not airtight at all.
-///  - persistence: a fresh seal must survive ~1s of scans before it arms. Settle drift
+/// goal. Detection is a PHYSICAL flood at HALF-CELL resolution (v2, Nick 2026-08-30): each
+/// subcell is solid iff its centre lies inside a settled block's live collider (or terrain),
+/// so a tilted brick blocks exactly where it physically is - then open air flood-fills inward
+/// from the outside, and any air the flood cannot reach is sealed. 4-connectivity on purpose:
+/// a diagonal crack is not an opening; a crack narrower than half a cell has no open subcell,
+/// so hairline tilt cracks never leak. Two lenience gates, both geometric:
+///  - volume: a sealed region under MinVolumeSubcells (~3/4 of a cell of true air) never
+///    arms - the wedge slivers a leaning tower traps are not a player mistake.
+///  - persistence: a fresh seal must survive ~1s of scans before it arms - settle drift
 ///    flickers regions in and out; only a seal that stays sealed is a player mistake.
+/// (v1 rasterized whole cells and patched the tilt lies with coverage-threshold gates; those
+/// gates measured "is the wall tilted?" rather than "can air escape?" and silently dropped
+/// honest pockets in any leaning tower - the false-negative bug this v2 replaces.)
 /// </summary>
 [CreateAssetMenu(fileName = "AirPocket", menuName = "Stacking/Levels/Modifiers/Air Pockets (Airtight)")]
 public class AirPocketModifier : LevelModifier, ILevelMenuProgressProvider
@@ -64,12 +64,10 @@ public class AirPocketModifier : LevelModifier, ILevelMenuProgressProvider
     // or close a region without any lock/destroy event firing.
     private const float RescanInterval = 0.5f;
 
-    // Strictness gates (code-owned policy, not asset data - see the class comment). Coverage
-    // is the fraction of a cell's area physically occupied by settled geometry, sampled
-    // against the blocks' live colliders on a CoverageSamples^2 point grid.
-    private const float SolidCoverage = 0.65f;  // >= this: the cell IS brick, whatever the raster says
-    private const float OpenCoverage = 0.35f;   // <= this: genuinely breathable air (pocket volume)
-    private const int CoverageSamples = 4;
+    // Lenience gates (code-owned policy, not asset data - see the class comment). All cell
+    // coordinates in this class are SUBCELLS: half a grid cell per axis, 4 subcells = 1 cell.
+    private const int SubRes = 2;               // subcells per cell per axis
+    private const int MinVolumeSubcells = 3;    // ~3/4 cell of true trapped air before a seal can arm
     private const float ArmDelaySeconds = 0.9f; // a seal must survive this long before it arms
 
     private sealed class Pocket
@@ -103,16 +101,11 @@ public class AirPocketModifier : LevelModifier, ILevelMenuProgressProvider
 
     // Reused scan buffers - the scan runs on lock/destroy events and a 0.5 s cadence; it must
     // not allocate per pass (GC spikes read as physics stutter).
-    private readonly HashSet<Vector2Int> _solid = new();
-    private readonly HashSet<Vector2Int> _terrain = new(); // floor + islands: axis-aligned, grid-exact, coverage 1
+    private readonly HashSet<Vector2Int> _solid = new();   // SUBCELL coords
     private readonly HashSet<Vector2Int> _reached = new();
     private readonly Queue<Vector2Int> _floodQueue = new();
     private readonly List<Vector2> _cellScratch = new();
     private readonly List<HashSet<Vector2Int>> _regionScratch = new();
-    private readonly List<Collider2D> _blockColliders = new();
-    private readonly List<Bounds> _blockColliderBounds = new(); // AABB prefilter for OverlapPoint
-    private readonly Dictionary<Vector2Int, float> _coverageCache = new(); // per-scan memo
-    private readonly HashSet<Vector2Int> _volumeScratch = new();
 
     public override void OnLevelStart(LevelModifierContext context)
     {
@@ -206,20 +199,19 @@ public class AirPocketModifier : LevelModifier, ILevelMenuProgressProvider
             return;
         }
 
-        RefineRegions(_regionScratch);
+        GateRegionsByVolume(_regionScratch);
         ReconcilePockets(_regionScratch);
     }
 
-    // Solid cells on the placement grid: settled block cells, floor terrain columns (minus
-    // carved pockets - those are OPEN until built over), and island cells. The active piece
-    // and falling-away debris are NOT solid: a seal only counts once its lid has LANDED, and
-    // a block tumbling through a gap must not flicker regions closed mid-flight.
+    // Solid SUBCELLS: terrain (floor columns minus carved pockets, islands) fills grid-exact
+    // subcells; settled blocks mark every subcell whose CENTRE lies inside one of their live
+    // colliders - a tilted brick blocks exactly where it physically is, so the flood can
+    // neither tunnel through a leaning wall (phantom raster hole) nor be walled off by one.
+    // The active piece and falling-away debris are NOT solid: a seal only counts once its lid
+    // has LANDED, and a block tumbling through a gap must not flicker regions closed mid-flight.
     private void BuildSolidRaster()
     {
         _solid.Clear();
-        _terrain.Clear();
-        _blockColliders.Clear();
-        _blockColliderBounds.Clear();
 
         // Refresh the grid mapping from the live config each scan: OnLevelStart can run
         // before the mode resolves, and every raster below (blocks, islands, floor) must
@@ -228,33 +220,10 @@ public class AirPocketModifier : LevelModifier, ILevelMenuProgressProvider
         if (config != null) _gridSpacing = config.GridSpacing;
         if (_context.GameManager != null) _datumY = _context.GameManager.floorOriginY;
 
-        IReadOnlyList<BlockController> blocks = BlockController.AllBlocks;
-        for (int i = 0; i < blocks.Count; i++)
-        {
-            BlockController block = blocks[i];
-            if (block == null || !block.HasLanded || block.IsFallingAway) continue;
-            block.GetWorldCellCenters(_cellScratch);
-            for (int c = 0; c < _cellScratch.Count; c++)
-            {
-                _solid.Add(WorldToCell(_cellScratch[c]));
-            }
-            // The same blocks' live colliders, for the coverage pass: where a tilted brick
-            // PHYSICALLY is, as opposed to where its centres round to.
-            IReadOnlyList<Collider2D> solids = block.SolidColliders;
-            for (int c = 0; c < solids.Count; c++)
-            {
-                if (solids[c] == null) continue;
-                _blockColliders.Add(solids[c]);
-                _blockColliderBounds.Add(solids[c].bounds);
-            }
-        }
-
         StaticSupportIslandManager.GetWorldCellCenters(_cellScratch);
         for (int c = 0; c < _cellScratch.Count; c++)
         {
-            Vector2Int cell = WorldToCell(_cellScratch[c]);
-            _solid.Add(cell);
-            _terrain.Add(cell);
+            AddCellSubcells(WorldCellOf(_cellScratch[c]));
         }
 
         IReadOnlyList<FloorSegmentConfig> segments = config != null ? config.FloorSegments : null;
@@ -273,9 +242,7 @@ public class AirPocketModifier : LevelModifier, ILevelMenuProgressProvider
                 // sealed ground beneath it instead of silently no-oping the Remove below.
                 for (int r = -5; r < height; r++)
                 {
-                    var cell = new Vector2Int(column, r);
-                    _solid.Add(cell);
-                    _terrain.Add(cell);
+                    AddCellSubcells(new Vector2Int(column, r));
                 }
             }
             IReadOnlyList<FloorPocketConfig> floorPockets = segment.Pockets;
@@ -285,22 +252,90 @@ public class AirPocketModifier : LevelModifier, ILevelMenuProgressProvider
                 if (fp == null) continue;
                 int height = segment.GetColumnHeightCells(fp.Column);
                 var carved = new Vector2Int(segment.LeftColumn + fp.Column, height - fp.DepthCells);
-                _solid.Remove(carved);
-                _terrain.Remove(carved);
+                RemoveCellSubcells(carved);
             }
         }
+
+        // Blocks LAST, after the floor's pocket carve: a brick tucked into a carved socket
+        // must stay solid (the carve Remove would erase it if blocks rasterized first).
+        // Iterate each collider's AABB in subcells and centre-test only those - the work
+        // scales with brick area (a handful of subcells per cell collider), never with
+        // the whole playfield.
+        IReadOnlyList<BlockController> blocks = BlockController.AllBlocks;
+        for (int i = 0; i < blocks.Count; i++)
+        {
+            BlockController block = blocks[i];
+            if (block == null || !block.HasLanded || block.IsFallingAway) continue;
+            IReadOnlyList<Collider2D> solids = block.SolidColliders;
+            for (int c = 0; c < solids.Count; c++)
+            {
+                Collider2D collider = solids[c];
+                if (collider == null) continue;
+                Bounds b = collider.bounds;
+                Vector2Int lo = WorldToSub(new Vector2(b.min.x, b.min.y));
+                Vector2Int hi = WorldToSub(new Vector2(b.max.x, b.max.y));
+                for (int sx = lo.x; sx <= hi.x; sx++)
+                {
+                    for (int sy = lo.y; sy <= hi.y; sy++)
+                    {
+                        var sub = new Vector2Int(sx, sy);
+                        if (_solid.Contains(sub)) continue;
+                        if (collider.OverlapPoint(SubToWorld(sub))) _solid.Add(sub);
+                    }
+                }
+            }
+        }
+
     }
 
-    private Vector2Int WorldToCell(Vector2 worldCenter)
+    // ---- Lattice plumbing: SUBCELL coords everywhere (SubRes subcells per cell per axis).
+    // Cell (cx, cy) spans x in [(cx-0.5)s, (cx+0.5)s), y in [datum+cy*s, datum+(cy+1)*s);
+    // its subcells are (SubRes*cx .. SubRes*cx+1) x (SubRes*cy .. SubRes*cy+1) for SubRes 2
+    // (the x index bakes in the half-cell offset: i = floor((x + s/2) / h)).
+
+    private Vector2Int WorldToSub(Vector2 world)
+    {
+        float h = _gridSpacing / SubRes;
+        return new Vector2Int(
+            Mathf.FloorToInt((world.x + 0.5f * _gridSpacing) / h),
+            Mathf.FloorToInt((world.y - _datumY) / h));
+    }
+
+    private Vector2 SubToWorld(Vector2Int sub)
+    {
+        float h = _gridSpacing / SubRes;
+        return new Vector2(
+            (sub.x + 0.5f) * h - 0.5f * _gridSpacing,
+            _datumY + (sub.y + 0.5f) * h);
+    }
+
+    private Vector2Int WorldCellOf(Vector2 worldCenter)
     {
         return new Vector2Int(
             Mathf.RoundToInt(worldCenter.x / _gridSpacing),
             Mathf.RoundToInt((worldCenter.y - _datumY) / _gridSpacing - 0.5f));
     }
 
-    private Vector2 CellToWorld(Vector2Int cell)
+    private void AddCellSubcells(Vector2Int cell)
     {
-        return new Vector2(cell.x * _gridSpacing, _datumY + (cell.y + 0.5f) * _gridSpacing);
+        for (int dx = 0; dx < SubRes; dx++)
+        {
+            for (int dy = 0; dy < SubRes; dy++)
+            {
+                _solid.Add(new Vector2Int(SubRes * cell.x + dx, SubRes * cell.y + dy));
+            }
+        }
+    }
+
+    private void RemoveCellSubcells(Vector2Int cell)
+    {
+        for (int dx = 0; dx < SubRes; dx++)
+        {
+            for (int dy = 0; dy < SubRes; dy++)
+            {
+                _solid.Remove(new Vector2Int(SubRes * cell.x + dx, SubRes * cell.y + dy));
+            }
+        }
     }
 
     // Flood open air inward from a border ring around the solids' bounding box; every empty
@@ -398,106 +433,16 @@ public class AirPocketModifier : LevelModifier, ILevelMenuProgressProvider
         return false;
     }
 
-    // Second, stricter pass over the coarse regions: keep only genuinely breathable volume,
-    // sealed behind genuinely solid walls. The lattice lies under tilt - a mostly-covered
-    // crack cell must read as brick, and a "solid" wall cell with a real crack is a leak.
-    // Strictness errs toward the player: a wrongly-vented pocket costs nothing, a wrongly
-    // armed one costs a life.
-    private void RefineRegions(List<HashSet<Vector2Int>> regions)
+    // The one lenience gate the physical flood still needs: a sealed region smaller than
+    // ~3/4 of a cell of true air is a tilt wedge, not a player mistake - drop it silently.
+    // (Leak detection is no longer a heuristic: the flood itself walks any real crack wider
+    // than half a cell, so an escapable region simply never arrives here.)
+    private static void GateRegionsByVolume(List<HashSet<Vector2Int>> regions)
     {
-        if (regions.Count == 0) return;
-        _coverageCache.Clear();
-
         for (int r = regions.Count - 1; r >= 0; r--)
         {
-            HashSet<Vector2Int> region = regions[r];
-
-            _volumeScratch.Clear();
-            foreach (Vector2Int cell in region)
-            {
-                float coverage = CellCoverage(cell);
-                if (coverage >= SolidCoverage) continue;                // mostly brick: a tilt artifact, not air
-                if (coverage <= OpenCoverage) _volumeScratch.Add(cell); // true air: pocket volume
-                // in between: a sliver crack - passable space, but never volume to fill
-            }
-
-            bool leaky = _volumeScratch.Count == 0;
-            if (!leaky)
-            {
-                foreach (Vector2Int cell in region)
-                {
-                    if (WallLeaksAt(region, new Vector2Int(cell.x - 1, cell.y)) ||
-                        WallLeaksAt(region, new Vector2Int(cell.x + 1, cell.y)) ||
-                        WallLeaksAt(region, new Vector2Int(cell.x, cell.y - 1)) ||
-                        WallLeaksAt(region, new Vector2Int(cell.x, cell.y + 1)))
-                    {
-                        leaky = true;
-                        break;
-                    }
-                }
-            }
-
-            if (leaky)
-            {
-                regions.RemoveAt(r);
-                continue;
-            }
-
-            // The pocket is its breathable cells only: slivers neither fill with smoke nor
-            // count toward the fuse or the blast.
-            region.Clear();
-            foreach (Vector2Int cell in _volumeScratch) region.Add(cell);
+            if (regions[r].Count < MinVolumeSubcells) regions.RemoveAt(r);
         }
-    }
-
-    private bool WallLeaksAt(HashSet<Vector2Int> region, Vector2Int neighbor)
-    {
-        // A raster-solid wall cell that is physically cracked open means the region is not
-        // airtight at all, whatever the flood said.
-        return _solid.Contains(neighbor) && !region.Contains(neighbor)
-            && CellCoverage(neighbor) < SolidCoverage;
-    }
-
-    // Fraction of the cell's area occupied by settled geometry, on a CoverageSamples^2 point
-    // grid. Terrain cells are axis-aligned and grid-exact (coverage 1 by construction); block
-    // cells are sampled against the live colliders, so tilt contributes what it PHYSICALLY
-    // covers. Memoized per scan - regions and their walls share cells across checks.
-    private float CellCoverage(Vector2Int cell)
-    {
-        if (_terrain.Contains(cell)) return 1f;
-        if (_coverageCache.TryGetValue(cell, out float cached)) return cached;
-
-        Vector2 center = CellToWorld(cell);
-        float step = _gridSpacing / CoverageSamples;
-        float originX = center.x - 0.5f * _gridSpacing + 0.5f * step;
-        float originY = center.y - 0.5f * _gridSpacing + 0.5f * step;
-
-        int hits = 0;
-        for (int sy = 0; sy < CoverageSamples; sy++)
-        {
-            for (int sx = 0; sx < CoverageSamples; sx++)
-            {
-                var point = new Vector2(originX + sx * step, originY + sy * step);
-                for (int i = 0; i < _blockColliders.Count; i++)
-                {
-                    // 2D-only AABB prefilter (Bounds.Contains also tests z, which would
-                    // reject everything for blocks parked at a nonzero transform z).
-                    Bounds b = _blockColliderBounds[i];
-                    if (point.x < b.min.x || point.x > b.max.x ||
-                        point.y < b.min.y || point.y > b.max.y) continue;
-                    Collider2D collider = _blockColliders[i];
-                    if (collider != null && collider.OverlapPoint(point))
-                    {
-                        hits++;
-                        break;
-                    }
-                }
-            }
-        }
-
-        float result = hits / (float)(CoverageSamples * CoverageSamples);
-        _coverageCache[cell] = result;
-        return result;
     }
 
     // Match this scan's sealed regions to armed pockets by cell overlap: a matched pocket
@@ -620,7 +565,9 @@ public class AirPocketModifier : LevelModifier, ILevelMenuProgressProvider
         return null;
     }
 
-    private float FuseFor(int cellCount) => fuseSeconds + extraSecondsPerCell * Mathf.Max(0, cellCount - 1);
+    // The serialized dials speak in whole CELLS; regions are counted in subcells (4 = 1 cell).
+    private float FuseFor(int subcellCount) =>
+        fuseSeconds + extraSecondsPerCell * Mathf.Max(0f, subcellCount / (float)(SubRes * SubRes) - 1f);
 
     // ---- Outcomes ---------------------------------------------------------------------------
 
@@ -643,12 +590,13 @@ public class AirPocketModifier : LevelModifier, ILevelMenuProgressProvider
         // The blast rocks the tower, scaled by how much air was trapped: reuses the Tremor
         // brick's burst (velocity kicks with shear + epicenter falloff - PHYSICS.md I1-safe,
         // Static/frozen blocks immune). A 1-cell pop is a shiver; a 4-cell one is a real quake.
-        int shakeCells = Mathf.Min(pocket.Cells.Count, shakeCellCap);
+        // (Pocket cells are subcells; the shake dials speak in whole cells.)
+        float shakeCells = Mathf.Min(pocket.Cells.Count / (float)(SubRes * SubRes), shakeCellCap);
         float strength = shakeStrengthPerCell * shakeCells;
         if (strength > 0f)
         {
             Vector2 epicenter = Vector2.zero;
-            foreach (Vector2Int cell in pocket.Cells) epicenter += CellToWorld(cell);
+            foreach (Vector2Int cell in pocket.Cells) epicenter += SubToWorld(cell);
             epicenter /= pocket.Cells.Count;
 
             var quake = new GameObject("AirPocketQuake");
@@ -673,9 +621,10 @@ public class AirPocketModifier : LevelModifier, ILevelMenuProgressProvider
         _cellScratch.Clear();
         foreach (Vector2Int cell in pocket.Cells)
         {
-            _cellScratch.Add(CellToWorld(cell));
+            _cellScratch.Add(SubToWorld(cell));
         }
-        pocket.Fx = AirPocketFx.Create(_cellScratch, _gridSpacing);
+        // Subcell-sized smoke quads: the finer lattice lets the fill hug a tilted pocket.
+        pocket.Fx = AirPocketFx.Create(_cellScratch, _gridSpacing / SubRes);
         pocket.Fx.SetFill(fill);
         // A grown/merged pocket keeps its crescendo where it was - an audible restart
         // mid-fuse broke the "one long rising bed" promise.
