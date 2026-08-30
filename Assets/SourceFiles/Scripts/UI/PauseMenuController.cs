@@ -44,7 +44,7 @@ public class PauseMenuController : MonoBehaviour
     // The rule is MANUAL-PAUSE PARITY: fire exactly when the player could have tapped the
     // HUD pause button (PauseAvailable) - not just GamePhase.Playing. Discovery and
     // WinVerifying keep the world simulating (a debut modal holds spawning, not physics;
-    // hold-steady verification IS live physics) and GameOver() has no phase gate, so a
+    // hold-steady verification IS live physics) and LoseLifeOrEndRun() has no phase gate, so a
     // collapse there drains lives unwatched too (review 2026-08-22). Phases that freeze
     // time push a real pause (ability draft) and exclude themselves via IsGamePaused.
 

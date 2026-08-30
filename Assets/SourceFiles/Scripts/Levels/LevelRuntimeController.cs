@@ -372,6 +372,20 @@ public class LevelRuntimeController : MonoBehaviour
                 return;
             }
 
+            // HOLD STEADY means PHYSICALLY steady: mid-collapse bricks keep counting until
+            // they cross the loss line, so on a live-count goal a collapse in the countdown's
+            // final seconds could still "win" with the tower airborne (Nick 2026-08-30).
+            // Several landed blocks moving fast at once is the collapse signature - abort and
+            // hand the level back; once the wreckage settles the goal re-arms (the motion
+            // aborts opt into the 5 Hz re-arm poll below, since a live count that never
+            // dipped under the target fires no fresh crossing event).
+            if (TowerInMotion())
+            {
+                _rearmAfterMotionAbort = true;
+                AbortVerification();
+                return;
+            }
+
             _verificationRemaining -= Time.deltaTime;
             UpdateCountdownLabel();
             if (_verificationRemaining <= 0f)
@@ -404,18 +418,44 @@ public class LevelRuntimeController : MonoBehaviour
         // cells, and this watch can stay on for minutes while the player rebuilds a tall tower.
         // Gate on the BRONZE goal having been met this run: any armed tier's threshold is at or
         // above bronze, so a higher rung can never be met without this flag already set.
-        if (_targetMetThisRun && _armedCondition != null && _armedCondition.ReArmsByPolling)
+        if (_targetMetThisRun && _armedCondition != null &&
+            (_armedCondition.ReArmsByPolling || _rearmAfterMotionAbort))
         {
             _rearmPollTimer -= Time.deltaTime;
             if (_rearmPollTimer > 0f) return;
             _rearmPollTimer = RearmPollInterval;
 
+            // A motion abort must wait out the wreckage: re-arming while bricks still fly
+            // would flicker countdown on/off through the collapse.
+            if (_rearmAfterMotionAbort && TowerInMotion()) return;
             if (_armedCondition.IsMet(BuildWinContext())) TryBeginVerification();
         }
     }
 
     private const float RearmPollInterval = 0.2f;
     private float _rearmPollTimer;
+
+    // Motion-abort tuning: a settling just-locked brick drifts well under 1 u/s; a topple
+    // sends several bricks past 2 u/s at once. One fast block alone (a knocked-off straggler)
+    // is the live count's business, not a collapse.
+    private const float MotionAbortSpeed = 1.75f;
+    private const int MotionAbortBlockCount = 3;
+    private bool _rearmAfterMotionAbort; // cleared when verification actually re-arms
+
+    /// <summary>The collapse signature: several LANDED blocks in fast motion at once.</summary>
+    private static bool TowerInMotion()
+    {
+        int moving = 0;
+        var blocks = BlockController.AllBlocks;
+        for (int i = 0; i < blocks.Count; i++)
+        {
+            BlockController block = blocks[i];
+            if (block == null || !block.HasLanded) continue;
+            if (block.CurrentSpeed < MotionAbortSpeed) continue;
+            if (++moving >= MotionAbortBlockCount) return true;
+        }
+        return false;
+    }
 
     // A ghost hold (a falling brick's progress event momentarily satisfying the armed
     // threshold, common right after a rung completes with the next one nearly met) must not
@@ -451,6 +491,7 @@ public class LevelRuntimeController : MonoBehaviour
 
         GameManager.Instance.RequestPhase(this, GamePhase.WinVerifying);
         SetVerificationSpawnHold(false); // the WinVerifying phase gates spawning from here
+        _rearmAfterMotionAbort = false;  // armed again - the motion-abort poll did its job
         _verificationRemaining = WinVerificationSeconds;
         BuildCountdownUi();
         UpdateCountdownLabel();

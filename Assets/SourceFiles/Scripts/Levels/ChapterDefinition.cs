@@ -48,9 +48,6 @@ public class ChapterDefinition : ScriptableObject
     [Tooltip("Always playable regardless of campaign progress (testing/sandbox chapters).")]
     [SerializeField] private bool alwaysUnlocked = false;
 
-    [Header("Unlocks")]
-    [Tooltip("Power-ups that become part of the game from this chapter onward. Shown as 'NEW!' when the chapter unlocks; actual availability is authored in each level's power-up pool.")]
-    [SerializeField] private AbilityDefinition[] featuredUnlocks;
 
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     public int ChapterNumber => Mathf.Max(1, chapterNumber);
@@ -71,7 +68,6 @@ public class ChapterDefinition : ScriptableObject
         musicPlaylist ?? System.Array.Empty<AudioClip>();
     public string SkinFolder => string.IsNullOrWhiteSpace(skinFolder) ? "Skins/Classic" : skinFolder;
     public bool AlwaysUnlocked => alwaysUnlocked;
-    public IReadOnlyList<AbilityDefinition> FeaturedUnlocks => featuredUnlocks;
 
     /// <summary>The level after the given one within this chapter, or null if it was the last.</summary>
     public LevelDefinition GetNextLevel(LevelDefinition current)

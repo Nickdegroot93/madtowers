@@ -23,7 +23,7 @@ MonoBehaviour:
   unique: 0
   maxStacks: 0
   requiresVariantsInLevel: []
-  minChapterNumber: 0
+  minChapterNumber: 2
   variant: {fileID: 11400000, guid: c4613f6d44bf411baf2a43b963f291ce, type: 2}
   transformEffect: {fileID: 0}
   transformScale: 0.6

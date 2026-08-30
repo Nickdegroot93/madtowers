@@ -166,7 +166,7 @@ conceivably want it, it's a status asset.*
 
 | Kind | Consulted by | Meaning of `magnitude` |
 |---|---|---|
-| `LifeLossImmunity` | `GameManager.GameOver()` skips the charge | — |
+| `LifeLossImmunity` | `GameManager.LoseLifeOrEndRun()` skips the charge | — |
 | `FallSpeedMultiplier` | folded into the per-block NORMAL-descent factor — LIVE, so it also re-stamps the brick already falling (fast drops immune; never `Time.timeScale`) | the multiplier (0.5 = half) |
 | `ScorePerBlockBonus` | `BlockLedger` adds it per counted `BlockLanded` grant | extra score (+1 = double progression) |
 | `Custom` | nothing built-in; abilities query `IsActive(def)` | yours |
@@ -595,7 +595,7 @@ an effect is dragged in.
 ### Brace (Epic, passive, unique)
 A `StatusPassiveAbility` asset (`triggerEvent = LifeLost`) that applies the shared
 `LifeLossImmunity` status (the same 10 s `Status_LifeImmunity10s` the old Stasis consumable
-used). Losing a life opens a 10 s window in which `GameManager.GameOver()` absorbs every
+used). Losing a life opens a 10 s window in which `GameManager.LoseLifeOrEndRun()` absorbs every
 further charge, so a whole-tower collapse during it costs exactly the one life that opened it.
 `charges = 0` (permanent — re-arms every life loss), `unique = true`. No new logic: it's a pure
 status grant, and during the window no life is actually lost, so the next loss *after* it

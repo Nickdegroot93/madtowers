@@ -44,7 +44,6 @@ public class StaticSupportIslandManager : MonoBehaviour
     private const float OverFloorWeight = 0.12f;
     private const float FloorEdgePlusOneWeight = 0.5f;
 
-    private readonly RuntimeObjectPool _pool = new RuntimeObjectPool();
     private readonly Collider2D[] _overlapResults = new Collider2D[8];
     private PhysicsMaterial2D _islandMaterial;
     private ContactFilter2D _solidFilter;
@@ -451,7 +450,11 @@ public class StaticSupportIslandManager : MonoBehaviour
                 baseY + offsets[i].y * grid,
                 0f);
 
-            GameObject cell = _pool.Get(_staticBlockPrefab, cellPosition, Quaternion.identity, islandRoot.transform);
+            // Plain Instantiate: the RuntimeObjectPool that used to sit here never had a
+            // Release caller (islands live until the scene unloads), so it pooled nothing -
+            // deleted 2026-08-30 rather than pretending.
+            GameObject cell = Instantiate(_staticBlockPrefab, cellPosition, Quaternion.identity, islandRoot.transform);
+            cell.SetActive(true);
             ConfigureIslandCellPhysics(cell, grid);
             // A multi-cell cluster pops as one: all cells animate, only the first one sounds.
             ConfigureIslandCellVisual(cell, popIn, popDelay, withSound: i == 0);

@@ -23,7 +23,7 @@ MonoBehaviour:
   unique: 0
   maxStacks: 2
   requiresVariantsInLevel: []
-  minChapterNumber: 0
+  minChapterNumber: 9
   charges: 0
   variant: {fileID: 11400000, guid: e0a392c17aea4f80abe9498f0bf69678, type: 2}
   chancePerBlock: 0.05

@@ -405,7 +405,7 @@ public class HeightLimitWavesModifier : LevelModifier, ILevelMenuProgressProvide
         _zapCooldown = ZapCooldownSeconds;
         _laser.Flash();
         TowerCameraController.Impact(0.15f, 0.2f);
-        _context?.GameManager?.GameOver();
+        _context?.GameManager?.LoseLifeOrEndRun();
     }
 
     // The one definition of "in violation": a LANDED block whose top crosses the line (the

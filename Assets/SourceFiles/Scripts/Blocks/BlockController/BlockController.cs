@@ -499,7 +499,7 @@ public partial class BlockController : MonoBehaviour
             FloodSplashFx.Play(transform.position.x);
         else
             LifeLossFx.Play(transform.position); // the mist swallows the block - visible at the screen edge
-        if (GameManager.Instance != null) GameManager.Instance.GameOver();
+        if (GameManager.Instance != null) GameManager.Instance.LoseLifeOrEndRun();
         if (!HasLanded) LockBlock(); // end control cleanly so (lives permitting) the next piece spawns
         Destroy(gameObject);
     }

@@ -108,7 +108,7 @@ clamp-masked bug).
   the prey's own `costsLifeWhenLost` — a hazard kill always costs a life (gated only by
   `LifeLossImmunity`), unlike a fall-off, which is gated by the lost block's flag.
   **Lives-free game types are the one carve-out** (2026-08-10): on a level whose modifier
-  sets `DisablesRunLives` (the Flood), `GameOver()` no-ops outright, so hazard bites and
+  sets `DisablesRunLives` (the Flood), `LoseLifeOrEndRun()` no-ops outright, so hazard bites and
   fall-offs alike charge nothing — don't author life-hazards onto those levels, their
   bite is toothless there. The `−1` accounting above still runs unchanged.
 

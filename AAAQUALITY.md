@@ -39,7 +39,7 @@ engineer against that above all.
 | Legal/compliance | Nothing wired: no consent flow, no ATT prompt, no privacy-policy URL; About/Legal tab is placeholder | Non-negotiable for store submission. Consent ordering matters once rewarded ads ship (UMP before ATT init, ad SDK init after both). |
 | Review prompt | Absent | Trivial win. Prompt after a win, never session 1, never after a loss. 90% of Apple-featured apps hold 4.0+. |
 | App icon / store assets | Icon still Unity template default; no screenshots/listing assets | Product-page quality is itself a featuring criterion. |
-| Audio holes | Level-win / game-over / life-lost / gentle-landing sounds unwired; procedural placeholders live; 4/15 chapters have music | Phase F scope. Sound design is an Apple featuring criterion. |
+| Audio holes | Level-win / game-over / life-lost / gentle-landing sounds unwired; procedural placeholders live; music: all 15 chapters covered (stale claim fixed 2026-08-30) | Phase F scope. Sound design is an Apple featuring criterion. |
 | Puzzle mode correctness | Block counting + wave math wrong (see PUZZLE section / Nick's notes) | **Current focus.** |
 
 ## Tier 2 — Retention layer (biggest structural gap vs. genre) — **POST-LAUNCH by decision**

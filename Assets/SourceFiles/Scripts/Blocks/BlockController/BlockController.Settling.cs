@@ -221,6 +221,12 @@ public partial class BlockController
         _rb.linearVelocity += velocityChange;
     }
 
+    /// <summary>Current body speed (u/s); 0 for non-dynamic (anchored/frozen) bodies. A
+    /// read-only physics peek for steadiness checks - the hold-steady countdown's motion
+    /// abort (LevelRuntimeController.TowerInMotion). Never writes (PHYSICS.md I1).</summary>
+    public float CurrentSpeed => _rb != null && _rb.bodyType == RigidbodyType2D.Dynamic
+        ? _rb.linearVelocity.magnitude : 0f;
+
     // Freezes this block permanently exactly where it currently is - used by anchor brick
     // variants and the Freeze power-up. A Static body costs nothing in the solver and
     // acts as a player-made platform; it can never drift, wake, or be knocked over.

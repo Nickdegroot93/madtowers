@@ -99,7 +99,7 @@ public class GameManager : MonoBehaviour
     private bool _spawnAvailabilityInitialized;
     private bool _lastSpawnAvailability;
     // Loss context, scoped by DuringBlockLoss around the frozen HandleLostBelowScreen call:
-    // GameOver() reads whether the lost piece costs a life; BlockLedger suppresses the
+    // LoseLifeOrEndRun() reads whether the lost piece costs a life; BlockLedger suppresses the
     // posthumous placement score of a piece that fell off (it was lost, not placed).
     private bool _losingBlockCostsLife = true;
     // Live standing-top cache (see LiveTowerTopWorldY) + the 5 Hz publish that lets the HUD
@@ -396,7 +396,7 @@ public class GameManager : MonoBehaviour
         GameEvents.RaiseHeightChanged(liveTowerHeight);
     }
 
-    public void GameOver()
+    public void LoseLifeOrEndRun()
     {
         if (isGameOver) return;
 
@@ -511,7 +511,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    /// <summary>Runs the (frozen) per-block loss inside the loss policy: GameOver() learns
+    /// <summary>Runs the (frozen) per-block loss inside the loss policy: LoseLifeOrEndRun() learns
     /// whether this block costs a life, the posthumous lock-score is suppressed, and a
     /// counted block is dropped from the live total - exactly once. The try/finally keeps
     /// a throw in the frozen call from stranding the flags (which would silently disable
@@ -536,7 +536,7 @@ public class GameManager : MonoBehaviour
     public void LoseLifeToHazard()
     {
         _losingBlockCostsLife = true;
-        GameOver();
+        LoseLifeOrEndRun();
     }
 
 }

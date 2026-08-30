@@ -7,71 +7,30 @@ functional; this tracks polish + content-gating debt). See ABILITIES.md for the 
 
 ## 1. Icons needed
 
-Abilities currently shipping with no icon (`icon: {fileID: 0}`) — they fall back to
-title text on the card, which works but looks unfinished. Generate via
-`Tools/generate_ability_icons.py` (see ART.md §12), then wire the sprite into each asset.
-
-**Epic**
-- [ ] Guardian
-- [ ] IronWill
-- [ ] MagmaSpawn
-- [ ] Overgrowth
-- [ ] Purifier
-- [ ] Slowburn
-- [ ] Titan
-- [ ] Updraft
-
-**Rare**
-- [ ] AnchorSpawn
-- [ ] Ballast
-- [ ] Bedrock
-- [ ] BombSquad
-- [ ] Dampener
-- [ ] DeIcer
-- [ ] DragChute
-- [ ] Liquefy
-- [ ] Locksmith
-- [ ] Muzzle
-- [ ] Reinforce
-- [ ] Reroll
-- [ ] Sanitize
-- [ ] SteadyHands
-- [ ] SureGrip
-- [ ] VineBrick
-
-**Common**
-- [ ] Lighten
-- [ ] Ward
-- [ ] Zap
+**RESOLVED 2026-08-29:** Nick's painterly icon set covered every ability - all 58 assets
+carry an icon (verified 2026-08-30: zero `icon: {fileID: 0}` under Assets/Data/PowerUps).
+New abilities get art from Nick (ICONS.md documents the retired generator recipe only).
 
 ---
 
-## 2. Chapter gating (pending level design)
+## 2. Chapter gating (RESOLVED 2026-08-30)
 
-Every ability that **introduces or boosts a block variant** must eventually carry a
-`minChapterNumber` matching the chapter where that brick is first taught, so players are
-never offered an ability for a brick they have never seen. Brick-intro chapters aren't
-pinned yet, so most ship ungated (`minChapterNumber: 0`) and MUST be revisited once the
-campaign layout is fixed. (Mechanism: `AbilityDefinition.minChapterNumber`, ABILITIES.md §7.)
+Gates derived from the live campaign configs (first chapter whose levels ambiently spawn
+the brick) and written into the assets:
 
-| Ability | Type | Introduces brick | Current gate | Needs |
-|---|---|---|---|---|
-| AnchorBrick | transmute | Anchor | 0 (ungated) | set to Anchor's intro chapter |
-| AnchorSpawn | booster | Anchor | 0 (ungated) | set to Anchor's intro chapter |
-| VineBrick | transmute | Vine | 0 (ungated) | set to Vine's intro chapter |
-| Overgrowth | booster | Vine | 0 (ungated) | set to Vine's intro chapter |
-| Reinforce | transmute | Boulder | 0 (ungated) | set to Boulder's intro chapter |
-| Bedrock | booster | Boulder | 0 (ungated) | set to Boulder's intro chapter |
-| Lighten | transmute | Feather | 0 (ungated) | set to Feather's intro chapter |
-| Liquefy | transmute | Magma | **7** (provisional) | confirm against real volcano chapter |
-| MagmaSpawn | booster | Magma | **7** (provisional) | confirm against real volcano chapter |
+| Ability | Brick | Intro chapter | Gate set |
+|---|---|---|---|
+| Lighten | Feather | 2 (Sakura Ridge) | 2 |
+| Reinforce / Bedrock | Boulder | 9 (Lost City) | 9 |
+| Liquefy / MagmaSpawn | Magma | 10 (Burning Steppes) | 10 |
+| AnchorBrick / AnchorSpawn | Anchor | **never spawns ambiently** | 2 (judgment call: the ability IS the brick's only source; gated past the opening chapter so the debut lands after basics. Revisit if an Anchor-teaching chapter ever ships.) |
+| VineBrick / Overgrowth | Vine | 1 (Jungle Depths) | 0 (ungated = chapter 1; nothing to gate) |
 
-> Note: the suppressor abilities (Muzzle/Maw, SteadyHands/Vortex, Dampener/Tremor,
-> Ballast/Feather, DeIcer/Ice, Locksmith/Locked, BombSquad/Bomb) gate themselves
-> automatically via `requiresVariantsInLevel` — they only appear where that brick can
-> already spawn — so they do NOT need a `minChapterNumber`.
+Full brick-intro map (from the same scan): Vine 1, Feather 2, Ice 4, Locked 5, Sandstone 6,
+Curse 7, Vortex 8, Boulder+Tremor 9, Bomb+Magma 10, Maw 14. The suppressor abilities keep
+self-gating via `requiresVariantsInLevel`. If a chapter reshuffle moves a brick's intro,
+re-run the scan and update the gates.
 
----
 
 ## 3. Other
 

@@ -356,7 +356,7 @@ public class LossZone : MonoBehaviour
             return;
         }
 
-        GameManager.Instance.GameOver();
+        GameManager.Instance.LoseLifeOrEndRun();
         Destroy(rb.gameObject);
     }
 }
