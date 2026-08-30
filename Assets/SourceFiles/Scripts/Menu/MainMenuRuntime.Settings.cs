@@ -549,21 +549,25 @@ public static partial class MainMenuRuntime
         nameButtonLabel = nameButton.GetComponentInChildren<TextMeshProUGUI>();
         AddRowDivider(buttons);
 
-        // -- tutorial replay, as a normal settings row (label cluster + right-edge action) -----
+        // -- tutorial replay: DEVELOPMENT BUILDS ONLY (Nick 2026-08-30 - a testing lever,
+        // not a player feature; the tutorial re-arms itself only for a genuinely fresh save).
         float rowTop = -(identityH + buttonsH + 34f);
-        RectTransform reset = NewSettingsRow(rows, "ResetTutorial", rowTop, ToggleRowH);
-        rowTop -= ToggleRowH;
-        BuildRowLabel(reset, MenuSprites.Info, "RESET TUTORIAL",
-            "Replay the first-time controls walkthrough.", accent);
-
-        (Button resetClick, TextMeshProUGUI resetLabel) =
-            BuildRowActionButton(reset, "ResetButton", "RESET", accent, TextPrimary);
-        resetClick.onClick.AddListener(() =>
+        if (Debug.isDebugBuild)
         {
-            ProgressStore.ResetTutorial();
-            SfxPlayer.Play("ui-button-click");
-            resetLabel.text = "DONE";   // the button itself confirms - no floating status line
-        });
+            RectTransform reset = NewSettingsRow(rows, "ResetTutorial", rowTop, ToggleRowH);
+            rowTop -= ToggleRowH;
+            BuildRowLabel(reset, MenuSprites.Info, "DEV: RESET TUTORIAL",
+                "Test build only. Replay the first-time controls walkthrough.", accent);
+
+            (Button resetClick, TextMeshProUGUI resetLabel) =
+                BuildRowActionButton(reset, "ResetButton", "RESET", accent, TextPrimary);
+            resetClick.onClick.AddListener(() =>
+            {
+                ProgressStore.ResetTutorial();
+                SfxPlayer.Play("ui-button-click");
+                resetLabel.text = "DONE";   // the button itself confirms - no floating status line
+            });
+        }
 
         // -- restore purchases: new phone / reinstall recovers Unlimited from the store's
         // purchase history (Apple mandates a visible affordance). The button speaks its own
@@ -617,28 +621,32 @@ public static partial class MainMenuRuntime
 
         // -- start over: the device-local factory reset (FactoryReset.EraseAllAndQuit) -
         // everything back to a fresh install, including a new anonymous account next boot.
-        // Unlike DELETE ACCOUNT it needs no server and touches nothing server-side, so it
-        // works offline; the app closes itself as the confirmation. Two-tap confirm in the
-        // button itself (the row pattern), not a sheet - the quit is loud enough.
-        RectTransform startOver = NewSettingsRow(rows, "StartOver", rowTop, ToggleRowH);
-        BuildRowLabel(startOver, MenuSprites.Info, "START OVER",
-            "Wipe this device and restart as a fresh install.", dangerColor);
-
-        (Button eraseClick, TextMeshProUGUI eraseLabel) =
-            BuildRowActionButton(startOver, "EraseButton", "ERASE", dangerColor, dangerColor);
-        bool armed = false;
-        eraseClick.onClick.AddListener(() =>
+        // DEVELOPMENT BUILDS ONLY (Nick 2026-08-30): players who genuinely want out have
+        // DELETE ACCOUNT (store-required); the local wipe is a testing lever. Unlike DELETE
+        // ACCOUNT it needs no server and works offline; the app closes itself as the
+        // confirmation. Two-tap confirm in the button itself - the quit is loud enough.
+        if (Debug.isDebugBuild)
         {
-            SfxPlayer.Play("ui-button-click");
-            if (!armed)
+            RectTransform startOver = NewSettingsRow(rows, "StartOver", rowTop, ToggleRowH);
+            BuildRowLabel(startOver, MenuSprites.Info, "DEV: START OVER",
+                "Test build only. Wipe this device and restart fresh.", dangerColor);
+
+            (Button eraseClick, TextMeshProUGUI eraseLabel) =
+                BuildRowActionButton(startOver, "EraseButton", "ERASE", dangerColor, dangerColor);
+            bool armed = false;
+            eraseClick.onClick.AddListener(() =>
             {
-                armed = true;
-                eraseLabel.text = "TAP TO CONFIRM";
-                return;
-            }
-            FactoryReset.EraseAllAndQuit();
-        });
-        rowTop -= ToggleRowH;
+                SfxPlayer.Play("ui-button-click");
+                if (!armed)
+                {
+                    armed = true;
+                    eraseLabel.text = "TAP TO CONFIRM";
+                    return;
+                }
+                FactoryReset.EraseAllAndQuit();
+            });
+            rowTop -= ToggleRowH;
+        }
 
         BuildDevSkipChapterOneRow(rows, ref rowTop, accent);
     }

@@ -20,9 +20,9 @@ public static class ContentCatalog
 #if UNITY_EDITOR
         get => true;
 #else
-        // TEMPORARY: exposed in ALL player builds (dev + release) so Custom Game is reachable on
-        // device for testing. Restore the `Debug.isDebugBuild &&` gate to hide it from release.
-        get => Manifest != null;
+        // Development player builds only (the temporary expose-everywhere window closed
+        // 2026-08-30): Custom Game is a testing tool and must never ship in a release.
+        get => Debug.isDebugBuild && Manifest != null;
 #endif
     }
 
