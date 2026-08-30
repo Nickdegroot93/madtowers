@@ -171,6 +171,10 @@ public partial class BlockController
         DestroyPlacementBeam();
 
         FinalizeDynamicControl();
+        // Variants a mid-air transmute replaced still deliver their landing behaviour
+        // (Tremor -> Vine keeps the quake): oldest first, the CURRENT data last so its
+        // effects win any ordering ties.
+        for (int i = 0; i < _replacedDatas.Count; i++) _replacedDatas[i]?.OnLocked(this);
         _appliedData?.OnLocked(this);
 
         if (_inputs != null) _inputs.Gameplay.Disable();

@@ -63,6 +63,15 @@ public partial class BlockController
     {
         if (data == null) return;
 
+        // A re-apply on a piece that already carries data remembers the replaced variant so
+        // its landing behaviour still fires at lock (see _replacedDatas). Deduped both ways:
+        // the same data re-applied is a refresh, not a second landing behaviour - so a data
+        // returning to CURRENT leaves the replaced list (Vine -> Tremor -> Vine must not add
+        // VineBlockBehaviour twice and double-weld).
+        if (_appliedData != null && _appliedData != data && !_replacedDatas.Contains(_appliedData))
+            _replacedDatas.Add(_appliedData);
+        _replacedDatas.Remove(data);
+
         _appliedData = data;
         if (_rb == null) _rb = GetComponent<Rigidbody2D>();
         _rb.mass = data.Mass * _standardBlockMassMultiplier; // Titan scales future pieces heavier
@@ -89,6 +98,12 @@ public partial class BlockController
         foreach (BlockVariantSkin skin in GetComponents<BlockVariantSkin>())
             if (skin != null) skin.Remove();
     }
+
+    /// <summary>Forget every variant data a re-apply replaced on this piece (see
+    /// _replacedDatas) - their landing behaviours will NOT fire at lock. The defuse
+    /// half of a neutralise (Sanitize/Ward): a defused Tremor must not quake, while a
+    /// transmuted one still does.</summary>
+    public void ForgetReplacedVariantBehaviours() => _replacedDatas.Clear();
 
     // Physics shapes are slightly narrower on the WORLD-X axis than the visual cells
     // (Tricky-Towers style). With an exactly cell-wide footprint a piece can never enter a gap

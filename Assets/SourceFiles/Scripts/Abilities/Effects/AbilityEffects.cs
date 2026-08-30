@@ -66,6 +66,10 @@ public static class AbilityEffects
 
         block.StripVariantSkins();
         context.Spawner.ApplyVariantToNextBlock(identity.Definition.DefaultData);
+        // AFTER the plain re-apply (which banks the stripped variant into the replaced-data
+        // memory): a defused hazard must not fire its landing behaviour - defused is GONE,
+        // unlike a transmute, which keeps it (Tremor -> Vine still quakes).
+        block.ForgetReplacedVariantBehaviours();
         return true;
     }
 

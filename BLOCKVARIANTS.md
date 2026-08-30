@@ -30,6 +30,14 @@ A variant is up to three pieces, by **naming convention**:
 
 The data asset's `m_Script` decides which `BlockData` (sub)class it is — that's the only wiring.
 
+**Transmute vs defuse** (Nick 2026-08-30): a mid-air re-apply (`ApplyVariantConsumable`,
+e.g. Vine cast on a falling Tremor) REPLACES the data that drives flags/steering/accounting,
+but the replaced variant's **landing behaviour still fires** — `BlockController` remembers
+replaced datas (`_replacedDatas`) and calls their `OnLocked` too, oldest first (a Tremor
+turned Vine still quakes, now dragging its welded cluster). A **defuse**
+(`AbilityEffects.NeutralizeToPlain` — Sanitize, Ward) clears that memory: defused is gone.
+Skins are additive the same way — the old skin stays unless `StripVariantSkins` removes it.
+
 ---
 
 ## 2. The catalog

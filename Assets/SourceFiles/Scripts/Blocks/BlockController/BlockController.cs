@@ -192,6 +192,11 @@ public partial class BlockController : MonoBehaviour
     private bool _descentSuspended;
     private ContactFilter2D _contactFilter;
     private BlockData _appliedData;
+    // Datas a mid-air re-apply REPLACED (ApplyVariantConsumable: Tremor -> Vine). The new data
+    // owns flags/steering, but the old variant's landing behaviour is still owed - a Tremor
+    // turned Vine must still quake, now dragging its welded cluster along (Nick 2026-08-30).
+    // OnLocked fires for these too; a defuse (NeutralizeToPlain) clears them - defused is GONE.
+    private readonly List<BlockData> _replacedDatas = new List<BlockData>();
     private readonly BlockCellGeometry _cellGeometry = new BlockCellGeometry();
     private IReadOnlyList<FloorSegmentConfig> _floorSegments;
     private Camera _mainCamera;
