@@ -31,9 +31,9 @@ public static partial class MainMenuRuntime
 
     /// <summary>Open the offer (tap-outside and X both dismiss). Safe to call from any
     /// chip tap: no-ops when it is already up or when the player owns Unlimited.
-    /// <paramref name="title"/> overrides the "MORE ATTEMPTS" header - the boot auto-open
-    /// says "OUT OF ATTEMPTS" instead, because there the modal must STATE the problem
-    /// before pitching the fixes (nobody tapped anything).</summary>
+    /// <paramref name="title"/> overrides the "MORE ATTEMPTS" header - the arrival
+    /// auto-open says "OUT OF ATTEMPTS" instead, because there the modal must STATE the
+    /// problem before pitching the fixes (nobody tapped anything).</summary>
     private static void OpenRefillOffer(string title = null)
     {
         if (_refillOverlay != null) return;
@@ -83,36 +83,40 @@ public static partial class MainMenuRuntime
         _refillOverlay = null;
     }
 
-    // ---- boot auto-open ---------------------------------------------------------------
-    // Launching the app straight into an empty meter used to be silent: the player had to
-    // discover the wall by tapping a level. Now the offer opens ITSELF, once per process,
-    // titled "OUT OF ATTEMPTS" - state the problem, then the two ways out (Unlimited / ad),
-    // both dismissible as ever (Nick 2026-08-30). Once per process means a menu return from
-    // a run never re-pops it; the chip stays the deliberate way back in.
+    // ---- arrival auto-open --------------------------------------------------------------
+    // Arriving at the menu with an empty meter used to be silent: the player had to
+    // discover the wall by tapping a level. Now the offer opens ITSELF, once per menu
+    // arrival - app boot AND the return from the run that just drained the meter (the
+    // game-over walk of shame, Nick 2026-08-30) - titled "OUT OF ATTEMPTS": state the
+    // problem, then the two ways out (Unlimited / ad), both dismissible as ever. Once per
+    // ARRIVAL never nags: with the meter empty no new run can start, so the next arrival
+    // can only follow a refill, a purchase, or a fresh launch.
 
-    /// <summary>Latched once the boot verdict is settled - shown, or decided not to show.
-    /// Never re-armed by ReturnToMenu's scene reloads (statics survive those).</summary>
-    private static bool _bootRefillOfferResolved;
+    /// <summary>Latched once this arrival's verdict is settled - shown, or decided not to
+    /// show. Re-armed by the next menu arrival (boot or ReturnToMenu's scene reload).</summary>
+    private static bool _refillAutoOpenResolved;
 
-    /// <summary>Called on every menu show; the latch makes it first-boot-only. A watcher
-    /// waits out the boot unknowns (splash up, server verdict in flight) instead of
-    /// deciding on the spot - at menu build the online meter is usually unanswered.</summary>
-    private static void ArmBootRefillOffer()
+    /// <summary>Called on every menu show. A watcher waits out the arrival unknowns
+    /// (splash up, server verdict in flight) instead of deciding on the spot - at menu
+    /// build the online meter is often unanswered. The old watcher died with the previous
+    /// scene's root, so each arrival carries exactly one.</summary>
+    private static void ArmRefillOfferAutoOpen()
     {
-        if (_bootRefillOfferResolved || _root == null) return;
-        _root.AddComponent<BootRefillOfferWatch>();
+        if (_root == null) return;
+        _refillAutoOpenResolved = false;
+        _root.AddComponent<RefillOfferAutoOpenWatch>();
     }
 
     /// <summary>Ticks on unscaled time (menu runs at timeScale 0) until the out-of-attempts
-    /// verdict is in, then opens the offer or retires. WAITS OUT every surface that owns a
-    /// boot moment - splash (sort 12000 covers the offer's 5900: the pop-in must be SEEN),
+    /// verdict is in, then opens the offer or retires. WAITS OUT every surface that owns an
+    /// arrival moment - splash (sort 12000 covers the offer's 5900: the pop-in must be SEEN),
     /// a playing unlock reveal (the record is consumed at BUILD time, so the live runner is
     /// the real signal - the dev-beats precedent), the dev letter and the link prompt (both
     /// 5900 boot one-shots; one-shots never stack) - opening only once the screen is clear.
     /// The verdict window counts only UNBLOCKED waiting (a long dev-letter read must not
     /// eat it), and expiring it retires quietly: a sales modal popping out of nowhere a
     /// minute into browsing reads as an ambush, not a favor.</summary>
-    private sealed class BootRefillOfferWatch : MonoBehaviour
+    private sealed class RefillOfferAutoOpenWatch : MonoBehaviour
     {
         private const float VerdictWindow = 20f;   // covers a slow first get_profile, not more
 
@@ -121,7 +125,7 @@ public static partial class MainMenuRuntime
 
         private void Update()
         {
-            if (_bootRefillOfferResolved) { Destroy(this); return; }
+            if (_refillAutoOpenResolved) { Destroy(this); return; }
             if (Time.unscaledTime < _nextTick) return;
             float sinceLastTick = _nextTick > 0f ? 0.25f : 0f;
             _nextTick = Time.unscaledTime + 0.25f;
@@ -143,14 +147,14 @@ public static partial class MainMenuRuntime
             }
             if (!AttemptsService.MeterActive || AttemptsService.Count > 0) { Retire(); return; }
 
-            _bootRefillOfferResolved = true;
+            _refillAutoOpenResolved = true;
             OpenRefillOffer("OUT OF ATTEMPTS");
             Destroy(this);
         }
 
         private void Retire()
         {
-            _bootRefillOfferResolved = true;
+            _refillAutoOpenResolved = true;
             Destroy(this);
         }
     }
