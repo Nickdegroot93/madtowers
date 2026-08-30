@@ -263,7 +263,7 @@ public sealed class RunResultsScreen : MonoBehaviour
             // without the player doing anything.
             if (added == 0)
             {
-                GameObject hint = CreateRow(panel.transform, "A life regenerates on the timer above.",
+                GameObject hint = CreateRow(panel.transform, "An attempt regenerates on the timer above.",
                     24, new Color(1f, 1f, 1f, 0.6f), 44f, display: false).gameObject;
                 AddReveal(hint, PrimaryAt);
             }

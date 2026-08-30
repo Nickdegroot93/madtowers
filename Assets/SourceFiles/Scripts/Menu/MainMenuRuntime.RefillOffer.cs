@@ -82,7 +82,7 @@ public static partial class MainMenuRuntime
 
     private static void BuildRefillContent(RectTransform panel)
     {
-        TextMeshProUGUI title = CreateTmp(panel, "Title", "MORE LIVES", 34, TextPrimary,
+        TextMeshProUGUI title = CreateTmp(panel, "Title", "MORE ATTEMPTS", 34, TextPrimary,
             TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -26f), new Vector2(RefillPanelW - 120f, 42f), new Vector2(0.5f, 1f));
         title.characterSpacing = 4f;
@@ -121,12 +121,13 @@ public static partial class MainMenuRuntime
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, 2f), new Vector2(120f, 90f), new Vector2(0.5f, 0.5f));
         infinity.enableAutoSizing = false;
-        Sprite heart = HeartSprites.Full();
-        if (heart != null)
+        // Flags, not hearts: the ∞ being pitched is unlimited ATTEMPTS (AttemptSprites).
+        Sprite flag = AttemptSprites.Flag();
+        if (flag != null)
         {
             for (int i = 0; i < 2; i++)
             {
-                Image side = CreateImage(glow.transform, $"Heart{i}", heart, Color.white);
+                Image side = CreateImage(glow.transform, $"Flag{i}", flag, Color.white);
                 side.preserveAspect = true;
                 side.raycastTarget = false;
                 float x = i == 0 ? -96f : 96f;
@@ -139,7 +140,7 @@ public static partial class MainMenuRuntime
             26, MenuAccent, TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -104f), new Vector2(RefillPanelW - 100f, 34f), new Vector2(0.5f, 1f));
         offerTitle.characterSpacing = 2f;
-        CreateTmp(offer.transform, "Pitch", "UNLIMITED LIVES - NEVER WAIT TO PLAY AGAIN", 15,
+        CreateTmp(offer.transform, "Pitch", "UNLIMITED ATTEMPTS - NEVER WAIT TO PLAY AGAIN", 15,
             WithAlpha(TextPrimary, 0.92f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -142f), new Vector2(RefillPanelW - 100f, 22f), new Vector2(0.5f, 1f));
         CreateTmp(offer.transform, "Pitch2", "NO ADS  ·  PLAY OFFLINE  ·  YOURS FOREVER", 13,
@@ -267,22 +268,22 @@ public static partial class MainMenuRuntime
         string sub;
         if (full)
         {
-            label = "LIVES ARE FULL";
+            label = "ATTEMPTS ARE FULL";
             sub = "COME BACK AFTER YOUR NEXT RUN";
         }
         else if (left == 0)
         {
-            label = "WATCH AD  +2 LIVES";
+            label = "WATCH AD  +2 ATTEMPTS";
             sub = "DAILY LIMIT REACHED - MORE TOMORROW";
         }
         else if (!ready)
         {
-            label = "WATCH AD  +2 LIVES";
+            label = "WATCH AD  +2 ATTEMPTS";
             sub = "NO AD READY - TRY AGAIN IN A MOMENT";
         }
         else
         {
-            label = "WATCH AD  +2 LIVES";
+            label = "WATCH AD  +2 ATTEMPTS";
             sub = left == AttemptsService.GrantsUnknown ? "FREE - SPONSORED VIDEO"
                 : left == 1 ? "LAST ONE TODAY"
                 : $"{left} LEFT TODAY";
@@ -342,7 +343,7 @@ public static partial class MainMenuRuntime
         SetCenteredAt(bell.rectTransform, new Vector2(0f, 0.5f), new Vector2(44f, 0f), new Vector2(34f, 34f));
 
         TextMeshProUGUI label = CreateTmp(row.transform, "Label",
-            "GET A PING WHEN LIVES ARE FULL?", 19, TextPrimary,
+            "GET A PING WHEN ATTEMPTS ARE FULL?", 19, TextPrimary,
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, 9f), new Vector2(RefillPanelW - 160f, 26f), new Vector2(0.5f, 0.5f));
         TextMeshProUGUI sub = CreateTmp(row.transform, "Sub",
@@ -362,7 +363,7 @@ public static partial class MainMenuRuntime
                 if (label == null) return;   // modal closed while the OS dialog was up
                 if (granted)
                 {
-                    label.text = "YOU'LL GET A PING WHEN LIVES ARE FULL";
+                    label.text = "YOU'LL GET A PING WHEN ATTEMPTS ARE FULL";
                     sub.text = "MANAGE IN SETTINGS - ALERTS";
                 }
                 else
@@ -407,7 +408,7 @@ public static partial class MainMenuRuntime
         bell.preserveAspect = true;
         SetCenteredAt(bell.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -62f), new Vector2(56f, 56f));
 
-        TextMeshProUGUI title = CreateTmp(panel.transform, "Title", "OUT OF LIVES", 32, TextPrimary,
+        TextMeshProUGUI title = CreateTmp(panel.transform, "Title", "OUT OF ATTEMPTS", 32, TextPrimary,
             TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -108f), new Vector2(560f, 42f), new Vector2(0.5f, 1f));
         title.characterSpacing = 3f;

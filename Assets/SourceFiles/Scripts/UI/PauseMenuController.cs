@@ -129,26 +129,57 @@ public class PauseMenuController : MonoBehaviour
         _menuCanvas = RuntimeUiKit.CreateOverlayCanvas("Pause Menu", 7000);
         CreateShroud(_menuCanvas.transform);
 
-        // The lives row adds a line for non-premium players; size the sheet for it.
+        // The attempts row adds a line for non-premium players; size the sheet for it.
         bool showLives = RunLivesUi.Applies;
         GameObject panel = RuntimeUiKit.CreateCenteredPanel(_menuCanvas.transform,
-            new Vector2(560f, showLives ? 600f : 560f));
+            new Vector2(560f, showLives ? 660f : 590f));
         GameMenuStyle.StylePanel(panel);
-        RuntimeUiKit.CreateLabel(panel.transform, "Paused", 52, 82f, FontStyle.Bold, GameMenuStyle.Accent);
+        BuildPauseGlyph(panel.transform);
+        RuntimeUiKit.CreateLabel(panel.transform, "Paused", 52, 72f, FontStyle.Bold, GameMenuStyle.Accent);
         // The meter is invisible mid-run, so a player deciding whether to restart was
         // deciding blind - restarts felt free and running dry felt random (Nick 2026-08-09).
         RunLivesUi.BuildStatusRow(panel.transform);
+
+        // Three-tier button hierarchy (Nick 2026-08-30: Restart and Back read as the exact
+        // same button): filled Resume on top, an accent divider separating "continue" from
+        // the two run-ending choices, then outlined Restart above plain Back.
         GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Resume", 88f, Resume), primary: true);
+        BuildAccentDivider(panel.transform);
         GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Restart Level", 88f, () =>
         {
-            // Out of lives: a restart would only bounce to the menu after a doomed server
+            // Out of attempts: a restart would only bounce to the menu after a doomed server
             // round trip. Offer the refills instead of pretending.
             if (RunLivesUi.OutOfLives) BuildOutOfLives();
-            else BuildConfirm($"Restart this level?\n{RunLivesUi.RestartCostText()}", RestartLevel);
-        }), primary: false);
+            else BuildConfirm($"Restart this level?\n{RunLivesUi.RestartCostText()}", RestartLevel,
+                showMeter: true);
+        }), primary: false, outlined: true);
         GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Back to Menu", 88f,
             () => BuildConfirm("Quit to the level menu?\nYour current run will be lost.", ReturnToMenu)), primary: false);
         UiEntranceFx.Play(panel, 0.02f);
+    }
+
+    // The divider under Resume: a chapter-accent hairline that fades out toward both ends
+    // (the soft-bar sprite), splitting "continue" from the run-ending actions below it.
+    private static void BuildAccentDivider(Transform parent)
+    {
+        var holder = new GameObject("Divider", typeof(RectTransform));
+        holder.transform.SetParent(parent, false);
+        // The panel's VerticalLayoutGroup has childControlHeight=false: it reads the child's
+        // RECT height (a fresh RectTransform defaults to 100!), so set it explicitly -
+        // a LayoutElement's preferredHeight would be ignored.
+        ((RectTransform)holder.transform).sizeDelta = new Vector2(0f, 8f);
+
+        var line = new GameObject("Line", typeof(RectTransform));
+        line.transform.SetParent(holder.transform, false);
+        RectTransform rect = (RectTransform)line.transform;
+        rect.anchorMin = new Vector2(0f, 0.5f);
+        rect.anchorMax = new Vector2(1f, 0.5f);
+        rect.offsetMin = new Vector2(48f, -1.5f);
+        rect.offsetMax = new Vector2(-48f, 1.5f);
+        Image image = line.AddComponent<Image>();
+        image.sprite = RuntimeSprites.SoftVerticalBar(0.1f);
+        image.color = GameMenuStyle.WithAlpha(GameMenuStyle.Accent, 0.55f);
+        image.raycastTarget = false;
     }
 
     /// <summary>The restart-with-zero-lives sheet: name the problem, offer the refills
@@ -169,9 +200,9 @@ public class PauseMenuController : MonoBehaviour
 
         GameObject panel = RuntimeUiKit.CreateCenteredPanel(_menuCanvas.transform, new Vector2(560f, 650f));
         GameMenuStyle.StylePanel(panel);
-        RuntimeUiKit.CreateLabel(panel.transform, "Out of lives", 46, 70f, FontStyle.Bold, GameMenuStyle.Accent);
+        RuntimeUiKit.CreateLabel(panel.transform, "Out of attempts", 46, 70f, FontStyle.Bold, GameMenuStyle.Accent);
         RunLivesUi.BuildStatusRow(panel.transform);
-        RuntimeUiKit.CreateLabel(panel.transform, "Restarting costs a life and you have none left.",
+        RuntimeUiKit.CreateLabel(panel.transform, "Restarting costs an attempt and you have none left.",
             26, 66f, FontStyle.Normal, GameMenuStyle.BodyText);
 
         int actions = RunLivesUi.BuildOutOfLivesActions(panel.transform, () =>
@@ -181,7 +212,7 @@ public class PauseMenuController : MonoBehaviour
         if (actions == 0)
         {
             // No ad in hand and no store: the countdown above is the honest answer.
-            RuntimeUiKit.CreateLabel(panel.transform, "A life regenerates on the timer above.",
+            RuntimeUiKit.CreateLabel(panel.transform, "An attempt regenerates on the timer above.",
                 24, 56f, FontStyle.Normal, GameMenuStyle.BodyText);
         }
         GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Keep playing this run", 88f, Resume),
@@ -222,19 +253,51 @@ public class PauseMenuController : MonoBehaviour
         }
     }
 
-    private void BuildConfirm(string question, UnityEngine.Events.UnityAction onYes)
+    private void BuildConfirm(string question, UnityEngine.Events.UnityAction onYes, bool showMeter = false)
     {
         DestroyMenu();
         _menuCanvas = RuntimeUiKit.CreateOverlayCanvas("Pause Confirm", 7000);
         CreateShroud(_menuCanvas.transform);
 
-        GameObject panel = RuntimeUiKit.CreateCenteredPanel(_menuCanvas.transform, new Vector2(560f, 500f));
+        // The restart confirm shows the attempts METER instead of quoting counts in prose
+        // ("you have 2 of 5 left" is exactly the text the icon row exists to replace).
+        bool meter = showMeter && RunLivesUi.Applies;
+        GameObject panel = RuntimeUiKit.CreateCenteredPanel(_menuCanvas.transform,
+            new Vector2(560f, meter ? 560f : 500f));
         GameMenuStyle.StylePanel(panel);
         RuntimeUiKit.CreateLabel(panel.transform, "Are you sure?", 46, 70f, FontStyle.Bold, GameMenuStyle.Accent);
         RuntimeUiKit.CreateLabel(panel.transform, question, 28, 92f, FontStyle.Normal, GameMenuStyle.BodyText);
+        if (meter) RunLivesUi.BuildStatusRow(panel.transform);
         GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Yes", 88f, onYes), primary: false);
-        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "No, keep playing", 88f, BuildMenu), primary: true);
+        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "No, keep playing", 88f,
+            () => BuildMenu()), primary: true);
         UiEntranceFx.Play(panel, 0.02f);
+    }
+
+    // The pause glyph atop the sheet: two vertical rounded bars (the universal pause mark),
+    // built from the kit's rounded sprite - no art asset needed.
+    private static void BuildPauseGlyph(Transform parent)
+    {
+        var holder = new GameObject("PauseGlyph", typeof(RectTransform));
+        holder.transform.SetParent(parent, false);
+        // Rect height, not LayoutElement: the panel layout's childControlHeight is false
+        // (see BuildAccentDivider).
+        ((RectTransform)holder.transform).sizeDelta = new Vector2(0f, 52f);
+        for (int i = 0; i < 2; i++)
+        {
+            var bar = new GameObject($"Bar{i}", typeof(RectTransform));
+            bar.transform.SetParent(holder.transform, false);
+            RectTransform rect = (RectTransform)bar.transform;
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = new Vector2(i == 0 ? -15f : 15f, 0f);
+            rect.sizeDelta = new Vector2(16f, 50f);
+            Image image = bar.AddComponent<Image>();
+            image.sprite = RuntimeSprites.RoundedPanel();
+            image.type = Image.Type.Sliced;
+            image.pixelsPerUnitMultiplier = 4f;
+            image.color = new Color(0.92f, 0.93f, 0.95f, 1f);
+            image.raycastTarget = false;
+        }
     }
 
     private void Resume()

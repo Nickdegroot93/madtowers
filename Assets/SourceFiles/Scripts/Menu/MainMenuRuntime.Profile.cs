@@ -172,12 +172,13 @@ public static partial class MainMenuRuntime
             bigCoin.preserveAspect = true;
             SetCenteredAt(bigCoin.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, 6f), new Vector2(110f, 110f));
         }
-        Sprite heart = HeartSprites.Full();
-        if (heart != null)
+        // Flags, not hearts: the premium pitch is unlimited ATTEMPTS (AttemptSprites).
+        Sprite flag = AttemptSprites.Flag();
+        if (flag != null)
         {
             for (int i = 0; i < 2; i++)
             {
-                Image side = CreateImage(hero.transform, $"Heart{i}", heart, Color.white);
+                Image side = CreateImage(hero.transform, $"Flag{i}", flag, Color.white);
                 side.preserveAspect = true;
                 float x = i == 0 ? -110f : 110f;
                 SetCenteredAt(side.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(x, -6f), new Vector2(64f, 64f));
@@ -196,10 +197,10 @@ public static partial class MainMenuRuntime
         // Benefits, one per line with the shared checkmark - benefits, not features. Short
         // punches only, at a size that reads (Nick 2026-08-11: 16pt was too small, and the
         // "NEVER WAIT TO PLAY" / "EVEN ON A PLANE" tails were cut - the lead words carry it).
-        // The 4th line IS the DEVLETTER.md beat-2 microcopy - it replaced "ONE PURCHASE,
-        // YOURS FOREVER" rather than stacking under it (two "one purchase" lines 10px
-        // apart read as a collision - review 2026-08-22).
-        string[] benefits = { "NO ADS, EVER", "UNLIMITED LIVES",
+        // The 4th line is the shared one-time-purchase microcopy (DevSupportLine - one
+        // constant, every surface; only ONE "one purchase" line ever renders here, two
+        // stacked 10px apart read as a collision - review 2026-08-22).
+        string[] benefits = { "NO ADS, EVER", "UNLIMITED ATTEMPTS",
             "PLAY OFFLINE", DevSupportLine };
         for (int i = 0; i < benefits.Length; i++)
         {

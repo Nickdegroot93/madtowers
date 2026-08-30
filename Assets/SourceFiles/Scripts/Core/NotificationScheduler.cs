@@ -211,7 +211,7 @@ public static class NotificationScheduler
         // which gate the scheduling side.
         args.AndroidChannelId = "reminders";
         args.AndroidChannelName = "Reminders";
-        args.AndroidChannelDescription = "Lives refilled and comeback reminders";
+        args.AndroidChannelDescription = "Attempts refilled and comeback reminders";
         NotificationCenter.Initialize(args);
         _initialized = true;
     }
@@ -252,8 +252,8 @@ public static class NotificationScheduler
             + (AttemptsService.MaxAttempts - count - 1) * (double)AttemptsService.RegenSeconds;
         if (seconds < MinLeadSeconds) return;
 
-        Schedule(LivesFullId, "Your lives are full!",
-            $"All {AttemptsService.MaxAttempts} lives are back. The tower's waiting.",
+        Schedule(LivesFullId, "Your attempts are full!",
+            $"All {AttemptsService.MaxAttempts} attempts are back. The tower's waiting.",
             TimeSpan.FromSeconds(seconds));
     }
 

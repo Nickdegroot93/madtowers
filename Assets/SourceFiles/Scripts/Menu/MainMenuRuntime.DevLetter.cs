@@ -15,9 +15,12 @@ using static RuntimeUiKit;
 // (partial of MainMenuRuntime - same class as the other menu surfaces.)
 public static partial class MainMenuRuntime
 {
-    /// <summary>The beat-2 microcopy (DEVLETTER.md §3), shared by every surface that
-    /// renders it (Profile premium card, refill offer) - one copy, one future tweak.</summary>
-    private const string DevSupportLine = "ONE PURCHASE, SUPPORTS ONE DEVELOPER";
+    /// <summary>The premium one-time-purchase line, shared by every surface that renders
+    /// it (Profile premium card, refill offer) - one copy, one future tweak. Was the
+    /// DEVLETTER.md beat-2 microcopy ("ONE PURCHASE, SUPPORTS ONE DEVELOPER") until Nick
+    /// cut it 2026-08-30 ("sounds dumb") - the line's job is telling the buyer it is a
+    /// one-time purchase, not a tip jar.</summary>
+    private const string DevSupportLine = "ONE PURCHASE, YOURS FOREVER";
 
     private static bool _devBeatsSubscribed;
     // Editor sessions show the letter without touching the save: marking the real flag

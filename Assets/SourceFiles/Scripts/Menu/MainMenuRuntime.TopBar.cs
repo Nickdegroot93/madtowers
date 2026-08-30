@@ -120,7 +120,7 @@ public static partial class MainMenuRuntime
 
         // The attempts chip (SHOP.md §7): real meter once the meta systems unlock, absent
         // before that (soft landing). PREMIUM outranks everything (Nick 2026-07-30): the
-        // chip stays, showing heart + ∞ with no "+" - unlimited is true online AND offline,
+        // chip stays, showing flag + ∞ with no "+" - unlimited is true online AND offline,
         // so it even outranks the OFFLINE chip (the modal carries the unranked warning).
         // While the online layer is enabled but unreachable (free players) the chip says
         // OFFLINE - campaign runs can't start (BACKEND.md §5.1) and the top bar admits it.
@@ -133,7 +133,7 @@ public static partial class MainMenuRuntime
             infinity.enableAutoSizing = false;   // the glyph is the whole message - let it be big
             infinity.fontSize = 44f;
             // ∞ is an x-height glyph (visual centre ~0.27em vs the line centre ~0.35em), so
-            // Middle alignment renders it visibly LOW next to the dead-centred heart at this
+            // Middle alignment renders it visibly LOW next to the dead-centred icon at this
             // size - lift the box to put the loops back on the icon's midline (Nick 2026-08-01).
             infinity.rectTransform.anchoredPosition += new Vector2(0f, 4f);
         }
@@ -368,19 +368,11 @@ public static partial class MainMenuRuntime
         }
         else
         {
-            Sprite heartIcon = HeartSprites.Full();
-            if (heartIcon != null)
-            {
-                Image heart = CreateImage(card, "Heart", heartIcon, Color.white);
-                heart.preserveAspect = true;
-                SetRect(heart.rectTransform, new Vector2(18f, 0f), new Vector2(50f, 50f), new Vector2(0f, 0.5f));
-            }
-            else
-            {
-                // Fallback if the heart art is missing: the procedural heart sprite.
-                Image heart = CreateImage(card, "Heart", RuntimeSprites.Heart(), new Color(1f, 0.22f, 0.15f, 1f));
-                SetRect(heart.rectTransform, new Vector2(18f, 0f), new Vector2(50f, 50f), new Vector2(0f, 0.5f));
-            }
+            // The summit flag, NOT the heart: attempts and run lives are different resources
+            // and never share a glyph (AttemptSprites - Nick 2026-08-30).
+            Image flag = CreateImage(card, "Flag", AttemptSprites.Flag(), Color.white);
+            flag.preserveAspect = true;
+            SetRect(flag.rectTransform, new Vector2(18f, 0f), new Vector2(50f, 50f), new Vector2(0f, 0.5f));
         }
 
         Vector2 primaryPosition = string.IsNullOrEmpty(secondary) ? new Vector2(78f, 0f) : new Vector2(78f, 12f);

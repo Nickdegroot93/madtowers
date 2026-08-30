@@ -48,10 +48,16 @@ public static class GameMenuStyle
     }
 
     /// <summary>Style a kit button: primary = filled with the chapter accent; secondary = dark
-    /// panel tone with accent-tinted text.</summary>
-    public static void StyleButton(UnityEngine.UI.Button button, bool primary)
+    /// panel tone with accent-tinted text. <paramref name="outlined"/> adds an accent hairline
+    /// ring to a secondary button - the middle rung of a three-tier hierarchy (pause sheet:
+    /// filled Resume / outlined Restart / plain Back, Nick 2026-08-30).</summary>
+    public static void StyleButton(UnityEngine.UI.Button button, bool primary, bool outlined = false)
     {
         if (button == null) return;
+        if (outlined && !primary)
+        {
+            RuntimeUiKit.AddOutline(button.transform, WithAlpha(Accent, 0.55f));
+        }
 
         // The Button's ColorTint transition rewrites the target graphic's colour every frame,
         // so the fill must be expressed through the ColorBlock (image stays white).
