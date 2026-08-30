@@ -98,7 +98,6 @@ public class RisingFloodModifier : LevelModifier, ILevelMenuProgressProvider
     private float _checkTimer;
     private float _floorY;
     private bool _risingAnnounced;   // the flood_rising swell fired (once, when grace ends)
-    private int _submergedCount;     // bricks under the surface last sweep - a rise = plip
 
     public override void OnLevelStart(LevelModifierContext context)
     {
@@ -106,7 +105,6 @@ public class RisingFloodModifier : LevelModifier, ILevelMenuProgressProvider
         _elapsed = 0f;
         _checkTimer = 0f;
         _risingAnnounced = false;
-        _submergedCount = 0;
 
         GameManager gm = context.GameManager;
         _floorY = gm != null ? gm.floorOriginY : 0f;
@@ -198,7 +196,6 @@ public class RisingFloodModifier : LevelModifier, ILevelMenuProgressProvider
         // hasn't committed. (A raised terrain shelf above the datum isn't credited either;
         // with any sane grace the first real placement lands long before that matters.)
         float highestTop = _floorY;
-        int submerged = 0;
         var blocks = BlockController.AllBlocks;
         for (int i = 0; i < blocks.Count; i++)
         {
@@ -210,19 +207,14 @@ public class RisingFloodModifier : LevelModifier, ILevelMenuProgressProvider
             // (review 2026-08-11) - a mid-tower Magma/zap drop was an instant wrongful death
             // whenever the water was close.
             if (!block.HasLanded || block.IsFallingClearOfTower) continue;
-            // The plip here counts only RESTING tower bricks the rising water overtakes -
-            // a slow, atmospheric tick. Falling bricks plip at the loss funnel instead
-            // (LossZone.ResolveLostBlock): one owner per brick, or a dump double-plopped
-            // whenever a sweep sampled the submerge band (review 2026-08-22).
-            if (bounds.max.y < _surfaceY) submerged++;
             if (bounds.max.y > highestTop) highestTop = bounds.max.y;
         }
 
-        // A resting brick slipping under the surface plops - quiet physical feedback
-        // (JUICE.md Tier-0), throttled by the 0.15s sweep cadence. Count-compare, so
-        // destruction elsewhere never retriggers it.
-        if (submerged > _submergedCount) SfxPlayer.Play("flood_plip", 0.5f, 0.08f);
-        _submergedCount = submerged;
+        // NO sound for resting tower bricks the rising water overtakes: the plip belongs
+        // solely to the loss funnel (LossZone.ResolveLostBlock) - a brick the water CLAIMS,
+        // costing a life. The atmospheric per-brick tick read as a metronome of nothing
+        // once the water climbed a finished tower (Nick 2026-08-30); submerging safely is
+        // the mode working as intended and stays silent.
 
         float margin = highestTop - _surfaceY;
         _fx.SetDanger(1f - Mathf.Clamp01(margin / DangerBandMeters));
