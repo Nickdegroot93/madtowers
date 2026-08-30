@@ -161,9 +161,11 @@ public static partial class MainMenuRuntime
 
     private static void BuildRefillContent(RectTransform panel, string titleText)
     {
+        // Title with real air under it: it sat 16px above the offer card and the whole top
+        // read as one cramped block (Nick 2026-08-30, screenshot review).
         TextMeshProUGUI title = CreateTmp(panel, "Title", titleText, 34, TextPrimary,
             TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, -26f), new Vector2(RefillPanelW - 120f, 42f), new Vector2(0.5f, 1f));
+            new Vector2(0f, -36f), new Vector2(RefillPanelW - 120f, 42f), new Vector2(0.5f, 1f));
         title.characterSpacing = 4f;
 
         // X: functional escape hatch, 64px target (tap-outside also works).
@@ -172,22 +174,25 @@ public static partial class MainMenuRuntime
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
         close.onClick.AddListener(CloseRefillOffer);
 
-        // ---- Option 1: the pitch. Gold edge = the single accent, same as Profile. ----
+        // ---- Option 1: the pitch. CHAPTER-TINTED chrome throughout (Nick 2026-08-30: the
+        // old warm-amber card clashed with every non-desert chapter; the accent everywhere
+        // rule applies here too - gold survives only as currency/flag ART). ----
+        Color offerFill = Color.Lerp(new Color(0.085f, 0.085f, 0.10f, 1f), MenuAccent, 0.07f);
         Image offer = RuntimeUiKit.CreateImage(panel, "Unlimited",
-            RuntimeSprites.RoundedPanel(), new Color(0.09f, 0.075f, 0.05f, 1f));
+            RuntimeSprites.RoundedPanel(), offerFill);
         offer.type = Image.Type.Sliced;
         RectTransform offerRect = offer.rectTransform;
         offerRect.anchorMin = new Vector2(0f, 1f);
         offerRect.anchorMax = new Vector2(1f, 1f);
         offerRect.pivot = new Vector2(0.5f, 1f);
-        offerRect.offsetMin = new Vector2(24f, -84f - 356f);
-        offerRect.offsetMax = new Vector2(-24f, -84f);
+        offerRect.offsetMin = new Vector2(24f, -116f - 356f);
+        offerRect.offsetMax = new Vector2(-24f, -116f);
         RuntimeUiKit.AddOutline(offerRect, WithAlpha(MenuAccent, 0.55f));
 
-        // Hero band: warm glow with full hearts spilling toward an infinity - the goods,
-        // not an ornament. Mirrors the Profile hero's composition language.
+        // Hero band: a chapter-accent glow with flags spilling toward an infinity - the
+        // goods, not an ornament. Mirrors the Profile hero's composition language.
         Image glow = CreateImage(offer.transform, "Glow", MenuSprites.VerticalFade(
-            new Color(0.24f, 0.16f, 0.05f, 1f), new Color(0.09f, 0.075f, 0.05f, 0f)), Color.white);
+            Color.Lerp(MenuAccent, Color.black, 0.55f), WithAlpha(offerFill, 0f)), Color.white);
         RectTransform glowRect = glow.rectTransform;
         glowRect.anchorMin = new Vector2(0f, 1f);
         glowRect.anchorMax = new Vector2(1f, 1f);
@@ -217,19 +222,21 @@ public static partial class MainMenuRuntime
 
         TextMeshProUGUI offerTitle = CreateTmp(offer.transform, "Title", "HAZARD HEIGHTS UNLIMITED",
             26, MenuAccent, TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, -104f), new Vector2(RefillPanelW - 100f, 34f), new Vector2(0.5f, 1f));
+            new Vector2(0f, -108f), new Vector2(RefillPanelW - 100f, 34f), new Vector2(0.5f, 1f));
         offerTitle.characterSpacing = 2f;
         CreateTmp(offer.transform, "Pitch", "UNLIMITED ATTEMPTS - NEVER WAIT TO PLAY AGAIN", 18,
             WithAlpha(TextPrimary, 0.92f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, -142f), new Vector2(RefillPanelW - 100f, 22f), new Vector2(0.5f, 1f));
-        CreateTmp(offer.transform, "Pitch2", "NO ADS  ·  PLAY OFFLINE  ·  YOURS FOREVER", 18,
+            new Vector2(0f, -148f), new Vector2(RefillPanelW - 100f, 22f), new Vector2(0.5f, 1f));
+        // No "YOURS FOREVER" here: the DevLine below already says it, and the two lines
+        // stacked read as a stutter (Nick 2026-08-30, screenshot review).
+        CreateTmp(offer.transform, "Pitch2", "NO ADS  ·  PLAY OFFLINE", 18,
             WithAlpha(TextMuted, 0.95f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, -170f), new Vector2(RefillPanelW - 100f, 20f), new Vector2(0.5f, 1f));
+            new Vector2(0f, -176f), new Vector2(RefillPanelW - 100f, 20f), new Vector2(0.5f, 1f));
         // The DEVLETTER.md beat-2 microcopy: one line of who's behind the price, on the
         // surface that already converts - never a new popup (SHOP.md §7.2 restraint).
         CreateTmp(offer.transform, "DevLine", DevSupportLine, 18,
             WithAlpha(TextMuted, 0.8f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, -196f), new Vector2(RefillPanelW - 100f, 20f), new Vector2(0.5f, 1f));
+            new Vector2(0f, -204f), new Vector2(RefillPanelW - 100f, 20f), new Vector2(0.5f, 1f));
 
         // CTA: the Profile card's builder, verbatim - owned banner, live BUY, or the
         // dimmed COMING SOON all render here exactly as they do there.
@@ -257,11 +264,11 @@ public static partial class MainMenuRuntime
         // ---- the quiet hinge between the two options ----
         // Vertically CENTERED in the gap between the offer card and the ad row (it sat
         // 32px below the card but 50px above the row - Nick clocked it immediately).
-        // Panel 700: offer ends -440; ad row's top edge is -(700 - 118) = -582; the gap
-        // is 142, so a 24-tall label starts at -440 - (142 - 24) / 2 = -499.
+        // Panel 700: offer ends -472; ad row's top edge is -(700 - 118) = -582; the gap
+        // is 110, so a 24-tall label starts at -472 - (110 - 24) / 2 = -515.
         CreateTmp(panel, "Or", "OR", 18, WithAlpha(TextMuted, 0.8f),
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, -499f), new Vector2(120f, 24f), new Vector2(0.5f, 1f));
+            new Vector2(0f, -515f), new Vector2(120f, 24f), new Vector2(0.5f, 1f));
 
         BuildWatchAdOption(panel);
 
@@ -323,13 +330,15 @@ public static partial class MainMenuRuntime
         int left = AttemptsService.AdGrantsRemaining;
         bool ready = AttemptsService.AdRefillAvailable && !full;
 
-        // Inert states are deliberately FLAT - a body barely above the panel and no edge
-        // at all. A dimmed-but-button-shaped card still reads as a button that is broken
-        // (Nick tapped one repeatedly on device); only the tappable state may look
-        // tappable.
+        // Both states get a VISIBLE card body - the old near-panel fills (0.08, and 0.55
+        // alpha inert) vanished into the panel entirely and the row read as loose text
+        // floating at the bottom (Nick 2026-08-30, screenshot review). The tappable/inert
+        // split lives in the CHROME instead: ready = lighter fill + accent edge + bright
+        // text; inert = quieter opaque card, muted hairline, muted text - an information
+        // card, not a broken button (the 2026-08-09 device lesson still holds).
         Image row = RuntimeUiKit.CreateImage(panel, "WatchAd",
             RuntimeSprites.RoundedPanel(),
-            ready ? new Color(0.08f, 0.08f, 0.10f, 1f) : new Color(0.07f, 0.065f, 0.085f, 0.55f));
+            ready ? new Color(0.13f, 0.145f, 0.16f, 1f) : new Color(0.10f, 0.10f, 0.115f, 1f));
         row.type = Image.Type.Sliced;
         RectTransform rowRect = row.rectTransform;
         rowRect.anchorMin = new Vector2(0f, 0f);
@@ -341,7 +350,12 @@ public static partial class MainMenuRuntime
         float lift = panel.sizeDelta.y - RefillPanelH;
         rowRect.offsetMin = new Vector2(24f, 26f + lift);
         rowRect.offsetMax = new Vector2(-24f, 26f + 92f + lift);
-        if (ready) RuntimeUiKit.AddOutline(rowRect, WithAlpha(GameMenuStyle.Accent, 0.5f));
+        // MenuAccent, not GameMenuStyle.Accent: with no level selected (this modal lives in
+        // the menu) the latter falls back to neutral cream and the edge drops out of the
+        // modal's chapter palette.
+        RuntimeUiKit.AddOutline(rowRect, ready
+            ? WithAlpha(MenuAccent, 0.6f)
+            : WithAlpha(TextMuted, 0.22f));
 
         string label;
         string sub;
@@ -405,7 +419,7 @@ public static partial class MainMenuRuntime
     private static void BuildNotifyAskRow(RectTransform panel)
     {
         Image row = RuntimeUiKit.CreateImage(panel, "NotifyAsk",
-            RuntimeSprites.RoundedPanel(), new Color(0.08f, 0.08f, 0.10f, 1f));
+            RuntimeSprites.RoundedPanel(), new Color(0.13f, 0.145f, 0.16f, 1f)); // the tappable-row tone (see BuildWatchAdOption)
         row.type = Image.Type.Sliced;
         RectTransform rowRect = row.rectTransform;
         rowRect.anchorMin = new Vector2(0f, 0f);
@@ -413,11 +427,11 @@ public static partial class MainMenuRuntime
         rowRect.pivot = new Vector2(0.5f, 0f);
         rowRect.offsetMin = new Vector2(24f, 26f);
         rowRect.offsetMax = new Vector2(-24f, 26f + NotifyAskRowH);
-        RuntimeUiKit.AddOutline(rowRect, WithAlpha(GameMenuStyle.Accent, 0.4f));
+        RuntimeUiKit.AddOutline(rowRect, WithAlpha(MenuAccent, 0.4f)); // MenuAccent: see BuildWatchAdOption
         row.raycastTarget = true;   // CreateImage defaults to false; see BuildWatchAdOption
 
         Image bell = CreateImage(row.transform, "Bell",
-            MenuSprites.Bell(WithAlpha(GameMenuStyle.Accent, 0.9f)), Color.white);
+            MenuSprites.Bell(WithAlpha(MenuAccent, 0.9f)), Color.white);
         bell.preserveAspect = true;
         SetCenteredAt(bell.rectTransform, new Vector2(0f, 0.5f), new Vector2(44f, 0f), new Vector2(34f, 34f));
 

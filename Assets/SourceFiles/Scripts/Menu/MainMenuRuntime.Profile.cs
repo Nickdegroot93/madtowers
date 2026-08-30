@@ -150,7 +150,7 @@ public static partial class MainMenuRuntime
     {
         const float heroH = 170f;
         RectTransform card = CreateProfileCard(content, 580f); // 4 benefit lines at the bigger 20pt size
-        // The pitch card carries the gold edge - the single accent on this page.
+        // The pitch card carries the accent edge - the single accent on this page.
         RuntimeUiKit.AddOutline(card, WithAlpha(MenuAccent, 0.55f));
 
         // Hero band: a quiet accent-tinted field with the goods spilling out of it - the big
@@ -261,8 +261,12 @@ public static partial class MainMenuRuntime
         }
 
         bool purchasable = PremiumStore.Available;
+        // Chapter-accent gradient, not gold (Nick 2026-08-30: the gold CTA clashed with
+        // every non-desert chapter; accent everywhere, gold = currency art only). Same
+        // build as the notify sheet's YES - the menu's one primary-button treatment.
+        Color ctaDarkText = new Color(0.07f, 0.06f, 0.09f, 1f);
         Image cta = CreateImage(slot, "Cta", MenuSprites.RoundedGradient(
-            new Color(1f, 0.86f, 0.45f, 1f), new Color(0.82f, 0.58f, 0.18f, 1f)), Color.white);
+            Color.Lerp(MenuAccent, Color.white, 0.15f), Color.Lerp(MenuAccent, Color.black, 0.22f)), Color.white);
         cta.type = Image.Type.Sliced;
         Stretch(cta.rectTransform);
         cta.raycastTarget = purchasable;
@@ -271,17 +275,17 @@ public static partial class MainMenuRuntime
         {
             cta.color = new Color(0.75f, 0.75f, 0.75f, 1f); // dimmed: no store yet
             CreateTmp(cta.transform, "Label", $"GET UNLIMITED - {PremiumStore.PriceText}", 26,
-                new Color(0.16f, 0.11f, 0.04f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+                ctaDarkText, TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(0f, 10f), new Vector2(600f, 34f), new Vector2(0.5f, 0.5f));
             CreateTmp(cta.transform, "Soon", "COMING SOON", 18,
-                new Color(0.24f, 0.17f, 0.07f, 0.9f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+                WithAlpha(ctaDarkText, 0.75f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(0f, -22f), new Vector2(600f, 18f), new Vector2(0.5f, 0.5f));
             return;
         }
 
         TextMeshProUGUI label = CreateTmp(cta.transform, "Label",
             $"GET UNLIMITED - {PremiumStore.PriceText}", 26,
-            new Color(0.16f, 0.11f, 0.04f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+            ctaDarkText, TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
         Button buy = cta.gameObject.AddComponent<Button>();
         buy.targetGraphic = cta;
         buy.onClick.AddListener(() =>
