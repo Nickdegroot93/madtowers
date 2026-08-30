@@ -44,6 +44,8 @@ public sealed class ZapSession : AbilitySessionBase
     private ContactFilter2D _filter;
     private readonly RaycastHit2D[] _hits = new RaycastHit2D[24];
 
+    private Vector2 _surfaceNormal = Vector2.up; // of the centerline contact - tilts the tip visuals
+
     public static void Begin(Spawner spawner, GameObject detonateEffect, float detonateScale, Color color, Color accent)
     {
         if (IsActive || spawner == null) return;
@@ -153,7 +155,9 @@ public sealed class ZapSession : AbilitySessionBase
         _beam.TopY = topY;
         _beam.BottomY = bottomY;
         _beam.Charge = _charge / ChargeDuration;
+        _beam.SurfaceAngleDeg = Vector2.SignedAngle(Vector2.up, _surfaceNormal);
     }
+
 
     // First dynamic landed block straight down the aimed column; out the Y to stop the beam at (its top,
     // or the floor when the column is empty).
@@ -165,6 +169,7 @@ public sealed class ZapSession : AbilitySessionBase
 
         BlockController best = null;
         float bestDist = float.MaxValue;
+        float bestPointY = 0f;
         for (int i = 0; i < n; i++)
         {
             Collider2D col = _hits[i].collider;
@@ -173,17 +178,41 @@ public sealed class ZapSession : AbilitySessionBase
             if (body == null || body.bodyType != RigidbodyType2D.Dynamic) continue;
             BlockController bc = col.GetComponentInParent<BlockController>();
             if (bc == null || !bc.HasLanded) continue;
-            if (_hits[i].distance < bestDist) { bestDist = _hits[i].distance; best = bc; _bestHitCollider = col; }
+            if (_hits[i].distance < bestDist)
+            {
+                bestDist = _hits[i].distance;
+                best = bc;
+                bestPointY = _hits[i].point.y;
+            }
         }
 
-        // Endpoint = the top of the CELL the beam actually hits, not the whole piece's bounds -
-        // a piece whose tallest cell sits in another column used to pull the beam up a full row,
-        // leaving a visible gap between beam tip and the brick under it.
-        bottomY = best != null && _bestHitCollider != null ? _bestHitCollider.bounds.max.y : floorY + 1f;
+        // Endpoint = where the beam's CENTERLINE meets the target block, never bounds or the
+        // box's first graze: the cell AABB top is its highest corner, and even the box
+        // contact point can be a corner-graze while the beam centre still hangs over the
+        // tilted face's slope - both left the tip floating in air (Nick 2026-08-30). A thin
+        // ray down the exact centre, filtered to the chosen block, finds the true surface;
+        // when the centre misses entirely (the beam only clips the block's edge) the box
+        // contact is the honest fallback.
+        _surfaceNormal = Vector2.up;
+        if (best != null)
+        {
+            bottomY = bestPointY;
+            int rays = Physics2D.Raycast(origin, Vector2.down, _filter, _hits, topY - floorY);
+            for (int i = 0; i < rays; i++)
+            {
+                Collider2D col = _hits[i].collider;
+                if (col == null || col.GetComponentInParent<BlockController>() != best) continue;
+                bottomY = Mathf.Min(bottomY, _hits[i].point.y);
+                _surfaceNormal = _hits[i].normal; // tilts the tip glow/flare onto the face
+                break; // hits arrive nearest-first; the first on the target is its surface
+            }
+        }
+        else
+        {
+            bottomY = floorY + 1f;
+        }
         return best;
     }
-
-    private Collider2D _bestHitCollider;
 
     private void Fire()
     {

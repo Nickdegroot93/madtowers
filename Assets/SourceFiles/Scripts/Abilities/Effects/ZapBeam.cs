@@ -15,6 +15,7 @@ public sealed class ZapBeam : MonoBehaviour
     public float BottomY;    // beam ends here (top of the hit block, or the floor)
     public float Charge;     // 0 = wide & loose, 1 = thin & converged
     public float FireFlash;  // 0..1 white spike on detonation
+    public float SurfaceAngleDeg; // hit surface's tilt - the tip glow/flare lie ON the face, not level in air
 
     private const int SortingOrder = 60; // in front of the tower - a momentary dramatic overlay
     private const int StrandCount = 6;
@@ -101,15 +102,20 @@ public sealed class ZapBeam : MonoBehaviour
         float pulse = 1f + 0.08f * Mathf.Sin(t * (4f + 8f * charge)); // heartbeat quickens as it charges
         Color glowCol = Color.Lerp(_color, Color.white, 0.35f + FireFlash * 0.65f);
         glowCol.a = Mathf.Lerp(0.15f, 0.7f, charge) + FireFlash * 0.3f;
+        // Both tip visuals lie along the HIT SURFACE: on a tilted brick a level ellipse/flare
+        // floated half in air beside the slope (Nick 2026-08-30).
+        Quaternion surfaceTilt = Quaternion.Euler(0f, 0f, SurfaceAngleDeg);
         _targetGlow.color = glowCol;
-        _targetGlow.transform.position = new Vector3(BeamX, BottomY + 0.06f, 0f);
+        _targetGlow.transform.SetPositionAndRotation(
+            new Vector3(BeamX, BottomY, 0f) + surfaceTilt * new Vector3(0f, 0.06f, 0f), surfaceTilt);
         _targetGlow.transform.localScale = new Vector3(glowSize * pulse * 0.5f, glowSize * pulse * 0.35f, 1f);
 
-        // Impact flare: a flat horizontal shockwave sliver that only lives during the fire flash.
+        // Impact flare: a flat shockwave sliver along the surface, alive only during the fire flash.
         Color flareCol = Color.Lerp(Color.white, _accent, 0.25f);
         flareCol.a = FireFlash * 0.9f;
         _impactFlare.color = flareCol;
-        _impactFlare.transform.position = new Vector3(BeamX, BottomY + 0.03f, 0f);
+        _impactFlare.transform.SetPositionAndRotation(
+            new Vector3(BeamX, BottomY, 0f) + surfaceTilt * new Vector3(0f, 0.03f, 0f), surfaceTilt);
         float flareWidth = Mathf.Lerp(0.4f, 3.2f, 1f - FireFlash) * (FireFlash > 0.001f ? 1f : 0f);
         _impactFlare.transform.localScale = new Vector3(flareWidth / Mathf.Max(0.0001f, _impactFlare.sprite.bounds.size.x), 1f, 1f);
 
