@@ -184,7 +184,7 @@ public class WaveHud : MonoBehaviour
         RuntimeUiKit.SetRect(glyph.rectTransform, new Vector2(14f, 0f), new Vector2(36f, 36f),
             new Vector2(0f, 0.5f));
 
-        TextMeshProUGUI caption = RuntimeUiKit.CreateTmp(_pill, "Caption", "NEXT WAVE", 13,
+        TextMeshProUGUI caption = RuntimeUiKit.CreateTmp(_pill, "Caption", "NEXT WAVE", 18,
             CaptionColor, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.DefaultFont,
             new Vector2(60f, 15f), new Vector2(120f, 18f), new Vector2(0f, 0.5f));
         caption.characterSpacing = 12f;

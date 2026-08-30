@@ -1240,7 +1240,7 @@ public class TutorialModifier : LevelModifier
             TextMeshProUGUI effect = RuntimeUiKit.CreateTmp(pillRect, "Effect", rows[i].effect, 20,
                 new Color(0.72f, 0.85f, 0.96f, 0.95f), TextAnchor.MiddleRight, FontStyle.Normal,
                 RuntimeUiKit.TitleFont, new Vector2(-24f, 0f), new Vector2(320f, rowH), new Vector2(1f, 0.5f));
-            RuntimeUiKit.AutoSize(effect, 15f, 20f);
+            RuntimeUiKit.AutoSize(effect, 16f, 20f);
         }
 
         // Info badge (not small print): the one thing the player must know leaving here.

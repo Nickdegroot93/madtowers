@@ -140,15 +140,15 @@ public static partial class MainMenuRuntime
             26, MenuAccent, TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -104f), new Vector2(RefillPanelW - 100f, 34f), new Vector2(0.5f, 1f));
         offerTitle.characterSpacing = 2f;
-        CreateTmp(offer.transform, "Pitch", "UNLIMITED ATTEMPTS - NEVER WAIT TO PLAY AGAIN", 15,
+        CreateTmp(offer.transform, "Pitch", "UNLIMITED ATTEMPTS - NEVER WAIT TO PLAY AGAIN", 18,
             WithAlpha(TextPrimary, 0.92f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -142f), new Vector2(RefillPanelW - 100f, 22f), new Vector2(0.5f, 1f));
-        CreateTmp(offer.transform, "Pitch2", "NO ADS  ·  PLAY OFFLINE  ·  YOURS FOREVER", 13,
+        CreateTmp(offer.transform, "Pitch2", "NO ADS  ·  PLAY OFFLINE  ·  YOURS FOREVER", 18,
             WithAlpha(TextMuted, 0.95f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -170f), new Vector2(RefillPanelW - 100f, 20f), new Vector2(0.5f, 1f));
         // The DEVLETTER.md beat-2 microcopy: one line of who's behind the price, on the
         // surface that already converts - never a new popup (SHOP.md §7.2 restraint).
-        CreateTmp(offer.transform, "DevLine", DevSupportLine, 13,
+        CreateTmp(offer.transform, "DevLine", DevSupportLine, 18,
             WithAlpha(TextMuted, 0.8f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -196f), new Vector2(RefillPanelW - 100f, 20f), new Vector2(0.5f, 1f));
 
@@ -180,7 +180,7 @@ public static partial class MainMenuRuntime
         // 32px below the card but 50px above the row - Nick clocked it immediately).
         // Panel 700: offer ends -440; ad row's top edge is -(700 - 118) = -582; the gap
         // is 142, so a 24-tall label starts at -440 - (142 - 24) / 2 = -499.
-        CreateTmp(panel, "Or", "OR", 16, WithAlpha(TextMuted, 0.8f),
+        CreateTmp(panel, "Or", "OR", 18, WithAlpha(TextMuted, 0.8f),
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -499f), new Vector2(120f, 24f), new Vector2(0.5f, 1f));
 
@@ -293,7 +293,7 @@ public static partial class MainMenuRuntime
             ready ? TextPrimary : WithAlpha(TextMuted, 0.9f),
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, 12f), new Vector2(RefillPanelW - 100f, 32f), new Vector2(0.5f, 0.5f));
-        CreateTmp(row.transform, "Sub", sub, 13, WithAlpha(TextMuted, 0.9f),
+        CreateTmp(row.transform, "Sub", sub, 18, WithAlpha(TextMuted, 0.9f),
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -18f), new Vector2(RefillPanelW - 100f, 20f), new Vector2(0.5f, 0.5f));
 
@@ -347,7 +347,7 @@ public static partial class MainMenuRuntime
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, 9f), new Vector2(RefillPanelW - 160f, 26f), new Vector2(0.5f, 0.5f));
         TextMeshProUGUI sub = CreateTmp(row.transform, "Sub",
-            "ONE TAP - JUST THE REFILL, NO SPAM", 12, WithAlpha(TextMuted, 0.9f),
+            "ONE TAP - JUST THE REFILL, NO SPAM", 18, WithAlpha(TextMuted, 0.9f),
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -15f), new Vector2(RefillPanelW - 160f, 18f), new Vector2(0.5f, 0.5f));
 

@@ -332,7 +332,7 @@ public static partial class MainMenuRuntime
             chipImage.pixelsPerUnitMultiplier = 3f;
             chipImage.color = new Color(0.5f, 0.14f, 0.12f, 0.9f);
             chipImage.raycastTarget = false;
-            CreateTmp(chip, "Text", "HAZARD", 16, new Color(1f, 0.82f, 0.78f, 1f),
+            CreateTmp(chip, "Text", "HAZARD", 18, new Color(1f, 0.82f, 0.78f, 1f),
                 TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
         }
 
@@ -618,7 +618,7 @@ public static partial class MainMenuRuntime
             tileImage.color = new Color(0.11f, 0.1f, 0.09f, 1f);
             tileImage.raycastTarget = false;
 
-            CreateTmp(tile, "Label", tiles[i].label, 17, TextMuted, TextAnchor.MiddleCenter,
+            CreateTmp(tile, "Label", tiles[i].label, 18, TextMuted, TextAnchor.MiddleCenter,
                 FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(0f, -14f), new Vector2(200f, 24f), new Vector2(0.5f, 1f));
             CreateTmp(tile, "Value", tiles[i].value, 27, TextPrimary, TextAnchor.MiddleCenter,

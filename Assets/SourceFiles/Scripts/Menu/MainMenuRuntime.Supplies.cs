@@ -155,7 +155,7 @@ public static partial class MainMenuRuntime
             else break;
         }
 
-        TextMeshProUGUI header = CreateTmp(section, "Header", "SUPPLIES - THIS RUN ONLY", 16,
+        TextMeshProUGUI header = CreateTmp(section, "Header", "SUPPLIES - THIS RUN ONLY", 18,
             WithAlpha(TextMuted, 0.9f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(4f, 0f), new Vector2(500f, 22f), new Vector2(0f, 1f));
         header.characterSpacing = 3f;
@@ -355,7 +355,7 @@ public static partial class MainMenuRuntime
         // equipment looks like equipment, and the icons echo the picker cards.
         if (ui.Selection.Boosts.Count == 0)
         {
-            CreateTmp(row, "Picked", "NONE PICKED", 15, WithAlpha(TextMuted, 0.9f),
+            CreateTmp(row, "Picked", "NONE PICKED", 18, WithAlpha(TextMuted, 0.9f),
                 TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(24f, -54f), new Vector2(ui.ContentW - 300f, 24f), new Vector2(0f, 1f));
         }
@@ -447,7 +447,7 @@ public static partial class MainMenuRuntime
             CreateTmp(zone, "Offline", premium
                     ? "OFFLINE - RUNS WON'T RANK\nON THE LEADERBOARDS"
                     : "YOU'RE OFFLINE - CONNECTION\nNEEDED FOR RANKED LEVELS",
-                17, premium ? WithAlpha(TextMuted, 0.9f) : LockedColor,
+                18, premium ? WithAlpha(TextMuted, 0.9f) : LockedColor,
                 TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(4f, 0f), new Vector2(ui.ContentW - 210f, 52f), new Vector2(0f, 0.5f));
             Button retry = CreateSupplyButton(zone, "Retry", "RETRY", 170f,
@@ -509,13 +509,13 @@ public static partial class MainMenuRuntime
         float x = 4f;
         if (total > 0)
         {
-            CreateTmp(zone, "TotalLabel", "TOTAL", 17, ui.Accent, TextAnchor.MiddleLeft,
+            CreateTmp(zone, "TotalLabel", "TOTAL", 18, ui.Accent, TextAnchor.MiddleLeft,
                 FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(x, 0f), new Vector2(80f, 30f), new Vector2(0f, 0.5f));
             CreateCoinAmountLeft(zone, total, 17, ui.Accent, x + 84f);
             x += 84f + 110f + 36f;
         }
-        CreateTmp(zone, "WalletLabel", "WALLET", 17, WithAlpha(TextMuted, 0.85f), TextAnchor.MiddleLeft,
+        CreateTmp(zone, "WalletLabel", "WALLET", 18, WithAlpha(TextMuted, 0.85f), TextAnchor.MiddleLeft,
             FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(x, 0f), new Vector2(100f, 30f), new Vector2(0f, 0.5f));
         CreateCoinAmountLeft(zone, wallet, 17, WithAlpha(TextMuted, 0.85f), x + 104f);
@@ -578,14 +578,14 @@ public static partial class MainMenuRuntime
         {
             TextMeshProUGUI text = CreateTmp(bg.transform, "Label", label, 19, textColor,
                 TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
-            AutoSize(text, 13f, 19f);
+            AutoSize(text, 16f, 19f);
         }
         else
         {
             TextMeshProUGUI text = CreateTmp(bg.transform, "Label", label, 19, textColor,
                 TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(20f, 0f), new Vector2(width - 130f, 32f), new Vector2(0f, 0.5f));
-            AutoSize(text, 13f, 19f);
+            AutoSize(text, 16f, 19f);
             CreateCoinAmount(bg.transform, price, 19, textColor, -16f);
         }
 
@@ -671,7 +671,7 @@ public static partial class MainMenuRuntime
             TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(pad, -34f), new Vector2(400f, 46f), new Vector2(0f, 1f));
         title.characterSpacing = 4f;
-        CreateTmp(panel, "Sub", "THIS RUN ONLY - TAP TO EQUIP", 16,
+        CreateTmp(panel, "Sub", "THIS RUN ONLY - TAP TO EQUIP", 18,
             WithAlpha(TextMuted, 0.85f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(pad, -82f), new Vector2(600f, 22f), new Vector2(0f, 1f));
 
@@ -805,7 +805,7 @@ public static partial class MainMenuRuntime
             check.preserveAspect = true;
             SetCenteredAt(check.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(30f, 30f));
             check.raycastTarget = false;
-            CreateTmp(card, "Tag", "EQUIPPED", 14, accent, TextAnchor.MiddleCenter,
+            CreateTmp(card, "Tag", "EQUIPPED", 18, accent, TextAnchor.MiddleCenter,
                 FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(-64f, -32f), new Vector2(140f, 20f), new Vector2(1f, 0.5f));
         }
@@ -815,7 +815,7 @@ public static partial class MainMenuRuntime
                 affordable ? WithAlpha(TextPrimary, alpha) : WithAlpha(LockedColor, 0.8f), -32f);
             if (slotsFull)
             {
-                CreateTmp(card, "Full", "SLOTS FULL", 13, WithAlpha(LockedColor, 0.85f),
+                CreateTmp(card, "Full", "SLOTS FULL", 18, WithAlpha(LockedColor, 0.85f),
                     TextAnchor.MiddleRight, FontStyle.Bold, RuntimeUiKit.TitleFont,
                     new Vector2(-32f, -34f), new Vector2(160f, 18f), new Vector2(1f, 0.5f));
             }

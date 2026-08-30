@@ -127,7 +127,7 @@ public static partial class MainMenuRuntime
             icon.preserveAspect = true;
             SetCenteredAt(icon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, NavIconY), new Vector2(60f, 60f));
         }
-        CreateTmp(slot, "Label", tab.ToString().ToUpperInvariant(), 17, tint, TextAnchor.MiddleCenter,
+        CreateTmp(slot, "Label", tab.ToString().ToUpperInvariant(), 18, tint, TextAnchor.MiddleCenter,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, NavLabelY), new Vector2(160f, 30f), new Vector2(0.5f, 0.5f));
     }
 
@@ -172,7 +172,7 @@ public static partial class MainMenuRuntime
         house.preserveAspect = true;
         SetCenteredAt(house.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, 28f), new Vector2(64f, 64f));
 
-        _navHomeLabel = CreateTmp(hex, "Label", "HOME", 16, glyphColor, TextAnchor.MiddleCenter,
+        _navHomeLabel = CreateTmp(hex, "Label", "HOME", 18, glyphColor, TextAnchor.MiddleCenter,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -32f), new Vector2(124f, 26f), new Vector2(0.5f, 0.5f));
         _navHexImage = image;
         _navHouseImage = house;

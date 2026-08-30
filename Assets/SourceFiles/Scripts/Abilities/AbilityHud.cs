@@ -182,7 +182,7 @@ public class AbilityHud : MonoBehaviour
         ring.raycastTarget = false;
         StretchPadded(ring.rectTransform);
 
-        label = RuntimeUiKit.CreateLabel(slot, string.Empty, 16, DefaultSlotSize,
+        label = RuntimeUiKit.CreateLabel(slot, string.Empty, 18, DefaultSlotSize,
             FontStyle.Bold, RuntimeUiKit.TitleColor);
         RectTransform labelRect = label.rectTransform;
         labelRect.anchorMin = Vector2.zero;

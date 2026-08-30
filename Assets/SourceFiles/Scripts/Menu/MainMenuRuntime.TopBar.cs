@@ -381,7 +381,7 @@ public static partial class MainMenuRuntime
         AutoSize(primaryText, 16, 23);
         if (!string.IsNullOrEmpty(secondary))
         {
-            CreateTmp(card, "Secondary", secondary, 17, TextMuted, TextAnchor.MiddleLeft,
+            CreateTmp(card, "Secondary", secondary, 18, TextMuted, TextAnchor.MiddleLeft,
                 FontStyle.Normal, RuntimeUiKit.DefaultFont, new Vector2(78f, -14f), new Vector2(96f, 24f), new Vector2(0f, 0.5f));
         }
 

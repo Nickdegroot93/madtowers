@@ -168,7 +168,7 @@ public static partial class MainMenuRuntime
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -38f), new Vector2(SettingsRailWidth - 16f, 28f),
             new Vector2(0.5f, 0.5f));
         label.characterSpacing = 1f;
-        AutoSize(label, 14, 20);
+        AutoSize(label, 16, 20);
     }
 
     private static RectTransform BuildSettingsPanel(Transform body, ChapterDefinition chapter)
@@ -473,7 +473,7 @@ public static partial class MainMenuRuntime
             new Vector2(172f, -84f), new Vector2(520f, 26f), new Vector2(0f, 1f));
         StretchIdentityText(status, -84f, 26f);
         TextMeshProUGUI detail = CreateTmp(identity, "Detail",
-            guest ? "UNINSTALLING LOSES YOUR PROGRESS" : "YOUR PROGRESS IS SAFE ON EVERY DEVICE", 16,
+            guest ? "UNINSTALLING LOSES YOUR PROGRESS" : "YOUR PROGRESS IS SAFE ON EVERY DEVICE", 20,
             WithAlpha(TextMuted, 0.65f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(172f, -116f), new Vector2(520f, 24f), new Vector2(0f, 1f));
         StretchIdentityText(detail, -116f, 24f);
@@ -725,7 +725,7 @@ public static partial class MainMenuRuntime
             "Stuck or found a bug? Write to us.", accent,
             () => Application.OpenURL($"mailto:{SupportEmail}"));
 
-        CreateTmp(rows, "Credits", "MADE BY NICK DE GROOT  -  © 2026", 16,
+        CreateTmp(rows, "Credits", "MADE BY NICK DE GROOT  -  © 2026", 18,
             WithAlpha(TextMuted, 0.7f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, rowTop - 16f), new Vector2(600f, 24f), new Vector2(0.5f, 1f));
     }
@@ -760,7 +760,7 @@ public static partial class MainMenuRuntime
         bg.raycastTarget = true;
         TextMeshProUGUI text = CreateTmp(bg.transform, "Label", label, 22, textColor,
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
-        AutoSize(text, 14f, 22f);
+        AutoSize(text, 16f, 22f);
         Button button = bg.gameObject.AddComponent<Button>();
         button.targetGraphic = bg;
         return (button, text);

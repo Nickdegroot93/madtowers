@@ -128,7 +128,7 @@ public static partial class MainMenuRuntime
                     ?? bestRecord.bestScoreBoosted.ToString())
                 : $"{bestRecord.bestHeightMetersBoosted:F1}m";
             CreateTmp(panel, "BoostedBest",
-                $"BOOSTED BEST  {boostedValue}", 15, WithAlpha(lightChapter, 0.75f),
+                $"BOOSTED BEST  {boostedValue}", 18, WithAlpha(lightChapter, 0.75f),
                 TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(bestCardX, belowStatsY), new Vector2(cardW, 20f), new Vector2(0f, 1f));
         }
@@ -290,11 +290,11 @@ public static partial class MainMenuRuntime
         string label = level.WinCondition.HasTimeLimit
             ? $"YOUR PROGRESS - TARGETS IN {TimedWinCondition.FormatDuration(level.TimeLimitSeconds)}"
             : "YOUR PROGRESS";
-        TextMeshProUGUI labelText = CreateTmp(panel, "ProgressLabel", label, 16, labelColor,
+        TextMeshProUGUI labelText = CreateTmp(panel, "ProgressLabel", label, 18, labelColor,
             TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(pad, y), new Vector2(contentW - 220f, 24f), new Vector2(0f, 1f));
         labelText.characterSpacing = 3f;
-        CreateTmp(panel, "ProgressBest", $"BEST  {bestText.ToUpperInvariant()}", 16, bestColor,
+        CreateTmp(panel, "ProgressBest", $"BEST  {bestText.ToUpperInvariant()}", 18, bestColor,
             TextAnchor.UpperRight, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(pad, y), new Vector2(contentW, 24f), new Vector2(0f, 1f));
 
@@ -385,7 +385,7 @@ public static partial class MainMenuRuntime
         fill.color = new Color(0.10f, 0.10f, 0.115f, 1f);
         RuntimeUiKit.AddOutline(card, GlassBorder);
 
-        TextMeshProUGUI labelText = CreateTmp(card, "Label", label, 16, labelColor, TextAnchor.UpperLeft,
+        TextMeshProUGUI labelText = CreateTmp(card, "Label", label, 18, labelColor, TextAnchor.UpperLeft,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(22f, -18f), new Vector2(width - 36f, 24f), new Vector2(0f, 1f));
         labelText.characterSpacing = 3f;
         CreateTmp(card, "Value", value, 30, valueColor, TextAnchor.UpperLeft,

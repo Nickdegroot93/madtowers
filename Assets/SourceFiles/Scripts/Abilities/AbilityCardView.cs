@@ -164,11 +164,11 @@ public static class AbilityCardView
             new Vector2(160f * scale, 34f * scale), new Vector2(0.5f, 1f));
 
         TextMeshProUGUI label = Display(RuntimeUiKit.CreateTmp(pill.transform, "Label",
-            AbilityTypeInfo.GetLabel(type), Mathf.RoundToInt(14f * scale),
+            AbilityTypeInfo.GetLabel(type), Mathf.RoundToInt(16f * scale),
             Color.Lerp(typeColor, Color.white, 0.6f), TextAnchor.MiddleCenter,
             FontStyle.Normal, RuntimeUiKit.TitleFont));
         label.characterSpacing = 3f;
-        RuntimeUiKit.AutoSize(label, 9f, 14f * scale);
+        RuntimeUiKit.AutoSize(label, 13f, 16f * scale);
     }
 
     // The icon on a dark rounded tile lifted by a soft accent glow (authored icons are neon-glow
@@ -216,10 +216,10 @@ public static class AbilityCardView
         rect.anchorMin = rect.anchorMax = new Vector2(1f, 1f);
         rect.pivot = new Vector2(0.72f, 0.5f);
         rect.anchoredPosition = new Vector2(6f, 4f);
-        rect.sizeDelta = new Vector2(104f, 30f);
+        rect.sizeDelta = new Vector2(116f, 32f);
 
         TextMeshProUGUI label = Display(RuntimeUiKit.CreateTmp(pill.transform, "Label",
-            $"OWNED ×{stacks}", 13, new Color(0.16f, 0.13f, 0.05f, 1f), TextAnchor.MiddleCenter,
+            $"OWNED ×{stacks}", 18, new Color(0.16f, 0.13f, 0.05f, 1f), TextAnchor.MiddleCenter,
             FontStyle.Normal, RuntimeUiKit.TitleFont));
         label.characterSpacing = 1f;
     }
@@ -407,7 +407,7 @@ public static class AbilityCardView
         AddTypeChip(panel, definition.Type, -310f, 1.1f);
         if (stacks > 0)
         {
-            TextMeshProUGUI owned = RuntimeUiKit.CreateTmp(panel, "Owned", $"OWNED x{stacks}", 16,
+            TextMeshProUGUI owned = RuntimeUiKit.CreateTmp(panel, "Owned", $"OWNED x{stacks}", 18,
                 WithAlpha(accent, 0.9f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(0f, -352f), new Vector2(300f, 22f), new Vector2(0.5f, 1f));
             owned.characterSpacing = 3f;

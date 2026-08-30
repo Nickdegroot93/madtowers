@@ -389,7 +389,7 @@ public static partial class MainMenuRuntime
                     Vector2.zero, new Vector2(300f, 160f), new Vector2(0.5f, 0.5f));
             }
 
-            CreateTmp(content, "NextLabel", "NEXT CHAPTER", 15, TextMuted, TextAnchor.MiddleLeft,
+            CreateTmp(content, "NextLabel", "NEXT CHAPTER", 18, TextMuted, TextAnchor.MiddleLeft,
                 FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -22f), new Vector2(180f, 26f), new Vector2(0f, 1f));
             CreateTmp(content, "NextTitle", next.DisplayName.ToUpperInvariant(), 21, TextPrimary, TextAnchor.MiddleLeft,
                 FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -50f), new Vector2(206f, 34f), new Vector2(0f, 1f));
@@ -398,7 +398,7 @@ public static partial class MainMenuRuntime
             return;
         }
 
-        CreateTmp(content, "NextLabel", "NEXT CHAPTER", 15, WithAlpha(TextMuted, 0.75f), TextAnchor.MiddleLeft,
+        CreateTmp(content, "NextLabel", "NEXT CHAPTER", 18, WithAlpha(TextMuted, 0.75f), TextAnchor.MiddleLeft,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -22f), new Vector2(180f, 26f), new Vector2(0f, 1f));
         CreateTmp(content, "NextTitle", "LOCKED", 21, LockedColor, TextAnchor.MiddleLeft,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -50f), new Vector2(206f, 34f), new Vector2(0f, 1f));
@@ -436,7 +436,7 @@ public static partial class MainMenuRuntime
 
         // Mirrored layout: texts hug the RIGHT edge. (No chevron - Nick 2026-08-01, matches
         // the next-chapter card.)
-        CreateTmp(card, "PrevLabel", "PREVIOUS", 15, TextMuted, TextAnchor.MiddleRight,
+        CreateTmp(card, "PrevLabel", "PREVIOUS", 18, TextMuted, TextAnchor.MiddleRight,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(-28f, -22f), new Vector2(180f, 26f), new Vector2(1f, 1f));
         CreateTmp(card, "PrevTitle", prev.DisplayName.ToUpperInvariant(), 21, TextPrimary, TextAnchor.MiddleRight,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(-28f, -50f), new Vector2(206f, 34f), new Vector2(1f, 1f));
@@ -787,7 +787,7 @@ public static partial class MainMenuRuntime
         goalIcon.raycastTarget = false;
         goalIcon.rectTransform.sizeDelta = new Vector2(22f, 22f);
 
-        TextMeshProUGUI challenge = CreateTmp(challengeRow, "Challenge", presentation.ChallengeLabel.ToUpperInvariant(), 17,
+        TextMeshProUGUI challenge = CreateTmp(challengeRow, "Challenge", presentation.ChallengeLabel.ToUpperInvariant(), 18,
             challengeColor, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.DefaultFont);
         challenge.characterSpacing = 5f;
         challenge.rectTransform.sizeDelta = new Vector2(420f, 24f);

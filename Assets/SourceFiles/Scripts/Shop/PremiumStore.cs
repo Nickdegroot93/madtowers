@@ -223,12 +223,12 @@ internal sealed class SimulatedPremiumStoreProvider : IPremiumStoreProvider
             new Color(0.92f, 0.97f, 1f, 1f), TextAnchor.UpperCenter, FontStyle.Bold,
             RuntimeUiKit.TitleFont, new Vector2(0f, -44f), new Vector2(640f, 42f),
             new Vector2(0.5f, 1f));
-        RuntimeUiKit.CreateTmp(panel.transform, "Sub", subtitle, 17,
+        RuntimeUiKit.CreateTmp(panel.transform, "Sub", subtitle, 18,
             new Color(1f, 1f, 1f, 0.45f), TextAnchor.UpperCenter, FontStyle.Bold,
             RuntimeUiKit.TitleFont, new Vector2(0f, -96f), new Vector2(640f, 24f),
             new Vector2(0.5f, 1f));
         RuntimeUiKit.CreateTmp(panel.transform, "Blurb",
-            "ONE-TIME PURCHASE - THE PLATFORM STORE WOULD SHOW ITS PAYMENT SHEET HERE", 15,
+            "ONE-TIME PURCHASE - THE PLATFORM STORE WOULD SHOW ITS PAYMENT SHEET HERE", 18,
             new Color(1f, 1f, 1f, 0.6f), TextAnchor.UpperCenter, FontStyle.Normal,
             RuntimeUiKit.TitleFont, new Vector2(0f, -140f), new Vector2(600f, 40f),
             new Vector2(0.5f, 1f));

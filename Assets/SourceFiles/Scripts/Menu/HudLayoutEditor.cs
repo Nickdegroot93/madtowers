@@ -457,7 +457,7 @@ public class HudLayoutEditor : MonoBehaviour
 
     private void Hint(string text, float y)
     {
-        TextMeshProUGUI hint = CreateTmp(_control, "Hint", text, 17, MutedText, TextAnchor.UpperLeft,
+        TextMeshProUGUI hint = CreateTmp(_control, "Hint", text, 20, MutedText, TextAnchor.UpperLeft,
             FontStyle.Normal, TitleFont, new Vector2(0f, y), new Vector2(620f, 54f), new Vector2(0f, 1f));
         hint.textWrappingMode = TMPro.TextWrappingModes.Normal;
     }

@@ -62,7 +62,7 @@ public static partial class MainMenuRuntime
             TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(188f, -104f), new Vector2(540f, 26f), new Vector2(0f, 1f));
         TextMeshProUGUI detail = CreateTmp(card, "Detail",
-            guest ? "UNINSTALLING LOSES YOUR PROGRESS" : "YOUR PROGRESS IS SAFE ON EVERY DEVICE", 16,
+            guest ? "UNINSTALLING LOSES YOUR PROGRESS" : "YOUR PROGRESS IS SAFE ON EVERY DEVICE", 20,
             WithAlpha(TextMuted, 0.65f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(188f, -136f), new Vector2(540f, 24f), new Vector2(0f, 1f));
 
@@ -190,7 +190,7 @@ public static partial class MainMenuRuntime
             TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -heroH - 26f), new Vector2(720f, 42f), new Vector2(0.5f, 1f));
         title.characterSpacing = 2f;
-        CreateTmp(card, "Pitch", "THE FULL GAME, FOREVER", 17, TextPrimary,
+        CreateTmp(card, "Pitch", "THE FULL GAME, FOREVER", 18, TextPrimary,
             TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -heroH - 74f), new Vector2(720f, 24f), new Vector2(0.5f, 1f));
 
@@ -273,7 +273,7 @@ public static partial class MainMenuRuntime
             CreateTmp(cta.transform, "Label", $"GET UNLIMITED - {PremiumStore.PriceText}", 26,
                 new Color(0.16f, 0.11f, 0.04f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(0f, 10f), new Vector2(600f, 34f), new Vector2(0.5f, 0.5f));
-            CreateTmp(cta.transform, "Soon", "COMING SOON", 13,
+            CreateTmp(cta.transform, "Soon", "COMING SOON", 18,
                 new Color(0.24f, 0.17f, 0.07f, 0.9f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(0f, -22f), new Vector2(600f, 18f), new Vector2(0.5f, 0.5f));
             return;
