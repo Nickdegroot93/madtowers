@@ -88,6 +88,11 @@ public class LevelRuntimeController : MonoBehaviour
     /// Find can grab a dying instance.</summary>
     public static LevelRuntimeController Active { get; private set; }
 
+    /// <summary>True while the timed-goal clock card occupies the top-right HUD row - MedalHud
+    /// yields the slot to it (same arrangement as the wave pill). Live, not per-run: the card
+    /// dies at gold and at game over, and the pill may then reclaim the row.</summary>
+    public static bool TimerCardVisible => Active != null && Active._timerRoot != null;
+
     private void Start()
     {
         _level = LevelSelectionState.SelectedLevel;

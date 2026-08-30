@@ -12,9 +12,9 @@ using UnityEngine.UI;
 /// rung lands mid-run (TierEarned) and settle-pops on every new one - same restrained
 /// pulse as the coin pill, no extra fanfare (JUICE.md).
 ///
-/// The right corner has two tenants: the puzzle-wave countdown pill (WaveHud) outranks this
-/// one (it is live survival state), so on a wave run the medal pill sits one row further
-/// down. Placeholder look: the MedalStyle circle badge until Nick's rendered bronze/silver/
+/// The right corner has three tenants: the puzzle-wave countdown pill (WaveHud) and the
+/// timed-goal clock card both outrank this one (they are live survival state), so on those
+/// runs the medal pill sits one row further down. Placeholder look: the MedalStyle circle badge until Nick's rendered bronze/silver/
 /// gold block icons land - MedalStyle.Sprite is the swap point, nothing here changes.
 /// </summary>
 public class MedalHud : MonoBehaviour
@@ -30,6 +30,9 @@ public class MedalHud : MonoBehaviour
     // One row below the wave pill (its offset 184 + height 64 + gap) while a wave run owns
     // the corner slot.
     private const float BelowWavePillOffset = 184f + 64f + 12f;
+    // One row below the timed-goal clock card (its offset 180 + height 66 + gap) while a
+    // timed run owns the slot - the card and this pill otherwise share the same row.
+    private const float BelowTimerCardOffset = 180f + 66f + 12f;
 
     private static readonly Color PillColor = new Color(0f, 0f, 0f, 0.78f); // UIManager BarInsetColor
 
@@ -304,8 +307,9 @@ public class MedalHud : MonoBehaviour
     private void ApplyPillPosition()
     {
         float topInset = RuntimeUiKit.SafeAreaTopInset(_canvas);
-        bool waveRunLive = HeightLimitWavesModifier.ActiveRun != null;
-        float topOffset = waveRunLive ? BelowWavePillOffset : TopOffsetBelowSafeArea;
+        float topOffset = HeightLimitWavesModifier.ActiveRun != null ? BelowWavePillOffset
+            : LevelRuntimeController.TimerCardVisible ? BelowTimerCardOffset
+            : TopOffsetBelowSafeArea;
         _pill.anchoredPosition = new Vector2(-RightMargin, -(topInset + topOffset));
     }
 }

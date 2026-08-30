@@ -256,7 +256,9 @@ public class UIManager : MonoBehaviour
     private void HandleHeightChanged(float height)
     {
         if (scoreText == null || !IsHeightObjective) return;
-        scoreText.text = WithTarget($"{height:F1}", $"{_targetHeightMeters}m");
+        // Whole meters, floored: decimals overflow the tag, and rounding up would show the
+        // target as reached (75/75m) while the tower is still short of it.
+        scoreText.text = WithTarget(Mathf.FloorToInt(height).ToString(), $"{_targetHeightMeters}m");
     }
 
     private int _shownLives = -1;
