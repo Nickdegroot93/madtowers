@@ -17,7 +17,7 @@ MonoBehaviour:
   menuChallengeLabelOverride:
   gameModeConfig: {fileID: 11400000, guid: 76d64a777d0740129dbcec8e71966bff, type: 2}
   targetType: 5
-  targetValue: 6
-  instruction: Clear 6 waves - keep the tower under the festival laser!
+  targetValue: 5
+  instruction: Clear 5 waves - keep the tower under the festival laser!
   modifiers:
   - {fileID: 11400000, guid: ab4b09dfda0e4ff0bc252392ba7edfaa, type: 2}
