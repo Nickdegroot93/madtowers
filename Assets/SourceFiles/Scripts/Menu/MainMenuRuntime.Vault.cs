@@ -4,10 +4,13 @@ using UnityEngine;
 using UnityEngine.UI;
 using static RuntimeUiKit;
 
-// The Vault: the player's collection of discovered bricks and abilities. Locked entries are
-// silhouettes + "???" (the name is part of the reward); discovered bricks get a live-rendered
-// showcase poster and a detail modal with the SAME looping demo the in-game debut shows
-// (BLOCKPREVIEWS.md's codex surface); discovered abilities get their real glass-slab card.
+// The Vault: the player's collection of discovered bricks and abilities. Discovered bricks
+// get a live-rendered showcase poster and a detail modal with the SAME looping demo the
+// in-game debut shows (BLOCKPREVIEWS.md's codex surface); UNDISCOVERED bricks are not
+// rendered at all - the collection's size is a secret (Nick 2026-08-30, the Chapters-page
+// ambiguity rule): no "7/15", just the finds plus one "undiscovered" teaser at the
+// bottom. Abilities keep the bounded collection game: locked entries are silhouettes +
+// "???" (the name is part of the reward); discovered ones get their real glass-slab card.
 // (partial of MainMenuRuntime, split from the main file for readability - same class, shared statics.)
 public static partial class MainMenuRuntime
 {
@@ -40,13 +43,18 @@ public static partial class MainMenuRuntime
             new Vector2(76f, -196f), new Vector2(420f, 76f), new Vector2(0f, 1f));
         title.characterSpacing = 4f;
 
-        (int discovered, int total) = _activeVaultTab == VaultTab.Bricks
+        bool bricksTab = _activeVaultTab == VaultTab.Bricks;
+        (int discovered, int total) = bricksTab
             ? BrickCollectionCounts()
             : AbilityCollectionCounts();
 
-        CreateTmp(parent, "VaultProgress", $"{discovered} / {total} DISCOVERED", 24,
+        // Bricks keep their total a secret (the ambiguity rule, see the file header):
+        // count only, and no progress bar - a bounded bar would reveal the roster's size.
+        CreateTmp(parent, "VaultProgress",
+            bricksTab ? $"{discovered} DISCOVERED" : $"{discovered} / {total} DISCOVERED", 24,
             MenuAccent, TextAnchor.MiddleRight, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(-VaultSideInset, -206f), new Vector2(420f, 34f), new Vector2(1f, 1f));
+        if (bricksTab) return;
 
         // Thin capsule progress bar under the counter.
         RectTransform track = CreateRect(parent, "ProgressTrack",
@@ -87,9 +95,10 @@ public static partial class MainMenuRuntime
         barImage.color = MenuGlassFill(chapter, 0.55f);
         RuntimeUiKit.AddOutline(bar, GlassBorder);
 
-        (int bricksFound, int bricksTotal) = BrickCollectionCounts();
+        // Bricks show the found count alone - no denominator (the ambiguity rule).
+        (int bricksFound, _) = BrickCollectionCounts();
         (int abilitiesFound, int abilitiesTotal) = AbilityCollectionCounts();
-        BuildVaultTabHalf(bar, 0, $"BRICKS  {bricksFound}/{bricksTotal}", VaultTab.Bricks);
+        BuildVaultTabHalf(bar, 0, $"BRICKS  {bricksFound}", VaultTab.Bricks);
         BuildVaultTabHalf(bar, 1, $"ABILITIES  {abilitiesFound}/{abilitiesTotal}", VaultTab.Abilities);
     }
 
@@ -251,14 +260,17 @@ public static partial class MainMenuRuntime
     {
         List<BlockData> entries = BrickEntries();
 
-        (int found, int total) = BrickCollectionCounts();
+        (int found, _) = BrickCollectionCounts();
         if (found <= 1) BuildVaultEmptyBanner(content, "YOUR VAULT AWAITS",
             "Special bricks join your collection the first time they drop in play.");
 
-        // One long horizontal card per brick: thumbnail on the left, name + description on the
-        // right (Nick's layout - a single readable column instead of a 2-up grid).
+        // One long horizontal card per DISCOVERED brick: thumbnail on the left, name +
+        // description on the right (Nick's layout - a single readable column instead of a
+        // 2-up grid). Undiscovered bricks aren't rendered (the ambiguity rule, file header);
+        // the teaser card below is their only trace.
         foreach (BlockData entry in entries)
         {
+            if (!IsBrickDiscovered(entry)) continue;
             RectTransform row = NewGridRow(content, BrickRowHeight);
             RectTransform card = CreateRect(row, "Card",
                 Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
@@ -266,44 +278,27 @@ public static partial class MainMenuRuntime
             card.offsetMax = new Vector2(-VaultSideInset, -CellGap);
             BuildBrickCell(card, entry, chapter);
         }
+
+        BuildLockedTeaserCard(content, BrickRowHeight, "UNDISCOVERED",
+            "Push deeper into the chapters to find new kinds of bricks.");
     }
 
+    // Only ever called for DISCOVERED bricks - undiscovered ones aren't rendered (the
+    // ambiguity rule); the "undiscovered" teaser is their only trace.
     private static void BuildBrickCell(RectTransform cell, BlockData variant, ChapterDefinition chapter)
     {
-        bool discovered = IsBrickDiscovered(variant);
         string id = ProgressStore.BlockId(variant);
 
         Image plate = cell.gameObject.AddComponent<Image>();
         plate.sprite = RuntimeSprites.RoundedPanel();
         plate.type = Image.Type.Sliced;
-        plate.color = discovered ? CardDark : WithAlpha(CardDark, 0.92f);
-        RuntimeUiKit.AddOutline(cell, discovered ? GlassBorder : WithAlpha(GlassBorder, 0.5f));
+        plate.color = CardDark;
+        RuntimeUiKit.AddOutline(cell, GlassBorder);
 
         // The square thumbnail zone fills the card's left end (card height minus padding), the
         // text block takes the rest.
         float thumb = BrickRowHeight - CellGap * 2f - 28f; // = 216 at reference
         float textLeft = 14f + thumb + 26f;
-
-        if (!discovered)
-        {
-            // Silhouette + ??? + how-to-unlock hint, in the same left/right layout. Inert.
-            Image shape = CreateImage(cell, "Silhouette", RuntimeSprites.RoundedPanel(),
-                new Color(0.03f, 0.03f, 0.035f, 1f));
-            shape.type = Image.Type.Sliced;
-            SetCenteredAt(shape.rectTransform, new Vector2(0f, 0.5f),
-                new Vector2(14f + thumb * 0.5f, 0f), new Vector2(thumb * 0.72f, thumb * 0.72f));
-            Image lockIcon = CreateImage(cell, "Lock", MenuSprites.Lock(LockedColor), Color.white);
-            lockIcon.preserveAspect = true;
-            SetCenteredAt(lockIcon.rectTransform, new Vector2(0f, 0.5f),
-                new Vector2(14f + thumb * 0.5f + 58f, -58f), new Vector2(46f, 46f));
-
-            CreateTmp(cell, "Name", "???", 34, LockedColor, TextAnchor.MiddleLeft, FontStyle.Bold,
-                RuntimeUiKit.TitleFont, new Vector2(textLeft, 26f), new Vector2(220f, 44f), new Vector2(0f, 0.5f));
-            CreateTmp(cell, "Hint", "DISCOVER IN PLAY", 16, WithAlpha(TextMuted, 0.8f),
-                TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-                new Vector2(textLeft, -22f), new Vector2(320f, 26f), new Vector2(0f, 0.5f));
-            return;
-        }
 
         // Left: the square live-rendered showcase (the T brick in its real skin), rounded.
         var posterHolder = new GameObject("PosterFrame", typeof(RectTransform));
