@@ -27,7 +27,8 @@ STYLE = ("Punchy satisfying sound effect for a charming cartoony stone-brick puz
          "Full-bodied, crisp attack, warm low-mid body, playful and earthy magic. "
          "Not sci-fi, no metal, no chimes, no coins, no music, no voice. ")
 
-# name -> (prompt, duration_seconds, prompt_influence)
+# name -> (prompt, duration_seconds, prompt_influence[, target_rms_db])
+# The optional 4th slot overrides the -14 dB RMS house level (ambience cues want ~-22).
 # KEEPERS (loved, do NOT regenerate): fission_feed, maw_crunch, flip_swap, zap_charge (engineered wav).
 # game_over is also a keeper: its bytes now come from the Cyberleaf pack (July 2026), not this table.
 SOUNDS = {
@@ -155,13 +156,17 @@ SOUNDS = {
         "dramatic, cinematic. No music.", 1.8, 0.55),
     "flood_plip": ("A stone brick dropping into deep water: one soft round PLOP with a "
         "small ripple, subtle and quick. No long splash tail.", 0.6, 0.5),
-    "blackout_in": ("A city-wide power failure: electrical hum and buzz abruptly cutting out, "
-        "a heavy descending power-down whine like giant turbines spinning down, transformer "
-        "breakers thunking off one after another, ending in eerie ringing silence. Cinematic, "
-        "detailed, high quality.", 2.2, 0.7),
-    "blackout_out": ("Electrical power surging back on across a city: breakers clunking in "
-        "sequence, an electrical hum swelling up with a bright crackling energy flicker that "
-        "stabilizes into a steady warm buzz. Satisfying, crisp, cinematic.", 1.8, 0.7),
+    # Blackout (rewritten 2026-09-01): the first take ("turbines spinning down, breakers
+    # thunking one after another") was loud and weird in play - a status TRANSITION is an
+    # ambience cue, not an impact, so it gets a soft prompt AND a quieter baked level
+    # (-22 dB RMS vs the -14 dB house default, see the optional 4th tuple slot).
+    "blackout_in": ("Lamps in a large quiet stone hall going out: one soft deep muffled whump "
+        "as the lights die, then a faint low hum gently sinking away into hush. Smooth, calm, "
+        "atmospheric, not startling, no sharp clicks. No alarms, no music, no voice.",
+        2.5, 0.65, -22.0),
+    "blackout_out": ("Lamps in a quiet stone hall warming back on: a gentle low hum swelling "
+        "up softly and settling into a steady warm glow tone, one soft muted click at the "
+        "start. Smooth, calm, reassuring. No alarms, no music, no voice.", 1.8, 0.65, -22.0),
     "void_open": ("A rift tearing open in the fabric of space: a sharp reversed suction "
         "whoosh building into a deep resonant CRACK of reality splitting, followed by an "
         "eerie shimmering otherworldly hum settling in. Cinematic sci-fi, detailed, "
@@ -226,7 +231,7 @@ def _normalize_to_wav(mp3_bytes, out_wav, target_rms_db=-14.0):
     os.remove(tmp_mp3); os.remove(tmp_wav)
 
 
-def generate(name, prompt, duration, influence, key):
+def generate(name, prompt, duration, influence, key, target_rms_db=-14.0):
     body = json.dumps({"text": prompt, "duration_seconds": duration,
                        "prompt_influence": influence}).encode()
     req = urllib.request.Request(API_URL, data=body, headers={
@@ -238,7 +243,7 @@ def generate(name, prompt, duration, influence, key):
         print(f"FAILED {name}: HTTP {e.code} {e.read().decode()[:200]}")
         return
     out = os.path.abspath(os.path.join(OUT_DIR, f"{name}.wav"))
-    _normalize_to_wav(audio, out)
+    _normalize_to_wav(audio, out, target_rms_db)
     # retire the older mp3 twin so Resources.Load never sees two clips with one name
     for stale in (f"{name}.mp3", f"{name}.mp3.meta"):
         p = os.path.join(OUT_DIR, stale)
@@ -254,7 +259,7 @@ if __name__ == "__main__":
     args = ap.parse_args()
 
     if args.list:
-        for n, (p, d, i) in SOUNDS.items():
+        for n, (p, d, i, *_) in SOUNDS.items():
             print(f"{n:22s} {d:4.1f}s  {p[:80]}...")
         sys.exit(0)
 
@@ -271,5 +276,5 @@ if __name__ == "__main__":
         if os.path.exists(out) and not args.force and not args.only:
             print(f"skip (exists): {name}")
             continue
-        prompt, duration, influence = SOUNDS[name]
-        generate(name, prompt, duration, influence, key)
+        prompt, duration, influence, *rest = SOUNDS[name]
+        generate(name, prompt, duration, influence, key, *rest)

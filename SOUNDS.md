@@ -148,8 +148,12 @@ The scheduled power-loss state (LEVELS.md "Blackout details"). Prompts in
 - `blackout_in` — the curtain starts fading in ([BlackoutOverlay.cs Awake](Assets/SourceFiles/Scripts/Abilities/Effects/BlackoutOverlay.cs)).
 - `blackout_out` — the relight pre-fade begins ([BlackoutOverlay.cs LateUpdate](Assets/SourceFiles/Scripts/Abilities/Effects/BlackoutOverlay.cs)).
 
-**Should be:** a deep descending power-down *whomp*, hum dying (in); breakers clunking back,
-hum swelling (out).
+**Should be:** a soft muffled *whump* as the lamps die, faint hum sinking into hush (in); a
+gentle hum swelling back to a warm steady tone (out). Regenerated 2026-09-01: the first take
+("turbines spinning down, breakers thunking") was loud and weird in play. Both are baked
+8 dB quieter than the house level (-22 dB RMS via the tuple's 4th slot) - a status
+transition is an ambience cue, not an impact. Rejected alternates were 90%+ sub-120 Hz
+(inaudible on phone speakers) - keep some 120-500 Hz body when regenerating.
 
 ### `flood_rising`, `flood_danger`, `flood_swallow`, `flood_plip` — The Flood · *generated (ElevenLabs, 2026-08-22)*
 The rising-water game type (LEVELS.md "The Flood details"). Prompts in
