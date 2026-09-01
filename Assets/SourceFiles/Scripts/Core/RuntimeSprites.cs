@@ -13,35 +13,34 @@ using UnityEngine;
 public static partial class RuntimeSprites
 {
     // ---- placement beam -----------------------------------------------------------------
-    // Subtle guide column: a faint white wash fading out toward the top, so the landing
-    // end (texture bottom) reads strongest, plus a hairline near-black rail down each
-    // long edge. The wash carries the beam on dark backdrops where the rails vanish;
-    // on light backdrops (ch2/4/6 skies) the wash washes out and the rails carry it.
-    // Stretch via SpriteRenderer.size: the renderer draws Sliced, and the sprite border
-    // keeps the rails at RailPx/PPU world width regardless of brick width.
+    // Rendered through Resources/PlacementBeam.shader (Screen/Multiply blend), so this is an
+    // INTENSITY map, not a colour: white, alpha = how much the beam affects the backdrop.
+    // The glow read (Tricky Towers reference, 2026-09-01) comes from the horizontal profile:
+    // a full-strength core with FEATHERED edges (smoothstep across the border pixels), so
+    // the column looks like light in the air rather than a pasted strip. The renderer draws
+    // Sliced with the feather as the sprite border, so the soft edge keeps its world width
+    // (FeatherPx/PPU) whatever the piece width. Slight ease-off toward the top so the
+    // landing end (texture bottom) reads strongest. No edge rails (removed 2026-09-01).
     private static Sprite _placementBeam;
 
     public static Sprite PlacementBeam()
     {
         if (_placementBeam != null) return _placementBeam;
 
-        const int W = 32, H = 256;
-        const int RailPx = 2;
-        const float FillAlpha = 0.05f;
-        const float RailAlpha = 0.20f;
+        const int W = 64, H = 256;
+        const int FeatherPx = 5; // ~0.08 world units at 64 PPU; 14 read as a blurry strip (Nick, 2026-09-01)
         Texture2D tex = NewTexture(W, H);
         for (int y = 0; y < H; y++)
         {
-            float fade = Mathf.Lerp(1f, 0.25f, (float)y / (H - 1));
+            float fade = Mathf.Lerp(1f, 0.75f, (float)y / (H - 1));
             for (int x = 0; x < W; x++)
             {
-                bool rail = x < RailPx || x >= W - RailPx;
-                tex.SetPixel(x, y, rail
-                    ? new Color(0f, 0f, 0f, RailAlpha * fade)
-                    : new Color(1f, 1f, 1f, FillAlpha * fade));
+                float edge = Mathf.Min(x + 0.5f, W - (x + 0.5f)) / FeatherPx; // 0 at the rim, >=1 in the core
+                float feather = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(edge));
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, feather * fade));
             }
         }
-        return _placementBeam = Finish(tex, 64f, new Vector4(RailPx, 0f, RailPx, 0f));
+        return _placementBeam = Finish(tex, 64f, new Vector4(FeatherPx, 0f, FeatherPx, 0f));
     }
 
     // ---- HUD heart ----------------------------------------------------------------------

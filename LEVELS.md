@@ -15,7 +15,10 @@ ChapterDefinition  (Assets/Resources/Chapters/  — an Archero-style chapter)
  ├─ presentation shared by its levels: backdrop (BackdropPreset: layered sky/clouds/
  │   hills/particles - see ART.md §3), musicPlaylist (random opener, then rotating;
  │   stops on game over),
- │   skinFolder (generated art; missing files fall back to Classic)
+ │   skinFolder (generated art; missing files fall back to Classic),
+ │   placementBeamBlend / placementBeamColor / placementBeamStrength (the landing beam's
+ │   Photoshop-style layer mode: Screen lifts dark skies toward the accent (default);
+ │   Multiply darkens bright/snow skies toward an explicit tint - Sakura Ridge, Frozen Peaks)
  ├─ featuredUnlocks: power-ups introduced by this chapter (messaging; availability is
  │   authored per level pool)
  └─ levels: ordered list of LevelDefinitions — any count per chapter
@@ -982,6 +985,9 @@ a chapter's `levels` array at the position it should play. The menu groups by ch
 **New chapter (complete recipe):**
 1. ChapterDefinition in `Resources/Chapters/` (Create > Stacking > Levels > Chapter Definition):
    `sortOrder` (leave gaps), `levels` list, `skinFolder`, `backdrop`, `musicPlaylist`.
+   Bright/daylight sky? Set `placementBeamBlend` = Multiply + a dark `placementBeamColor`
+   (the default Screen beam is white-on-white there); check it in play, strengths are in
+   linear terms (`BlockController.PlacementBeam.cs`).
 2. Backdrop: BackdropPreset in `Data/Backdrops/` (Create > Stacking > Levels > Backdrop
    Preset) — sky color pairs + altitude fade, cloud style/count/drift, hills on/off +
    style, ambient particles. No preset = classic dark sky. Best workflow: give Claude an

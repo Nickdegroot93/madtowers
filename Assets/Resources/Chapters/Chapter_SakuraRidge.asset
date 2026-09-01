@@ -32,5 +32,8 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 0dd75a4b1a9514643ba647b5c01d33a3, type: 3}
   - {fileID: 8300000, guid: 53ccd37220f9f46359fc42d11910e243, type: 3}
   skinFolder: Skins/Japan
+  placementBeamBlend: 1
+  placementBeamColor: {r: 0.55, g: 0.3, b: 0.4, a: 1}
+  placementBeamStrength: 0
   alwaysUnlocked: 0
   featuredUnlocks: []

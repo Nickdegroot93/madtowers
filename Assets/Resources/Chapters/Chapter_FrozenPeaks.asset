@@ -33,5 +33,8 @@ MonoBehaviour:
   - {fileID: 8300000, guid: ba15e17eba3a244c8af0b5006b9f8b87, type: 3}
   - {fileID: 8300000, guid: e04e8bcda0eb24525a863d8b775e39f0, type: 3}
   skinFolder: Skins/Winter
+  placementBeamBlend: 1
+  placementBeamColor: {r: 0.27, g: 0.35, b: 0.62, a: 1}
+  placementBeamStrength: 0
   alwaysUnlocked: 0
   featuredUnlocks: []

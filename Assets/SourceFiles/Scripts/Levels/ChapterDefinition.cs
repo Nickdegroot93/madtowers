@@ -43,6 +43,12 @@ public class ChapterDefinition : ScriptableObject
     [SerializeField] private AudioClip[] musicPlaylist;
     [Tooltip("Resources folder with this chapter's generated skin (blocks/ground/laser). Empty = Skins/Classic. See ART.md.")]
     [SerializeField] private string skinFolder = "";
+    [Tooltip("How the landing beam blends with the backdrop. Screen LIFTS a dark sky toward the tint (the default); Multiply DARKENS a bright/snow sky toward it, where Screen is invisible (white on white).")]
+    [SerializeField] private PlacementBeamBlend placementBeamBlend = PlacementBeamBlend.Screen;
+    [Tooltip("Beam tint override. Alpha 0 = derive it from the menu accent (pulled toward white). Alpha is otherwise ignored; strength is the mode default unless Placement Beam Strength is set.")]
+    [SerializeField] private Color placementBeamColor = new Color(0f, 0f, 0f, 0f);
+    [Tooltip("Beam strength override in the shader's LINEAR terms. 0 = the mode default (Screen 0.11, Multiply 0.25). Tiny values go a long way on dark skies.")]
+    [SerializeField, Range(0f, 1f)] private float placementBeamStrength = 0f;
 
     [Header("Progression")]
     [Tooltip("Always playable regardless of campaign progress (testing/sandbox chapters).")]
@@ -63,6 +69,12 @@ public class ChapterDefinition : ScriptableObject
     public Color PlayButtonTopColor => playButtonTopColor;
     public Color PlayButtonBottomColor => playButtonBottomColor;
     public BackdropPreset Backdrop => backdrop;
+    public PlacementBeamBlend PlacementBeamBlend => placementBeamBlend;
+    /// <summary>True when the chapter overrides the beam tint (alpha &gt; 0); else derive from the accent.</summary>
+    public bool HasPlacementBeamColor => placementBeamColor.a > 0f;
+    public Color PlacementBeamColor => placementBeamColor;
+    /// <summary>Beam strength override, or 0 for the blend mode's default.</summary>
+    public float PlacementBeamStrength => placementBeamStrength;
     /// <summary>The chapter's soundtrack clips (looped as a whole), or empty.</summary>
     public IReadOnlyList<AudioClip> MusicPlaylist =>
         musicPlaylist ?? System.Array.Empty<AudioClip>();
@@ -81,4 +93,13 @@ public class ChapterDefinition : ScriptableObject
 
         return null;
     }
+}
+
+/// <summary>Photoshop-style layer mode of the landing beam (Resources/PlacementBeam.shader).</summary>
+public enum PlacementBeamBlend
+{
+    /// <summary>Lifts a dark backdrop toward the tint. Invisible on bright skies.</summary>
+    Screen = 0,
+    /// <summary>Darkens a bright backdrop toward the tint. For snow/daylight chapters.</summary>
+    Multiply = 1,
 }

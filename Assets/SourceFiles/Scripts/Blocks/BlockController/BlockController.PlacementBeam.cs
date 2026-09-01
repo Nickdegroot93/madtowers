@@ -2,8 +2,9 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
 
-// The translucent landing-preview beam under the falling piece (visual only - no
-// collider, so casts and cell geometry never see it).
+// The landing-preview beam under the falling piece: a chapter-tinted Screen/Multiply band
+// (Resources/PlacementBeam.shader) that lifts or darkens the backdrop rather than veiling
+// it (visual only - no collider, so casts and cell geometry never see it).
 public partial class BlockController
 {
     private const float VectorGuideFillAlpha = 0.025f;
@@ -11,6 +12,67 @@ public partial class BlockController
     private const float VectorGuideOuterLineAlpha = 0.38f;
     private const float VectorGuideCellFillScale = 0.78f;
     private const float VectorGuideLineThicknessFraction = 0.035f;
+
+    // Beam strength per blend mode (see Resources/PlacementBeam.shader), in the shader's
+    // LINEAR terms: how far the column's core lifts (Screen) or darkens (Multiply) the
+    // backdrop toward the tint. The project renders in linear colour, so Screen lifts go a
+    // long way on dark skies. Ladder (2026-09-01, Kvartal 4 / Jungle): 0.025 soft-but-faded,
+    // 0.04 still "faded" next to Tricky Towers, whose beam measures ~0.15 linear; with the
+    // saturated tint + feathered edges 0.09 is a soft glow, 0.14 matches the reference's
+    // prominence, 0.11 is Nick's pick. Multiply needs more to register (0.19-0.29 both a
+    // clear blue column on Frozen Peaks snow). Chapters may override via PlacementBeamStrength.
+    private const float PlacementBeamScreenStrength = 0.11f;
+    private const float PlacementBeamMultiplyStrength = 0.25f;
+    // The default tint is the chapter accent pulled slightly toward white. Keep it mostly
+    // saturated: the glow read comes from a coloured lift, a whitened one just looks faded.
+    private const float PlacementBeamTintWhiteBlend = 0.15f;
+
+    private static readonly Material[] _placementBeamMaterials = new Material[2];
+
+    private static Material PlacementBeamMaterial(PlacementBeamBlend blend)
+    {
+        int index = blend == PlacementBeamBlend.Multiply ? 1 : 0;
+        if (_placementBeamMaterials[index] != null) return _placementBeamMaterials[index];
+        Shader shader = Resources.Load<Shader>("PlacementBeam");
+        if (shader == null) return null;
+        var material = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
+        bool multiply = index == 1;
+        material.SetFloat("_Mode", multiply ? 1f : 0f);
+        material.SetFloat("_SrcBlend", (float)(multiply
+            ? UnityEngine.Rendering.BlendMode.DstColor
+            : UnityEngine.Rendering.BlendMode.OneMinusDstColor));
+        material.SetFloat("_DstBlend", (float)(multiply
+            ? UnityEngine.Rendering.BlendMode.Zero
+            : UnityEngine.Rendering.BlendMode.One));
+        return _placementBeamMaterials[index] = material;
+    }
+
+    private static PlacementBeamBlend PlacementBeamBlendMode()
+    {
+        ChapterDefinition chapter = ChapterSkins.ActiveChapter;
+        return chapter != null ? chapter.PlacementBeamBlend : PlacementBeamBlend.Screen;
+    }
+
+    private static Color PlacementBeamTint(PlacementBeamBlend blend)
+    {
+        ChapterDefinition chapter = ChapterSkins.ActiveChapter;
+        Color tint;
+        if (chapter != null && chapter.HasPlacementBeamColor)
+        {
+            tint = chapter.PlacementBeamColor;
+        }
+        else
+        {
+            Color accent = chapter != null ? chapter.MenuAccentColor : Color.white;
+            tint = Color.Lerp(accent, Color.white, PlacementBeamTintWhiteBlend);
+        }
+
+        float strength = chapter != null && chapter.PlacementBeamStrength > 0f
+            ? chapter.PlacementBeamStrength
+            : (blend == PlacementBeamBlend.Multiply ? PlacementBeamMultiplyStrength : PlacementBeamScreenStrength);
+        tint.a = strength;
+        return tint;
+    }
 
     private void CreatePlacementBeam()
     {
@@ -22,7 +84,11 @@ public partial class BlockController
         GameObject beam = new GameObject($"{name}_PlacementBeam");
         _placementBeamRenderer = beam.AddComponent<SpriteRenderer>();
         _placementBeamRenderer.sprite = RuntimeSprites.PlacementBeam();
-        _placementBeamRenderer.drawMode = SpriteDrawMode.Sliced;
+        _placementBeamRenderer.drawMode = SpriteDrawMode.Sliced; // border = feathered edges at fixed world width
+        PlacementBeamBlend blend = PlacementBeamBlendMode();
+        Material material = PlacementBeamMaterial(blend);
+        if (material != null) _placementBeamRenderer.sharedMaterial = material;
+        _placementBeamRenderer.color = PlacementBeamTint(blend);
         _placementBeamRenderer.sortingLayerID = sourceRenderer.sortingLayerID;
         _placementBeamRenderer.sortingOrder = PlacementBeamSortingOrder;
         _placementBeamRenderer.enabled = false;
