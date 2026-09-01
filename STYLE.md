@@ -31,8 +31,11 @@ here changes, change it in every generator (and the C# constant it mirrors).
   outline colour `lerp(tint, luma, 0.30) * 0.22`.)
 - Ground terrain: the cap band bakes a near-black top outline (the landable
   line), and exposed column sides get near-black silhouette strips at
-  runtime. Edges stay crisp and axis-aligned; the invariant is "darker shade
-  of itself", not the exact strength.
+  runtime — **one weight everywhere: 8 px at 128 px/unit (0.0625 u), fully
+  opaque**, matching the blocks' 17 px / 256. Edges stay crisp and
+  axis-aligned; the invariant is "darker shade of itself", not the exact
+  strength. Never mix widths or alphas on the floor: three line weights read
+  as old-school pixel art (2026-09-01).
 
 **Lighting (the light always comes from straight above)**
 - Vertical gradient on every body: **1.13× at the top edge falling to 0.77×
@@ -69,7 +72,7 @@ here changes, change it in every generator (and the C# constant it mirrors).
 - Background −100 · hills/scenery −86…−83 · placement beam −60 · loss lasers −57…−51
   (Sacrifice/Hardline warning lines: behind the ground and blocks, in front of the
   backdrop) · ground fill −50 ·
-  ground shade −49 · caps/outlines −48 · ground fade −45 · back fog −44/−43 ·
+  ground mottle −49 · ground atmosphere −48 · caps/outlines −47 · ground fade −45 · back fog −44/−43 ·
   blocks 0 · front fog 44/45 (pieces falling into gaps sink INTO it). Pockets are
   REAL holes in the fill geometry (backdrop shows through), outlined only on
   their solid edges.

@@ -12,10 +12,12 @@ using UnityEngine;
 /// snag a top corner. Landing, casts, reach bounds and the camera are already collider-generic, so
 /// the runs need no further registration. All visuals are collider-free children (cosmetic only).
 ///
-/// Visual stack per run (sorting orders, STYLE.md): tiled masonry fill (ground_fill, -50), a depth
-/// shade ramp (-49), the walkable cap band (ground_cap, -48) and near-black silhouette outline
-/// strips on exposed sides (-48). Terrain-wide: a fade-to-fog ramp (-46), a back fog band + wisps
-/// (-45/-44) and a FRONT fog band + wisps (44/45) that swallow pieces falling into pillar gaps.
+/// Visual stack per run (sorting orders, STYLE.md): tiled masonry fill (ground_fill, -50, cast in
+/// the chapter's ambient hue), a haze-coloured weathering mottle (-49), an atmosphere gradient
+/// (sky light under the cap, haze toward the base, -48), the walkable cap band (ground_cap) and
+/// near-black silhouette outline strips on exposed sides (both -47). Terrain-wide: a fade-to-fog
+/// ramp (-45), a back fog band + wisps (-44/-43) and a FRONT fog band + wisps (44/45) that swallow
+/// pieces falling into pillar gaps.
 /// Wisps drift on scaled time, so a pause freezes them.
 ///
 /// The floor DATUM (height 0) is the lowest landable surface; column heights are always >= 0, so
@@ -24,8 +26,9 @@ using UnityEngine;
 public sealed class FloorTerrain : MonoBehaviour
 {
     private const int SortFill = -50;
-    private const int SortShade = -49;
-    private const int SortDetail = -48;
+    private const int SortMottle = -49;
+    private const int SortShade = -48;
+    private const int SortDetail = -47;
     private const int SortFade = -45;
     private const int SortBackFog = -44;
     private const int SortBackWisp = -43;
@@ -36,7 +39,11 @@ public sealed class FloorTerrain : MonoBehaviour
     // by whole tiles). Deep enough to cover the widest zoom-out; the fog hides the cut-off.
     private const float GroundVisualDepth = 8f;
     private const float ColliderDepth = 24f;
-    private const float OutlineWidth = 0.09f;
+    // ONE contour weight for the whole floor silhouette: the same 8 px (of 128 px/unit) the
+    // cap bakes for its top line, and within a hair of the blocks' 17 px / 256 outline, so a
+    // side strip meeting a run top meets it at equal thickness (unified 2026-09-01 - the old
+    // 0.09 strips next to a 6 px cap line read as three line weights, "old-school").
+    private const float OutlineWidth = 8f / 128f;
     private const float CapHeight = 0.5f;
 
     // Pocket-entry leniency, copied from the support islands (PHYSICS.md I4/section 3): the boxes
@@ -59,7 +66,36 @@ public sealed class FloorTerrain : MonoBehaviour
     // MinimumCameraY (0 = the datum) minus MaximumCameraSize (24), with margin.
     private const float FogSolidDepth = 40f;
 
-    private static readonly Color OutlineColor = new Color(0.03f, 0.028f, 0.035f, 0.92f);
+    // ---- atmosphere (2026-09-01): the generated masonry is flat and evenly lit while the bought
+    // backdrops are painted with haze and a unified palette - so the floor gets the same air.
+    // Everything derives from the chapter's resolved fog colour (explicit or hill-derived), zero
+    // authoring: an ambient hue cast on fill + cap, a large soft mottle in the haze colour over
+    // the masonry, and one gradient per run (sky-light lift under the cap, haze sinking toward
+    // the fog) replacing the old flat black depth shade.
+    private const float AmbientTintStrength = 0.35f;   // 0 = raw tile colours, 1 = fully the fog hue
+    private const float MottleAlpha = 0.22f;
+    private const float WashAlpha = 0.18f;            // uniform fog-colour grade over the whole run
+    private const float HazeBottomAlpha = 0.55f;
+    private const float SkyLightAlpha = 0.16f;
+    private const float SkyLightFraction = 0.22f;     // top share of each run the sky light covers
+
+    // Dark scenes (Neon, Crimson: fog luma below ~0.2) must not get darker still: over this
+    // luma window the haze stops pulling toward black and the sky-light lift grows. (A pale
+    // rim contour was tried for them and rejected - "coloured outline, old-school"; dark
+    // floors are lifted in their TEXTURES instead, see generate_ground_sprite.py.)
+    private const float DarkSceneLumaHigh = 0.32f;    // darkness 0 at/above this fog luma
+    private const float DarkSceneLumaLow = 0.12f;     // darkness 1 at/below this fog luma
+    private const float DarkSceneSkyLightBoost = 1.6f; // sky-light alpha multiplier at darkness 1
+
+    private Color _fogColor;
+    private Color _ambientTint;
+    private Color _mottleColor;
+    private float _darkness;
+    private Sprite _atmosphereRamp;                    // per-build gradient (chapter colours baked)
+
+    // Fully opaque (at 0.92 the masonry seams showed through and read as a half-transparent
+    // line). One colour for every chapter: a rim tinted per scene was rejected.
+    private static readonly Color OutlineColor = new Color(0.03f, 0.028f, 0.035f, 1f);
     private static readonly Color FillFallbackColor = new Color(0.30f, 0.27f, 0.24f);
 
     private readonly List<Transform> _wisps = new List<Transform>();
@@ -107,6 +143,7 @@ public sealed class FloorTerrain : MonoBehaviour
 
         Sprite fill = ChapterSkins.LoadGroundFill();
         Sprite cap = ChapterSkins.LoadGroundCap();
+        BuildAtmosphere(fogColor);
 
         for (int s = 0; s < segments.Count; s++)
         {
@@ -265,12 +302,29 @@ public sealed class FloorTerrain : MonoBehaviour
                 stripStart = c + 1;
             }
 
-            // Depth shade: darker toward the base so the column reads massive. One quad per run -
-            // its faint tint over a hole reads as depth haze, not paint.
-            SpriteRenderer shade = CreateChild("GroundShade", new Vector3(centerX, topY - fillHeight * 0.5f, 0f), SortShade);
-            shade.sprite = RuntimeSprites.AlphaRamp();
-            shade.color = new Color(0f, 0f, 0f, 0.38f);
+            // Weathering mottle: large soft patches (3 u tile) in the haze colour, tiled over the
+            // run so the masonry's perfect repetition breaks up. Tiling is per run, so the pattern
+            // can jump at a run boundary - that boundary always carries a side outline strip on
+            // top, and the noise is soft enough that nothing reads as a seam.
+            SpriteRenderer mottle = CreateChild("GroundMottle", new Vector3(centerX, topY - fillHeight * 0.5f, 0f), SortMottle);
+            mottle.sprite = RuntimeSprites.GroundMottle();
+            mottle.drawMode = SpriteDrawMode.Tiled;
+            mottle.size = new Vector2(width, fillHeight);
+            mottle.color = _mottleColor;
+            // Clip out of pocket holes - but ONLY when this segment has holes (and so masks):
+            // a mask-interacting sprite with no SpriteMask in the scene rendered untinted in
+            // URP (white noise glow over every hole-less floor, 2026-09-02).
+            if (pocketSpans.Count > 0) mottle.maskInteraction = SpriteMaskInteraction.VisibleOutsideMask;
+
+            // Atmosphere gradient: sky light lifting the top of the run under its cap, haze in the
+            // fog colour sinking toward the base (aerial perspective) so the column reads massive
+            // AND belongs to the backdrop's air. One quad per run - its faint tint over a hole
+            // reads as depth haze, not paint.
+            SpriteRenderer shade = CreateChild("GroundAtmosphere", new Vector3(centerX, topY - fillHeight * 0.5f, 0f), SortShade);
+            shade.sprite = _atmosphereRamp != null ? _atmosphereRamp : RuntimeSprites.AlphaRamp();
+            shade.color = _atmosphereRamp != null ? Color.white : new Color(0f, 0f, 0f, 0.38f);
             ScaleToRect(shade, width, fillHeight);
+            if (pocketSpans.Count > 0) shade.maskInteraction = SpriteMaskInteraction.VisibleOutsideMask;
 
             // Walkable cap band, skipping columns whose pocket notches the surface (depth 1).
             if (cap != null)
@@ -327,6 +381,9 @@ public sealed class FloorTerrain : MonoBehaviour
                     // open-bottomed shaft (floating fragments carve past the datum into void)
                 if (solidLeft) CreateOutlineRect(colLeft - w, colLeft, top, bottom);
                 if (solidRight) CreateOutlineRect(colLeft + grid, colLeft + grid + w, top, bottom);
+                // The run-spanning mottle + atmosphere quads would otherwise paint a faint
+                // washed square over the hole (Nick, Kvartal notches 2026-09-02): mask them out.
+                CreateHoleMask(colLeft, colLeft + grid, top, bottom);
             }
         }
 
@@ -380,6 +437,7 @@ public sealed class FloorTerrain : MonoBehaviour
             sr.sprite = fill;
             sr.drawMode = SpriteDrawMode.Tiled;
             sr.size = new Vector2(width, height);
+            sr.color = _ambientTint;
         }
         else
         {
@@ -399,6 +457,69 @@ public sealed class FloorTerrain : MonoBehaviour
         sr.sprite = cap;
         sr.drawMode = SpriteDrawMode.Tiled;
         sr.size = new Vector2(width, CapHeight);
+        sr.color = _ambientTint;
+    }
+
+    // ---- atmosphere ------------------------------------------------------------------------
+
+    private void BuildAtmosphere(Color fogColor)
+    {
+        _fogColor = new Color(fogColor.r, fogColor.g, fogColor.b, 1f);
+
+        // Ambient cast: the fog's HUE at full brightness (so it colours the masonry without
+        // darkening it), blended toward white by the strength. Neutral fogs leave tiles alone.
+        float peak = Mathf.Max(0.01f, Mathf.Max(_fogColor.r, Mathf.Max(_fogColor.g, _fogColor.b)));
+        Color hue = new Color(_fogColor.r / peak, _fogColor.g / peak, _fogColor.b / peak, 1f);
+        _ambientTint = Color.Lerp(Color.white, hue, AmbientTintStrength);
+
+        Color mottle = Color.Lerp(_fogColor, Color.black, 0.4f);
+        _mottleColor = new Color(mottle.r, mottle.g, mottle.b, MottleAlpha);
+
+        // Scene darkness from the fog's luma (drives the haze/sky-light adjustments below).
+        float luma = 0.2126f * _fogColor.r + 0.7152f * _fogColor.g + 0.0722f * _fogColor.b;
+        _darkness = Mathf.Clamp01(Mathf.InverseLerp(DarkSceneLumaHigh, DarkSceneLumaLow, luma));
+
+        // One 1x256 gradient with the chapter's colours baked, three layers folded into one
+        // texel column: a uniform fog-colour WASH (the same "grade over everything" the bought
+        // backdrops end with, pulling the masonry's value and contrast toward the scene), haze
+        // (fog pulled toward black) rising from the base, and sky light (fog pulled toward white)
+        // over the top fraction. Colour = alpha-weighted mix of the three.
+        // In a dark scene the haze stops pulling toward black (the floor is dark enough) and
+        // the sky light gets stronger, so the run top still separates from the backdrop.
+        Color hazeDark = Color.Lerp(Color.Lerp(Color.black, _fogColor, 0.65f), _fogColor, _darkness);
+        Color skyLight = Color.Lerp(_fogColor, Color.white, 0.55f);
+        float skyLightAlpha = SkyLightAlpha * Mathf.Lerp(1f, DarkSceneSkyLightBoost, _darkness);
+        const int H = 256;
+        var tex = new Texture2D(1, H, TextureFormat.RGBA32, false)
+        {
+            wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, hideFlags = HideFlags.HideAndDontSave
+        };
+        for (int y = 0; y < H; y++)
+        {
+            float t = (float)y / (H - 1);                                   // 0 bottom -> 1 top
+            float hazeA = HazeBottomAlpha * Mathf.Pow(1f - t, 1.4f);
+            float sky = Mathf.Clamp01((t - (1f - SkyLightFraction)) / SkyLightFraction);
+            float skyA = skyLightAlpha * sky * sky;
+            float sum = Mathf.Max(0.0001f, WashAlpha + hazeA + skyA);
+            Color c = (_fogColor * WashAlpha + hazeDark * hazeA + skyLight * skyA) / sum;
+            c.a = Mathf.Clamp01(sum);
+            tex.SetPixel(0, y, c);
+        }
+        tex.Apply();
+        _atmosphereRamp = Sprite.Create(tex, new Rect(0, 0, 1, H), new Vector2(0.5f, 0.5f), 16f, 0,
+            SpriteMeshType.FullRect);
+        _atmosphereRamp.hideFlags = HideFlags.HideAndDontSave;
+    }
+
+    private void OnDestroy()
+    {
+        if (_atmosphereRamp != null)
+        {
+            Texture2D tex = _atmosphereRamp.texture;
+            Destroy(_atmosphereRamp);
+            if (tex != null) Destroy(tex);
+            _atmosphereRamp = null;
+        }
     }
 
     /// <summary>Is this column carved hollow anywhere over the given vertical span?
@@ -412,6 +533,26 @@ public sealed class FloorTerrain : MonoBehaviour
             if (list[i].top > bottom + 0.01f && list[i].bottom < top - 0.01f) return true;
         }
         return false;
+    }
+
+    /// <summary>A SpriteMask over a pocket hole that hides ONLY the mottle/atmosphere orders
+    /// (custom range), so the backdrop shows through the hole untinted while fill, cap,
+    /// outlines and blocks are untouched.</summary>
+    private void CreateHoleMask(float left, float right, float topY, float bottomY)
+    {
+        float width = right - left;
+        float height = topY - bottomY;
+        if (width <= 0.005f || height <= 0.005f) return;
+
+        var go = new GameObject("GroundHoleMask");
+        go.transform.SetParent(transform, false);
+        go.transform.position = new Vector3((left + right) * 0.5f, (topY + bottomY) * 0.5f, 0f);
+        go.transform.localScale = new Vector3(width, height, 1f);
+        var mask = go.AddComponent<SpriteMask>();
+        mask.sprite = RuntimeSprites.Square();
+        mask.isCustomRangeActive = true;
+        mask.frontSortingOrder = SortShade;
+        mask.backSortingOrder = SortMottle;
     }
 
     private void CreateOutlineRect(float left, float right, float topY, float bottomY)

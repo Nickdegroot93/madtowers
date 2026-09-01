@@ -119,7 +119,8 @@ render_ground_cap("<Theme>", (r, g, b),                   # cap band colour
   | `render_ground_fill_basalt` | dark running-bond basalt panels, a few bedding joints glowing molten (guaranteed ≥ 1 per tile), ember specks | Volcano |
 
 - `ground_cap.png` — 256×64 = **2×0.5 u, horizontally seamless**. Baked near-black top
-  outline (THE landable line), top-lit band, scalloped shadowed lower edge, flecks.
+  outline (THE landable line; 8 px = the same 0.0625 u as the runtime side strips - one
+  contour weight, see STYLE.md), top-lit band, scalloped shadowed lower edge, flecks.
 - Rerun `python3 Tools/generate_ground_sprite.py`. Import settings auto-apply to any
   `ground_*` file under `Assets/Resources/Skins/<Theme>/`. A theme without its own set
   falls back to Classic. **New chapter look = two lines + rerun.** All styles work with
@@ -136,8 +137,13 @@ render_ground_cap("<Theme>", (r, g, b),                   # cap band colour
    writing the same file name/size — keeps the "everything is regenerable" property. Never
    fork the pipeline; add a function + preset parameters.
 
-Runtime dressing (free, per shape): depth-shade ramp, near-black silhouette outlines on
-exposed sides (split around pocket openings), the fade into fog. Sorting orders in STYLE.md.
+Runtime dressing (free, per shape): the **atmosphere pass** (2026-09-01 - everything derived
+from the chapter's resolved fog colour, no authoring): an ambient hue cast on fill + cap, a
+seamless 3 u weathering mottle in the haze colour, and one gradient per run (sky light under
+the cap, fog haze toward the base) that replaced the flat black depth shade; near-black
+silhouette outlines on exposed sides (split around pocket openings); the fade into fog.
+Dials are the `Ambient*/Mottle*/Haze*/SkyLight*` constants in `FloorTerrain.cs`. Sorting
+orders in STYLE.md.
 
 ---
 

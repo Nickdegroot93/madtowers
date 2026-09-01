@@ -502,7 +502,10 @@ def render_ground_cap(theme, cap, fleck=None, fleck_chance=0.0):
     top-lit band in the cap colour, and a scalloped lower edge (period 32 px, jittered per
     scallop) that hangs over the masonry with a shadow lip - grass/moss/sand per theme.
     Optional flecks (petals, grains) scatter inside the band."""
-    W, H, OUTLINE = 256, 64, 6
+    # OUTLINE = 8 px = 0.0625 u: the one contour weight shared with FloorTerrain's runtime
+    # side strips (OutlineWidth = 8/128) and close to the blocks' 17 px / 256 - unified
+    # 2026-09-01, the old 6 px line met 0.09 u strips at visibly different thicknesses.
+    W, H, OUTLINE = 256, 64, 8
     px = bytearray(W * H * 4)
     outline_col = tuple(c * 0.22 for c in cap)
     sd = _seed(theme)
@@ -600,8 +603,10 @@ if __name__ == "__main__":
     # cap, dark enough to belong to the night district without vanishing into it.
     render_plateau("Kvartal", (96, 104, 98), line=(44, 48, 45),
                    blocks=2, bevel=0.10, tone_steps=(1.0, 0.94), top=(88, 108, 72), top_h=22)
-    render_islands("Kvartal", (96, 104, 98), line=(44, 48, 45))
-    render_ground_fill_panels("Kvartal", (100, 106, 100), stain_strength=0.18)
+    # Fill/islands warmed 2026-09-02 (Nick): grey-green read as a stranger to the khaki
+    # sodium-lit suburb behind it - now weathered yellowish prefab concrete.
+    render_islands("Kvartal", (128, 118, 90), line=(56, 50, 38))
+    render_ground_fill_panels("Kvartal", (134, 122, 92), stain_strength=0.18)
     render_ground_cap("Kvartal", (92, 114, 76), fleck=(130, 148, 108), fleck_chance=0.008)
     remove_legacy("Kvartal")
 
@@ -671,16 +676,18 @@ if __name__ == "__main__":
 
     # Neon Nightfall: wet night promenade - large dark violet tiles catching cyan/pink
     # reflections from the glowing city, fairy-light glints along the walkable cap.
-    render_plateau("Neon", (54, 48, 76), line=(24, 20, 38), blocks=1)
-    render_islands("Neon", (54, 48, 76), line=(24, 20, 38))
-    render_ground_fill_wetpave("Neon", (44, 38, 62))
+    # Lifted 2026-09-02 (Nick): the near-black pavement vanished against the night backdrop.
+    render_plateau("Neon", (84, 76, 112), line=(30, 26, 46), blocks=1)
+    render_islands("Neon", (84, 76, 112), line=(30, 26, 46))
+    render_ground_fill_wetpave("Neon", (74, 66, 100))
     render_ground_cap("Neon", (58, 52, 82), fleck=(120, 230, 250), fleck_chance=0.014)
     remove_legacy("Neon")
 
     # Crimson Core: rain-dark boulevard under the red sun - near-black warm tiles
     # catching crimson and pale-rose sign reflections, ember glints along the cap.
-    render_plateau("Crimson", (56, 40, 44), line=(24, 14, 16), blocks=1)
-    render_islands("Crimson", (56, 40, 44), line=(24, 14, 16))
-    render_ground_fill_wetpave("Crimson", (40, 28, 32), glows=((240, 90, 90), (235, 205, 210)))
+    # Lifted 2026-09-02 (Nick): near-black tiles on a near-black city were invisible.
+    render_plateau("Crimson", (92, 66, 72), line=(34, 20, 24), blocks=1)
+    render_islands("Crimson", (92, 66, 72), line=(34, 20, 24))
+    render_ground_fill_wetpave("Crimson", (78, 56, 62), glows=((240, 90, 90), (235, 205, 210)))
     render_ground_cap("Crimson", (62, 44, 50), fleck=(245, 120, 110), fleck_chance=0.014)
     remove_legacy("Crimson")
