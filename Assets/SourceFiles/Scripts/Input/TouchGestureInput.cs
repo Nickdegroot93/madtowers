@@ -27,6 +27,10 @@ public class TouchGestureInput : MonoBehaviour
     private const float TapMaxDuration = 0.25f;        // seconds
     private const float TapMaxMoveInches = 0.07f;      // movement budget before a touch becomes a drag
     private const float DropEngageInches = 0.30f;      // downward pull needed to engage held fast drop
+    // Extra horizontal travel (in columns) before the FIRST sidestep fires. With plain rounding
+    // the first step landed at 0.5 columns, so a slightly slanted down-swipe kicked the brick
+    // sideways. 0.25 puts the ladder at 0.75 / 1.75 / 2.75 columns: a firmer start, then 1:1.
+    private const float FirstStepDeadZoneColumns = 0.25f;
     private const float FlickMaxDuration = 0.28f;      // a quick short downward swipe ...
     private const float FlickMinInches = 0.18f;        // ... at least this far down ...
     private const float FlickDominance = 1.5f;         // ... and clearly vertical = latched auto-drop
@@ -257,9 +261,10 @@ public class TouchGestureInput : MonoBehaviour
 
         if (!state.OwnsDrag || active == null) return;
 
-        // Position-based column stepping: pointer offset maps 1:1 to grid columns.
+        // Position-based column stepping: pointer offset maps 1:1 to grid columns, after a
+        // dead zone that the finger has to clear before the first step (see the constant).
         float columnPixels = ColumnWidthPixels(active);
-        int desiredSteps = Mathf.RoundToInt(delta.x / columnPixels);
+        int desiredSteps = DesiredSteps(delta.x, columnPixels);
         bool steppedThisFrame = state.StepsApplied != desiredSteps;
         while (state.StepsApplied < desiredSteps)
         {
@@ -344,6 +349,16 @@ public class TouchGestureInput : MonoBehaviour
             if (_touches[id].OwnsDrag) _dragOwnerId = -2;
             _touches.Remove(id);
         }
+    }
+
+    // Step ladder with a start dead zone: 0 steps until |dx| clears (0.5 + dead zone) columns,
+    // then one more step per further column. Symmetric, and returning toward the start walks
+    // the same ladder back down, so a drag can undo its own steps.
+    private static int DesiredSteps(float dx, float columnPixels)
+    {
+        float columns = Mathf.Abs(dx) / columnPixels - FirstStepDeadZoneColumns;
+        int steps = Mathf.Max(0, Mathf.RoundToInt(columns));
+        return dx < 0f ? -steps : steps;
     }
 
     private float ColumnWidthPixels(BlockController active)

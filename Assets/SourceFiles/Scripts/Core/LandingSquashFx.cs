@@ -37,6 +37,10 @@ public sealed class LandingSquashFx : MonoBehaviour
         Transform skin = block != null ? block.PieceSkinTransform : null;
         if (skin == null) return;
 
+        // Touchdown owns the skin: a nudge lunge still settling hands the pose back first,
+        // otherwise the two would fight over localPosition every frame.
+        NudgeLungeFx.Cancel(skin);
+
         LandingSquashFx fx = skin.GetComponent<LandingSquashFx>();
         if (fx == null)
         {

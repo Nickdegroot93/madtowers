@@ -94,6 +94,7 @@ public partial class BlockController
         {
             case ColumnStepResult.Moved:
                 if (TryGetWorldBounds(out Bounds bounds)) DashWindFx.Spawn(bounds, attempted);
+                NudgeLungeFx.Play(this, attempted); // skin-only tilt + lag + ghost smear
                 SfxPlayer.Play("nudge", 0.6f, 0.05f);
                 break;
 

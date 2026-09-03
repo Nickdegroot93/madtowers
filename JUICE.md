@@ -44,6 +44,13 @@ in `LandingFx.Play`, never per leaf FX.
 - `Haptics` transient (Android VibrationEffect; iOS no-op until Nice Vibrations import),
   gated by `SettingsService.HapticsEnabled`.
 
+Nudge body language (2026-09-04, `Core/NudgeLungeFx`): a successful corner-tap dash tilts the
+PieceSkin ~8° leading-edge-down, lags it a beat behind the column the body already jumped to
+(elastic catch-up with ~10% overshoot) and smears 3 fading ghost copies along the jump. Skin
+only - the body still moves the exact grid column in one physics step, so the animation can
+never change where the piece lands. A landing squash cancels a running lunge (touchdown owns
+the skin). Wind streaks (`DashWindFx`) and the `nudge` swoosh are unchanged.
+
 ## 3. The coin economy (shipped)
 
 ### Earning — the complete table (`CoinLedger` constants)
@@ -135,8 +142,9 @@ lesson in `Tools/generate_elevenlabs_sfx.py`). Don't add chimes/pitch-up arpeggi
 
 ## 5. Open items
 
-- ElevenLabs layered landing clips (`land_body/transient/tail` in
-  `Tools/generate_elevenlabs_sfx.py`) — blocked on `ELEVENLABS_API_KEY`.
+- Landing clips: the ElevenLabs `land_body/transient/tail` set WAS generated 2026-09-04 and
+  rejected outright by Nick (as were pack/ElevenLabs coin clinks) - files deleted, nothing wired.
+  Next attempt should be RECORDED foley (Sonniss GDC / freesound CC0), not generated.
 - Nice Vibrations (open-source) import for iOS haptics.
 - End-of-run coin tally + the store that gives coins meaning (goal-gradient display).
 - Haptics settings-screen toggle (service key exists: `SettingsService.HapticsEnabled`).
