@@ -62,7 +62,7 @@ public partial class BlockController : MonoBehaviour
     [SerializeField] private int horizontalPlacementBufferColumns = 3;
 
     [Header("Physics Material")]
-    [Tooltip("Surface friction applied when the block variant has no PhysicsMaterial2D assigned. Higher grips more so tall dynamic towers shear less.")]
+    [Tooltip("Surface friction applied when the block variant has no PhysicsMaterial2D assigned. Higher grips more so Dynamic blocks do not feel like ice.")]
     [Range(0f, 1f)]
     [SerializeField] private float defaultBlockFriction = 0.95f;
     [Tooltip("Surface bounciness applied when no PhysicsMaterial2D is assigned. Keep at 0 for stable stacking.")]
@@ -119,18 +119,10 @@ public partial class BlockController : MonoBehaviour
     [SerializeField] private float settleLinearThreshold = 0.08f;
     [Tooltip("...and its spin (degrees/sec) drops below this.")]
     [SerializeField] private float settleAngularThreshold = 8f;
-    [Tooltip("How long a landed piece must stay settled before maintenance micro-aligns/sleeps it.")]
+    [Tooltip("How long a freely Dynamic landed piece must stay settled before maintenance sleeps it. Grid-stable pieces do not use this.")]
     [SerializeField] private float settleTime = 0.35f;
-    [Tooltip("Sleep a settled dynamic block when control finishes. This prevents tiny post-settle drift without freezing the body; future contacts can wake it again.")]
+    [Tooltip("Sleep rejected or released Dynamic wreckage after it settles. Grid-stable pieces are already exact and motionless.")]
     [SerializeField] private bool sleepSettledBlocksOnLock = true;
-    [Tooltip("After a block genuinely settles, correct tiny X/rotation drift back to the placement grid. Large offsets or visibly tilted blocks are left to physics.")]
-    [SerializeField] private bool microAlignSettledBlocks = true;
-    [Tooltip("Maximum X correction allowed for settled micro-alignment, as a fraction of one grid cell.")]
-    [Range(0f, 0.25f)]
-    [SerializeField] private float microAlignMaxColumnFraction = 0.08f;
-    [Tooltip("Maximum rotation correction allowed for settled micro-alignment, in degrees.")]
-    [Range(0f, 15f)]
-    [SerializeField] private float microAlignMaxRotationDegrees = 4f;
     [Tooltip("Safety cap: force the piece to lock after this many seconds even if it never finds a normal landing.")]
     [SerializeField] private float maxControlTime = 12f;
     [Tooltip("Velocity damping applied each FixedUpdate while a landed block is below the settle thresholds but still awake.")]
@@ -148,12 +140,6 @@ public partial class BlockController : MonoBehaviour
     [SerializeField] private float stillnessRotationToleranceDegrees = 0.5f;
     [Tooltip("How long a block must stay within the stillness tolerances before it is force-slept.")]
     [SerializeField] private float stillnessTime = 0.75f;
-    [Tooltip("How strongly quiet landed blocks are eased back toward their grid X while still awake.")]
-    [Range(0f, 1f)]
-    [SerializeField] private float quietGridPullFactor = 0.15f;
-    [Tooltip("Maximum corrective speed toward the grid in cells/sec. Must stay well below the settle threshold so the correction itself can never keep a block awake.")]
-    [Range(0f, 0.05f)]
-    [SerializeField] private float quietGridPullMaxSpeedFraction = 0.02f;
 
     private static PhysicsMaterial2D _sharedFallbackMaterial;
     private static float _sharedFallbackBaseFriction = 0.95f;
@@ -169,9 +155,6 @@ public partial class BlockController : MonoBehaviour
     // correctness floor tied to block geometry, NOT the designer's aesthetic placement buffer -
     // consumed by the placement bounds, the camera zoom, and the island spawn confinement.
     public const int WidestBlockColumns = 4;
-    // The quiet grid pull only runs on blocks that seated flat. Nudging a tilted block sideways
-    // engages/releases its lean contact each frame, which can feed a rocking limit cycle.
-    private const float QuietPullMaxTiltDegrees = 1f;
     private const float LandedGravityScale = 1f;
     private const int CastResultCapacity = 32;
 
@@ -187,8 +170,8 @@ public partial class BlockController : MonoBehaviour
     private bool _isFastDrop;
     // Fission: while true the controlled piece hovers (steering still works) and does not
     // advance downward or run the landing cast - the start of descent is deferred until the
-    // player commits a drop. The body stays kinematic and never-landed throughout, so I1/I5
-    // hold (first contact is merely postponed, never a transform write on a landed block).
+    // player commits a drop. The body stays kinematic and never-landed throughout, so the
+    // one-time landing ownership decision has merely been postponed.
     private bool _descentSuspended;
     private ContactFilter2D _contactFilter;
     private BlockData _appliedData;
@@ -237,10 +220,11 @@ public partial class BlockController : MonoBehaviour
     public bool IsFrozenInPlace => _rb != null && _rb.bodyType == RigidbodyType2D.Static;
     public static IReadOnlyList<BlockController> AllBlocks => TrackedBlocks;
 
-    /// <summary>A removed support changes contact topology even for sleeping bodies. Wake dynamic landed
-    /// blocks so the next physics step can let unsupported tower sections fall instead of hovering.</summary>
+    /// <summary>A removed support changes both discrete grid structure and dynamic contacts.
+    /// Release unsupported grid structures first, then wake any already-dynamic wreckage.</summary>
     public static void WakeDynamicLandedBlocks(BlockController except = null)
     {
+        RevalidateAllGridStructures(except);
         for (int i = 0; i < TrackedBlocks.Count; i++)
         {
             BlockController block = TrackedBlocks[i];
@@ -256,8 +240,12 @@ public partial class BlockController : MonoBehaviour
     /// that has already left the board. OnDestroy's own removal then becomes a no-op.</summary>
     public void DetachFromTracking()
     {
-        TrackedBlocks.Remove(this);
-        if (HasLanded) InvalidateReachGeometry(); // a landed block leaving the tower changes the reach bounds
+        bool wasTracked = TrackedBlocks.Remove(this);
+        if (wasTracked && HasLanded)
+        {
+            InvalidateReachGeometry();
+            RevalidateAllGridStructures(this);
+        }
     }
 
     public event System.Action<BlockController> OnBlockLocked;
@@ -391,7 +379,11 @@ public partial class BlockController : MonoBehaviour
     {
         if (ActiveControlled == this) ActiveControlled = null; // e.g. destroyed by the loss zone mid-fall
         bool wasTracked = TrackedBlocks.Remove(this);
-        if (wasTracked && HasLanded) InvalidateReachGeometry(); // a landed block destroyed changes the reach bounds
+        if (wasTracked && HasLanded)
+        {
+            InvalidateReachGeometry();
+            if (Application.isPlaying) RevalidateAllGridStructures(this);
+        }
         DestroyPlacementBeam();
         _inputs?.Dispose();
     }
@@ -422,9 +414,9 @@ public partial class BlockController : MonoBehaviour
 
     // "Falling" for the cull test. An unlocked piece can't be judged by velocity (steering
     // zeroes the kinematic body's velocity every step) - but an unlocked piece below the
-    // line is descending by definition. A landed block must be dynamic, awake and genuinely
-    // moving down: resting/sleeping/frozen tower blocks below the camera are the NORMAL
-    // state at altitude and must never count as lost.
+    // line is descending by definition. A landed block only counts when it is Dynamic, awake,
+    // and genuinely moving down: grid-stable/sleeping/frozen tower blocks below the camera are
+    // the NORMAL state at altitude and must never count as lost.
     private const float LostFallingSpeed = -1f;
 
     // Sticky "clearly falling away" marker for the camera: once a landed block free-falls

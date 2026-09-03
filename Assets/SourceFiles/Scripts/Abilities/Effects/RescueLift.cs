@@ -6,8 +6,8 @@ using UnityEngine;
 /// lost off the bottom (already removed from the board + accounting), neutralises it so it
 /// stops falling and can't touch the tower, then beams it up: a brief hover, a soft rising
 /// lift on a light beam, a dissolve into a per-cell magic burst, and gone. Purely cosmetic -
-/// the block is no longer a gameplay object, so moving its transform here is fine (PHYSICS.md
-/// I1 only protects LIVE landed blocks). Self-destroys when the lift finishes.
+/// the block is no longer a gameplay object, so moving its transform here cannot violate live
+/// tower ownership. Self-destroys when the lift finishes.
 /// </summary>
 public sealed class RescueLift : MonoBehaviour
 {

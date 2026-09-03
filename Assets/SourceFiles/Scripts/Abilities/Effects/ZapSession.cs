@@ -7,8 +7,8 @@ using UnityEngine.InputSystem;
 ///  1. Withholds bag pieces (<see cref="Spawner.SetAutoSpawnSuspended"/>) so the field holds still.
 ///  2. Summons a vertical <see cref="ZapBeam"/> the player AIMS left/right (drag the pointer, or arrow
 ///     keys) while it charges from wide-and-loose to a thin needle over <see cref="ChargeDuration"/>s.
-///  3. Each frame it casts straight down the aimed column and stops the beam on the FIRST dynamic
-///     landed block it reaches (or the floor if the column is empty).
+///  3. Each frame it casts straight down the aimed column and stops the beam on the FIRST
+///     destructible landed block it reaches (or the floor if the column is empty).
 ///  4. On full charge it detonates whatever block the beam is currently on (shared shatter path), or a
 ///     soft dud for an empty column, then resumes normal spawning.
 ///
@@ -174,10 +174,8 @@ public sealed class ZapSession : AbilitySessionBase
         {
             Collider2D col = _hits[i].collider;
             if (col == null) continue;
-            Rigidbody2D body = col.attachedRigidbody;
-            if (body == null || body.bodyType != RigidbodyType2D.Dynamic) continue;
             BlockController bc = col.GetComponentInParent<BlockController>();
-            if (bc == null || !bc.HasLanded) continue;
+            if (bc == null || !bc.HasLanded || bc.IsFrozenInPlace) continue;
             if (_hits[i].distance < bestDist)
             {
                 bestDist = _hits[i].distance;

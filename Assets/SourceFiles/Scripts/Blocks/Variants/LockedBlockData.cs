@@ -28,7 +28,7 @@ public class LockedBlockData : BlockData
         if (block != null && block.TryGetComponent(out LockedBlockSkin skin)) skin.PlayRefuse(direction);
     }
 
-    // On lock, the brick must stop flinching (no transform writes on a landed body, PHYSICS.md I1).
+    // On lock, the brick must stop flinching; landed body ownership must remain untouched.
     public override void OnLocked(BlockController block)
     {
         if (block != null && block.TryGetComponent(out LockedBlockSkin skin)) skin.OnLocked();

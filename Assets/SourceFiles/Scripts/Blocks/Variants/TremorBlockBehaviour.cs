@@ -11,8 +11,8 @@ using UnityEngine;
 ///   - falls off with distance from the brick (the epicenter), so it's worst right around the Tremor
 ///     and still felt across the tower,
 ///   - decays over the burst so it eases out instead of cutting off.
-/// Velocity-impulse only (ApplyJolt) - never positions (PHYSICS.md I1). Anchored/frozen (Static) blocks
-/// ignore it by body type. Added to the block on lock; self-destroys when the burst ends.
+/// ApplyJolt releases grid-stable structures before adding velocity; it never directly animates
+/// landed poses. Anchored/frozen (Static) blocks ignore it. Added on lock and self-destructs when done.
 /// </summary>
 public class TremorBlockBehaviour : MonoBehaviour
 {

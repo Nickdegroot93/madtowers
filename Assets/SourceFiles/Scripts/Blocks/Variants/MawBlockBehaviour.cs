@@ -47,9 +47,9 @@ public class MawBlockBehaviour : MonoBehaviour
         _filter = new ContactFilter2D { useTriggers = false, useLayerMask = false };
         _timer = FirstBiteDelay;
 
-        // Weld right here on lock: the body has just gone Dynamic at its exact landed pose (the lock path
-        // already SyncTransforms'd), so the joint forms before the first settling solve - a maw landing on
-        // a maw can't tilt before fusing. Same timing rationale as Vine's delay-0 weld.
+        // Weld right here on lock at the exact landed pose. Grid-stable bodies remain kinematic;
+        // the joint is already present if structural failure later releases them to Dynamic physics.
+        // Same timing rationale as Vine's delay-0 weld.
         WeldToMaws();
     }
 

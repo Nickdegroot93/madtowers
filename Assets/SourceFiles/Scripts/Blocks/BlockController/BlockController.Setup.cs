@@ -51,7 +51,7 @@ public partial class BlockController
     }
 
     // The skin child is the ONLY safe squash-and-stretch target: it has no collider, so
-    // scaling it is purely visual (PHYSICS.md I1 - never touch a landed body's transform).
+    // scaling it is purely visual and cannot violate the body's grid/physics ownership.
     private Transform _pieceSkinTransform;
     public Transform PieceSkinTransform => _pieceSkinTransform;
 
@@ -166,8 +166,7 @@ public partial class BlockController
     }
 
     // Returns the variant's own PhysicsMaterial2D if one is assigned; otherwise a single
-    // shared fallback material so blocks always have real friction (a null material would
-    // leave them on engine defaults and make tall towers slide apart).
+    // shared fallback material so freely Dynamic pieces retain the game's normal grip.
     private PhysicsMaterial2D ResolveBlockMaterial(PhysicsMaterial2D explicitMaterial)
     {
         if (explicitMaterial != null) return explicitMaterial;
@@ -210,9 +209,6 @@ public partial class BlockController
         settleAngularThreshold = config.SettleAngularThreshold;
         settleTime = config.SettleTime;
         sleepSettledBlocksOnLock = config.SleepSettledBlocksOnLock;
-        microAlignSettledBlocks = config.MicroAlignSettledBlocks;
-        microAlignMaxColumnFraction = config.MicroAlignMaxColumnFraction;
-        microAlignMaxRotationDegrees = config.MicroAlignMaxRotationDegrees;
         maxControlTime = config.MaxControlTime;
 
         _floorSegments = config.FloorSegments;

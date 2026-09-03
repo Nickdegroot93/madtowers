@@ -12,7 +12,7 @@ public static class BlockQuery
     private static readonly ContactFilter2D SolidFilter = new ContactFilter2D { useTriggers = false };
 
     /// <summary>
-    /// The nearest DYNAMIC, landed block directly beneath <paramref name="from"/>
+    /// The nearest non-frozen landed block directly beneath <paramref name="from"/>
     /// (a downward box-cast of its own footprint). Static colliders - the floor and
     /// support islands - and frozen blocks (Static bodies) are excluded, so a caller
     /// can treat "null" as "nothing destructible under me". Returns null if
@@ -33,11 +33,8 @@ public static class BlockQuery
             RaycastHit2D hit = Hits[i];
             if (hit.collider == null) continue;
 
-            Rigidbody2D body = hit.collider.attachedRigidbody;
-            if (body == null || body.bodyType != RigidbodyType2D.Dynamic) continue;
-
             BlockController block = hit.collider.GetComponentInParent<BlockController>();
-            if (block == null || block == from || !block.HasLanded) continue;
+            if (block == null || block == from || !block.HasLanded || block.IsFrozenInPlace) continue;
 
             if (hit.distance < bestDistance)
             {

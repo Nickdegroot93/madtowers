@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// The devour: a landed block touched a Void Zone and is dragged into its eye. Uses the legal
-/// doomed-block recipe (PHYSICS.md I1, full HardlinePlatformFx parity): the body goes
+/// doomed-block recipe (full HardlinePlatformFx parity): the body goes
 /// KINEMATIC first - velocities zeroed, gravity off, constraints cleared, reach geometry
 /// invalidated - its COLLIDERS are disabled (support drops the moment the void grabs it, and
 /// the spiralling husk must not plow through the tower on its way to the eye) and every weld

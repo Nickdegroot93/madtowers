@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
 
-// Kinematic descent (I5): grid-authored X/rotation with cast-driven Y, the static-pocket
+// Kinematic pre-landing descent: grid-authored X/rotation with cast-driven Y, the static-pocket
 // vertical tuck, camera clamping, and the snap/position/rotation primitives that write them.
 public partial class BlockController
 {

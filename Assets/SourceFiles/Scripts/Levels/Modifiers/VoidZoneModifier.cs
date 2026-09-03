@@ -5,7 +5,7 @@ using UnityEngine;
 /// "Void Zones" level type: forbidden rectangles torn into the sky. They spawn ahead of the
 /// tower peak like sky islands (you always see them coming), the FALLING piece steers through
 /// them freely - but a LANDED block overlapping one is sucked in and costs a life. Absolute
-/// law: blocks pushed in later by a topple or settle drift are devoured too, and cascades can
+/// law: blocks pushed in later by a topple or moving Dynamic debris are devoured too, and cascades can
 /// drain multiple lives. The skill axis is ROUTING: the tower must grow around the voids, not
 /// straight up.
 ///

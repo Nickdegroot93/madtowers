@@ -21,7 +21,7 @@ using UnityEngine;
 /// so hairline tilt cracks never leak. Two lenience gates, both geometric:
 ///  - volume: a sealed region under MinVolumeSubcells (~3/4 of a cell of true air) never
 ///    arms - the wedge slivers a leaning tower traps are not a player mistake.
-///  - persistence: a fresh seal must survive ~1s of scans before it arms - settle drift
+///  - persistence: a fresh seal must survive ~1s of scans before it arms - Dynamic debris
 ///    flickers regions in and out; only a seal that stays sealed is a player mistake.
 /// (v1 rasterized whole cells and patched the tilt lies with coverage-threshold gates; those
 /// gates measured "is the wall tilted?" rather than "can air escape?" and silently dropped
@@ -85,7 +85,7 @@ public class AirPocketModifier : LevelModifier, ILevelMenuProgressProvider, IGam
     [Min(1)]
     [SerializeField] private int shakeCellCap = 6;
 
-    // Cheap periodic rescan on top of the event-driven ones: settle drift and topples can open
+    // Cheap periodic rescan on top of the event-driven ones: moving debris and topples can open
     // or close a region without any lock/destroy event firing.
     private const float RescanInterval = 0.5f;
 
@@ -616,7 +616,7 @@ public class AirPocketModifier : LevelModifier, ILevelMenuProgressProvider, IGam
         SfxPlayer.Play("pocket_pop", 1f);
 
         // The blast rocks the tower, scaled by how much air was trapped: reuses the Tremor
-        // brick's burst (velocity kicks with shear + epicenter falloff - PHYSICS.md I1-safe,
+        // brick's burst (velocity kicks with shear + epicenter falloff; grid structures release first,
         // Static/frozen blocks immune). A 1-cell pop is a shiver; a 4-cell one is a real quake.
         // (Pocket cells are subcells; the shake dials speak in whole cells.)
         float shakeCells = Mathf.Min(pocket.Cells.Count / (float)(SubRes * SubRes), shakeCellCap);
