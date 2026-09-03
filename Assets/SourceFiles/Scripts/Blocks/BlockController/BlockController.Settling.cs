@@ -1,8 +1,8 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
-// Landed maintenance (I1-I3): settle detection, the stillness watchdog, the knife-edge
-// sleep defer, velocity-only grid pull, sleeping, external jolts, and freezing in place.
+// Maintenance for freely dynamic landed blocks: settle detection, the stillness watchdog,
+// knife-edge sleep defer, external jolts, and permanent freezing. Grid-stable blocks never
+// enter this path and are never corrected after placement.
 public partial class BlockController
 {
     private bool IsSettled()
@@ -14,8 +14,8 @@ public partial class BlockController
     // Going to sleep must never move the body. A block that physics holds slightly off-grid or
     // tilted has an off-grid equilibrium: snapping it at sleep time teleports it away from that
     // equilibrium, the solver wakes it and pushes it back, and the next sleep snaps it again -
-    // a metronomic, infinite twitch. Grid registration comes from honest sources instead: pieces
-    // land exactly on-grid, and the awake-time velocity pull eases flat blocks toward column/angle.
+    // a metronomic, infinite twitch. Grid registration is decided once before physics handoff;
+    // rejected or released Dynamic bodies are never registered later.
     private void SleepSettledBody()
     {
         _rb.linearVelocity = Vector2.zero;
@@ -24,14 +24,14 @@ public partial class BlockController
         _fallingAway = false; // re-earned sleep = provably stable again, not falling debris
     }
 
-    // --- Knife-edge guard (bounded I3 refinement, see PHYSICS.md) -------------------------
+    // --- Dynamic-debris knife-edge sleep guard (see PHYSICS.md I5) -----------------------
     // A quiet block whose centre of mass hangs horizontally outside its supporting contacts
     // is mid-tip; force-sleeping it freezes a coin on its rim. Which side of the floor that
     // happened on was decided by sub-millimetre float noise, so identical-looking edge
     // placements survived on one side and fell on the other. Deferring sleep lets gravity
     // resolve the balance honestly. Strictly bounded: after KnifeEdgeGraceSeconds of
-    // staying quiet anyway (leaning, wedged, vine-held) the block sleeps normally - I3's
-    // no-twitch guarantee is delayed for marginal blocks, never lost.
+    // staying quiet anyway (leaning, wedged, vine-held) the block sleeps normally - the
+    // no-twitch guarantee is delayed for marginal debris, never lost.
     private const float KnifeEdgeGraceSeconds = 2f;
     private const float SupportSpanEpsilon = 0.01f;
     private static readonly ContactPoint2D[] SharedContactBuffer = new ContactPoint2D[16];
@@ -79,7 +79,7 @@ public partial class BlockController
         if (!_fallingAway && _rb.linearVelocity.y < FallingAwaySpeed) _fallingAway = true;
 
         InvalidatePlacementOccupancyIfMoved();
-        if (!microAlignSettledBlocks && !sleepSettledBlocksOnLock) return;
+        if (!sleepSettledBlocksOnLock) return;
 
         bool deferSleep = ShouldDeferSleepForKnifeEdge();
 
@@ -90,7 +90,6 @@ public partial class BlockController
         // settle timer - so nothing slows the tip that resolves the knife edge.
         if (IsSettled() && !deferSleep)
         {
-            PullQuietBlockTowardGrid();
             SoftDampSettledBody();
             _landedMaintenanceSettleTimer += Time.fixedDeltaTime;
             if (_landedMaintenanceSettleTimer >= settleTime)
@@ -145,8 +144,8 @@ public partial class BlockController
 
         _stillnessTimer += Time.fixedDeltaTime;
         // The timer keeps accruing while a knife-edge defers sleep, so the moment the
-        // grace expires the watchdog acts immediately - the I3 guarantee is delayed for
-        // marginal blocks, never lost.
+        // grace expires the watchdog acts immediately - the bounded Dynamic-debris stillness
+        // guarantee is delayed for marginal blocks, never lost.
         if (_stillnessTimer >= stillnessTime && !deferSleep)
         {
             SleepSettledBody();
@@ -160,70 +159,21 @@ public partial class BlockController
         _rb.angularVelocity *= damping;
     }
 
-    private void PullQuietBlockTowardGrid()
-    {
-        if (!microAlignSettledBlocks) return;
-
-        // Tolerance contract: only ease blocks that are already essentially in place. A piece
-        // that tipped, tilted, or slid beyond the caps can never reach its snapped grid pose, so
-        // pulling it every frame would turn it into a permanent agitator for the whole tower.
-        float snappedRotation = SnapValue(_rb.rotation, RotationStep);
-        float rotationCorrection = Mathf.DeltaAngle(_rb.rotation, snappedRotation);
-        float absRotationCorrection = Mathf.Abs(rotationCorrection);
-        if (absRotationCorrection > Mathf.Max(0f, microAlignMaxRotationDegrees)) return;
-
-        PullQuietBlockRotationTowardGrid(rotationCorrection);
-        if (absRotationCorrection > QuietPullMaxTiltDegrees) return;
-
-        _cellGeometry.Refresh();
-        float primaryX = _cellGeometry.GetPrimaryWorldX(transform.position.x);
-        float correction = SnapValue(primaryX, gridSpacing) - primaryX;
-        if (Mathf.Abs(correction) <= 0.001f * gridSpacing) return;
-        if (Mathf.Abs(correction) > Mathf.Max(0f, microAlignMaxColumnFraction) * gridSpacing) return;
-
-        // Correct via a small velocity bias, never by writing the transform. Position writes
-        // fought the contact solver (each step created fresh penetration that popped the
-        // neighbours awake) and broke rigidbody interpolation, which made whole towers shimmer.
-        // A sub-settle-threshold velocity keeps the solver in charge and never resets the
-        // settle timer; whatever drift remains is closed by the bounded snap at sleep time.
-        float maxPullSpeed = Mathf.Max(0f, quietGridPullMaxSpeedFraction) * gridSpacing;
-        float pullSpeed = Mathf.Clamp(
-            correction * Mathf.Clamp01(quietGridPullFactor) / Time.fixedDeltaTime,
-            -maxPullSpeed, maxPullSpeed);
-
-        Vector2 velocity = _rb.linearVelocity;
-        velocity.x = pullSpeed;
-        _rb.linearVelocity = velocity;
-    }
-
-    private void PullQuietBlockRotationTowardGrid(float correctionDegrees)
-    {
-        if (Mathf.Abs(correctionDegrees) <= 0.01f) return;
-
-        // Rotate via angular velocity, never by writing rb.rotation. Keep the pull below the
-        // settled threshold so the correction itself does not prevent the normal sleep path.
-        float maxPullSpeed = Mathf.Max(0f, settleAngularThreshold * 0.5f);
-        float pullSpeed = Mathf.Clamp(
-            correctionDegrees * Mathf.Clamp01(quietGridPullFactor) / Time.fixedDeltaTime,
-            -maxPullSpeed, maxPullSpeed);
-
-        _rb.angularVelocity = pullSpeed;
-    }
-
-    // External disturbance (earthquakes, wind, ...) as a velocity impulse - the only legal way
-    // for outside systems to push a landed block (PHYSICS.md I1: never positions). Anchored
-    // (Static) blocks ignore jolts by nature of their body type.
+    // External disturbances release a grid-stable connected structure exactly once, then act on
+    // ordinary dynamic bodies. Permanently frozen blocks remain terrain and ignore jolts.
     public void ApplyJolt(Vector2 velocityChange)
     {
-        if (_rb == null || _rb.bodyType != RigidbodyType2D.Dynamic) return;
+        if (_rb == null || IsFrozenInPlace) return;
 
+        ReleaseGridStructureForForce();
+        if (_rb.bodyType != RigidbodyType2D.Dynamic) return;
         _rb.WakeUp();
         _rb.linearVelocity += velocityChange;
     }
 
     /// <summary>Current body speed (u/s); 0 for non-dynamic (anchored/frozen) bodies. A
     /// read-only physics peek for steadiness checks - the hold-steady countdown's motion
-    /// abort (LevelRuntimeController.TowerInMotion). Never writes (PHYSICS.md I1).</summary>
+    /// abort (LevelRuntimeController.TowerInMotion). Never writes body state.</summary>
     public float CurrentSpeed => _rb != null && _rb.bodyType == RigidbodyType2D.Dynamic
         ? _rb.linearVelocity.magnitude : 0f;
 
@@ -234,6 +184,7 @@ public partial class BlockController
     {
         if (_rb == null || _rb.bodyType == RigidbodyType2D.Static) return;
 
+        _isGridStable = false;
         _rb.linearVelocity = Vector2.zero;
         _rb.angularVelocity = 0f;
         _rb.bodyType = RigidbodyType2D.Static;

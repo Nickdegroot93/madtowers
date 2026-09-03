@@ -130,21 +130,16 @@ public partial class BlockController
         SfxPlayer.Play("nudge_thud_01", 0.6f, 0.07f);
     }
 
-    // The failed dash hits the blocking bricks with real force. Invariant I1: landed
-    // bodies are only ever influenced through velocity - an impulse via the solver is
-    // the sanctioned mechanism. Well-supported bricks absorb it through friction; a
-    // loose or overhanging brick can genuinely be knocked off.
+    // The failed dash releases a grid-stable connected component, then hits the blocking
+    // bricks with real force. Physics owns every affected pose from that point onward.
     private void SlamBlockingBricks(int direction)
     {
         Vector2 impulse = new Vector2(direction * NudgeSlamImpulse, 0f);
         for (int i = 0; i < _stepBlockers.Count; i++)
         {
             BlockController block = _stepBlockers[i];
-            if (block == null || block._rb == null) continue;
-            if (block._rb.bodyType != RigidbodyType2D.Dynamic) continue; // anchored/frozen stay rock
-
-            block._rb.WakeUp();
-            block._rb.AddForce(impulse, ForceMode2D.Impulse);
+            if (block == null) continue;
+            block.ApplyLandingImpulse(impulse);
         }
     }
 

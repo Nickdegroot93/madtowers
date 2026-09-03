@@ -13,8 +13,8 @@ using UnityEngine;
 ///
 /// The flinch is VISUAL-ONLY: it rotates the chapter-art sprite and the overlay cells about the piece
 /// centre (never the Rigidbody, transform root, or colliders), only while the piece is falling, and resets
-/// the moment it locks - so it respects PHYSICS.md I1 (no transform writes on a landed body) and rides the
-/// kinematic, grid-owned descent (I5) without ever feeding the solver. All on scaled time, so a pause
+/// the moment it locks, so it never writes a landed body's pose and rides the kinematic, grid-owned
+/// descent without ever feeding the solver. All on scaled time, so a pause
 /// freezes it. See BLOCKVARIANTS.md.
 /// </summary>
 public sealed class LockedBlockSkin : BlockVariantSkin
@@ -134,7 +134,7 @@ public sealed class LockedBlockSkin : BlockVariantSkin
         }
         SetCellsFloatIfChanged(StrainId, _strain, ref _lastAppliedStrain);
 
-        // The whole-brick flinch tracks the strain - but only while falling (never on a landed body, I1).
+        // The whole-brick flinch tracks the strain, but only while falling (never after landing ownership).
         ApplyFlinch(_locked ? 0f : _strain * BrickFlinchDegrees);
 
         if (_flash > 0f)

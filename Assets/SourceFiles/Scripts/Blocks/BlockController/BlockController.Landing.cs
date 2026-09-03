@@ -2,29 +2,32 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
 
-// First contact to lock (I5): column snap, settling flush onto the real support, incoming
-// overlap resolution, the dynamic handoff with capped impact, and lock bookkeeping.
+// First contact to lock: column/angle snap, contact seating, one grid-stability decision,
+// the dynamic fallback for bad placements, and lock bookkeeping.
 public partial class BlockController
 {
     private void BeginPhysicsLanding()
     {
         if (_hasTouchedDown) return;
 
-        // First contact: X/rotation stay grid-authored, but Y comes from the actual cast contact.
-        // From here, gravity and balance decide what happens.
+        // First contact is the one ownership boundary. A row-aligned placement on an exact,
+        // stable support becomes grid-owned here. Everything else becomes freely dynamic here.
+        // Neither path is corrected later.
         _hasTouchedDown = true;
         SnapToColumnGrid();
         SetRotationZPreservingGridPivot(_targetAngleZ);
         SettleOntoContact();
         ResolveIncomingOverlaps();
 
-        _rb.bodyType = RigidbodyType2D.Dynamic;
-        _rb.constraints = RigidbodyConstraints2D.None;
-        _rb.gravityScale = ResolveLandedGravityScale();
-        _rb.centerOfMass = _originalCenterOfMass;
-        _rb.angularVelocity = 0f;
-
-        _rb.linearVelocity = new Vector2(0f, -GetLandingImpactSpeed());
+        if (!TryEnterGridStablePlacement())
+        {
+            _rb.bodyType = RigidbodyType2D.Dynamic;
+            _rb.constraints = RigidbodyConstraints2D.None;
+            _rb.gravityScale = ResolveLandedGravityScale();
+            _rb.centerOfMass = _originalCenterOfMass;
+            _rb.angularVelocity = 0f;
+            _rb.linearVelocity = new Vector2(0f, -GetLandingImpactSpeed());
+        }
 
         // EVERY landing thumps now (JUICE.md Tier 0): sound, dust, squash, trauma and haptic
         // all scale with how fast the piece actually came in - a steered touch whispers, a
@@ -177,6 +180,10 @@ public partial class BlockController
         for (int i = 0; i < _replacedDatas.Count; i++) _replacedDatas[i]?.OnLocked(this);
         _appliedData?.OnLocked(this);
 
+        // Variant effects run first: an instant Tremor may release the support beneath this
+        // block, while Vine/Maw may establish joints that should survive a structural release.
+        ValidateGridStructureAfterLanding();
+
         if (_inputs != null) _inputs.Gameplay.Disable();
 
         ReportLandedToLedger();
@@ -185,12 +192,10 @@ public partial class BlockController
         OnBlockLocked?.Invoke(this);
     }
 
-    // Handoff ends player control but does not declare the block settled. The landed maintenance
-    // path waits for sustained low motion before micro-aligning/sleeping the body.
+    // Handoff preserves the one-time landing decision. Grid-owned pieces stay exactly kinematic;
+    // rejected/failed pieces stay fully dynamic and may later sleep wherever physics leaves them.
     private void FinalizeDynamicControl()
     {
-        _rb.bodyType = RigidbodyType2D.Dynamic;
-        _rb.constraints = RigidbodyConstraints2D.None;
         // Continuous detection only matters for the fast controlled descent (which is cast-driven
         // anyway). On resting bodies it just adds speculative-contact noise across the stack.
         _rb.collisionDetectionMode = CollisionDetectionMode2D.Discrete;
@@ -198,7 +203,18 @@ public partial class BlockController
         {
             _rb.centerOfMass = _originalCenterOfMass;
         }
-        _rb.gravityScale = ResolveLandedGravityScale();
+
+        if (IsGridStable)
+        {
+            ConfigureGridStableBody();
+        }
+        else
+        {
+            _rb.bodyType = RigidbodyType2D.Dynamic;
+            _rb.constraints = RigidbodyConstraints2D.None;
+            _rb.gravityScale = ResolveLandedGravityScale();
+        }
+
         _landedMaintenanceSettleTimer = 0f;
         _stillnessAnchorPosition = _rb.position;
         _stillnessAnchorRotation = _rb.rotation;

@@ -45,7 +45,7 @@ public sealed class SandstoneBlockSkin : BlockVariantSkin
         SetCellsFloat(LoadId, _load);
 
         // The final warning: past ~85% of the limit the brick shivers - a tiny positional
-        // buzz (visual cells only, never the body - PHYSICS.md I1). Driven by the CURRENT
+        // buzz (visual cells only, never the physics body). Driven by the CURRENT
         // load, not the ratchet: shivering means "one more and it bursts", so it must stop
         // when the weight comes off (or the brick is frozen), while the cracks stay.
         float panic = Mathf.InverseLerp(0.85f, 1f, _load);

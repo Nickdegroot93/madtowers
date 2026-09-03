@@ -29,9 +29,9 @@ public class VineBlockBehaviour : MonoBehaviour
         _breakForce = breakForce;
         _touchRange = touchRange;
 
-        // Delay 0 = weld right here in OnLocked: the body has just gone Dynamic at its exact landed pose
-        // (the lock path already SyncTransforms'd), so the joint is in place before the first settling
-        // solve - the block can't tilt before gluing. The vine growth animation stays on its own clock.
+        // Delay 0 = weld right here in OnLocked at the exact landed pose. If a grid-stable
+        // structure is later released, the joint is already present for Dynamic physics.
+        // The vine growth animation stays on its own clock.
         if (_attachDelay <= 0f)
         {
             _attached = true;

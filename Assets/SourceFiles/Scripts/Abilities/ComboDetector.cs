@@ -7,15 +7,15 @@ using UnityEngine;
 /// just-locked block against existing landed blocks), and only for triggers some owned
 /// ComboAbility actually subscribes to - zero cost while no combo ability is owned.
 ///
-/// Lock is not settled (PHYSICS.md I5 separates them): a candidate match is recorded at
-/// lock and revalidated after the settle window before firing, so a pair that topples
-/// straight away never rewards. Participating blocks are consumed per trigger (a
+/// Lock is not necessarily a stable outcome: a candidate match is recorded at lock and
+/// revalidated after the settle window before firing, so a pair that topples straight away
+/// never rewards. Participating blocks are consumed per trigger (a
 /// 3-stack fires once: the third block can pair with neither consumed one).
 /// </summary>
 public class ComboDetector : MonoBehaviour
 {
-    // Collider footprints are 0.94 of the cell (PHYSICS.md I4), so visually-touching
-    // stacked blocks have a real ~0.06-cell gap; the contact tolerance must clear it.
+    // Collider footprints are 0.94 of the cell in world X (PHYSICS.md I4), so cells that
+    // appear side-adjacent can have ~0.06-cell horizontal clearance; tolerance must clear it.
     private const float StackContactTolerance = 0.2f;
     private const float MinHorizontalOverlap = 0.3f;     // cells of shared footprint
     private const float OrientationAspectThreshold = 1.5f; // bounds h/w beyond this = vertical

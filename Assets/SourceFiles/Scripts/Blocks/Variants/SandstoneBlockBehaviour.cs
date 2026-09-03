@@ -8,8 +8,8 @@ using UnityEngine;
 /// each top-exposed cell, transitively), summing rigidbody mass in normal-brick-weight units,
 /// and dividing each direct rester's branch by how many distinct supports that rester stands
 /// on (a pure tower presses exact; a bridge presses its share). Structural rather than
-/// solver-impulse based on purpose: the settle system force-sleeps quiet stacks
-/// (Settling.cs, I3) and Box2D reports no contact impulses for sleeping islands, so a real
+/// solver-impulse based on purpose: grid-stable structures are Kinematic and Dynamic wreckage
+/// may sleep (Settling.cs), so Box2D contact impulses are not a reliable load signal. A real
 /// force gauge reads zero exactly when it matters. The structural sum is identical at rest,
 /// deterministic, and mass-aware for free: a Boulder (4x) crushes instantly, Feathers (0.25x)
 /// barely count. Static bodies are self-supporting terrain: a frozen block contributes no
@@ -110,7 +110,7 @@ public sealed class SandstoneBlockBehaviour : MonoBehaviour
         }
         // Frozen sandstone is preserved stone: it bears weight without feeling it. Push the
         // pressure read-out to zero so the skin stops shivering/trickling - the cracks stay.
-        if (_rb.bodyType != RigidbodyType2D.Dynamic)
+        if (_block.IsFrozenInPlace || (!_block.IsGridStable && _rb.bodyType != RigidbodyType2D.Dynamic))
         {
             if (_skin != null) _skin.SetDamage(_damageRatchet, 0f);
             return;
@@ -232,9 +232,10 @@ public sealed class SandstoneBlockBehaviour : MonoBehaviour
                 if (!_walkVisited.Add(other)) continue;
                 if (!other.HasLanded) continue;      // falling pieces don't press yet
                 if (other.IsFallingAway) continue;   // knocked-off debris passing by isn't load
-                // Static = frozen terrain: self-supporting, carries its own stack. Kinematic =
-                // mid-animation (suck/devour handoffs), not structural weight either.
-                if (otherBody.bodyType != RigidbodyType2D.Dynamic) continue;
+                // Frozen blocks are self-supporting terrain. Grid-stable kinematic blocks are
+                // real structural weight; unrelated kinematic animation handoffs are not.
+                if (other.IsFrozenInPlace ||
+                    (!other.IsGridStable && otherBody.bodyType != RigidbodyType2D.Dynamic)) continue;
                 into.Add(other);
             }
         }

@@ -29,7 +29,7 @@ public class GameModeConfig : ScriptableObject
     [Min(0)]
     [SerializeField] private int horizontalPlacementBufferColumns = 3;
 
-    // Active-piece control / settle thresholds are a PHYSICS.md CONTRACT: identical in every mode.
+    // Active-piece control / Dynamic-wreckage settle thresholds share one canonical profile.
     // They live in code (see PhysicsProfile) so they can't drift per-asset; the getters below forward
     // to it. (Previously per-mode [SerializeField]s - every shipped mode asset held these same values.)
 
@@ -113,9 +113,6 @@ public class GameModeConfig : ScriptableObject
     public float SettleAngularThreshold => PhysicsProfile.SettleAngularThreshold;
     public float SettleTime => PhysicsProfile.SettleTime;
     public bool SleepSettledBlocksOnLock => PhysicsProfile.SleepSettledBlocksOnLock;
-    public bool MicroAlignSettledBlocks => PhysicsProfile.MicroAlignSettledBlocks;
-    public float MicroAlignMaxColumnFraction => PhysicsProfile.MicroAlignMaxColumnFraction;
-    public float MicroAlignMaxRotationDegrees => PhysicsProfile.MicroAlignMaxRotationDegrees;
     public float MaxControlTime => PhysicsProfile.MaxControlTime;
     public int PowerUpChoiceEveryBlocks => Mathf.Max(0, powerUpChoiceEveryBlocks);
     public IReadOnlyList<AbilityDefinition> PowerUpChoicePool => powerUpChoicePool;

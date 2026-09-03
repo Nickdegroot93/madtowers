@@ -2,7 +2,8 @@ using UnityEngine;
 
 /// <summary>
 /// Example level modifier: every interval, the whole tower gets a lateral jolt and must
-/// survive it. Velocity-impulse only - never positions (see PHYSICS.md, Invariant I1).
+/// survive it. Each affected grid-stable structure is released before velocity is applied;
+/// the shake never repeatedly corrects or directly animates a landed body's pose.
 /// </summary>
 [CreateAssetMenu(fileName = "Earthquake", menuName = "Stacking/Levels/Modifiers/Earthquake")]
 public class EarthquakeModifier : LevelModifier
