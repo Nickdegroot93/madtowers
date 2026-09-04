@@ -73,7 +73,7 @@ public class LevelRuntimeController : MonoBehaviour
     private float _timeRemaining;
     private GameObject _timerRoot;
     private RectTransform _timerRect;
-    private Text _timerLabel;
+    private TextMeshProUGUI _timerLabel;
     private int _timerShownSecond = -1;
     // XP (XP.md): the run's peak unclamped goal progress, sampled on every progress signal
     // (a collapse right before the end must not erase what the run reached), and a latch so
@@ -779,29 +779,15 @@ public class LevelRuntimeController : MonoBehaviour
 
         _timerRoot = RuntimeUiKit.CreateOverlayCanvas("Timed Goal", 3100);
 
-        GameObject panel = new GameObject("Timer", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        _timerRect = (RectTransform)panel.transform;
-        _timerRect.SetParent(_timerRoot.transform, false);
-        _timerRect.anchorMin = _timerRect.anchorMax = new Vector2(1f, 1f);
-        _timerRect.pivot = new Vector2(1f, 1f);
-        _timerRect.sizeDelta = new Vector2(210f, 66f);
-
-        Image background = panel.GetComponent<Image>();
-        background.sprite = RuntimeSprites.RoundedPanel();
-        background.type = Image.Type.Sliced;
-        background.color = new Color(0f, 0f, 0f, 0.68f);
-        background.raycastTarget = false;
+        // A HudSubCard under the bar's RIGHT segment: the same card the NEXT WAVE countdown
+        // and the medal marker use, so every corner tenant shares one width and one row grid.
+        _timerRect = HudSubCard.Create(_timerRoot.transform, "Timer", HudSubCard.Side.Right);
         RuntimeUiKit.AddOutline(_timerRect, new Color(1f, 1f, 1f, 0.22f));
 
-        _timerLabel = RuntimeUiKit.CreateLabel(panel.transform, "", 38, 66f, FontStyle.Bold,
-            RuntimeUiKit.TitleColor);
-        _timerLabel.raycastTarget = false;
-        _timerLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
-        RectTransform labelRect = _timerLabel.rectTransform;
-        labelRect.anchorMin = Vector2.zero;
-        labelRect.anchorMax = Vector2.one;
-        labelRect.offsetMin = Vector2.zero;
-        labelRect.offsetMax = Vector2.zero;
+        RectTransform row = HudSubCard.CreateRow(_timerRect);
+        HudSubCard.AddText(row, "Caption", "TIME", HudSubCard.CaptionFontSize, HudSubCard.CaptionColor,
+            characterSpacing: 8f);
+        _timerLabel = HudSubCard.AddText(row, "Value", "", HudSubCard.ValueFontSize, RuntimeUiKit.TitleColor);
 
         PositionTimerUi();
     }
@@ -811,9 +797,7 @@ public class LevelRuntimeController : MonoBehaviour
         if (_timerRect == null) return;
 
         Canvas canvas = _timerRoot != null ? _timerRoot.GetComponent<Canvas>() : null;
-        float topInset = RuntimeUiKit.SafeAreaTopInset(canvas);
-        float rightInset = RuntimeUiKit.SafeAreaRightInset(canvas);
-        _timerRect.anchoredPosition = new Vector2(-rightInset - 120f, -topInset - 180f);
+        HudSubCard.Place(_timerRect, canvas, 0);
     }
 
     private void UpdateTimerLabel(bool force = false)
@@ -826,6 +810,7 @@ public class LevelRuntimeController : MonoBehaviour
 
         _timerShownSecond = seconds;
         _timerLabel.text = TimedWinCondition.FormatDuration(seconds);
+        HudSubCard.MarkDirty(_timerLabel.transform.parent as RectTransform);
         _timerLabel.color = seconds <= 10 ? new Color(1f, 0.48f, 0.42f, 1f) : RuntimeUiKit.TitleColor;
     }
 

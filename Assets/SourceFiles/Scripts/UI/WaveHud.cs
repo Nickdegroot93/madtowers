@@ -24,22 +24,13 @@ using UnityEngine.UI;
 /// </summary>
 public class WaveHud : MonoBehaviour
 {
-    // Layout (canvas reference space, 1080x1920). Mirrors CoinHud on the right: top offset is
-    // UIManager's TopMarginBelowSafeArea (64) + BarHeight (104) + a gap; the side margin
-    // aligns under the lives card (bar side margin 120 + inset).
-    private const float TopOffsetBelowSafeArea = 184f;
-    private const float RightMargin = 132f;
-    private const float PillWidth = 186f;
-    private const float PillHeight = 64f;
+    // Layout: a HudSubCard under the top bar's RIGHT segment - same left/right edges as the
+    // lives card above it on every screen, "NEXT WAVE" + count as one centered cluster.
     private const float PillFadeInSeconds = 0.25f;
 
     private const int UrgencyTintAt = 3;   // the value takes the laser's colour
     private const int UrgencyPulseAt = 2;  // plus a slow breathing pulse - never constant
     private const float DeficitFlashSeconds = 0.6f;
-
-    private static readonly Color PillColor = new Color(0f, 0f, 0f, 0.78f);      // UIManager BarInsetColor
-    private static readonly Color CaptionColor = new Color(0.80f, 0.80f, 0.80f, 0.55f); // UIManager StatLabelColor
-    private static readonly Color GlyphColor = new Color(0.90f, 0.90f, 0.90f, 0.85f);   // objective-card icon grey
 
     private GameObject _canvasRoot;
     private Canvas _canvas;
@@ -47,6 +38,7 @@ public class WaveHud : MonoBehaviour
     private CanvasGroup _pillGroup;
     private Image _outline;
     private TextMeshProUGUI _valueText;
+    private RectTransform _row;
 
     private HeightLimitWavesModifier _run; // the clone we styled for; a retry makes a new one
     private Color _tint = Color.white;
@@ -117,6 +109,7 @@ public class WaveHud : MonoBehaviour
             bool rose = _shownRemaining >= 0 && remaining > _shownRemaining;
             _shownRemaining = remaining;
             _valueText.text = remaining.ToString();
+            HudSubCard.MarkDirty(_row);
             _popTime = 0f;
             if (rose) _deficitFlash = DeficitFlashSeconds; // the bill reopened - flag it honestly
         }
@@ -166,12 +159,7 @@ public class WaveHud : MonoBehaviour
         _canvasRoot = RuntimeUiKit.CreateOverlayCanvas("WaveHud", 6900);
         _canvas = _canvasRoot.GetComponent<Canvas>();
 
-        Image bg = RuntimeUiKit.CreateImage(_canvasRoot.transform, "WavePill",
-            RuntimeSprites.RoundedPanel(), PillColor);
-        bg.type = Image.Type.Sliced;
-        _pill = bg.rectTransform;
-        RuntimeUiKit.SetRect(_pill, Vector2.zero, new Vector2(PillWidth, PillHeight), new Vector2(1f, 1f));
-
+        _pill = HudSubCard.Create(_canvasRoot.transform, "WavePill", HudSubCard.Side.Right);
         _outline = RuntimeUiKit.AddOutline(_pill, new Color(1f, 1f, 1f, 0.55f));
 
         _pillGroup = _pill.gameObject.AddComponent<CanvasGroup>();
@@ -179,19 +167,12 @@ public class WaveHud : MonoBehaviour
         _pillGroup.interactable = false;
         _pillGroup.blocksRaycasts = false;
 
-        Image glyph = RuntimeUiKit.CreateImage(_pill, "Blocks", RuntimeSprites.CubeGlyph(), GlyphColor);
-        glyph.preserveAspect = true;
-        RuntimeUiKit.SetRect(glyph.rectTransform, new Vector2(14f, 0f), new Vector2(36f, 36f),
-            new Vector2(0f, 0.5f));
-
-        TextMeshProUGUI caption = RuntimeUiKit.CreateTmp(_pill, "Caption", "NEXT WAVE", 18,
-            CaptionColor, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.DefaultFont,
-            new Vector2(60f, 15f), new Vector2(120f, 18f), new Vector2(0f, 0.5f));
-        caption.characterSpacing = 12f;
-
-        _valueText = RuntimeUiKit.CreateTmp(_pill, "Value", "0", 30,
-            Color.white, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.DefaultFont,
-            new Vector2(60f, -13f), new Vector2(110f, 32f), new Vector2(0f, 0.5f));
+        // Text and number only (Nick 2026-09-04: no glyph) - the caption in the bar's own
+        // caption style, the count in the shared value size, one centered cluster.
+        _row = HudSubCard.CreateRow(_pill);
+        HudSubCard.AddText(_row, "Caption", "NEXT WAVE", HudSubCard.CaptionFontSize,
+            HudSubCard.CaptionColor, characterSpacing: 8f);
+        _valueText = HudSubCard.AddText(_row, "Value", "0", HudSubCard.ValueFontSize, Color.white);
 
         ApplyPillPosition();
         _pill.gameObject.SetActive(false); // no wave run live = no pill at all
@@ -199,7 +180,6 @@ public class WaveHud : MonoBehaviour
 
     private void ApplyPillPosition()
     {
-        float topInset = RuntimeUiKit.SafeAreaTopInset(_canvas);
-        _pill.anchoredPosition = new Vector2(-RightMargin, -(topInset + TopOffsetBelowSafeArea));
+        HudSubCard.Place(_pill, _canvas, 0);
     }
 }

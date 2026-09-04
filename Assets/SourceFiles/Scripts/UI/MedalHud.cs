@@ -19,23 +19,9 @@ using UnityEngine.UI;
 /// </summary>
 public class MedalHud : MonoBehaviour
 {
-    // Layout (canvas reference space, 1080x1920). EXACT CoinHud pill metrics, right-anchored:
-    // same 150x52 card, same 184 top offset (TopMarginBelowSafeArea 64 + BarHeight 104 + gap),
-    // side margin aligned under the lives card (bar side margin 120 + inset).
-    private const float TopOffsetBelowSafeArea = 184f;
-    private const float RightMargin = 132f;
-    private const float PillWidth = 150f;
-    private const float PillHeight = 52f;
+    // Layout: a HudSubCard under the top bar's RIGHT segment (same edges as the lives card).
+    // Row 0 normally; row 1 while the NEXT WAVE countdown or the timed-goal clock owns row 0.
     private const float PillFadeInSeconds = 0.25f;
-    // One row below the wave pill (its offset 184 + height 64 + gap) while a wave run owns
-    // the corner slot.
-    private const float BelowWavePillOffset = 184f + 64f + 12f;
-    // One row below the timed-goal clock card (its offset 180 + height 66 + gap) while a
-    // timed run owns the slot - the card and this pill otherwise share the same row.
-    private const float BelowTimerCardOffset = 180f + 66f + 12f;
-
-    private static readonly Color PillColor = new Color(0f, 0f, 0f, 0.78f); // UIManager BarInsetColor
-
     private GameObject _canvasRoot;
     private Canvas _canvas;
     private RectTransform _pill;
@@ -152,7 +138,10 @@ public class MedalHud : MonoBehaviour
         rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
         rect.pivot = new Vector2(0.5f, 0.5f);
         rect.anchoredPosition = new Vector2(0f, 120f); // a little above center, clear of the tower
-        rect.sizeDelta = new Vector2(PillWidth * DebutScale, PillHeight * DebutScale);
+        // The corner card's LIVE width (anchor-stretched to the bar geometry) at debut scale,
+        // so the fly-in still lands pixel-identical on the card.
+        float pillWidth = _pill != null && _pill.rect.width > 1f ? _pill.rect.width : 290f;
+        rect.sizeDelta = new Vector2(pillWidth * DebutScale, HudSubCard.Height * DebutScale);
         rect.localScale = Vector3.zero;
 
         (Image icon, TextMeshProUGUI label) = BuildPillVisual(rect, DebutScale);
@@ -234,14 +223,9 @@ public class MedalHud : MonoBehaviour
         _canvasRoot = RuntimeUiKit.CreateOverlayCanvas("MedalHud", 6900); // CoinHud/WaveHud tier, under GameOver (7100)
         _canvas = _canvasRoot.GetComponent<Canvas>();
 
-        GameObject pill = new GameObject("MedalPill", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        _pill = (RectTransform)pill.transform;
-        _pill.SetParent(_canvasRoot.transform, false);
-        _pill.anchorMin = _pill.anchorMax = new Vector2(1f, 1f);
-        _pill.pivot = new Vector2(1f, 1f);
-        _pill.sizeDelta = new Vector2(PillWidth, PillHeight);
+        _pill = HudSubCard.Create(_canvasRoot.transform, "MedalPill", HudSubCard.Side.Right);
 
-        _pillGroup = pill.AddComponent<CanvasGroup>();
+        _pillGroup = _pill.gameObject.AddComponent<CanvasGroup>();
         _pillGroup.alpha = 0f;
         _pillGroup.interactable = false;
         _pillGroup.blocksRaycasts = false;
@@ -263,37 +247,13 @@ public class MedalHud : MonoBehaviour
         bg.sprite = RuntimeSprites.RoundedPanel();
         bg.type = Image.Type.Sliced;
         bg.pixelsPerUnitMultiplier = 1f / scale;
-        bg.color = PillColor;
+        bg.color = HudSubCard.Fill;
         bg.raycastTarget = false;
 
-        GameObject icon = new GameObject("Medal", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform iconRect = (RectTransform)icon.transform;
-        iconRect.SetParent(rect, false);
-        iconRect.anchorMin = iconRect.anchorMax = new Vector2(0f, 0.5f);
-        iconRect.anchoredPosition = new Vector2(30f * scale, 0f); // CoinHud's icon seat
-        iconRect.sizeDelta = new Vector2(34f * scale, 34f * scale);
-        Image iconImage = icon.GetComponent<Image>();
-        iconImage.preserveAspect = true;
-        iconImage.raycastTarget = false;
-
-        GameObject label = new GameObject("Tier", typeof(RectTransform));
-        RectTransform labelRect = (RectTransform)label.transform;
-        labelRect.SetParent(rect, false);
-        labelRect.anchorMin = new Vector2(0f, 0f);
-        labelRect.anchorMax = new Vector2(1f, 1f);
-        labelRect.offsetMin = new Vector2(56f * scale, 0f);
-        labelRect.offsetMax = new Vector2(-10f * scale, 0f);
-        TextMeshProUGUI text = label.AddComponent<TextMeshProUGUI>();
-        text.fontSize = 17f * scale;
-        text.characterSpacing = 2f;
-        text.fontStyle = FontStyles.Bold;
-        text.alignment = TextAlignmentOptions.MidlineLeft;
-        // "BRONZE" must never wrap inside the fixed pill (it rendered as "BRONZ/E"); the
-        // same NoWrap+Overflow rule the objective value uses.
-        text.textWrappingMode = TextWrappingModes.NoWrap;
-        text.overflowMode = TextOverflowModes.Overflow;
-        text.raycastTarget = false;
-
+        RectTransform row = HudSubCard.CreateRow(rect, scale);
+        Image iconImage = HudSubCard.AddIcon(row, "Medal", null, Color.white, scale);
+        TextMeshProUGUI text = HudSubCard.AddText(row, "Tier", "", HudSubCard.LabelFontSize, Color.white,
+            characterSpacing: 2f, scale: scale);
         return (iconImage, text);
     }
 
@@ -302,14 +262,14 @@ public class MedalHud : MonoBehaviour
         icon.sprite = MedalStyle.Sprite(tier, earned: true);
         label.text = MedalStyle.DisplayName(tier);
         label.color = MedalStyle.TierColor(tier);
+        HudSubCard.MarkDirty(label.transform.parent as RectTransform);
     }
 
     private void ApplyPillPosition()
     {
-        float topInset = RuntimeUiKit.SafeAreaTopInset(_canvas);
-        float topOffset = HeightLimitWavesModifier.ActiveRun != null ? BelowWavePillOffset
-            : LevelRuntimeController.TimerCardVisible ? BelowTimerCardOffset
-            : TopOffsetBelowSafeArea;
-        _pill.anchoredPosition = new Vector2(-RightMargin, -(topInset + topOffset));
+        // The wave countdown and the timed-goal clock are live survival state and outrank
+        // this marker for row 0; on those runs the medal sits one row lower.
+        int row = HeightLimitWavesModifier.ActiveRun != null || LevelRuntimeController.TimerCardVisible ? 1 : 0;
+        HudSubCard.Place(_pill, _canvas, row);
     }
 }

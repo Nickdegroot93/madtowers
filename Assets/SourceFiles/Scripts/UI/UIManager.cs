@@ -36,6 +36,12 @@ public class UIManager : MonoBehaviour
     private const float BarSideMargin = 120f; // breathing room per the design - nothing reserves this space
     private const float BarCardInset = 14f;   // stat cards float inside their segment on all sides
     private const float TopMarginBelowSafeArea = 64f;
+    // Published geometry for the sub-cards that hang under the bar (HudSubCard): the bar's
+    // bottom edge, and the inset cards' outer / center-facing edges, so a card below can share
+    // the inset card's exact left and right edges on every screen (anchor-relative, no widths).
+    public const float BarBottomBelowSafeArea = TopMarginBelowSafeArea + BarHeight;
+    public const float InnerCardOuterMargin = BarSideMargin + BarCardInset;
+    public const float InnerCardCenterOffset = NextCardWidth * 0.5f - BarSeamTuck + BarCardInset;
     private const float NextCardWidth = 200f;
     private const float NextCardOverhang = 24f; // how far it sticks out above AND below
     // Foresight widens the NEXT card DOWNWARD to a second, smaller/dimmer preview. The top

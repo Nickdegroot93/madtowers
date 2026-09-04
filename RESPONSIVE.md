@@ -104,8 +104,7 @@ Two things you **must** get right with the offset path:
 | Main menu chapter content | all | `SafeAreaFitter` (menu safe layer) |
 | In-game top HUD bar + NEXT card | top | `SafeAreaTopInset` + `TopMarginBelowSafeArea`, re-applied in `UIManager.Update` |
 | In-game hearts (lives) | top (inside the bar's right card) | ride the bar card - covered by the bar's own inset handling |
-| Coin pill (`CoinHud`) | top-left, under the bar | `SafeAreaTopInset`, re-applied every frame in `CoinHud.Update` |
-| Wave countdown pill (`WaveHud`) | top-right, under the lives card | `SafeAreaTopInset`, re-applied every frame in `WaveHud.Update` (CoinHud's mirror) |
+| Under-bar status cards: coin (`CoinHud`), NEXT WAVE (`WaveHud`), timed-goal clock (`LevelRuntimeController`), banked medal (`MedalHud`) | top, under the bar | ALL built by `HudSubCard`: horizontal edges ANCHORED to the bar's inset cards (`UIManager.InnerCardOuterMargin` / `InnerCardCenterOffset`, half-screen anchors like the bar segments) so they share the objective/lives card edges on every screen; vertical slot via `HudSubCard.Place` (`SafeAreaTopInset` + `TopOffsetBelowSafeArea`, rows stack 52 + 12); content is one centered row. Never give one of these a hardcoded width or margin. |
 | Ability/consumable slots | right side (player-arrangeable via `HudLayout`) | `SafeAreaFitter` container + normalized anchors, see `AbilityHud.ApplyLayout` |
 | Hold (pocket cache) bubble | left | `SafeAreaLeftInset`, re-applied in `HoldButton.Update` |
 | Menu background art | — | intentionally **full-screen**, bleeds behind the notch |

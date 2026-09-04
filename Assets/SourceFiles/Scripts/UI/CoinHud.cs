@@ -15,12 +15,8 @@ using UnityEngine.UI;
 /// </summary>
 public class CoinHud : MonoBehaviour
 {
-    // Layout (canvas reference space, 1080x1920). Pill sits under the top bar's left segment:
-    // top offset mirrors UIManager's TopMarginBelowSafeArea (64) + BarHeight (104) + a gap.
-    private const float TopOffsetBelowSafeArea = 184f;
-    private const float LeftMargin = 132f; // aligns under the blocks card (bar side margin 120 + inset)
-    private const float PillWidth = 150f;
-    private const float PillHeight = 52f;
+    // Layout: a HudSubCard under the top bar's LEFT segment - same left/right edges as the
+    // objective card above it on every screen, content centered (see HudSubCard).
 
     private const int MaxFlightCoins = 7;
     private const float CoinSize = 32f;
@@ -29,8 +25,6 @@ public class CoinHud : MonoBehaviour
     private const float HangStagger = 0.05f;
     private const float FlightSeconds = 0.38f;
     private const float PillFadeInSeconds = 0.25f;
-
-    private static readonly Color PillColor = new Color(0f, 0f, 0f, 0.78f); // UIManager BarInsetColor
 
     /// <summary>Tint for the procedural fallback coin (the real art is drawn untinted).</summary>
     public static readonly Color FallbackCoinGold = new Color(1f, 0.76f, 0.22f, 1f);
@@ -64,6 +58,7 @@ public class CoinHud : MonoBehaviour
     private RectTransform _pill;
     private CanvasGroup _pillGroup;
     private TextMeshProUGUI _valueText;
+    private RectTransform _iconRect; // the coins' flight target
     private Sprite _coinSprite;
     private bool _coinSpriteIsFallback;
 
@@ -157,7 +152,7 @@ public class CoinHud : MonoBehaviour
     {
         if (_active.Count == 0) return;
 
-        Vector2 target = _pill.anchoredPosition + new Vector2(PillWidth * 0.22f, -PillHeight * 0.5f);
+        Vector2 target = FlightTarget();
         float dt = FlightDeltaTime;
 
         for (int i = _active.Count - 1; i >= 0; i--)
@@ -211,6 +206,7 @@ public class CoinHud : MonoBehaviour
 
         _displayValue += coin.Value;
         if (_valueText != null) _valueText.text = _displayValue.ToString();
+        HudSubCard.MarkDirty(_valueText != null ? (RectTransform)_valueText.transform.parent : null);
         _pulseTime = 0f;
 
         // One quiet clink per BATCH, not per coin - restraint is the contract here.
@@ -236,50 +232,18 @@ public class CoinHud : MonoBehaviour
 
     private void BuildPill()
     {
-        GameObject pill = new GameObject("CoinPill", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        _pill = (RectTransform)pill.transform;
-        _pill.SetParent(_canvasRect, false);
-        _pill.anchorMin = _pill.anchorMax = new Vector2(0f, 1f);
-        _pill.pivot = new Vector2(0f, 1f);
-        _pill.sizeDelta = new Vector2(PillWidth, PillHeight);
+        _pill = HudSubCard.Create(_canvasRect, "CoinPill", HudSubCard.Side.Left);
 
-        Image bg = pill.GetComponent<Image>();
-        bg.sprite = RuntimeSprites.RoundedPanel();
-        bg.type = Image.Type.Sliced;
-        bg.color = PillColor;
-        bg.raycastTarget = false;
-
-        _pillGroup = pill.AddComponent<CanvasGroup>();
+        _pillGroup = _pill.gameObject.AddComponent<CanvasGroup>();
         _pillGroup.alpha = 0f;
         _pillGroup.interactable = false;
         _pillGroup.blocksRaycasts = false;
 
-        GameObject icon = new GameObject("Coin", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform iconRect = (RectTransform)icon.transform;
-        iconRect.SetParent(_pill, false);
-        iconRect.anchorMin = iconRect.anchorMax = new Vector2(0f, 0.5f);
-        iconRect.anchoredPosition = new Vector2(30f, 0f);
-        iconRect.sizeDelta = new Vector2(34f, 34f);
-        Image iconImage = icon.GetComponent<Image>();
-        iconImage.sprite = _coinSprite;
-        iconImage.preserveAspect = true;
-        iconImage.color = _coinSpriteIsFallback ? FallbackCoinGold : Color.white;
-        iconImage.raycastTarget = false;
-
-        GameObject value = new GameObject("Value", typeof(RectTransform));
-        RectTransform valueRect = (RectTransform)value.transform;
-        valueRect.SetParent(_pill, false);
-        valueRect.anchorMin = new Vector2(0f, 0f);
-        valueRect.anchorMax = new Vector2(1f, 1f);
-        valueRect.offsetMin = new Vector2(56f, 0f);
-        valueRect.offsetMax = new Vector2(-10f, 0f);
-        _valueText = value.AddComponent<TextMeshProUGUI>();
-        _valueText.text = "0";
-        _valueText.fontSize = 30f;
-        _valueText.fontStyle = FontStyles.Bold;
-        _valueText.alignment = TextAlignmentOptions.MidlineLeft;
-        _valueText.color = Color.white;
-        _valueText.raycastTarget = false;
+        RectTransform row = HudSubCard.CreateRow(_pill);
+        Image icon = HudSubCard.AddIcon(row, "Coin", _coinSprite,
+            _coinSpriteIsFallback ? FallbackCoinGold : Color.white);
+        _iconRect = icon.rectTransform;
+        _valueText = HudSubCard.AddText(row, "Value", "0", HudSubCard.ValueFontSize, Color.white);
 
         ApplyPillPosition();
         _pill.gameObject.SetActive(false); // no coins earned yet = no pill at all
@@ -287,8 +251,18 @@ public class CoinHud : MonoBehaviour
 
     private void ApplyPillPosition()
     {
-        float topInset = RuntimeUiKit.SafeAreaTopInset(_canvas);
-        _pill.anchoredPosition = new Vector2(LeftMargin, -(topInset + TopOffsetBelowSafeArea));
+        HudSubCard.Place(_pill, _canvas, 0);
+    }
+
+    // The coins' destination in the flight coins' coordinate space (top-left anchored, in
+    // canvas units): the coin icon's live center. Read off the icon itself, since the card is
+    // anchor-stretched to the bar geometry and has no meaningful anchoredPosition of its own.
+    private Vector2 FlightTarget()
+    {
+        if (_iconRect == null || _canvasRect == null) return Vector2.zero;
+        Vector2 local = _canvasRect.InverseTransformPoint(_iconRect.TransformPoint(_iconRect.rect.center));
+        Rect canvasRect = _canvasRect.rect;
+        return new Vector2(local.x - canvasRect.xMin, local.y - canvasRect.yMax);
     }
 
     private RectTransform GetCoin()
@@ -323,7 +297,7 @@ public class CoinHud : MonoBehaviour
         Camera cam = TowerCameraController.Camera != null ? TowerCameraController.Camera : Camera.main;
         if (cam == null || _canvas == null)
         {
-            return _pill != null ? _pill.anchoredPosition : Vector2.zero; // degenerate: start at the counter
+            return FlightTarget(); // degenerate: start at the counter
         }
 
         Vector3 screen = cam.WorldToScreenPoint(world);
