@@ -105,8 +105,9 @@ and carved 1×1 nudge-in **pockets**; the authoring bible is FLOORS.md) adds a
 depth-shade ramp, silhouette outline strips on exposed sides (split around
 pocket openings — pockets are REAL holes cut from the fill, the backdrop shows
 through, outlined on their solid edges), and a bottom fade into a chapter-tinted **fog bank**
-(camera-following bands + drifting world wisps, behind the ground and IN
-FRONT of the blocks, so pieces falling into pillar gaps sink into it). Fog
+(camera-following two-tone GroundFog shader bands with a drifting noise-broken
+top edge, behind the ground and IN FRONT of the blocks, so pieces falling into
+pillar gaps sink into it — FLOORS.md §3). Fog
 colour: `BackdropPreset.groundFogColor`, auto-derived from the near-hill
 colour when unset.
 

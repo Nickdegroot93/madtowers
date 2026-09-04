@@ -1,6 +1,77 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>Resolved look of a chapter's ground fog (FLOORS.md section 3). Everything derives from
+/// the preset's fog colour (explicit or hill-derived) unless the preset authors it, so every chapter
+/// gets the living fog with zero authoring and can override any part of it as preset data.</summary>
+public readonly struct FloorFogSettings
+{
+    public const float DefaultDrift = 0.35f;      // world units/s (0.1 read as static - Nick 2026-09-04)
+    public const float DefaultNoiseScale = 1f;
+    public const float DefaultThickness = 1f;
+
+    /// <summary>The fog's mid colour - what the ground's atmosphere pass keys off (unchanged
+    /// derivation since 2026-09-01, so the masonry tint of every chapter is untouched).</summary>
+    public readonly Color Body;
+    public readonly Color Light;        // lit haze at the top of the bank
+    public readonly Color Deep;         // shade at the bottom
+    public readonly Color Rim;          // sky light caught by the fog top
+    public readonly float RimStrength;
+    public readonly float Drift;
+    public readonly float NoiseScale;
+    public readonly float Thickness;
+
+    public FloorFogSettings(Color body, Color light, Color deep, Color rim, float rimStrength,
+        float drift, float noiseScale, float thickness)
+    {
+        Body = Opaque(body);
+        Light = Opaque(light);
+        Deep = Opaque(deep);
+        Rim = Opaque(rim);
+        RimStrength = rimStrength;
+        Drift = drift;
+        NoiseScale = noiseScale;
+        Thickness = thickness;
+    }
+
+    public static FloorFogSettings Resolve(BackdropPreset preset)
+    {
+        if (preset == null) preset = BackdropPreset.Defaults;
+
+        Color explicitFog = preset.GroundFogColor;
+        bool authored = explicitFog.a > 0.01f;
+        Color body = authored ? explicitFog : Color.Lerp(preset.HillNearColor, Color.white, 0.45f);
+        body = Opaque(body);
+
+        // Scene darkness (same window as the ground atmosphere pass): dark chapters get a
+        // brighter lit top and a deep tone that does not sink further into black.
+        float luma = 0.2126f * body.r + 0.7152f * body.g + 0.0722f * body.b;
+        float darkness = Mathf.Clamp01(Mathf.InverseLerp(0.32f, 0.12f, luma));
+
+        Color light = preset.GroundFogLightColor.a > 0.01f
+            ? preset.GroundFogLightColor
+            : Color.Lerp(Color.Lerp(body, preset.SkyBottomLow, 0.35f), Color.white, 0.10f + 0.18f * darkness);
+
+        Color deep;
+        if (preset.GroundFogDeepColor.a > 0.01f) deep = preset.GroundFogDeepColor;
+        else if (authored) deep = Color.Lerp(body, Color.black, 0.40f * (1f - 0.6f * darkness));
+        else deep = Color.Lerp(preset.HillNearColor, body, 0.30f); // the backdrop's silhouette shade
+
+        Color rim = Color.Lerp(light, Color.white, 0.35f);
+        float rimStrength = 0.22f * (1f - 0.5f * darkness);
+
+        float drift = preset.GroundFogDriftSpeed > 0.0001f ? preset.GroundFogDriftSpeed : DefaultDrift;
+        float noise = preset.GroundFogNoiseScale > 0.0001f ? preset.GroundFogNoiseScale : DefaultNoiseScale;
+        float thickness = preset.GroundFogThickness > 0.0001f
+            ? Mathf.Clamp(preset.GroundFogThickness, 0.5f, 2.5f)
+            : DefaultThickness;
+
+        return new FloorFogSettings(body, light, deep, rim, rimStrength, drift, noise, thickness);
+    }
+
+    private static Color Opaque(Color c) => new Color(c.r, c.g, c.b, 1f);
+}
+
 /// <summary>
 /// Builds and owns the GROUNDED floor terrain for a level. For every FloorSegmentConfig it raises
 /// ground columns at their configured per-column heights, running from the landable top all the way
@@ -16,9 +87,10 @@ using UnityEngine;
 /// the chapter's ambient hue), a haze-coloured weathering mottle (-49), an atmosphere gradient
 /// (sky light under the cap, haze toward the base, -48), the walkable cap band (ground_cap) and
 /// near-black silhouette outline strips on exposed sides (both -47). Terrain-wide: a fade-to-fog
-/// ramp (-45), a back fog band + wisps (-44/-43) and a FRONT fog band + wisps (44/45) that swallow
-/// pieces falling into pillar gaps.
-/// Wisps drift on scaled time, so a pause freezes them.
+/// ramp (-45), a back fog band (-44) and two FRONT fog bands (43) that swallow pieces falling
+/// into pillar gaps. Fade + bands all render the GroundFog shader (two-tone, noise-broken top
+/// edge, lit rim, world-anchored drifting pattern - "living fog", 2026-09-04, FLOORS.md section 3).
+/// The fog drifts on scaled time, so a pause freezes it.
 ///
 /// The floor DATUM (height 0) is the lowest landable surface; column heights are always >= 0, so
 /// GameManager.floorOriginY keeps its meaning for tower height, islands and backdrop anchoring.
@@ -31,9 +103,7 @@ public sealed class FloorTerrain : MonoBehaviour
     private const int SortDetail = -47;
     private const int SortFade = -45;
     private const int SortBackFog = -44;
-    private const int SortBackWisp = -43;
-    private const int SortFrontFog = 44;
-    private const int SortFrontWisp = 45;
+    private const int SortFrontFog = 43;
 
     // Integer depth keeps the 1-unit masonry courses aligned at every run top (tile phase shifts
     // by whole tiles). Deep enough to cover the widest zoom-out; the fog hides the cut-off.
@@ -57,8 +127,13 @@ public sealed class FloorTerrain : MonoBehaviour
     // Fog geometry, relative to the datum. The camera shows only ~2 units below the datum at
     // tight zoom - the fade must land inside that band; the deeper reaches appear on zoom-out.
     private const float FadeTopBelowDatum = 1.6f;
-    private const float FadeBottomBelowDatum = 5f;
-    private const float FogExtentMargin = 5f;
+    private const float FadeBottomBelowDatum = 6f;   // = the back band's dense line
+    // The noise-broken top edge needs room ABOVE the nominal top to fade out in (fraction of span).
+    private const float FogHeadroom = 0.25f;
+    // Front layers drift the other way and a touch faster than the back one - that counter-motion
+    // is what reads as depth.
+    private const float FrontDriftFactor = -1.4f;
+    private const int FogNoiseSize = 256;
 
     // Each fog band continues past its ramp as a SOLID run of the same colour/alpha, so a band's
     // bottom edge can never show as a hard horizontal line and the masonry/backdrop below the
@@ -98,9 +173,12 @@ public sealed class FloorTerrain : MonoBehaviour
     private static readonly Color OutlineColor = new Color(0.03f, 0.028f, 0.035f, 1f);
     private static readonly Color FillFallbackColor = new Color(0.30f, 0.27f, 0.24f);
 
-    private readonly List<Transform> _wisps = new List<Transform>();
-    private readonly List<Vector4> _wispMotion = new List<Vector4>(); // baseX, amp, speed, phase
-    private readonly List<float> _wispBaseY = new List<float>();
+    // One GroundFog material per fog quad kind (band or fade); all advance _Phase on scaled time.
+    private readonly List<Material> _fogMaterials = new List<Material>();
+    private Material _fadeMaterial;
+    private float _fogThickness = FloorFogSettings.DefaultThickness;
+    private static Texture2D _fogNoise;                 // tileable value noise, built once per domain
+    private static readonly int PhaseId = Shader.PropertyToID("_Phase");
 
     // Fog BANDS are atmosphere, not world objects: they follow the camera horizontally (like the
     // sky gradient) so a pan can never reveal their side edges as hard vertical lines.
@@ -108,6 +186,27 @@ public sealed class FloorTerrain : MonoBehaviour
     private Camera _fogCamera;
 
     private PhysicsMaterial2D _material;
+
+    /// <summary>The terrain of the running level (published by the builder, never Find()'d -
+    /// Destroy of the previous terrain is deferred, so a lookup in the rebuild frame could grab
+    /// the dying one). Effects that must match the fog (LifeLossFx) read its <see cref="Fog"/>.</summary>
+    public static FloorTerrain Live { get; private set; }
+    public FloorFogSettings Fog { get; private set; }
+    private static readonly int SplashId = Shader.PropertyToID("_Splash");
+
+    /// <summary>The fog heaves where a block sank into it (FLOORS.md section 3). World x only -
+    /// the bands span the screen, so the bob shows wherever the fog top is visible.</summary>
+    public static void SplashAt(float worldX, float strength = 1f)
+    {
+        FloorTerrain live = Live;
+        if (live == null) return;
+        var splash = new Vector4(worldX, 0f, Time.time, Mathf.Clamp01(strength));
+        for (int i = 0; i < live._fogMaterials.Count; i++)
+        {
+            Material m = live._fogMaterials[i];
+            if (m != null) m.SetVector(SplashId, splash);
+        }
+    }
 
     /// <summary>Build (or rebuild) the terrain. Destroys and replaces <paramref name="existing"/>.</summary>
     public static FloorTerrain Build(
@@ -117,13 +216,13 @@ public sealed class FloorTerrain : MonoBehaviour
         float gridSpacing,
         float edgeInset,
         float friction,
-        Color fogColor)
+        FloorFogSettings fog)
     {
         if (existing != null) Destroy(existing.gameObject);
 
         var go = new GameObject("FloorTerrain");
         FloorTerrain terrain = go.AddComponent<FloorTerrain>();
-        terrain.BuildInternal(segments, datumY, gridSpacing, edgeInset, friction, fogColor);
+        terrain.BuildInternal(segments, datumY, gridSpacing, edgeInset, friction, fog);
         return terrain;
     }
 
@@ -133,9 +232,11 @@ public sealed class FloorTerrain : MonoBehaviour
         float gridSpacing,
         float edgeInset,
         float friction,
-        Color fogColor)
+        FloorFogSettings fog)
     {
         _material = new PhysicsMaterial2D("FloorFriction") { friction = friction, bounciness = 0f };
+        Fog = fog;
+        Live = this;
 
         float grid = Mathf.Max(0.01f, gridSpacing);
         float minLeft = float.MaxValue;
@@ -143,18 +244,24 @@ public sealed class FloorTerrain : MonoBehaviour
 
         Sprite fill = ChapterSkins.LoadGroundFill();
         Sprite cap = ChapterSkins.LoadGroundCap();
-        BuildAtmosphere(fogColor);
+        BuildAtmosphere(fog.Body);
+        // The per-segment ground fade shares the BACK band's geometry and pattern (density 1), so
+        // masonry and backdrop dissolve along the same broken edge.
+        _fogThickness = fog.Thickness;
+        float fadeTop = datumY - FadeTopBelowDatum;
+        _fadeMaterial = CreateFogMaterial(fog, fadeTop,
+            fadeTop - (FadeBottomBelowDatum - FadeTopBelowDatum) * fog.Thickness, 1f, fog.Drift);
 
         for (int s = 0; s < segments.Count; s++)
         {
             FloorSegmentConfig segment = segments[s];
             if (segment == null) continue;
-            BuildSegment(segment, datumY, grid, edgeInset, fill, cap, fogColor);
+            BuildSegment(segment, datumY, grid, edgeInset, fill, cap);
             minLeft = Mathf.Min(minLeft, (segment.LeftColumn - 0.5f) * grid);
             maxRight = Mathf.Max(maxRight, (segment.RightColumn + 0.5f) * grid);
         }
 
-        if (minLeft <= maxRight) BuildFog(minLeft, maxRight, datumY, fogColor);
+        if (minLeft <= maxRight) BuildFog(datumY, fog);
     }
 
     // ---- one segment: colliders + grounded column visuals ---------------------------------
@@ -165,8 +272,7 @@ public sealed class FloorTerrain : MonoBehaviour
         float grid,
         float edgeInset,
         Sprite fill,
-        Sprite cap,
-        Color fogColor)
+        Sprite cap)
     {
         int count = segment.ColumnCount;
         float segLeft = (segment.LeftColumn - 0.5f) * grid;
@@ -391,12 +497,13 @@ public sealed class FloorTerrain : MonoBehaviour
         // has nothing below the datum to fade - open air stays open.
         if (segment.FloatingFragment) return;
         float segRight = segLeft + count * grid;
-        float fadeTop = datumY - FadeTopBelowDatum;
+        float span = (FadeBottomBelowDatum - FadeTopBelowDatum) * _fogThickness;
+        float fadeTop = datumY - FadeTopBelowDatum + span * FogHeadroom;
         float fadeBottom = bottomY - 0.5f;
         SpriteRenderer fade = CreateChild("GroundFade",
             new Vector3((segLeft + segRight) * 0.5f, (fadeTop + fadeBottom) * 0.5f, 0f), SortFade);
-        fade.sprite = RuntimeSprites.AlphaRamp();
-        fade.color = new Color(fogColor.r, fogColor.g, fogColor.b, 1f);
+        fade.sprite = RuntimeSprites.Square();
+        fade.sharedMaterial = _fadeMaterial;
         ScaleToRect(fade, segRight - segLeft, fadeTop - fadeBottom);
     }
 
@@ -513,6 +620,12 @@ public sealed class FloorTerrain : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (Live == this) Live = null;
+        for (int i = 0; i < _fogMaterials.Count; i++)
+        {
+            if (_fogMaterials[i] != null) Destroy(_fogMaterials[i]);
+        }
+        _fogMaterials.Clear();
         if (_atmosphereRamp != null)
         {
             Texture2D tex = _atmosphereRamp.texture;
@@ -593,67 +706,112 @@ public sealed class FloorTerrain : MonoBehaviour
 
     // ---- fog bank --------------------------------------------------------------------------
 
-    private void BuildFog(float left, float right, float datumY, Color fogColor)
+    private void BuildFog(float datumY, FloorFogSettings fog)
     {
-        left -= FogExtentMargin;
-        right += FogExtentMargin;
-        var rng = new System.Random(913);
-
-        // Bands follow the camera (width fitted every frame), so only their vertical softness shows.
-        // Back band softens the base line behind the columns; the front band is in front of the
-        // blocks, so pieces falling into gaps sink INTO the fog. A second, lower front band makes
-        // the very bottom read properly dense.
-        CreateCameraFogBand("FogBack", datumY - 1.6f, datumY - 6f, fogColor, 0.85f, SortBackFog);
-        CreateCameraFogBand("FogFront", datumY - 2.2f, datumY - 7f, fogColor, 0.9f, SortFrontFog - 1);
-        CreateCameraFogBand("FogFrontDense", datumY - 3.2f, datumY - 8f, fogColor, 1f, SortFrontFog - 1);
-
-        // Wisps are world-anchored (they parallax naturally under a pan): big, soft, slow, layered
-        // in three depth rows - denser and darker toward the bottom.
-        int count = Mathf.Clamp(Mathf.RoundToInt((right - left) / 2.2f), 10, 26);
-        for (int i = 0; i < count; i++)
-        {
-            bool front = (i % 2) == 1;
-            float depth = (float)rng.NextDouble();                 // 0 = high faint, 1 = low dense
-            float wx = Mathf.Lerp(left, right, (i + (float)rng.NextDouble()) / count);
-            float wy = datumY - Mathf.Lerp(front ? 2.0f : 1.5f, front ? 4.6f : 3.6f, depth);
-            float wispWidth = Mathf.Lerp(4.5f, 9f, (float)rng.NextDouble());
-            float alpha = Mathf.Lerp(0.22f, front ? 0.6f : 0.45f, depth);
-
-            SpriteRenderer sr = CreateChild(front ? "FogWispFront" : "FogWispBack",
-                new Vector3(wx, wy, 0f), front ? SortFrontWisp : SortBackWisp);
-            sr.sprite = RuntimeSprites.SoftBlob();
-            sr.color = new Color(fogColor.r, fogColor.g, fogColor.b, alpha);
-            sr.transform.localScale = new Vector3(wispWidth * 0.5f,
-                Mathf.Lerp(1.2f, 2.2f, (float)rng.NextDouble()), 1f);
-
-            _wisps.Add(sr.transform);
-            _wispBaseY.Add(wy);
-            _wispMotion.Add(new Vector4(
-                wx,
-                Mathf.Lerp(0.5f, 1.4f, (float)rng.NextDouble()),   // drift amplitude
-                Mathf.Lerp(0.05f, 0.14f, (float)rng.NextDouble()), // drift speed
-                (float)rng.NextDouble() * 6.2831f));               // phase
-        }
+        // Bands follow the camera (width fitted every frame); their PATTERN is sampled in world
+        // space, so panning parallaxes back against front. Back band softens the base line behind
+        // the columns; the front bands are in front of the blocks, so pieces falling into gaps sink
+        // INTO the fog. The lower front band makes the very bottom read properly dense.
+        CreateCameraFogBand("FogBack", datumY - 1.6f, datumY - 6f, fog, 0.85f, fog.Drift, SortBackFog);
+        CreateCameraFogBand("FogFront", datumY - 2.2f, datumY - 7f, fog, 0.9f, fog.Drift * FrontDriftFactor, SortFrontFog);
+        CreateCameraFogBand("FogFrontDense", datumY - 3.2f, datumY - 8f, fog, 1f, fog.Drift * FrontDriftFactor * 0.7f, SortFrontFog);
     }
 
-    private void CreateCameraFogBand(string name, float topY, float bottomY, Color fogColor, float alpha, int order)
+    private void CreateCameraFogBand(string name, float topY, float bottomY, FloorFogSettings fog,
+        float density, float drift, int order)
     {
-        SpriteRenderer sr = CreateChild(name, new Vector3(0f, (topY + bottomY) * 0.5f, 0f), order);
-        sr.sprite = RuntimeSprites.AlphaRamp();
-        sr.color = new Color(fogColor.r, fogColor.g, fogColor.b, alpha);
-        ScaleToRect(sr, 40f, topY - bottomY); // width refitted to the camera every frame
+        float span = (topY - bottomY) * fog.Thickness;
+        bottomY = topY - span;
+        // The shader clamps to the deep colour at full density below bottomY, so the quad runs
+        // past the deepest possible screen bottom: zooming out never reveals a band's end as a
+        // hard line (or the raw backdrop under it). Headroom above lets the broken edge fade out.
+        float quadTop = topY + span * FogHeadroom;
+        float quadBottom = bottomY - FogSolidDepth;
+        SpriteRenderer sr = CreateChild(name, new Vector3(0f, (quadTop + quadBottom) * 0.5f, 0f), order);
+        sr.sprite = RuntimeSprites.Square();
+        sr.sharedMaterial = CreateFogMaterial(fog, topY, bottomY, density, drift);
+        ScaleToRect(sr, 40f, quadTop - quadBottom); // width refitted to the camera every frame
         _cameraBands.Add(sr);
+    }
 
-        // The ramp is fully opaque at its bottom row; the solid continues that exact colour/alpha
-        // downward past the deepest possible screen bottom, so zooming out never reveals the
-        // band's end as a hard line (or the raw backdrop under it).
-        float solidBottom = bottomY - FogSolidDepth;
-        SpriteRenderer solid = CreateChild(name + "Solid",
-            new Vector3(0f, (bottomY + solidBottom) * 0.5f, 0f), order);
-        solid.sprite = RuntimeSprites.Square();
-        solid.color = sr.color;
-        ScaleToRect(solid, 40f, bottomY - solidBottom);
-        _cameraBands.Add(solid);
+    private Material CreateFogMaterial(FloorFogSettings fog, float topY, float bottomY, float density, float drift)
+    {
+        Shader shader = Resources.Load<Shader>("GroundFog");
+        if (shader == null)
+        {
+            // Never let a missing shader take the floor down: a flat deep-colour band still hides
+            // the masonry cut-off (the pre-2026-09-04 look, minus the ramp).
+            Debug.LogError("FloorTerrain: Resources/GroundFog.shader missing - fog falls back to flat colour.");
+            var flat = new Material(Shader.Find("Sprites/Default")) { hideFlags = HideFlags.HideAndDontSave };
+            flat.color = new Color(fog.Deep.r, fog.Deep.g, fog.Deep.b, density);
+            _fogMaterials.Add(flat);
+            return flat;
+        }
+        var mat = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
+        mat.SetTexture("_NoiseTex", FogNoise());
+        mat.SetColor("_LightColor", fog.Light);
+        mat.SetColor("_DeepColor", fog.Deep);
+        mat.SetColor("_RimColor", fog.Rim);
+        mat.SetFloat("_RimStrength", fog.RimStrength);
+        mat.SetFloat("_Density", density);
+        mat.SetFloat("_TopY", topY);
+        mat.SetFloat("_BottomY", bottomY);
+        mat.SetFloat("_NoiseScale", fog.NoiseScale);
+        mat.SetFloat("_Drift", drift);
+        mat.SetFloat(PhaseId, Time.time);
+        _fogMaterials.Add(mat);
+        return mat;
+    }
+
+    /// <summary>Tileable fractal value noise (3 octaves) for the fog shader. Two texture taps per
+    /// pixel beat per-pixel hash noise for an always-on full-width effect on low-end phones.</summary>
+    private static Texture2D FogNoise()
+    {
+        if (_fogNoise != null) return _fogNoise;
+        const int S = FogNoiseSize;
+        var tex = new Texture2D(S, S, TextureFormat.RGBA32, false)
+        {
+            wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Bilinear, hideFlags = HideFlags.HideAndDontSave
+        };
+        var rng = new System.Random(4127);
+        // Lattices of 8, 16 and 32 cells wrap exactly around the texture, so the result tiles.
+        int[] cells = { 8, 16, 32 };
+        float[] weights = { 0.55f, 0.30f, 0.15f };
+        var lattices = new float[cells.Length][];
+        for (int o = 0; o < cells.Length; o++)
+        {
+            int n = cells[o];
+            lattices[o] = new float[n * n];
+            for (int i = 0; i < n * n; i++) lattices[o][i] = (float)rng.NextDouble();
+        }
+        var pixels = new Color32[S * S];
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                float v = 0f;
+                for (int o = 0; o < cells.Length; o++)
+                {
+                    int n = cells[o];
+                    float fx = (x + 0.5f) / S * n, fy = (y + 0.5f) / S * n;
+                    int ix = Mathf.FloorToInt(fx), iy = Mathf.FloorToInt(fy);
+                    float tx = fx - ix, ty = fy - iy;
+                    tx = tx * tx * (3f - 2f * tx);
+                    ty = ty * ty * (3f - 2f * ty);
+                    float[] l = lattices[o];
+                    float a = l[(iy % n) * n + ix % n];
+                    float b = l[(iy % n) * n + (ix + 1) % n];
+                    float c = l[((iy + 1) % n) * n + ix % n];
+                    float d = l[((iy + 1) % n) * n + (ix + 1) % n];
+                    v += Mathf.Lerp(Mathf.Lerp(a, b, tx), Mathf.Lerp(c, d, tx), ty) * weights[o];
+                }
+                byte g = (byte)Mathf.Clamp(Mathf.RoundToInt(v * 255f), 0, 255);
+                pixels[y * S + x] = new Color32(g, g, g, 255);
+            }
+        }
+        tex.SetPixels32(pixels);
+        tex.Apply(false, true);
+        return _fogNoise = tex;
     }
 
     // ---- plumbing ----------------------------------------------------------------------------
@@ -701,18 +859,11 @@ public sealed class FloorTerrain : MonoBehaviour
             }
         }
 
-        if (_wisps.Count == 0) return;
-
         float t = Time.time; // scaled - a pause freezes the fog (cosmetic-only rule)
-        for (int i = 0; i < _wisps.Count; i++)
+        for (int i = 0; i < _fogMaterials.Count; i++)
         {
-            Transform wisp = _wisps[i];
-            if (wisp == null) continue;
-            Vector4 m = _wispMotion[i];
-            Vector3 p = wisp.position;
-            p.x = m.x + Mathf.Sin(t * m.z + m.w) * m.y;
-            p.y = _wispBaseY[i] + Mathf.Sin(t * m.z * 1.7f + m.w * 2.1f) * 0.06f;
-            wisp.position = p;
+            Material m = _fogMaterials[i];
+            if (m != null) m.SetFloat(PhaseId, t);
         }
     }
 }

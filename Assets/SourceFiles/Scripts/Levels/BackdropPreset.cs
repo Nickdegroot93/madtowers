@@ -125,6 +125,19 @@ public class BackdropPreset : ScriptableObject
     [Header("Ground fog (the haze the floor terrain dissolves into at the screen bottom)")]
     [Tooltip("Fog bank colour at the base of the floor columns. Leave alpha at 0 to auto-derive a haze from the near-hill colour.")]
     [SerializeField] private Color groundFogColor = new Color(0f, 0f, 0f, 0f);
+    [Tooltip("Lit haze at the TOP of the fog bank. Leave alpha at 0 to auto-derive (fog colour lifted toward the low sky).")]
+    [SerializeField] private Color groundFogLightColor = new Color(0f, 0f, 0f, 0f);
+    [Tooltip("Deep shade at the BOTTOM of the fog bank. Leave alpha at 0 to auto-derive (fog colour pulled toward the near-hill shade / black).")]
+    [SerializeField] private Color groundFogDeepColor = new Color(0f, 0f, 0f, 0f);
+    [Tooltip("Horizontal drift of the fog pattern in world units/s (back layer drifts one way, front layers the other). 0 = default (0.35). Visible within a couple of seconds, never distracting.")]
+    [Min(0)]
+    [SerializeField] private float groundFogDriftSpeed = 0f;
+    [Tooltip("Scale of the fog's noise pattern. 0 = default (1). Above 1 = smaller, busier wisps; below 1 = broad slow swells.")]
+    [Min(0)]
+    [SerializeField] private float groundFogNoiseScale = 0f;
+    [Tooltip("Thickness multiplier of the fog's soft top (how high the haze climbs and how far the top edge wanders). 0 = default (1). 0.5..2.5.")]
+    [Min(0)]
+    [SerializeField] private float groundFogThickness = 0f;
 
     [Header("Imported backdrop layers (optional, far to near)")]
     [SerializeField] private SpriteBackdropLayer[] spriteBackdropLayers;
@@ -185,6 +198,11 @@ public class BackdropPreset : ScriptableObject
     public Color HillFarColor => hillFarColor;
     public Color HillNearColor => hillNearColor;
     public Color GroundFogColor => groundFogColor;
+    public Color GroundFogLightColor => groundFogLightColor;
+    public Color GroundFogDeepColor => groundFogDeepColor;
+    public float GroundFogDriftSpeed => groundFogDriftSpeed;
+    public float GroundFogNoiseScale => groundFogNoiseScale;
+    public float GroundFogThickness => groundFogThickness;
     public IReadOnlyList<SpriteBackdropLayer> SpriteBackdropLayers => spriteBackdropLayers;
     public int ParticleCount => particleCount;
     public Color ParticleColor => particleColor;

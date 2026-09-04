@@ -150,13 +150,37 @@ orders in STYLE.md.
 ## 3. The fog
 
 Bottom of every floor dissolves into a fog bank: three **camera-following bands** (their
-side edges can never show, however the camera pans/zooms, and each band continues below
-its gradient as a solid run of the same colour — so no band bottom, masonry cut-off or
-raw backdrop can ever show either, at any zoom-out) + world-anchored drifting wisps,
-behind the ground AND in front of the blocks — pieces falling into gaps sink into it.
+side edges can never show, however the camera pans/zooms, and each band runs on below its
+soft top as a solid of the deep colour — so no band bottom, masonry cut-off or raw backdrop
+can ever show either, at any zoom-out), behind the ground AND in front of the blocks —
+pieces falling into gaps sink into it. Each segment's ground fade uses the same material.
 
-Colour: `BackdropPreset.groundFogColor` (per chapter). Leave alpha 0 to auto-derive a haze
-from the chapter's near-hill colour — every backdrop gets a plausible fog with zero authoring.
+**Living fog (2026-09-04)** — every fog quad renders `Assets/Resources/GroundFog.shader`
+(hand HLSL like Flood/HeatHaze), replacing the flat single-colour alpha ramps + invisible
+same-colour wisps that read "old-school":
+
+- **Two-tone**: `Deep` shade at the base lifting to a `Light` lit haze at the top → volume.
+- **Noise-broken top edge** from a 256² tileable value-noise texture (generated once,
+  `FloorTerrain.FogNoise`), two octaves, two taps per pixel — mobile-cheap, always on.
+- **Drift**: the pattern is sampled in WORLD space (the quads follow the camera, the fog does
+  not), back layer drifting one way, front layers the other and faster → parallax depth.
+  The fine octave also rises slowly and two long swells make the top edge breathe. Scaled
+  time (`_Phase`), so a pause freezes it. 0.1 u/s read as "no movement" — keep ≥ 0.3.
+- **Rim**: a thin lit band under the top edge where the fog catches sky light.
+- Below the dense line the shader clamps to `Deep` at full density — that is the zoom-out
+  guarantee above.
+- **Splash**: a block lost to the fog makes the bank heave and settle where it sank
+  (`FloorTerrain.SplashAt`, `_Splash` uniform, damped bob ~1 s) and the `LifeLossFx` mist
+  puffs take the chapter's lit fog colour via `FloorTerrain.Live.Fog` — mist and bank are one
+  material. Effects that must match the fog read `FloorTerrain.Live`, never `Find()`.
+
+**Authoring** (`BackdropPreset` → Ground fog; everything is preset data, AMBIENCE.md rule 1):
+`groundFogColor` (mid colour, drives the ground atmosphere pass too; alpha 0 = derive from
+the near-hill colour), `groundFogLightColor` / `groundFogDeepColor` (alpha 0 = derive from
+the mid colour + low sky / near-hill shade; dark chapters get a brighter top and a deep tone
+that does not sink further into black), `groundFogDriftSpeed` (0 = 0.35 u/s),
+`groundFogNoiseScale` (0 = 1), `groundFogThickness` (0 = 1; how high the haze climbs).
+Resolution lives in `FloorFogSettings.Resolve`. All 15 chapters improve unauthored.
 
 ---
 

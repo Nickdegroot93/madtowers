@@ -44,7 +44,7 @@ public class PlayAreaController : MonoBehaviour
         DisableLegacyBar();
 
         _terrain = FloorTerrain.Build(
-            _terrain, segments, datumY, gridSpacing, floorColliderEdgeInset, floorFriction, ResolveFogColor());
+            _terrain, segments, datumY, gridSpacing, floorColliderEdgeInset, floorFriction, ResolveFog());
     }
 
     /// <summary>World Y of the floor datum (height-0 top surface) - the origin for tower height in
@@ -88,19 +88,14 @@ public class PlayAreaController : MonoBehaviour
         if (plateau != null) Destroy(plateau.gameObject);
     }
 
-    // Fog colour: the chapter's explicit override, or derived from its near-hill colour so every
-    // backdrop gets a plausible haze without authoring.
-    private Color ResolveFogColor()
+    // Fog look: resolved from the chapter's preset (explicit colours or derived from its near-hill
+    // and sky colours) so every backdrop gets a plausible living fog without authoring.
+    private FloorFogSettings ResolveFog()
     {
         ChapterDefinition chapter = Campaign.FindChapterOf(LevelSelectionState.SelectedLevel);
         BackdropPreset preset = chapter != null && chapter.Backdrop != null
             ? chapter.Backdrop
             : BackdropPreset.Defaults;
-
-        Color explicitFog = preset.GroundFogColor;
-        if (explicitFog.a > 0.01f) return new Color(explicitFog.r, explicitFog.g, explicitFog.b, 1f);
-
-        Color derived = Color.Lerp(preset.HillNearColor, Color.white, 0.45f);
-        return new Color(derived.r, derived.g, derived.b, 1f);
+        return FloorFogSettings.Resolve(preset);
     }
 }
