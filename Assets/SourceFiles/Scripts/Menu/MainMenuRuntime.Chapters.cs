@@ -85,31 +85,6 @@ public static partial class MainMenuRuntime
         }
     }
 
-    // Thin capsule progress bar (the Vault header's track + fractional fill, shared here so the
-    // chapter cards can carry one each).
-    private static void BuildCapsuleBar(Transform parent, string name, Vector2 anchoredPosition,
-        Vector2 size, Vector2 anchor, float fraction, Color fillColor)
-    {
-        RectTransform track = CreateRect(parent, name, anchor, anchor, anchor, anchoredPosition, size);
-        Image trackImage = track.gameObject.AddComponent<Image>();
-        trackImage.sprite = RuntimeSprites.RoundedPanel();
-        trackImage.type = Image.Type.Sliced;
-        trackImage.pixelsPerUnitMultiplier = 6f;
-        trackImage.color = WithAlpha(TextPrimary, 0.14f);
-        trackImage.raycastTarget = false;
-
-        if (fraction <= 0f) return;
-        RectTransform fill = CreateRect(track, "Fill",
-            new Vector2(0f, 0f), new Vector2(Mathf.Clamp01(fraction), 1f), new Vector2(0f, 0.5f),
-            Vector2.zero, Vector2.zero);
-        Image fillImage = fill.gameObject.AddComponent<Image>();
-        fillImage.sprite = RuntimeSprites.RoundedPanel();
-        fillImage.type = Image.Type.Sliced;
-        fillImage.pixelsPerUnitMultiplier = 6f;
-        fillImage.color = fillColor;
-        fillImage.raycastTarget = false;
-    }
-
     private static void BuildChaptersList(Transform parent, ChapterDefinition chapter)
     {
         // The Vault grid's exact scroll stack: masked viewport + layout content + clamped
@@ -285,9 +260,11 @@ public static partial class MainMenuRuntime
             TextPrimary, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.DefaultFont,
             new Vector2(ChapterCardTextLeft, 58f), new Vector2(420f, 36f), new Vector2(0f, 0f));
 
-        BuildCapsuleBar(card, "LevelsTrack",
-            new Vector2(ChapterCardTextLeft, 36f), new Vector2(330f, 8f), new Vector2(0f, 0f),
-            total > 0 ? (float)done / total : 0f, progressColor);
+        // One cube per level, tinted by that level's highest medal (ghost = not cleared, a
+        // green check = cleared with no ladder) - Mario-map style: which levels still owe you
+        // a rung reads at a glance. Replaced the capsule bar 2026-09-04. Totals INSIDE an
+        // unlocked chapter are fine (its levels are listed); it is chapter totals that are secret.
+        BuildChapterMedalStrip(card, chapter, new Vector2(ChapterCardTextLeft, 26f), 330f, green);
 
         BuildChapterCardBadge(card, completed, chapterLight, green);
 
@@ -352,6 +329,51 @@ public static partial class MainMenuRuntime
         scrimRect.anchorMax = new Vector2(1f, heightFraction);
         scrimRect.offsetMin = Vector2.zero;
         scrimRect.offsetMax = Vector2.zero;
+    }
+
+    private static void BuildChapterMedalStrip(RectTransform card, ChapterDefinition chapter,
+        Vector2 anchoredPosition, float maxWidth, Color green)
+    {
+        const float maxCube = 26f;
+        const float gap = 6f;
+        int n = 0;
+        for (int i = 0; i < chapter.Levels.Count; i++) if (chapter.Levels[i] != null) n++;
+        if (n == 0) return;
+        float cube = Mathf.Min(maxCube, (maxWidth - (n - 1) * gap) / n);
+
+        RectTransform strip = CreateRect(card, "MedalStrip", new Vector2(0f, 0f), new Vector2(0f, 0f),
+            new Vector2(0f, 0f), anchoredPosition, new Vector2(n * cube + (n - 1) * gap, cube));
+        int slot = 0;
+        for (int i = 0; i < chapter.Levels.Count; i++)
+        {
+            LevelDefinition level = chapter.Levels[i];
+            if (level == null) continue;
+            bool completed = ProgressStore.IsLevelCompleted(level);
+            MedalTier? medal = completed ? LevelTiers.HighestEarned(level) : null;
+            Sprite sprite;
+            Color tint;
+            if (medal.HasValue)
+            {
+                sprite = MedalStyle.Sprite(medal.Value, earned: true);
+                tint = Color.white;
+            }
+            else if (completed)
+            {
+                sprite = MenuSprites.CheckMark(green);   // cleared, no ladder (Endless)
+                tint = Color.white;
+            }
+            else
+            {
+                sprite = MedalStyle.Sprite(MedalTier.Bronze, earned: false);
+                tint = MedalStyle.IconTint(false);
+            }
+            Image img = CreateImage(strip, "Level" + (i + 1), sprite, tint);
+            img.preserveAspect = true;
+            img.raycastTarget = false;
+            SetCenteredAt(img.rectTransform, new Vector2(0f, 0.5f),
+                new Vector2(slot * (cube + gap) + cube * 0.5f, 0f), new Vector2(cube, cube));
+            slot++;
+        }
     }
 
     // Right-edge state badge: green check = cleared, chevron = enter. (No lock state - locked

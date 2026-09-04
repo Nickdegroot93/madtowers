@@ -14,7 +14,10 @@ using static RuntimeUiKit;
 //   3. ONLINE PLAY: the big coming-soon promise, nothing else (Nick 2026-08-11 cut
 //      the feature list - the leaderboard entry lives on the play screen already)
 // No wallet, no meter, no hour pass, no lifetime stats - this page is identity and
-// promises, not a dashboard. (partial of MainMenuRuntime - same class, shared statics.)
+// promises, not a dashboard. The one addition since (2026-09-04): a PlayStation-style
+// TROPHY ROW inside the identity card - cleared levels + bronze/silver/gold counts - because
+// medals are identity ("you are your trophies"), not stats. Found-counts only, never "of N"
+// (the ambiguity rule). (partial of MainMenuRuntime - same class, shared statics.)
 public static partial class MainMenuRuntime
 {
     private static void BuildProfileScreen(Transform parent, ChapterDefinition chapter)
@@ -41,7 +44,7 @@ public static partial class MainMenuRuntime
     private static void BuildProfileIdentityCard(Transform content, Color accent)
     {
         bool guest = !OnlineService.IsLinked;
-        RectTransform card = CreateProfileCard(content, 336f);
+        RectTransform card = CreateProfileCard(content, 336f + TrophyRowExtraHeight);
 
         // Avatar: a circular slot with the person glyph - still a placeholder; real avatars
         // arrive with the platform-services layer (BACKEND.md §3.6).
@@ -65,6 +68,8 @@ public static partial class MainMenuRuntime
             guest ? "UNINSTALLING LOSES YOUR PROGRESS" : "YOUR PROGRESS IS SAFE ON EVERY DEVICE", 20,
             WithAlpha(TextMuted, 0.65f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(188f, -136f), new Vector2(540f, 24f), new Vector2(0f, 1f));
+
+        BuildTrophyRow(card, accent);
 
         // The profile name follows auth state (connect -> Builder-XXXX arrives; claim -> new
         // name). Menu rebuilds destroy this card constantly and state changes are rare after
@@ -140,6 +145,106 @@ public static partial class MainMenuRuntime
                 () => OpenClaimNameModal(RefreshIdentity));
         }
         nameButtonLabel = nameButton.GetComponentInChildren<TextMeshProUGUI>();
+    }
+
+    // ---- trophy row -------------------------------------------------------------------------
+    // Under the identity text, above the buttons: a hairline, then four cells - CLEARED, then
+    // one per medal tier with Nick's rendered cube and the count of levels whose HIGHEST tier
+    // is that one (buckets sum to cleared - "which levels still owe me a rung" reads at a
+    // glance, which cumulative PSN counting would hide). Zero counts ghost the cube. Derived at
+    // read time from the campaign (MEDALS.md: tiers are never persisted); the menu rebuilds on
+    // every return from a run, so no live hook is needed.
+    private const float TrophyRowExtraHeight = 72f;
+    private const float TrophyRowTop = 184f;       // from the card top: below the detail line
+
+    private static void BuildTrophyRow(RectTransform card, Color accent)
+    {
+        const float sidePad = 36f;
+        const float rowH = 62f;
+
+        Image rule = CreateImage(card, "TrophyRule", RuntimeSprites.Square(), WithAlpha(accent, 0.28f));
+        RectTransform ruleRect = rule.rectTransform;
+        ruleRect.anchorMin = new Vector2(0f, 1f);
+        ruleRect.anchorMax = new Vector2(1f, 1f);
+        ruleRect.pivot = new Vector2(0.5f, 1f);
+        ruleRect.offsetMin = new Vector2(sidePad, -TrophyRowTop - 2f);
+        ruleRect.offsetMax = new Vector2(-sidePad, -TrophyRowTop);
+        rule.raycastTarget = false;
+
+        RectTransform row = CreateRect(card, "TrophyRow", new Vector2(0f, 1f), new Vector2(1f, 1f),
+            new Vector2(0.5f, 1f), Vector2.zero, Vector2.zero);
+        row.offsetMin = new Vector2(sidePad, -TrophyRowTop - 14f - rowH);
+        row.offsetMax = new Vector2(-sidePad, -TrophyRowTop - 14f);
+
+        CountMedals(out int cleared, out int[] byTier);
+        int cells = 1 + LevelTiers.TierCount;
+        BuildTrophyCell(row, 0, cells, "CLEARED", cleared, MenuSprites.CheckMark(
+            cleared > 0 ? new Color(0.56f, 0.74f, 0.5f, 1f) : MedalStyle.Unearned), cleared > 0, true);
+        for (int t = 0; t < LevelTiers.TierCount; t++)
+        {
+            var tier = (MedalTier)t;
+            int n = byTier[t];
+            BuildTrophyCell(row, 1 + t, cells, MedalStyle.DisplayName(tier).ToUpperInvariant(), n,
+                MedalStyle.Sprite(tier, earned: n > 0), n > 0, false);
+        }
+    }
+
+    private static void BuildTrophyCell(RectTransform row, int index, int cells, string label, int count,
+        Sprite icon, bool lit, bool glyphIsCheck)
+    {
+        RectTransform cell = CreateRect(row, "Trophy" + label, new Vector2((float)index / cells, 0f),
+            new Vector2((float)(index + 1) / cells, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+
+        // Icon + number as one centred pair; the caps label sits under the pair.
+        const float iconSize = 40f;
+        const float gap = 8f;
+        const float numberW = 64f;
+        float pairW = iconSize + gap + numberW;
+        float pairLeft = -pairW * 0.5f;
+
+        Image mark = CreateImage(cell, "Icon", icon, glyphIsCheck ? Color.white : MedalStyle.IconTint(lit));
+        mark.preserveAspect = true;
+        mark.raycastTarget = false;
+        SetCenteredAt(mark.rectTransform, new Vector2(0.5f, 1f),
+            new Vector2(pairLeft + iconSize * 0.5f, -2f - iconSize * 0.5f),
+            new Vector2(glyphIsCheck ? iconSize * 0.8f : iconSize, glyphIsCheck ? iconSize * 0.8f : iconSize));
+
+        TextMeshProUGUI number = CreateTmp(cell, "Count", count.ToString(), 32,
+            lit ? TextPrimary : WithAlpha(TextMuted, 0.55f),
+            TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(pairLeft + iconSize + gap, -2f - iconSize * 0.5f), new Vector2(numberW, iconSize),
+            new Vector2(0.5f, 1f));
+        number.rectTransform.pivot = new Vector2(0f, 0.5f);
+        number.font = RuntimeUiKit.TmpDisplayFont;
+
+        TextMeshProUGUI caption = CreateTmp(cell, "Label", label, 18,
+            WithAlpha(TextMuted, lit ? 0.8f : 0.5f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
+            new Vector2(0f, -2f - iconSize - 4f), new Vector2(160f, 22f), new Vector2(0.5f, 1f));
+        caption.characterSpacing = 4f;
+    }
+
+    /// <summary>Levels cleared across the whole campaign, and how many have each tier as their
+    /// HIGHEST. Endless levels (no ladder) count as cleared only. Never persisted - derived.</summary>
+    private static void CountMedals(out int cleared, out int[] byTier)
+    {
+        cleared = 0;
+        byTier = new int[LevelTiers.TierCount];
+        ChapterDefinition[] chapters = _chapters != null && _chapters.Length > 0
+            ? _chapters
+            : Campaign.LoadChaptersInOrder();
+        for (int c = 0; c < chapters.Length; c++)
+        {
+            ChapterDefinition chapter = chapters[c];
+            if (chapter == null) continue;
+            for (int i = 0; i < chapter.Levels.Count; i++)
+            {
+                LevelDefinition level = chapter.Levels[i];
+                if (level == null || !ProgressStore.IsLevelCompleted(level)) continue;
+                cleared++;
+                MedalTier? highest = LevelTiers.HighestEarned(level);
+                if (highest.HasValue) byTier[(int)highest.Value]++;
+            }
+        }
     }
 
     // 2. The one thing worth advertising, built like a real store package (IAP offer

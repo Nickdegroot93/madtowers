@@ -172,6 +172,20 @@ ScriptableObject configs were all replaced with our own idioms):
   refill + notification offers. Inner cards/chips keep their neon edges (UI taste memory);
   the Settings frosted side panel and inline message panels are screen layout, not modals.
 
+## 9b. Menu surfaces: trophy row + chapter medal strip (as-built 2026-09-04)
+
+- **Profile identity card → trophy row** (`MainMenuRuntime.BuildTrophyRow`): hairline, then
+  four cells — CLEARED (green check + count) and one per tier (Nick's cube + count of levels
+  whose HIGHEST tier is that one; buckets sum to cleared). Zero counts ghost the cube and mute
+  the number. PSN-trophy-row precedent: identity, not a stats dashboard — no new card, the
+  Unlimited pitch keeps the shine. Found-counts only, never "of N" (ambiguity rule).
+- **Chapter cards → medal strip** (`BuildChapterMedalStrip`): the capsule bar became one cube
+  per level, tinted by its highest medal (ghost = uncleared, green check = cleared Endless).
+  Cubes shrink to fit 330 u for long chapters. "x / y LEVELS" text kept.
+- Both derive at read time via `LevelTiers.HighestEarned` (no persisted counts); the menu
+  rebuilds on every return from a run, so no live refresh hook.
+- Not done (optional, Nick to decide): gold chapter badge when every level in it is gold.
+
 ## 10. TODO — remaining framing pass
 
 - ~~Replace the in-game banner look~~ — done 2026-08-29: the black strips are gone.
