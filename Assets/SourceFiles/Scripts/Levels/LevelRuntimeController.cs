@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 /// <summary>
@@ -203,9 +204,20 @@ public class LevelRuntimeController : MonoBehaviour
         if (_countdownRoot != null) DestroyCountdownUi();
         DestroyTimerUi();
 
-        // Screen BEFORE ReportResult: the card compares this run against the best as it
+        // Card content BEFORE ReportResult: the card compares this run against the best as it
         // stood before the run banked - otherwise a new best could never be detected.
-        ShowGameOverScreen();
+        RunResultsScreen.Content content = BuildGameOverContent();
+        // The sting lands on the moment of death; the card follows after a beat (Nick
+        // 2026-09-04: with the card popping the same frame, "I don't even know what happened" -
+        // the brick clipping the laser line was hidden under the modal). DeathBeatFx stages the
+        // beat: hit-stop, half speed, a push-in about the death point, colour draining - so the
+        // fatal fall and the tower's reaction play out on screen. Any tap skips to the card.
+        RunResultsScreen.PlaySting(content);
+        // A loss that banked an achievement (new tier, or a new best above it) is not a dark
+        // moment: keep the physical beat, skip the grey-out and the HUD fade (Nick 2026-09-04).
+        bool achievement = content.TierEarnedThisRun.HasValue || content.Metric.IsNewRecord;
+        DeathBeatFx.Play(GameOverCardDelaySeconds, drain: !achievement);
+        StartCoroutine(ShowGameOverCardAfterBeat(content));
         int reportedScore = ReportedScore(finalScore);
         if (_level != null) ProgressStore.ReportResult(_level, reportedScore, maxHeightMeters, RunSuppliesState.ActiveRunBoosted);
         AwardRunXp(won: false);
@@ -261,7 +273,26 @@ public class LevelRuntimeController : MonoBehaviour
         }
     }
 
-    private void ShowGameOverScreen()
+    // How long the player gets to SEE the death before the card covers it (unscaled seconds).
+    // 2 s read as "nothing happens, then the modal" (Nick 2026-09-04); 0.7 s is long enough to
+    // register the fatal fall without an empty pause.
+    private const float GameOverCardDelaySeconds = 0.7f;
+    private const float GameOverCardSkipArmSeconds = 0.25f; // the fatal tap itself must not skip
+
+    private System.Collections.IEnumerator ShowGameOverCardAfterBeat(RunResultsScreen.Content content)
+    {
+        float start = Time.unscaledTime;
+        while (Time.unscaledTime - start < GameOverCardDelaySeconds)
+        {
+            yield return null;
+            if (Time.unscaledTime - start < GameOverCardSkipArmSeconds) continue;
+            Pointer pointer = Pointer.current;
+            if (pointer != null && pointer.press.wasPressedThisFrame) break;
+        }
+        RunResultsScreen.Show(content, muted: true); // sting already played at the moment of death
+    }
+
+    private RunResultsScreen.Content BuildGameOverContent()
     {
         RunResult result = GameManager.Instance != null ? GameManager.Instance.CurrentRunResult : default;
         bool endless = _winCondition == null || !_winCondition.HasGoal;
@@ -286,7 +317,7 @@ public class LevelRuntimeController : MonoBehaviour
         // victory card already showed (Nick 2026-08-29: a game over after an achievement must
         // never read as a plain failure screen) - only the coin line stays suppressed above,
         // because those coins were genuinely already advertised and banked.
-        RunResultsScreen.Show(content);
+        return content;
     }
 
     // The goal's own idea of "the score that matters" - a presentation-owning modifier wins

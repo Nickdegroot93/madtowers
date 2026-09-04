@@ -39,6 +39,7 @@ public sealed class LifeLossFx : MonoBehaviour
         var go = new GameObject("LifeLossFx");
         var fx = go.AddComponent<LifeLossFx>();
         Vector3 center = new Vector3(blockPosition.x, y, 0f);
+        DeathBeatFx.SuggestFocus(center); // if this loss ends the run, the beat zooms about here
 
         Color mist = FallbackMistColor;
         FloorTerrain terrain = FloorTerrain.Live;

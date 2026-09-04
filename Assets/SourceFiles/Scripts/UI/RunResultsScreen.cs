@@ -100,14 +100,18 @@ public sealed class RunResultsScreen : MonoBehaviour
         screen.Build();
 
         // Muted on in-place rebuilds (an ad refill re-rendering the card must not
-        // replay the game-over sting the player already heard).
-        // A loss that banked a medal this run gets the victory sting: the tower fell, but the
-        // headline is "LEVEL COMPLETE - {TIER}" and the game-over sting would talk over it.
-        if (!muted)
-        {
-            bool celebrate = content.Victory || content.TierEarnedThisRun.HasValue;
-            SfxPlayer.Play(celebrate ? "ui-victory" : "game_over", celebrate ? 0.9f : 0.85f, 0f);
-        }
+        // replay the game-over sting the player already heard) and when the caller already
+        // played the sting at the moment of death, ahead of the delayed card.
+        if (!muted) PlaySting(content);
+    }
+
+    /// <summary>The end-of-run sting for this card. A loss that banked a medal this run gets the
+    /// victory sting: the tower fell, but the headline is "LEVEL COMPLETE - {TIER}" and the
+    /// game-over sting would talk over it.</summary>
+    public static void PlaySting(Content content)
+    {
+        bool celebrate = content.Victory || content.TierEarnedThisRun.HasValue;
+        SfxPlayer.Play(celebrate ? "ui-victory" : "game_over", celebrate ? 0.9f : 0.85f, 0f);
     }
 
     private void OnDestroy()

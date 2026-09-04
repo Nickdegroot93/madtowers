@@ -51,6 +51,30 @@ only - the body still moves the exact grid column in one physics step, so the an
 never change where the piece lands. A landing squash cancels a running lunge (touchdown owns
 the skin). Wind streaks (`DashWindFx`) and the `nudge` swoosh are unchanged.
 
+## 2b. The death beat (shipped 2026-09-04)
+
+The results card used to pop the same frame the last life went — the fatal brick was under
+the modal before it registered. Now `LevelRuntimeController.HandleGameOver` plays the sting
+at the death, starts `DeathBeatFx`, and shows the card after `GameOverCardDelaySeconds`
+(0.7 s, any tap after 0.25 s skips). The beat, all on unscaled time:
+
+- **Hit-stop** 0.12 s at timescale 0.02, then **half speed** until the card. `DeathBeatFx`
+  owns `Time.timeScale` for the beat with HitStop's discipline (restore only if still ours;
+  `HitStop.Cancel()` hands over a running micro-stop). It is the one sanctioned exception to
+  GameManager's "1 or 0" clock rule.
+- **Camera** eases in 4 % ABOUT the death point (`TowerCameraController.SetDeathFocus`) — the
+  fatal brick stays put, the world expands. Focus comes from `LifeLossFx`/`FloodSplashFx`
+  via `DeathBeatFx.SuggestFocus` (the GameOver event carries no position); timeouts zoom
+  about the centre. Held under the card.
+- **Colour** drains to grey and the vignette closes (`PostFxController.SetDrain`), held until
+  the next scene load resets it. Post never touches overlay UI, so every root overlay canvas
+  under the modal tier (sorting ≤ 6999) fades out with it — otherwise one coloured HUD
+  hairline survives in a grey world.
+- **Achievement losses stay bright**: a game over that banked a new tier or a new best keeps
+  hit-stop, slow beat and push-in but skips the drain + HUD fade (`drain: false`). The sting
+  rule is separate: victory sting only for a NEW TIER; a plain new best keeps the game-over
+  sting and gets its gold NEW BEST pill on the card.
+
 ## 3. The coin economy (shipped)
 
 ### Earning — the complete table (`CoinLedger` constants)

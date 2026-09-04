@@ -25,6 +25,12 @@ public sealed class HitStop : MonoBehaviour
         Time.timeScale = scale;
     }
 
+    /// <summary>Drop a pending restore: another owner (the death beat) takes the clock over.</summary>
+    public static void Cancel()
+    {
+        if (_instance != null) _instance._restoreAt = -1f;
+    }
+
     private void Update()
     {
         if (_restoreAt < 0f || Time.unscaledTime < _restoreAt) return;

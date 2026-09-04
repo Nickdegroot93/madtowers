@@ -41,6 +41,7 @@ public sealed class FloodSplashFx : MonoBehaviour
         var go = new GameObject("FloodSplashFx");
         var fx = go.AddComponent<FloodSplashFx>();
         Vector3 center = new Vector3(x, y, 0f);
+        DeathBeatFx.SuggestFocus(center); // if this swallow ends the run, the beat zooms about here
 
         for (int i = 0; i < 7; i++)
         {

@@ -20,6 +20,12 @@ public class PostFxController : MonoBehaviour
     private const float BloomThreshold = 0.9f;
     private const float ExtraSaturation = 8f;
     private const float ExtraContrast = 6f;
+    // Death drain (DeathBeatFx.SetDrain 1): colour bleeds out, the vignette closes in.
+    private const float DrainSaturation = -65f;
+    private const float DrainVignetteIntensity = 0.42f;
+
+    private static Vignette _vignette;
+    private static ColorAdjustments _color;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Install()
@@ -37,6 +43,7 @@ public class PostFxController : MonoBehaviour
         Vignette vignette = profile.Add<Vignette>();
         vignette.intensity.Override(VignetteIntensity);
         vignette.smoothness.Override(VignetteSmoothness);
+        _vignette = vignette;
 
         Bloom bloom = profile.Add<Bloom>();
         bloom.intensity.Override(BloomIntensity);
@@ -45,6 +52,7 @@ public class PostFxController : MonoBehaviour
         ColorAdjustments color = profile.Add<ColorAdjustments>();
         color.saturation.Override(ExtraSaturation);
         color.contrast.Override(ExtraContrast);
+        _color = color;
 
         Volume volume = gameObject.AddComponent<Volume>();
         volume.isGlobal = true;
@@ -67,6 +75,16 @@ public class PostFxController : MonoBehaviour
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         ApplyPostProcessing(); // each scene load brings a fresh camera
+        SetDrain(0f);          // a death drain never outlives its run
+    }
+
+    /// <summary>0 = the normal grade, 1 = the dead scene (grey, closed vignette). Held until the
+    /// next scene load resets it.</summary>
+    public static void SetDrain(float t)
+    {
+        t = Mathf.Clamp01(t);
+        if (_color != null) _color.saturation.Override(Mathf.Lerp(ExtraSaturation, DrainSaturation, t));
+        if (_vignette != null) _vignette.intensity.Override(Mathf.Lerp(VignetteIntensity, DrainVignetteIntensity, t));
     }
 
     // Whole post stack (vignette + bloom + grading) follows the user's Visual Effects setting -

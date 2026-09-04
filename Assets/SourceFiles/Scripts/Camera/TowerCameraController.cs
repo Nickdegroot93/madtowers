@@ -65,6 +65,12 @@ public class TowerCameraController : MonoBehaviour
 
     private float _trauma;
     private float _shakeNoiseTime;
+    // Death-beat push-in (DeathBeatFx): the frame zooms in by _deathZoom ABOUT _deathFocus, so the
+    // fatal point stays put on screen while everything else expands. Applied after the follow
+    // and shake so the framing maths never sees it; undone at the top of the next LateUpdate.
+    private float _deathZoom;
+    private Vector2 _deathFocus;
+    private float _deathZoomApplied;
 
     private void Awake()
     {
@@ -116,8 +122,22 @@ public class TowerCameraController : MonoBehaviour
         AddTrauma(Mathf.Sqrt(Mathf.Max(0f, amplitude) / ShakeMaxOffset));
     }
 
+    /// <summary>Zoom in by <paramref name="zoom"/> (fraction of the orthographic size, 0 = off)
+    /// about a world point. Instance state - a scene reload starts clean.</summary>
+    public static void SetDeathFocus(Vector2 focus, float zoom)
+    {
+        if (_instance == null) return;
+        _instance._deathFocus = focus;
+        _instance._deathZoom = Mathf.Clamp(zoom, 0f, 0.5f);
+    }
+
     private void LateUpdate()
     {
+        if (_deathZoomApplied > 0f && _camera != null && _camera.orthographic)
+        {
+            _camera.orthographicSize /= 1f - _deathZoomApplied; // back to the follow's own size
+            _deathZoomApplied = 0f;
+        }
         // Follows the LIVE standing top both ways - no "never descend" latch. In any mode
         // with lives in hand (the Flood starts with all 3), collapse-and-continue is a
         // normal state, and a camera
@@ -162,7 +182,18 @@ public class TowerCameraController : MonoBehaviour
         }
 
         TickShake(out Vector2 shakeOffset, out float shakeRoll);
-        SetCameraPosition(_baseX + shakeOffset.x, _baseY + shakeOffset.y);
+        float x = _baseX + shakeOffset.x;
+        float y = _baseY + shakeOffset.y;
+        if (_deathZoom > 0f && _camera != null && _camera.orthographic)
+        {
+            // A zoom about the focus point = scale the size AND move the centre toward the focus
+            // by the same fraction.
+            x += (_deathFocus.x - x) * _deathZoom;
+            y += (_deathFocus.y - y) * _deathZoom;
+            _camera.orthographicSize *= 1f - _deathZoom;
+            _deathZoomApplied = _deathZoom;
+        }
+        SetCameraPosition(x, y);
         transform.rotation = Quaternion.Euler(0f, 0f, shakeRoll);
         UpdateSpawnPoint();
         UpdateVerticalFollowers();
