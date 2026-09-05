@@ -1,0 +1,321 @@
+{
+  "success": true,
+  "message": "Retrieved 45 log entries.",
+  "data": [
+    {
+      "type": "Error",
+      "message": "<b><color=#cc3333>MCP-FOR-UNITY</color></b>: Connection verification failed: Bridge not running",
+      "file": "./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Helpers/McpLog.cs",
+      "line": 50,
+      "stackTrace": "UnityEngine.Debug:LogError (object)\nMCPForUnity.Editor.Helpers.McpLog:Error (string) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Helpers/McpLog.cs:50)\nMCPForUnity.Editor.Windows.Components.Connection.McpConnectionSection/<VerifyBridgeConnectionInternalAsync>d__66:MoveNext () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Windows/Components/Connection/McpConnectionSection.cs:1075)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MCPForUnity.Editor.Windows.Components.Connection.McpConnectionSection/<VerifyBridgeConnectionInternalAsync>d__66> (MCPForUnity.Editor.Windows.Components.Connection.McpConnectionSection/<VerifyBridgeConnectionInternalAsync>d__66&)\nMCPForUnity.Editor.Windows.Components.Connection.McpConnectionSection:VerifyBridgeConnectionInternalAsync ()\nMCPForUnity.Editor.Windows.Components.Connection.McpConnectionSection/<VerifyBridgeConnectionAsync>d__65:MoveNext () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Windows/Components/Connection/McpConnectionSection.cs:1019)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start<MCPForUnity.Editor.Windows.Components.Connection.McpConnectionSection/<VerifyBridgeConnectionAsync>d__65> (MCPForUnity.Editor.Windows.Components.Connection.McpConnectionSection/<VerifyBridgeConnectionAsync>d__65&)\nMCPForUnity.Editor.Windows.Components.Connection.McpConnectionSection:VerifyBridgeConnectionAsync ()\nMCPForUnity.Editor.Windows.MCPForUnityEditorWindow:RefreshAllData () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Windows/MCPForUnityEditorWindow.cs:594)\nMCPForUnity.Editor.Windows.MCPForUnityEditorWindow:CreateGUI () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Windows/MCPForUnityEditorWindow.cs:370)\nUnityEngine.GUIUtility:ProcessEvent (UnityEngine.EntityId,intptr,bool&) (at /Users/bokken/build/output/unity/unity/Modules/IMGUI/GUIUtility.cs:224)"
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.core/LICENSE.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.core/LICENSE.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.core/README.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.core/README.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.review/LICENSE.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.review/LICENSE.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.review/README.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.review/README.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "Ignoring depth surface load action as it is memoryless",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "Ignoring depth surface store action as it is memoryless",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.core/LICENSE.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.core/LICENSE.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.core/README.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.core/README.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.review/LICENSE.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.review/LICENSE.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.review/README.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.review/README.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "Ignoring depth surface load action as it is memoryless",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "Ignoring depth surface store action as it is memoryless",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.core/LICENSE.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/RefreshUnity.cs",
+      "line": 55,
+      "stackTrace": "UnityEngine.StackTraceUtility:ExtractStackTrace ()\nMCPForUnity.Editor.Tools.RefreshUnity/<HandleCommand>d__1:MoveNext () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/RefreshUnity.cs:55)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<object>:Start<MCPForUnity.Editor.Tools.RefreshUnity/<HandleCommand>d__1> (MCPForUnity.Editor.Tools.RefreshUnity/<HandleCommand>d__1&)\nMCPForUnity.Editor.Tools.RefreshUnity:HandleCommand (Newtonsoft.Json.Linq.JObject)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nMCPForUnity.Editor.Tools.CommandRegistry/<>c__DisplayClass13_0/<<CreateAsyncHandlerDelegate>b__0>d:MoveNext () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/CommandRegistry.cs:354)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<object>:Start<MCPForUnity.Editor.Tools.CommandRegistry/<>c__DisplayClass13_0/<<CreateAsyncHandlerDelegate>b__0>d> (MCPForUnity.Editor.Tools.CommandRegistry/<>c__DisplayClass13_0/<<CreateAsyncHandlerDelegate>b__0>d&)\nMCPForUnity.Editor.Tools.CommandRegistry/<>c__DisplayClass13_0:<CreateAsyncHandlerDelegate>b__0 (Newtonsoft.Json.Linq.JObject)\nMCPForUnity.Editor.Tools.CommandRegistry:ExecuteAsyncHandler (MCPForUnity.Editor.Tools.HandlerInfo,Newtonsoft.Json.Linq.JObject,string,System.Threading.Tasks.TaskCompletionSource`1<string>) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/CommandRegistry.cs:404)\nMCPForUnity.Editor.Tools.CommandRegistry:ExecuteCommand (string,Newtonsoft.Json.Linq.JObject,System.Threading.Tasks.TaskCompletionSource`1<string>) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/CommandRegistry.cs:296)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:ProcessCommand (string,MCPForUnity.Editor.Services.Transport.TransportCommandDispatcher/PendingCommand) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:366)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:ProcessQueue () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:262)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:<RequestMainThreadPump>g__Pump|11_0 () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:184)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:RequestMainThreadPump () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:193)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:ExecuteCommandJsonAsync (string,System.Threading.CancellationToken) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:116)\nMCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost/<>c__DisplayClass53_0/<<ExecuteQueuedCommand>g__Runner|0>d:MoveNext () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/Transports/StdioBridgeHost.cs:937)\nSystem.Runtime.CompilerServices.AsyncVoidMethodBuilder:Start<MCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost/<>c__DisplayClass53_0/<<ExecuteQueuedCommand>g__Runner|0>d> (MCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost/<>c__DisplayClass53_0/<<ExecuteQueuedCommand>g__Runner|0>d&)\nMCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost/<>c__DisplayClass53_0:<ExecuteQueuedCommand>g__Runner|0 ()\nMCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost:ExecuteQueuedCommand (string,string,System.Threading.Tasks.TaskCompletionSource`1<string>) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/Transports/StdioBridgeHost.cs:971)\nMCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost:ProcessCommands () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/Transports/StdioBridgeHost.cs:921)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions ()"
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.core/LICENSE.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.core/README.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/RefreshUnity.cs",
+      "line": 55,
+      "stackTrace": "UnityEngine.StackTraceUtility:ExtractStackTrace ()\nMCPForUnity.Editor.Tools.RefreshUnity/<HandleCommand>d__1:MoveNext () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/RefreshUnity.cs:55)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<object>:Start<MCPForUnity.Editor.Tools.RefreshUnity/<HandleCommand>d__1> (MCPForUnity.Editor.Tools.RefreshUnity/<HandleCommand>d__1&)\nMCPForUnity.Editor.Tools.RefreshUnity:HandleCommand (Newtonsoft.Json.Linq.JObject)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nMCPForUnity.Editor.Tools.CommandRegistry/<>c__DisplayClass13_0/<<CreateAsyncHandlerDelegate>b__0>d:MoveNext () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/CommandRegistry.cs:354)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<object>:Start<MCPForUnity.Editor.Tools.CommandRegistry/<>c__DisplayClass13_0/<<CreateAsyncHandlerDelegate>b__0>d> (MCPForUnity.Editor.Tools.CommandRegistry/<>c__DisplayClass13_0/<<CreateAsyncHandlerDelegate>b__0>d&)\nMCPForUnity.Editor.Tools.CommandRegistry/<>c__DisplayClass13_0:<CreateAsyncHandlerDelegate>b__0 (Newtonsoft.Json.Linq.JObject)\nMCPForUnity.Editor.Tools.CommandRegistry:ExecuteAsyncHandler (MCPForUnity.Editor.Tools.HandlerInfo,Newtonsoft.Json.Linq.JObject,string,System.Threading.Tasks.TaskCompletionSource`1<string>) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/CommandRegistry.cs:404)\nMCPForUnity.Editor.Tools.CommandRegistry:ExecuteCommand (string,Newtonsoft.Json.Linq.JObject,System.Threading.Tasks.TaskCompletionSource`1<string>) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/CommandRegistry.cs:296)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:ProcessCommand (string,MCPForUnity.Editor.Services.Transport.TransportCommandDispatcher/PendingCommand) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:366)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:ProcessQueue () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:262)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:<RequestMainThreadPump>g__Pump|11_0 () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:184)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:RequestMainThreadPump () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:193)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:ExecuteCommandJsonAsync (string,System.Threading.CancellationToken) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:116)\nMCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost/<>c__DisplayClass53_0/<<ExecuteQueuedCommand>g__Runner|0>d:MoveNext () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/Transports/StdioBridgeHost.cs:937)\nSystem.Runtime.CompilerServices.AsyncVoidMethodBuilder:Start<MCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost/<>c__DisplayClass53_0/<<ExecuteQueuedCommand>g__Runner|0>d> (MCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost/<>c__DisplayClass53_0/<<ExecuteQueuedCommand>g__Runner|0>d&)\nMCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost/<>c__DisplayClass53_0:<ExecuteQueuedCommand>g__Runner|0 ()\nMCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost:ExecuteQueuedCommand (string,string,System.Threading.Tasks.TaskCompletionSource`1<string>) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/Transports/StdioBridgeHost.cs:971)\nMCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost:ProcessCommands () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/Transports/StdioBridgeHost.cs:921)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions ()"
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.core/README.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.review/LICENSE.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/RefreshUnity.cs",
+      "line": 55,
+      "stackTrace": "UnityEngine.StackTraceUtility:ExtractStackTrace ()\nMCPForUnity.Editor.Tools.RefreshUnity/<HandleCommand>d__1:MoveNext () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/RefreshUnity.cs:55)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<object>:Start<MCPForUnity.Editor.Tools.RefreshUnity/<HandleCommand>d__1> (MCPForUnity.Editor.Tools.RefreshUnity/<HandleCommand>d__1&)\nMCPForUnity.Editor.Tools.RefreshUnity:HandleCommand (Newtonsoft.Json.Linq.JObject)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nMCPForUnity.Editor.Tools.CommandRegistry/<>c__DisplayClass13_0/<<CreateAsyncHandlerDelegate>b__0>d:MoveNext () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/CommandRegistry.cs:354)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<object>:Start<MCPForUnity.Editor.Tools.CommandRegistry/<>c__DisplayClass13_0/<<CreateAsyncHandlerDelegate>b__0>d> (MCPForUnity.Editor.Tools.CommandRegistry/<>c__DisplayClass13_0/<<CreateAsyncHandlerDelegate>b__0>d&)\nMCPForUnity.Editor.Tools.CommandRegistry/<>c__DisplayClass13_0:<CreateAsyncHandlerDelegate>b__0 (Newtonsoft.Json.Linq.JObject)\nMCPForUnity.Editor.Tools.CommandRegistry:ExecuteAsyncHandler (MCPForUnity.Editor.Tools.HandlerInfo,Newtonsoft.Json.Linq.JObject,string,System.Threading.Tasks.TaskCompletionSource`1<string>) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/CommandRegistry.cs:404)\nMCPForUnity.Editor.Tools.CommandRegistry:ExecuteCommand (string,Newtonsoft.Json.Linq.JObject,System.Threading.Tasks.TaskCompletionSource`1<string>) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/CommandRegistry.cs:296)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:ProcessCommand (string,MCPForUnity.Editor.Services.Transport.TransportCommandDispatcher/PendingCommand) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:366)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:ProcessQueue () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:262)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:<RequestMainThreadPump>g__Pump|11_0 () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:184)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:RequestMainThreadPump () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:193)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:ExecuteCommandJsonAsync (string,System.Threading.CancellationToken) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:116)\nMCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost/<>c__DisplayClass53_0/<<ExecuteQueuedCommand>g__Runner|0>d:MoveNext () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/Transports/StdioBridgeHost.cs:937)\nSystem.Runtime.CompilerServices.AsyncVoidMethodBuilder:Start<MCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost/<>c__DisplayClass53_0/<<ExecuteQueuedCommand>g__Runner|0>d> (MCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost/<>c__DisplayClass53_0/<<ExecuteQueuedCommand>g__Runner|0>d&)\nMCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost/<>c__DisplayClass53_0:<ExecuteQueuedCommand>g__Runner|0 ()\nMCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost:ExecuteQueuedCommand (string,string,System.Threading.Tasks.TaskCompletionSource`1<string>) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/Transports/StdioBridgeHost.cs:971)\nMCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost:ProcessCommands () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/Transports/StdioBridgeHost.cs:921)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions ()"
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.review/LICENSE.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.review/README.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/RefreshUnity.cs",
+      "line": 55,
+      "stackTrace": "UnityEngine.StackTraceUtility:ExtractStackTrace ()\nMCPForUnity.Editor.Tools.RefreshUnity/<HandleCommand>d__1:MoveNext () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/RefreshUnity.cs:55)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<object>:Start<MCPForUnity.Editor.Tools.RefreshUnity/<HandleCommand>d__1> (MCPForUnity.Editor.Tools.RefreshUnity/<HandleCommand>d__1&)\nMCPForUnity.Editor.Tools.RefreshUnity:HandleCommand (Newtonsoft.Json.Linq.JObject)\nSystem.Reflection.MethodBase:Invoke (object,object[])\nMCPForUnity.Editor.Tools.CommandRegistry/<>c__DisplayClass13_0/<<CreateAsyncHandlerDelegate>b__0>d:MoveNext () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/CommandRegistry.cs:354)\nSystem.Runtime.CompilerServices.AsyncTaskMethodBuilder`1<object>:Start<MCPForUnity.Editor.Tools.CommandRegistry/<>c__DisplayClass13_0/<<CreateAsyncHandlerDelegate>b__0>d> (MCPForUnity.Editor.Tools.CommandRegistry/<>c__DisplayClass13_0/<<CreateAsyncHandlerDelegate>b__0>d&)\nMCPForUnity.Editor.Tools.CommandRegistry/<>c__DisplayClass13_0:<CreateAsyncHandlerDelegate>b__0 (Newtonsoft.Json.Linq.JObject)\nMCPForUnity.Editor.Tools.CommandRegistry:ExecuteAsyncHandler (MCPForUnity.Editor.Tools.HandlerInfo,Newtonsoft.Json.Linq.JObject,string,System.Threading.Tasks.TaskCompletionSource`1<string>) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/CommandRegistry.cs:404)\nMCPForUnity.Editor.Tools.CommandRegistry:ExecuteCommand (string,Newtonsoft.Json.Linq.JObject,System.Threading.Tasks.TaskCompletionSource`1<string>) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Tools/CommandRegistry.cs:296)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:ProcessCommand (string,MCPForUnity.Editor.Services.Transport.TransportCommandDispatcher/PendingCommand) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:366)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:ProcessQueue () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:262)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:<RequestMainThreadPump>g__Pump|11_0 () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:184)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:RequestMainThreadPump () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:193)\nMCPForUnity.Editor.Services.Transport.TransportCommandDispatcher:ExecuteCommandJsonAsync (string,System.Threading.CancellationToken) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/TransportCommandDispatcher.cs:116)\nMCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost/<>c__DisplayClass53_0/<<ExecuteQueuedCommand>g__Runner|0>d:MoveNext () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/Transports/StdioBridgeHost.cs:937)\nSystem.Runtime.CompilerServices.AsyncVoidMethodBuilder:Start<MCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost/<>c__DisplayClass53_0/<<ExecuteQueuedCommand>g__Runner|0>d> (MCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost/<>c__DisplayClass53_0/<<ExecuteQueuedCommand>g__Runner|0>d&)\nMCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost/<>c__DisplayClass53_0:<ExecuteQueuedCommand>g__Runner|0 ()\nMCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost:ExecuteQueuedCommand (string,string,System.Threading.Tasks.TaskCompletionSource`1<string>) (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/Transports/StdioBridgeHost.cs:971)\nMCPForUnity.Editor.Services.Transport.Transports.StdioBridgeHost:ProcessCommands () (at ./Library/PackageCache/com.coplaydev.unity-mcp@f445f81ac937/Editor/Services/Transport/Transports/StdioBridgeHost.cs:921)\nUnityEditor.EditorApplication:Internal_CallUpdateFunctions ()"
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.review/README.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.core/LICENSE.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.core/LICENSE.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.core/README.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.core/README.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.review/LICENSE.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.review/LICENSE.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.review/README.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.review/README.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.core/LICENSE.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.core/LICENSE.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.core/README.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.core/README.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.review/LICENSE.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.review/LICENSE.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    },
+    {
+      "type": "Error",
+      "message": "A meta data file (.meta) exists but its asset 'Packages/com.google.play.review/README.md' can't be found. When moving or deleting files outside of Unity, please ensure that the corresponding .meta file is moved or deleted along with it.",
+      "file": "",
+      "line": 0,
+      "stackTrace": null
+    },
+    {
+      "type": "Exception",
+      "message": "Couldn't delete Packages/com.google.play.review/README.md.meta because it's in an immutable folder.",
+      "file": "./Modules/AssetDatabase/Editor/V2/FilteredFileIterationState.cpp",
+      "line": 115,
+      "stackTrace": null
+    }
+  ]
+}

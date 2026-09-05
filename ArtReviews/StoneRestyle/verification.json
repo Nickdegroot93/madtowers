@@ -1,0 +1,1543 @@
+{
+  "themes": 17,
+  "piece_pngs": 153,
+  "poster_pngs": 4,
+  "palettes_unchanged": true,
+  "geometry_constants_unchanged": true,
+  "runtime_contracts_equal": true,
+  "fallback_passed": 9,
+  "baseline_hashed_files": 2333,
+  "other_baseline_files_unchanged": true,
+  "images": [
+    {
+      "theme": "Classic",
+      "shape": "I",
+      "canvas": [
+        1088,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Classic",
+      "shape": "J",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Classic",
+      "shape": "L",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Classic",
+      "shape": "O",
+      "canvas": [
+        576,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Classic",
+      "shape": "S",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Classic",
+      "shape": "T",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Classic",
+      "shape": "Z",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Classic",
+      "shape": "Pip",
+      "canvas": [
+        320,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Classic",
+      "shape": "Domino",
+      "canvas": [
+        320,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Desert",
+      "shape": "I",
+      "canvas": [
+        1088,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Desert",
+      "shape": "J",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Desert",
+      "shape": "L",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Desert",
+      "shape": "O",
+      "canvas": [
+        576,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Desert",
+      "shape": "S",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Desert",
+      "shape": "T",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Desert",
+      "shape": "Z",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Desert",
+      "shape": "Pip",
+      "canvas": [
+        320,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Desert",
+      "shape": "Domino",
+      "canvas": [
+        320,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Jungle",
+      "shape": "I",
+      "canvas": [
+        1088,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Jungle",
+      "shape": "J",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Jungle",
+      "shape": "L",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Jungle",
+      "shape": "O",
+      "canvas": [
+        576,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Jungle",
+      "shape": "S",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Jungle",
+      "shape": "T",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Jungle",
+      "shape": "Z",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Jungle",
+      "shape": "Pip",
+      "canvas": [
+        320,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Jungle",
+      "shape": "Domino",
+      "canvas": [
+        320,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Vault",
+      "shape": "I",
+      "canvas": [
+        1088,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Vault",
+      "shape": "J",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Vault",
+      "shape": "L",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Vault",
+      "shape": "O",
+      "canvas": [
+        576,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Vault",
+      "shape": "S",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Vault",
+      "shape": "T",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Vault",
+      "shape": "Z",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Vault",
+      "shape": "Pip",
+      "canvas": [
+        320,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Vault",
+      "shape": "Domino",
+      "canvas": [
+        320,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Winter",
+      "shape": "I",
+      "canvas": [
+        1088,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Winter",
+      "shape": "J",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Winter",
+      "shape": "L",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Winter",
+      "shape": "O",
+      "canvas": [
+        576,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Winter",
+      "shape": "S",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Winter",
+      "shape": "T",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Winter",
+      "shape": "Z",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Winter",
+      "shape": "Pip",
+      "canvas": [
+        320,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Winter",
+      "shape": "Domino",
+      "canvas": [
+        320,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Fangkuai",
+      "shape": "I",
+      "canvas": [
+        1088,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Fangkuai",
+      "shape": "J",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Fangkuai",
+      "shape": "L",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Fangkuai",
+      "shape": "O",
+      "canvas": [
+        576,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Fangkuai",
+      "shape": "S",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Fangkuai",
+      "shape": "T",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Fangkuai",
+      "shape": "Z",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Fangkuai",
+      "shape": "Pip",
+      "canvas": [
+        320,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Fangkuai",
+      "shape": "Domino",
+      "canvas": [
+        320,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Kvartal",
+      "shape": "I",
+      "canvas": [
+        1088,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Kvartal",
+      "shape": "J",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Kvartal",
+      "shape": "L",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Kvartal",
+      "shape": "O",
+      "canvas": [
+        576,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Kvartal",
+      "shape": "S",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Kvartal",
+      "shape": "T",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Kvartal",
+      "shape": "Z",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Kvartal",
+      "shape": "Pip",
+      "canvas": [
+        320,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Kvartal",
+      "shape": "Domino",
+      "canvas": [
+        320,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Neon",
+      "shape": "I",
+      "canvas": [
+        1088,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Neon",
+      "shape": "J",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Neon",
+      "shape": "L",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Neon",
+      "shape": "O",
+      "canvas": [
+        576,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Neon",
+      "shape": "S",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Neon",
+      "shape": "T",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Neon",
+      "shape": "Z",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Neon",
+      "shape": "Pip",
+      "canvas": [
+        320,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Neon",
+      "shape": "Domino",
+      "canvas": [
+        320,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Volcano",
+      "shape": "I",
+      "canvas": [
+        1088,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Volcano",
+      "shape": "J",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Volcano",
+      "shape": "L",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Volcano",
+      "shape": "O",
+      "canvas": [
+        576,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Volcano",
+      "shape": "S",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Volcano",
+      "shape": "T",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Volcano",
+      "shape": "Z",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Volcano",
+      "shape": "Pip",
+      "canvas": [
+        320,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Volcano",
+      "shape": "Domino",
+      "canvas": [
+        320,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Egypt",
+      "shape": "I",
+      "canvas": [
+        1088,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Egypt",
+      "shape": "J",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Egypt",
+      "shape": "L",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Egypt",
+      "shape": "O",
+      "canvas": [
+        576,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Egypt",
+      "shape": "S",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Egypt",
+      "shape": "T",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Egypt",
+      "shape": "Z",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Egypt",
+      "shape": "Pip",
+      "canvas": [
+        320,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Egypt",
+      "shape": "Domino",
+      "canvas": [
+        320,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "LostCity",
+      "shape": "I",
+      "canvas": [
+        1088,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "LostCity",
+      "shape": "J",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "LostCity",
+      "shape": "L",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "LostCity",
+      "shape": "O",
+      "canvas": [
+        576,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "LostCity",
+      "shape": "S",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "LostCity",
+      "shape": "T",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "LostCity",
+      "shape": "Z",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "LostCity",
+      "shape": "Pip",
+      "canvas": [
+        320,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "LostCity",
+      "shape": "Domino",
+      "canvas": [
+        320,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Island",
+      "shape": "I",
+      "canvas": [
+        1088,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Island",
+      "shape": "J",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Island",
+      "shape": "L",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Island",
+      "shape": "O",
+      "canvas": [
+        576,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Island",
+      "shape": "S",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Island",
+      "shape": "T",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Island",
+      "shape": "Z",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Island",
+      "shape": "Pip",
+      "canvas": [
+        320,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Island",
+      "shape": "Domino",
+      "canvas": [
+        320,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Hallow",
+      "shape": "I",
+      "canvas": [
+        1088,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Hallow",
+      "shape": "J",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Hallow",
+      "shape": "L",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Hallow",
+      "shape": "O",
+      "canvas": [
+        576,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Hallow",
+      "shape": "S",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Hallow",
+      "shape": "T",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Hallow",
+      "shape": "Z",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Hallow",
+      "shape": "Pip",
+      "canvas": [
+        320,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Hallow",
+      "shape": "Domino",
+      "canvas": [
+        320,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Techno",
+      "shape": "I",
+      "canvas": [
+        1088,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Techno",
+      "shape": "J",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Techno",
+      "shape": "L",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Techno",
+      "shape": "O",
+      "canvas": [
+        576,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Techno",
+      "shape": "S",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Techno",
+      "shape": "T",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Techno",
+      "shape": "Z",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Techno",
+      "shape": "Pip",
+      "canvas": [
+        320,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Techno",
+      "shape": "Domino",
+      "canvas": [
+        320,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Tide",
+      "shape": "I",
+      "canvas": [
+        1088,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Tide",
+      "shape": "J",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Tide",
+      "shape": "L",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Tide",
+      "shape": "O",
+      "canvas": [
+        576,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Tide",
+      "shape": "S",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Tide",
+      "shape": "T",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Tide",
+      "shape": "Z",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Tide",
+      "shape": "Pip",
+      "canvas": [
+        320,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Tide",
+      "shape": "Domino",
+      "canvas": [
+        320,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Japan",
+      "shape": "I",
+      "canvas": [
+        1088,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Japan",
+      "shape": "J",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Japan",
+      "shape": "L",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Japan",
+      "shape": "O",
+      "canvas": [
+        576,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Japan",
+      "shape": "S",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Japan",
+      "shape": "T",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Japan",
+      "shape": "Z",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Japan",
+      "shape": "Pip",
+      "canvas": [
+        320,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Japan",
+      "shape": "Domino",
+      "canvas": [
+        320,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Crimson",
+      "shape": "I",
+      "canvas": [
+        1088,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Crimson",
+      "shape": "J",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Crimson",
+      "shape": "L",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Crimson",
+      "shape": "O",
+      "canvas": [
+        576,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Crimson",
+      "shape": "S",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Crimson",
+      "shape": "T",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Crimson",
+      "shape": "Z",
+      "canvas": [
+        832,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Crimson",
+      "shape": "Pip",
+      "canvas": [
+        320,
+        320
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    },
+    {
+      "theme": "Crimson",
+      "shape": "Domino",
+      "canvas": [
+        320,
+        576
+      ],
+      "alpha_identical": true,
+      "deterministic_bytes": true
+    }
+  ]
+}

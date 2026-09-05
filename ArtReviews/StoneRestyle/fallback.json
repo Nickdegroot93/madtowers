@@ -1,0 +1,38 @@
+[
+  {
+    "shape": "I",
+    "classic": true
+  },
+  {
+    "shape": "O",
+    "classic": true
+  },
+  {
+    "shape": "T",
+    "classic": true
+  },
+  {
+    "shape": "S",
+    "classic": true
+  },
+  {
+    "shape": "Z",
+    "classic": true
+  },
+  {
+    "shape": "J",
+    "classic": true
+  },
+  {
+    "shape": "L",
+    "classic": true
+  },
+  {
+    "shape": "Domino",
+    "classic": true
+  },
+  {
+    "shape": "Pip",
+    "classic": true
+  }
+]

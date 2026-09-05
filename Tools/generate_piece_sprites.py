@@ -6,16 +6,16 @@ for each entry in THEME_PRESETS. A theme without its own entry falls back to the
 Classic pieces at runtime (ChapterSkins fallback chain) - adding a block look for
 a theme = adding one preset dict here and rerunning.
 
-Style per piece (the "carved stone toy" look, see STYLE.md):
+Style per piece (carved stone slabs, see STYLE.md):
   - rounded silhouette, THICK near-black outline that keeps the base hue
   - light from straight above: bright embossed bevel just inside the top edge,
     shadowed bevel along the bottom, neutral-dark sides
   - vertical gradient (lighter top, darker bottom) + mottled multi-octave stone
-    body + per-cell brightness variance + fine grain
+    body + shallow chiselled relief + fine grain (no per-cell colour variation)
   - chunky embossed cracks along cell seams that run all the way through the
     outline (each cell reads as its own stone), plus shorter "plate" cracks
     growing inward from the silhouette edge, plus faint wandering hairlines
-  - small pit specks and edge nicks for wear
+  - clustered angular pits and worn bevel facets, contained inside the silhouette
 
 Deterministic per shape (seeded) so regeneration is stable and every theme keeps
 the same crack layout (only the palette changes chapter to chapter).
@@ -425,6 +425,62 @@ def mottle_field(w, h, nprng):
             + value_noise(w, h, 22, nprng) * 0.18)
 
 
+def stone_surface(w, h, sdf, seed):
+    """One piece-wide weathering field, shared by every chapter and every spawn.
+
+    Value mottling stays within STYLE.md's +/-8%; relief is lit separately from
+    straight above. Angular shallow flakes survive minification better than
+    stronger pixel noise. Nothing in this pass can change alpha or the outline.
+    """
+    rng = random.Random(seed)
+    nprng = np.random.RandomState(zlib.crc32(seed.encode()) & 0x7fffffff)
+    broad = mottle_field(w, h, nprng)
+    mottle = np.clip(broad * 0.38, -0.08, 0.08)
+    relief = (value_noise(w, h, 60, nprng) * 0.55
+              + value_noise(w, h, 28, nprng) * 0.30
+              + value_noise(w, h, 9, nprng) * 0.15)
+    # Facet slopes, not another colour/noise layer: upward slopes catch light.
+    slope = -np.gradient(relief, axis=0)
+    relief_light = np.clip(slope * 3.2, -0.13, 0.13)
+
+    flakes = Image.new("L", (w, h), 0)
+    pits = Image.new("L", (w, h), 0)
+    fd, pd = ImageDraw.Draw(flakes), ImageDraw.Draw(pits)
+    # Sample across the whole canvas: never re-roll a material or tint per cell.
+    for _ in range(round(w * h / 1400)):
+        x, y = rng.randrange(w), rng.randrange(h)
+        if sdf[y, x] > -OUTLINE - 4:
+            continue
+        radius = rng.uniform(1.5, 5.0)
+        large = rng.random() < 0.24
+        if large:
+            radius *= 4.0
+        points = []
+        for i in range(6):
+            angle = math.tau * i / 6
+            r = radius * rng.uniform(0.60, 1.20)
+            points.append((x + math.cos(angle) * r, y + math.sin(angle) * r * 0.65))
+        (fd if large else pd).polygon(points, fill=rng.randrange(100, 230))
+    flakes = np.asarray(flakes.filter(ImageFilter.GaussianBlur(1.5)), np.float32) / 255.0
+    pits = np.asarray(pits.filter(ImageFilter.GaussianBlur(0.65)), np.float32) / 255.0
+    chips = Image.new("L", (w, h), 0)
+    cd = ImageDraw.Draw(chips)
+    gy, gx = np.gradient(sdf)
+    edge_y, edge_x = np.where((sdf < -OUTLINE - 2) & (sdf > -OUTLINE - 4))
+    for _ in range(max(1, len(edge_x) // 110)):
+        i = rng.randrange(len(edge_x))
+        x, y = edge_x[i], edge_y[i]
+        nx, ny = float(gx[y, x]), float(gy[y, x])
+        width, depth = rng.uniform(6, 15), rng.uniform(6, 17)
+        cd.polygon([(x - ny * width, y + nx * width),
+                    (x + ny * width, y - nx * width),
+                    (x - nx * depth, y - ny * depth)], fill=rng.randrange(140, 230))
+    chips = np.asarray(chips.filter(ImageFilter.GaussianBlur(0.8)), np.float32) / 255.0
+    # Wide, irregular worn facets break the perfect manufactured outer bevel.
+    wear = np.clip(value_noise(w, h, 19, nprng) * 2.8, -0.7, 0.7)
+    return mottle, relief_light, flakes, pits, wear, chips
+
+
 def jittered(rng, p0, p1, amp_mid, amp_end, n=6):
     """Polyline points from p0 to p1 with perpendicular jitter."""
     dx, dy = p1[0] - p0[0], p1[1] - p0[1]
@@ -474,10 +530,11 @@ def silhouette_edge_point(rng, cells, side_filter=None):
 def build_crack_layers(shape, cells, w, h, rng):
     """Draw the crack line-work into intensity maps.
 
-    Returns (chunky, hairline, pits) float arrays in [0,1]:
+    Returns (chunky, hairline, pits, seam_distance):
       chunky   - cell seams + plate cracks (deep carved lines, get the emboss)
       hairline - faint wandering surface cracks
       pits     - small round pit specks
+      seam_distance - distance in pixels to structural joints (not plate cracks)
     """
     seam_img = Image.new("L", (w, h), 0)
     plate_img = Image.new("L", (w, h), 0)
@@ -486,6 +543,7 @@ def build_crack_layers(shape, cells, w, h, rng):
     seams, plates, hairs, pits = (ImageDraw.Draw(i) for i in
                                   (seam_img, plate_img, hair_img, pit_img))
     filled = set(cells)
+    seam_paths = []
 
     # Cell seams: every internal cell boundary, jittered, overshooting past the
     # silhouette edge so the crack visibly cuts through the outline (each cell
@@ -494,11 +552,21 @@ def build_crack_layers(shape, cells, w, h, rng):
     for c, r in cells:
         x0, y0 = BLEED + c * CELL, BLEED + r * CELL
         if (c + 1, r) in filled:
-            seams.line(jittered(rng, (x0 + CELL, y0 - OVER), (x0 + CELL, y0 + CELL + OVER), 10, 5),
-                       fill=255, width=9, joint="curve")
+            seam_paths.append(jittered(rng, (x0 + CELL, y0 - OVER),
+                                       (x0 + CELL, y0 + CELL + OVER), 10, 5))
         if (c, r + 1) in filled:
-            seams.line(jittered(rng, (x0 - OVER, y0 + CELL), (x0 + CELL + OVER, y0 + CELL), 10, 5),
-                       fill=255, width=9, joint="curve")
+            seam_paths.append(jittered(rng, (x0 - OVER, y0 + CELL),
+                                       (x0 + CELL + OVER, y0 + CELL), 10, 5))
+    ys, xs = np.mgrid[0:h, 0:w].astype(np.float32)
+    xs += 0.5; ys += 0.5
+    distance_squared = np.full((h, w), 1e9, np.float32)
+    for points in seam_paths:
+        seams.line(points, fill=255, width=9, joint="curve")
+        for (ax, ay), (bx, by) in zip(points, points[1:]):
+            dx, dy = bx - ax, by - ay
+            t = np.clip(((xs - ax) * dx + (ys - ay) * dy) / (dx * dx + dy * dy), 0, 1)
+            np.minimum(distance_squared, (xs - ax - t * dx) ** 2 + (ys - ay - t * dy) ** 2,
+                       out=distance_squared)
 
     # Plate cracks: few, short, calm. Two kinds, both anchored to existing
     # structure so they read as stone fractures, not floating scratches:
@@ -545,7 +613,7 @@ def build_crack_layers(shape, cells, w, h, rng):
                         np.asarray(plate_img.filter(blur), np.float32)) / 255.0
     hairline = np.asarray(hair_img.filter(blur), np.float32) / 255.0
     pit = np.asarray(pit_img.filter(ImageFilter.GaussianBlur(0.8)), np.float32) / 255.0
-    return chunky, hairline, pit
+    return chunky, hairline, pit, np.sqrt(distance_squared)
 
 
 def shift_down(a, px):
@@ -580,44 +648,55 @@ def render(shape, preset, out_dir):
     base = np.asarray(preset["colors"][shape], np.float32) / 255.0
     edge_shine = preset.get("edgeShine", {}).get(shape, 0.0)
 
-    # --- luminance model: gradient * per-cell variance * mottle * grain -------
+    # --- luminance model: one base colour, top light, shared stone relief ------
     ys = (np.arange(h, dtype=np.float32) + 0.5)[:, None] / h
     grad = 1.13 - 0.36 * ys ** 1.15                       # light from straight above
-    cellb = np.ones((h, w), np.float32)
-    for (c, r) in cells:
-        b = 1.0 + (rng.random() - 0.5) * 0.09
-        y0, y1 = BLEED + r * CELL, BLEED + (r + 1) * CELL
-        x0, x1 = BLEED + c * CELL, BLEED + (c + 1) * CELL
-        cellb[max(0, y0):y1, max(0, x0):x1] = b
-    mottle = mottle_field(w, h, nprng)
-    grain = (nprng.rand(h, w).astype(np.float32) - 0.5) * 0.05
-    lum = grad * cellb * (1.0 + mottle * 0.17) * (1.0 + grain)
+    mottle, relief, flakes, weather_pits, wear, chips = stone_surface(w, h, sdf, shape + ":stone")
+    grain = (nprng.rand(h, w).astype(np.float32) - 0.5) * 0.10  # +/-5%, never stronger
+    lum = grad * (1.0 + mottle) * (1.0 + grain)
     col = base[None, None, :] * lum[..., None]
+    interior = sdf < -OUTLINE
+    col *= (1.0 + relief * interior)[..., None]
+    col *= (1.0 - 0.16 * flakes * interior)[..., None]
+    flake_lip = np.maximum(shift_down(flakes, 3) - flakes, 0)
+    col *= (1.0 + 0.20 * flake_lip * interior)[..., None]
 
-    # --- bevel: embossed rim just inside the outline --------------------------
-    gy, gx = np.gradient(sdf)                             # outward-facing normal
-    band = np.clip((sdf + OUTLINE + BEVEL) / BEVEL, 0.0, 1.0) ** 1.6
+    chunky, hairline, pit, seam_distance = build_crack_layers(shape, cells, w, h, rng)
+
+    # --- bevel: each stone has the same top-lit, 26px carved rim --------------
+    # Structural joints share the outer edge's lighting, so a cell is a slab,
+    # rather than a flat face divided by painted lines. Alpha still uses sdf ONLY.
+    stone_sdf = np.maximum(sdf + OUTLINE, 4.5 - seam_distance)
+    gy, gx = np.gradient(stone_sdf)                       # outward-facing normal
+    bevel_t = np.clip((stone_sdf + BEVEL) / BEVEL, 0.0, 1.0)
+    # Wear shifts the shading within the SAME 26px band, never the silhouette.
+    band = np.clip(bevel_t + wear * bevel_t * (1.0 - bevel_t), 0, 1) ** 0.85
     band *= np.clip((-sdf - OUTLINE * 0.55) / (OUTLINE * 0.45), 0.0, 1.0)  # fade under outline
     topness = np.clip((-gy - 0.25) / 0.5, 0.0, 1.0)
     botness = np.clip((gy - 0.25) / 0.5, 0.0, 1.0)
     sideness = np.clip((np.abs(gx) - 0.25) / 0.5, 0.0, 1.0) * (1.0 - topness) * (1.0 - botness)
     col *= (1.0 - 0.09 * band)[..., None]                 # faint AO ring inside the outline
-    hi_col = 1.0 - (1.0 - base) * 0.42                    # base pushed toward white, hue kept
+    hi_col = base + (1.0 - base) * 0.40                  # mineral highlight, hue kept
     k_top = (0.72 + edge_shine) * band * topness
     col = col * (1.0 - k_top[..., None]) + hi_col[None, None, :] * (grad * 1.04)[..., None] * k_top[..., None]
     col *= (1.0 - 0.26 * band * botness)[..., None]       # bottom inner shadow
     col *= (1.0 - 0.12 * band * sideness)[..., None]      # sides slightly shaded
+    # Small missing bevel facets are painted INSIDE the dark seating outline.
+    col *= (1.0 - 0.30 * chips * interior)[..., None]
+    chip_lip = np.maximum(shift_down(chips, 3) - chips, 0)
+    col *= (1.0 + 0.20 * chip_lip * interior)[..., None]
 
     # --- cracks (carved: dark core, lit lower lip, shadowed upper lip) --------
-    chunky, hairline, pit = build_crack_layers(shape, cells, w, h, rng)
+    joint_ao = np.clip(1.0 - seam_distance / 16.0, 0, 1)
+    col *= (1.0 - 0.22 * joint_ao * interior)[..., None]
     crack = np.maximum(chunky, hairline * 0.55)
     body = sdf < -OUTLINE * 0.35                          # cracks may cut the outline
     col *= (1.0 - 0.55 * crack * body)[..., None]
     lip_lo = shift_down(chunky, 5) * np.clip((0.38 - crack) / 0.38, 0.0, 1.0)
     lip_hi = shift_down(chunky, -4) * np.clip((0.38 - crack) / 0.38, 0.0, 1.0)
-    interior = sdf < -OUTLINE
     col *= (1.0 + 0.30 * lip_lo * interior)[..., None]    # light catches below the crack
     col *= (1.0 - 0.13 * lip_hi * interior)[..., None]    # shadow above it
+    pit = np.maximum(pit, weather_pits)
     pit_lip = shift_down(pit, 3) * np.clip((0.3 - pit) / 0.3, 0.0, 1.0)
     col *= (1.0 - 0.42 * pit * interior)[..., None]
     col *= (1.0 + 0.20 * pit_lip * interior)[..., None]
@@ -633,9 +712,13 @@ def render(shape, preset, out_dir):
     rgba[..., 3] = (alpha * 255.0 + 0.5).astype(np.uint8)
     rgba[~inside, :3] = 0
     out = os.path.abspath(os.path.join(out_dir, f"piece_{shape}.png"))
-    Image.fromarray(rgba, "RGBA").save(out)
+    # Existing Unity metas belong to the importer. Replace complete PNGs only,
+    # so an editor refresh never reads a half-written texture.
+    temporary = out + ".tmp"
+    Image.fromarray(rgba).save(temporary, format="PNG")
+    os.replace(temporary, out)
     print(f"{out}  ({w}x{h})")
-    return Image.fromarray(rgba, "RGBA")
+    return Image.fromarray(rgba)
 
 
 def write_preview(theme, preset, images, preview_dir):
