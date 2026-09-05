@@ -111,8 +111,20 @@ hard 14-day tester clock (Phase 1) that has nothing to do with polish.
       Standalone were still the Unity template default `com.unity.template.get-started`**,
       which would have been rejected on submission. Permanent from the moment a listing
       exists — do not change it after Phase 1. Then create both app listings.
-- [ ] Store assets: icon set, screenshots per device class, feature graphic (Play),
-      description copy.
+- [ ] Store assets (2026-09-05: brand = the lava GOLEM mascot from the splash, key art
+      lives in `~/Documents/MadTowers/Store/`, finals in `Store/final/`):
+      - [x] Icon set: `Assets/Store/Icons/` (512 store icon + 432 adaptive fg/bg, tight
+            golem crop; adaptive layers cut wider so the face + T-piece sit inside the
+            launcher mask's inner 66%). Wire via **Tools > MadTowers > Apply Store Icons**
+            (`StoreIconInstaller`) after any PNG swap - Player Settings slots were all EMPTY
+            before (builds shipped Unity's default icon).
+      - [x] Feature graphic 1024×500: `Store/final/feature-graphic-1024x500.png` (golem
+            placing a T-piece on a tetromino tower, jungle dusk, ground fog, stone wordmark).
+      - [ ] Phone screenshots: 2-8 real captures, 9:16 (phone shoots 1080×2340 = 9:19.5 -
+            crop/frame to 1080×1920). Shot list: Jungle mid-tower w/ fog, a hazard moment,
+            medal results card, chapter select w/ medal strips, Vault, Neon Nightfall tower.
+      - [ ] Description copy (title 30, short 80, full 4000 chars), category, content
+            rating questionnaire, privacy-policy URL, data-safety form.
 
 ## Phase 2 — sign-in: Apple & Google account linking (BACKEND.md §3.3)
 
