@@ -227,8 +227,8 @@ public static class BlockDemoScenarios
     public static IEnumerator Magma(BlockDemoStage stage)
     {
         // Template: a pocket exactly ONE column wide (col -1..0), two deep, between two towers.
-        // The magma T bridges it, melts, and its cells become REAL stone pips - dropped in
-        // order so physics pours them into the hollow: the pocket fills, the rest levels off.
+        // The magma T bridges it and yields two outer Pips plus one central vertical
+        // Domino: connected cells with equal fall distance stay rigidly joined.
         stage.SetView(3.8f, 2.6f);
         stage.SpawnPhysical("O", null, new Vector2(-1.5f, 0.5f), asleep: true); // cols -3..-1
         stage.SpawnPhysical("O", null, new Vector2(1.5f, 0.5f), asleep: true);  // cols 0..2
@@ -244,8 +244,8 @@ public static class BlockDemoScenarios
         SnapToGrid(magma); // micro-align before the melt so the cells line up with the pocket
         yield return stage.Hold(0.9f); // the crust breathes (skin wobble)
 
-        // The melt: middle cell first (falls straight into the pocket), the stem next (lands on
-        // it, filling the hollow), then the shoulders. One real stone per magma cell.
+        // The middle and stem share one fall distance, so they become a vertical Domino.
+        // The two disconnected shoulders remain Pips on the towers.
         Vector2[] order = { new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(-1f, 0f), new Vector2(1f, 0f) };
         Transform magmaTr = magma.transform;
         var cells = new System.Collections.Generic.List<Vector2>();
@@ -253,13 +253,27 @@ public static class BlockDemoScenarios
             cells.Add(stage.transform.InverseTransformPoint(magmaTr.TransformPoint(offset)));
         stage.Dust(new Vector2(-0.5f, 2.6f), 1.1f, 0.45f);
         Object.Destroy(magma);
-        foreach (Vector2 at in cells)
+        for (int i = 0; i < cells.Count; i++)
         {
-            GameObject stone = stage.SpawnPhysical("Pip", null, at);
-            if (stone != null) stage.StartCoroutine(GrowIn(stone.transform));
+            if (i == 1) continue; // the stem stays joined to the middle cell: both fall two cells
+            GameObject stone = stage.SpawnPhysical(i == 0 ? "Domino" : "Pip", null, cells[i]);
+            if (stone != null)
+            {
+                stone.GetComponent<Rigidbody2D>().mass = i == 0 ? 2f : 1f;
+                MagmaBlobVisual visual = stone.AddComponent<MagmaBlobVisual>();
+                visual.InitMeltCell(Color.white, null, .6f);
+                BlockDemoPuppet.Relayer(stone);
+                stage.StartCoroutine(CoolMagmaFragment(stage, stone, visual));
+            }
             yield return stage.Hold(0.15f);
         }
         yield return stage.Hold(2.0f); // physics settles the stones into the pocket
+    }
+
+    private static IEnumerator CoolMagmaFragment(BlockDemoStage stage, GameObject stone, MagmaBlobVisual visual)
+    {
+        yield return stage.WaitForLand(stone);
+        if (visual != null) visual.Solidify();
     }
 
     public static IEnumerator Bomb(BlockDemoStage stage)

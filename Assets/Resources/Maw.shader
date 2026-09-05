@@ -10,8 +10,9 @@ Shader "MadTowers/Maw"
     // brick recipe. Theme-independent (the chapter art is hidden).
     Properties
     {
+        _HazardSurface ("Baked stone relief", 2D) = "gray" {}
         [PerRendererData] _MainTex ("Sprite", 2D) = "white" {}
-        _FleshColor ("Flesh Colour", Color) = (0.35, 0.15, 0.40, 1)
+        _FleshColor ("Violet shell", Color) = (0.38, 0.22, 0.40, 1)
         _LipColor ("Lip Colour", Color) = (0.16, 0.06, 0.19, 1)
         _GulletColor ("Gullet Colour", Color) = (0.13, 0.025, 0.055, 1)
         _ThroatColor ("Throat Glow Colour", Color) = (0.48, 0.09, 0.11, 1)
@@ -48,6 +49,7 @@ Shader "MadTowers/Maw"
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "HazardSurface.hlsl"
 
             TEXTURE2D(_MainTex);
             SAMPLER(sampler_MainTex);
@@ -74,39 +76,16 @@ Shader "MadTowers/Maw"
             struct Attributes
             {
                 float4 positionOS : POSITION;
+                float4 color : COLOR;
                 float2 uv         : TEXCOORD0;
             };
 
             struct Varyings
             {
                 float4 positionHCS : SV_POSITION;
+                float4 color : COLOR;
                 float2 uv          : TEXCOORD0;
             };
-
-            float hash21(float2 p)
-            {
-                p = frac(p * float2(123.34, 345.45));
-                p += dot(p, p + 34.345);
-                return frac(p.x * p.y);
-            }
-
-            float vnoise(float2 p)
-            {
-                float2 i = floor(p), f = frac(p);
-                float2 u = f * f * (3.0 - 2.0 * f);
-                float a = hash21(i);
-                float b = hash21(i + float2(1, 0));
-                float c = hash21(i + float2(0, 1));
-                float d = hash21(i + float2(1, 1));
-                return lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
-            }
-
-            float fbm(float2 p)
-            {
-                float v = 0.0, amp = 0.5;
-                for (int i = 0; i < 3; i++) { v += amp * vnoise(p); p *= 2.02; amp *= 0.5; }
-                return v;
-            }
 
             float sdRoundBox(float2 p, float2 b, float r)
             {
@@ -119,58 +98,32 @@ Shader "MadTowers/Maw"
                 Varyings OUT;
                 OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
                 OUT.uv = TRANSFORM_TEX(IN.uv, _MainTex);
+                OUT.color = IN.color * unity_SpriteColor;
                 return OUT;
             }
 
             half4 frag(Varyings IN) : SV_Target
             {
                 float2 pc = IN.uv - 0.5;
-                float ph = _Seed * 6.2831;
+                float ph = 0; // fixed authored surface; retained skin seeds do not vary the material
                 float tm = _Time.y;
                 float bh = _BodyHalf;
 
                 // --- Body: fleshy violet brick, shared frame, axis-aligned in the quad ---
                 float2 bb = float2(bh, bh);
-                float r = min(_CornerRadius, bh - 0.001);
+                float r = (22.0 / 256) * (2 * bh);
                 float d = sdRoundBox(pc, bb, r);
                 float aa = max(fwidth(d), 0.001);
                 float bodyMask = 1.0 - smoothstep(0.0, aa, d);
 
-                // The shared frame constants scale with the inset body (body spans 2*bh of the quad).
-                float ow = 0.066 * (bh / 0.5);
-                float bw = 0.102 * (bh / 0.5);
-
-                float upBody = saturate((pc.y + bh) / (2.0 * bh));   // 0 bottom of body .. 1 top
-                float grad = 1.13 - 0.36 * pow(saturate(1.0 - upBody), 1.15);
+                float2 bodyUV = pc / (2 * bh) + .5;
+                half4 surface = HazardSurface(bodyUV);
+                float grad = 1.13 - .36 * pow(saturate(1-bodyUV.y),1.15);
                 float3 flesh = _FleshColor.rgb;
-                float mot = fbm(IN.uv * 5.0 + ph);
-                float3 col = flesh * grad * (0.86 + 0.26 * mot);
-
-                // Warty bumps: sparse lit dots.
-                float wart = step(0.93, hash21(floor((IN.uv + ph) * 13.0)));
-                col *= (1.0 + wart * 0.14);
-
-                // Embossed bevel + AO + outline (near-black, violet hue kept).
-                float e = 0.012;
-                float dY = sdRoundBox(pc + float2(0, e), bb, r) - sdRoundBox(pc - float2(0, e), bb, r);
-                float dX = sdRoundBox(pc + float2(e, 0), bb, r) - sdRoundBox(pc - float2(e, 0), bb, r);
-                float ny = dY / (2.0 * e);
-                float nx = dX / (2.0 * e);
-                float band = pow(saturate((d + ow + bw) / max(bw, 0.001)), 1.6);
-                band *= saturate((-d - ow * 0.55) / max(ow * 0.45, 0.001));
-                float topness  = saturate((ny - 0.25) / 0.5);
-                float botness  = saturate((-ny - 0.25) / 0.5);
-                float sideness = saturate((abs(nx) - 0.25) / 0.5) * (1.0 - topness) * (1.0 - botness);
-                col *= (1.0 - 0.09 * band);
-                float3 hiCol = lerp(flesh * 1.5, 1.0 - (1.0 - flesh) * 0.42, 0.45) * grad;
-                col = lerp(col, hiCol, 0.55 * band * topness);
-                col *= (1.0 - 0.26 * band * botness);
-                col *= (1.0 - 0.12 * band * sideness);
-                float tOut = saturate(1.0 + d / max(ow, 0.001));
-                float lumT = dot(flesh, float3(0.299, 0.587, 0.114));
-                float3 outCol = lerp(flesh, float3(lumT, lumT, lumT), 0.30) * 0.22;
-                col = lerp(col, outCol * grad, tOut);
-                col *= (0.97 + 0.03 * sin(tm * 2.2 + ph));            // slow breathing
+                float3 col = HazardStone(bodyUV, flesh, d/(2*bh),22.0/256,17.0/256,26.0/256,surface);
+                // Broad violet shell plates; the vulnerable mouth stays soft and deep.
+                col *= .91 + .17 * smoothstep(.35,.65,surface.g);
+                col = HazardOutline(col,flesh,d/(2*bh),17.0/256);
 
                 // --- Mouth + eyes live in the world-up frame ---
                 float2 up = normalize(_UpDir.xy + float2(1e-4, 1e-4));
@@ -183,7 +136,7 @@ Shader "MadTowers/Maw"
                 float chomp = saturate(_Chomp);
 
                 // Jaw: dormant = pressed smiling seam; awake = hungry grin; chomp = gape past the top edge.
-                float breathe = 1.0 + 0.10 * sin(tm * 1.7 + ph);
+                float breathe = 1.0 + 0.035 * sin(tm * .65 + ph);
                 float hu = (0.012 + wake * 0.075 * breathe + chomp * 0.16) * (bh / 0.2778);
                 float hv = bh * (0.66 + 0.06 * wake);
                 float u0 = bh * (0.42 + 0.42 * chomp);                 // rises above the brick when chomping
@@ -209,8 +162,8 @@ Shader "MadTowers/Maw"
 
                 // Ivory zigzag teeth from both lips (offset half a tooth so they interlock when shut).
                 float tw = 9.0;
-                float triU = abs(frac(v * tw + _Seed * 3.1) - 0.5) * 2.0;              // upper 0 tip..1 gap
-                float triL = abs(frac(v * tw + 0.5 + _Seed * 3.1) - 0.5) * 2.0;
+                float triU = abs(frac(v * tw) - 0.5) * 2.0;              // upper 0 tip..1 gap
+                float triL = abs(frac(v * tw + 0.5) - 0.5) * 2.0;
                 float toothLen = min(hu * 1.6, 0.075 * (bh / 0.2778));
                 float upperEdge = hu - mq.y;                                           // depth below upper lip
                 float lowerEdge = mq.y + hu;                                           // height above lower lip
@@ -219,7 +172,8 @@ Shader "MadTowers/Maw"
                 float tooth = max(upperTooth * step(0.0, upperEdge), lowerTooth * step(0.0, lowerEdge));
 
                 float3 mouthCol = gullet;
-                float toothShade = 0.78 + 0.22 * saturate(1.0 - triU * 0.7);
+                float toothShade = .63 + .32 * saturate(1.0-triU*.7) + .10*surface.r;
+                toothShade *= lerp(.66,1.0,saturate(min(upperEdge,lowerEdge)/max(toothLen*.4,.001)));
                 mouthCol = lerp(mouthCol, _ToothColor.rgb * toothShade, tooth);
 
                 // Compose mouth over body. Lips: dark rim with a lit lower lip (light from above catches it).
@@ -238,14 +192,17 @@ Shader "MadTowers/Maw"
                 float de2 = length(eq2 / float2(er2, er2 * (0.35 + 0.65 * open))) - 1.0;
                 float eye1 = (1.0 - smoothstep(-0.08, 0.08, de1)) * wake * show;
                 float eye2 = (1.0 - smoothstep(-0.10, 0.10, de2)) * wake * show;
-                col = lerp(col, _EyeColor.rgb, max(eye1, eye2) * 0.95);
+                float socket = (1-smoothstep(.08,.40,min(de1,de2)))*wake*show;
+                col = lerp(col,_LipColor.rgb*.45,socket);
+                float eyeShade=.78+.22*saturate(eq1.y/er1+.5);
+                col = lerp(col, _EyeColor.rgb*eyeShade, max(eye1, eye2) * 0.95);
                 // Pupils look up toward the prey.
                 float pup1 = 1.0 - smoothstep(0.0, 0.02, length(eq1 - float2(0.0, er1 * 0.28)) - er1 * 0.38);
                 float pup2 = 1.0 - smoothstep(0.0, 0.02, length(eq2 - float2(0.0, er2 * 0.30)) - er2 * 0.42);
                 col = lerp(col, _PupilColor.rgb, max(pup1 * eye1, pup2 * eye2) * open);
 
                 float alpha = max(bodyMask, mouthAll);
-                return half4(col, alpha);
+                return half4(col, alpha) * IN.color;
             }
             ENDHLSL
         }

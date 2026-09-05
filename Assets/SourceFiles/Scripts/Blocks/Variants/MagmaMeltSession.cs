@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// Runtime-only driver for a Magma Block's melt. The magma has already locked and been
-/// removed; this drops one stone Pip per captured cell, straight down into the gap beneath
+/// removed; this drops one rigid fragment per connected equal-clearance group, straight down into the gap beneath
 /// it, ONE AT A TIME - the next is fed when the current one lands. Gravity and the normal
 /// auto-drop landing path do all the gap-finding and in-column stacking; the session only
 /// sequences the drops and gates bag pieces out for its duration.
@@ -22,8 +22,8 @@ public sealed class MagmaMeltSession : AbilitySessionBase
 {
     private Spawner _spawner;
     private MagmaBlockData _data;
-    private List<Vector3> _positions;
-    private int _index;        // next cell to drop
+    private List<List<Vector3>> _positions;
+    private int _index;        // next fragment to drop
 
     protected override bool SeizesActivePiece => true;
 
@@ -32,9 +32,9 @@ public sealed class MagmaMeltSession : AbilitySessionBase
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetRuntimeState() => ResetSessionState<MagmaMeltSession>();
 
-    /// <summary>Begin a melt: one stone cell per entry in <paramref name="positions"/>
+    /// <summary>Begin a melt: one rigid fragment per entry in <paramref name="positions"/>
     /// (already sorted bottom-up by the caller). The magma has been removed already.</summary>
-    public static void Begin(Spawner spawner, MagmaBlockData data, List<Vector3> positions)
+    public static void Begin(Spawner spawner, MagmaBlockData data, List<List<Vector3>> positions)
     {
         if (IsActive || spawner == null || data == null || data.StoneCell == null) return;
         if (positions == null || positions.Count == 0) return;
@@ -43,7 +43,7 @@ public sealed class MagmaMeltSession : AbilitySessionBase
         go.AddComponent<MagmaMeltSession>().StartSession(spawner, data, positions);
     }
 
-    private void StartSession(Spawner spawner, MagmaBlockData data, List<Vector3> positions)
+    private void StartSession(Spawner spawner, MagmaBlockData data, List<List<Vector3>> positions)
     {
         if (!BeginSessionLifecycle())
         {
@@ -95,8 +95,7 @@ public sealed class MagmaMeltSession : AbilitySessionBase
             return;
         }
 
-        Vector3 spawnPos = _positions[_index];
-        BlockController cell = _spawner.SpawnControlledPieceAt(_data.StoneCell, spawnPos, suspended: false);
+        BlockController cell = MagmaFragment.Spawn(_spawner, _data.StoneCell, _positions[_index]);
         if (cell == null)
         {
             // Spawn refused (misconfig) - bail cleanly rather than strand the run.

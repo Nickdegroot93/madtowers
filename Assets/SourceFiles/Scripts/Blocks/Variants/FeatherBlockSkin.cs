@@ -1,13 +1,10 @@
 using UnityEngine;
 
 /// <summary>
-/// The Feather look: a fixed, theme-independent TRANSLUCENT frosted block (procedural Resources/Feather
-/// shader). You can see through it, so it reads as weightless / made of air; the brick silhouette + bevel
-/// keep it reading as a block, and a soft glowing rim makes it ethereal. Lightness is doubled by MOTION -
-/// a gentle float (a Y bob + X sway) while the piece is airborne, and a soft landing FLUTTER instead of an
-/// impact (the deliberate inverse of Boulder's slam: no hit-stop, no camera kick). Once landed the float
-/// eases out and the block sits dead still - placed masonry doesn't hover, however downy. A per-instance
-/// phase keeps multiple feather blocks out of sync; the per-cell seed varies the frosted cloud.
+/// The Feather look: fixed warm ivory plumes with layered folds, fine barbs and soft
+/// contact shadows (Resources/Feather). The existing gentle airborne bob and sway,
+/// landing flutter and per-instance motion phase remain. Once landed, motion eases
+/// out and the block rests still; the surface itself has no idle animation.
 /// See BLOCKVARIANTS.md.
 /// </summary>
 public sealed class FeatherBlockSkin : BlockVariantSkin

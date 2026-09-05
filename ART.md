@@ -49,6 +49,79 @@ approach was tried and dropped (it read as a sticker, not part of the brick). Ea
 needs **no hand-authored art**. The catalog and the full "add a brick" recipe live in
 [BLOCKVARIANTS.md](BLOCKVARIANTS.md); the theme-independence rule is §13 below.
 
+The hazard material upgrade uses small offline-baked relief fields from
+`Tools/generate_variant_surfaces.py`, sampled by the existing per-cell shaders.
+`HazardSurface.png` is linear material data, not a sprite: top-lit relief, broad/fine
+noise and fractures. New material paths must avoid per-fragment hash noise and multiply
+both vertex colour and Unity 6 `unity_SpriteColor`; hide replaced art with renderer
+enablement. Geometry and collision remain separate.
+
+**Bomb (September 2026):** weathered grey-green stone with forged iron hoops, worn
+studs and a recessed copper fuse grate. Quiet ember at rest; authoritative fuse progress
+heats the core/fractures and drives a small whole-casing tremble. The compact flash,
+smoke and debris use project-owned CFXR prefab variants; chipped shatter sprites are
+opt-in for Bomb and do not alter shared shatter trajectories or other callers.
+
+**Curse (September 2026):** dark green-black obsidian with fixed broad facets,
+small pits and engraved fractures, using the sampled relief path. The eye remains
+the countdown; no runes. Existing exposure-gated smoke, eye animation and fire
+flash/rings are retained. Dormant/buried stone never acquires an idle pulse.
+
+**Vine (September 2026):** fixed mossy carved stone for the Vine brick itself; spread
+onto ordinary neighbours keeps their chapter colour. Woody winding stems root at the
+contact edge, with four pointed folded leaves, painted veins and contact shadows.
+The existing half-second growth is retained; only leaf tips sway very slightly.
+Weld rules and foreign-overlay eligibility are unchanged.
+
+**Maw (September 2026):** weathered violet shell plates, dark eye sockets, rooted
+ivory teeth and a deep red gullet. Face exposure, waking, bite gape and scaled
+quiescence logic remain unchanged; idle jaw breathing is quieter. Existing small
+CFXR disintegration puff, prey shatter and crunch/hit-stop are retained as bite feedback.
+
+**Locked (September 2026):** a fixed slate casing with worn iron teeth, rust patches,
+linked chain and recessed locking pin. Hardware is lit from straight above and seated
+with contact shadows. Existing directional flinch, spring, pin spark and landed rest
+logic are unchanged. It still accepts foreign vine overlays.
+
+**Magma (September 2026):** fixed weathered basalt with baked cooling-plate seams
+(`MagmaCracks.png`); quiet heat replaces per-cell jelly wobble. On landing, connected
+cells with equal clearance stay joined as rigid fragments (explicitly approved rule
+change). Cooling keeps dark ember seams, a continuous outside outline and narrower
+internal seams, over the existing 0.32 s splat. The Vault pocket shows two Pips plus
+a vertical Domino. No generic burst is added to the previously empty effect slot.
+
+**Tremor (September 2026):** weathered ochre fault plates with sampled relief,
+engraved amber faults and the retained discharge ring. Idle buzz amplitude is halved
+and resting fault light is quieter. The skin’s authoritative arm callback, quake
+duration and camera/ground-hit feedback are preserved.
+
+**Sandstone (September 2026):** porous layered sediment with the standard top-lit
+bevel. Baked plate boundaries deepen under the original damage/load uniforms;
+trickle and high-load shiver retain their role. Crumble uses the chipped hazard shard
+sprite with the same 14 particles, trajectories, gravity and lifetime.
+
+**Vortex (September 2026):** sampled dusk marble, narrower cream mineral veins and
+a weathered top-lit face. The full-brick reversing spiral is retained with slower
+cosmetic churn; orbiting ember specks are removed. Steering inversion is unchanged.
+
+**Ice (September 2026):** fixed glacial blue, cloudy depth, trapped air, pale fracture
+lips and broad frozen planes. `Ice.shader` is hazard-only; the Freeze ability keeps
+`Frost.shader` unchanged. No idle animation. The original landing squash parent and
+foreign-vine eligibility are retained.
+
+**Boulder (September 2026):** broad quarried granite planes, sampled pits, plate
+fractures and restrained mica flecks. Matte and motionless at rest. The existing
+mass-four landing compression and impact punch remain unchanged.
+
+**Anchor (September 2026):** weathered navy forged plate, raised X brace and worn
+contact edges, with overhead-lit rivets and a quieter slow sheen. Existing lock
+glint and metal settle are retained; freeze-on-lock behavior is unchanged.
+
+**Feather (September 2026):** layered warm ivory plumes with folded shafts, fine
+barbs and soft overlap shadows. The standard silhouette/frame replaces extra-round
+pillow corners. Existing airborne float/sway and landing flutter are unchanged;
+the settled shader has no moving flecks.
+
 ## 3. Backgrounds / backdrop packs
 
 Each chapter has a `BackdropPreset` asset (`Assets/Data/Backdrops/`, assigned
@@ -279,9 +352,8 @@ A **unique/special block** (Magma, Anchor, Boulder, Vine, Ice, Vortex, Locked, T
 Bomb — every special brick now carries a procedural BlockVariantSkin look) must be instantly
 recognizable and look **identical regardless of the chapter theme** —
 it does NOT adopt the chapter's local block art the way normal bricks do.
-(Exception: when a special block decomposes into normal bricks — Magma melting
-into 1×1 cells — those resulting bricks use the level's ordinary skin; only the
-special block *itself* is theme-locked.)
+Magma fragments retain cooled basalt after melting. Vines spreading onto normal
+neighbours preserve those neighbours’ chapter colours beneath the plants.
 
 The look overrides the chapter skin in `ApplyData`/`OnApplied`, which run *after*
 `ApplyBlockSkin`, so the override always wins:
@@ -293,7 +365,7 @@ The look overrides the chapter skin in `ApplyData`/`OnApplied`, which run *after
   for the catalog + recipe.
 
 Theme independence comes from the material being procedural/fixed (it ignores the
-chapter art and uses only the sprite alpha as the silhouette mask).
+chapter art, defines its own rounded silhouette and respects sprite RGBA for fades).
 
 ## Under the hood: how chapter skins work at runtime (exact pipeline)
 

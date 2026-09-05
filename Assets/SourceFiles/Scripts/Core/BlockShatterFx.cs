@@ -20,11 +20,11 @@ public sealed class BlockShatterFx : MonoBehaviour
     private float _age;
 
     /// <summary>Spawn a burst filling the given world-space area (e.g. the block's bounds).</summary>
-    public static void Spawn(Bounds area, Color tint, int shardCount = 12)
+    public static void Spawn(Bounds area, Color tint, int shardCount = 12, Sprite shardSprite = null)
     {
         BlockShatterFx fx = Get();
         fx.transform.position = area.center;
-        fx.Build(area, tint, Mathf.Max(4, shardCount));
+        fx.Build(area, tint, Mathf.Max(4, shardCount), shardSprite);
     }
 
     private static BlockShatterFx Get()
@@ -41,7 +41,7 @@ public sealed class BlockShatterFx : MonoBehaviour
         return go.AddComponent<BlockShatterFx>();
     }
 
-    private void Build(Bounds area, Color tint, int count)
+    private void Build(Bounds area, Color tint, int count, Sprite shardSprite)
     {
         _age = 0f;
         _activeShardCount = count;
@@ -50,6 +50,9 @@ public sealed class BlockShatterFx : MonoBehaviour
         for (int i = 0; i < count; i++)
         {
             SpriteRenderer sr = _shards[i];
+            // Reset on every pooled reuse: other callers retain the exact square
+            // sprite they had before. No extra random draws or trajectory changes.
+            sr.sprite = shardSprite != null ? shardSprite : RuntimeSprites.Square();
             Transform shard = sr.transform;
             shard.gameObject.SetActive(true);
             shard.localPosition = new Vector3(

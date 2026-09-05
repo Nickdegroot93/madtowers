@@ -290,7 +290,7 @@ public sealed class SandstoneBlockBehaviour : MonoBehaviour
 
         if (_block != null && _block.TryGetWorldBounds(out Bounds bounds))
         {
-            BlockShatterFx.Spawn(bounds, SandTint, 14);
+            SandstoneBlockSkin.Shatter(bounds, SandTint);
         }
         SfxPlayer.Play("sandstone_burst", 1f);
         TowerCameraController.Impact(0.12f, 0.18f);

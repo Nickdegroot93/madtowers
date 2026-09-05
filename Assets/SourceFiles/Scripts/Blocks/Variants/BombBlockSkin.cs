@@ -1,8 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// The Bomb look: a fixed, theme-independent powder-keg / sea-mine casing of near-black riveted iron
-/// (procedural Resources/Bomb shader), replacing the chapter art. The casing's seams glow from within -
+/// The Bomb look: weathered stone in forged iron hoops with a recessed copper fuse grate
+/// (Resources/Bomb shader with baked relief), replacing the chapter art. Stone fractures glow from within -
 /// a faint warm ember at rest (so the brick reads as explosive while it is still falling and being
 /// steered), then a rising countdown once the fuse is lit.
 ///
@@ -22,7 +22,7 @@ public sealed class BombBlockSkin : BlockVariantSkin
 
     private const float BaseBeatHz = 1.6f;    // resting heartbeat once lit
     private const float PeakBeatHz = 9f;      // heartbeat just before detonation
-    private const float TrembleMax = 0.045f;  // max cosmetic jitter (local units) at t = 1
+    private const float TrembleMax = 0.018f;  // heavy casing: shared visual jitter, no separating cells
     private const float PreFlashFrom = 0.86f; // t at which the final anticipation flash kicks in
 
     protected override string MaterialResource => "Bomb";
@@ -32,6 +32,15 @@ public sealed class BombBlockSkin : BlockVariantSkin
     private float _fuse;       // 0..1 countdown progress, pushed in by the behaviour
     private float _beatPhase;  // accumulated heartbeat phase
     private Vector3[] _baseCellPositions; // resting local positions, so the tremble can spring back
+    private static Sprite _shard;
+
+    // A cosmetic-only shatter hook. Trajectories, lifetime and RNG draws remain
+    // the shared shatter's; only Bomb callers select the shaded stone flake.
+    public static void Shatter(Bounds bounds, Color tint)
+    {
+        if (_shard == null) _shard = Resources.Load<Sprite>("HazardShard");
+        BlockShatterFx.Spawn(bounds, tint, 12, _shard);
+    }
 
     /// <summary>Build the iron casing. Called from BombBlockData.OnApplied.</summary>
     public void Apply()
@@ -57,7 +66,7 @@ public sealed class BombBlockSkin : BlockVariantSkin
         if (!_lit)
         {
             // Idle identity: a slow, calm ember breath, no heat, no tremble.
-            _beatPhase += dt * 0.6f;
+            _beatPhase += dt * 0.18f;
             SetCellsFloat(FuseId, 0f);
             SetCellsFloat(PulseId, 0.5f + 0.5f * Mathf.Sin(_beatPhase * Mathf.PI * 2f));
             return;
@@ -84,7 +93,7 @@ public sealed class BombBlockSkin : BlockVariantSkin
         for (int i = 0; i < Cells.Count; i++)
         {
             if (Cells[i] == null) continue;
-            float phase = i * 1.37f;
+            const float phase = 0f; // all stones move together: the casing stays assembled
             float jx = Mathf.Sin(_beatPhase * 5.3f + phase);
             float jy = Mathf.Cos(_beatPhase * 6.1f + phase * 1.7f);
             Cells[i].transform.localPosition = _baseCellPositions[i] + new Vector3(jx, jy, 0f) * amp;

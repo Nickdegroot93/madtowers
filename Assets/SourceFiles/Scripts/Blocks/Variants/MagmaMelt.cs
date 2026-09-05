@@ -3,9 +3,8 @@ using UnityEngine;
 
 /// <summary>
 /// Runs the moment a Magma Block locks: capture where each of its cells sits, neutralise
-/// and remove the magma, then hand off to a <see cref="MagmaMeltSession"/> that drops one
-/// stone Pip per cell straight down into the gap beneath it (the normal auto-drop landing
-/// path does the gap-finding and stacking for free).
+/// and remove the magma, then hand off to a <see cref="MagmaMeltSession"/> that drops connected cells with equal
+/// clearance as rigid cooled-basalt fragments. The normal auto-drop path owns landing.
 ///
 /// Deliberately thin: it owns only the magma's decisions - the guards,
 /// the cell capture, and the hand-off. The flow, counting and FX live in the session and
@@ -33,11 +32,10 @@ public static class MagmaMelt
             return;
         }
 
-        // Capture each cell centre BEFORE the magma is touched (BurstFromEveryCell reads the
-        // same colliders). Sort bottom-up so the lowest gaps fill first and upper cells stack
-        // onto what landed below them; left-to-right is a tiebreak for a tidy cascade.
-        List<Vector3> cellPositions = CaptureCellCentres(magma);
-        if (cellPositions.Count == 0)
+        // Measure each original column BEFORE removing the source from physics. Connected
+        // cells with equal clearance stay joined; no cells or support material are invented.
+        List<List<Vector3>> fragments = MagmaFragmentPlanner.Capture(magma);
+        if (fragments.Count == 0)
         {
             Object.Destroy(magma.gameObject);
             return;
@@ -59,27 +57,9 @@ public static class MagmaMelt
         ImpactFx.BurstFromEveryCell(magma, data.SolidifyEffect, data.SolidifyEffectScale);
         SfxPlayer.Play("impact_soft_01", 0.55f, 0.08f);
 
-        MagmaMeltSession.Begin(spawner, data, cellPositions);
+        MagmaMeltSession.Begin(spawner, data, fragments);
 
         Object.Destroy(magma.gameObject);
-    }
-
-    private static List<Vector3> CaptureCellCentres(BlockController magma)
-    {
-        var positions = new List<Vector3>();
-        BoxCollider2D[] cells = magma.GetComponentsInChildren<BoxCollider2D>();
-        for (int i = 0; i < cells.Length; i++)
-        {
-            if (cells[i] == null || cells[i].isTrigger) continue;
-            positions.Add(cells[i].bounds.center);
-        }
-
-        positions.Sort((a, b) =>
-        {
-            int byY = a.y.CompareTo(b.y);
-            return byY != 0 ? byY : a.x.CompareTo(b.x);
-        });
-        return positions;
     }
 
     private static void NeutraliseAndHide(BlockController magma)

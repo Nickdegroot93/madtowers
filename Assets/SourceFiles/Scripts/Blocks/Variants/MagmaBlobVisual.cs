@@ -2,10 +2,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Visual for a single melting Magma cell - a stone Pip dropped by MagmaMeltSession. The cell
-/// glows molten while it flows down, then on its own lock event splats and fuses back to its
-/// NATURAL colour (the level's ordinary 1x1 look) - molten lava cooling into normal stone. The
-/// landed cells are therefore whatever the chapter's 1x1 brick looks like, by design.
+/// Visual for a rigid melting Magma fragment. It retains fixed basalt after landing,
+/// cooling its molten seams over the existing 0.32-second cosmetic splat.
 ///
 /// Purely cosmetic: it tints renderers and squash-stretches the collider-less skin transform
 /// only, never anything physical (PHYSICS.md).
@@ -17,7 +15,7 @@ public sealed class MagmaBlobVisual : MonoBehaviour
     private Transform[] _wobble;       // collider-less skin transforms (scaled on the splat)
     private Vector3[] _baseScales;
 
-    private Color _moltenColor;
+    private MagmaBlockSkin _skin;
     private GameObject _solidifyEffect;
     private float _solidifyEffectScale;
 
@@ -29,12 +27,13 @@ public sealed class MagmaBlobVisual : MonoBehaviour
 
     public void InitMeltCell(Color moltenColor, GameObject solidifyEffect, float solidifyEffectScale)
     {
-        _moltenColor = moltenColor;
         _solidifyEffect = solidifyEffect;
         _solidifyEffectScale = solidifyEffectScale;
+        _skin = gameObject.GetComponent<MagmaBlockSkin>() ?? gameObject.AddComponent<MagmaBlockSkin>();
+        _skin.Apply();
         CacheVisuals();
 
-        ApplyTint(_moltenColor); // glow molten while falling
+        _skin.SetHeat(1f);
 
         _block = GetComponent<BlockController>();
         if (_block != null) _block.OnBlockLocked += HandleLocked;
@@ -68,7 +67,10 @@ public sealed class MagmaBlobVisual : MonoBehaviour
         if (_block != null) _block.OnBlockLocked -= HandleLocked;
     }
 
-    private void HandleLocked(BlockController block)
+    private void HandleLocked(BlockController block) => Solidify();
+
+    /// <summary>Cosmetic landing cue; the isolated Vault puppet uses the same cooling animation.</summary>
+    public void Solidify()
     {
         if (_solidifying) return;
         _solidifying = true;
@@ -89,11 +91,10 @@ public sealed class MagmaBlobVisual : MonoBehaviour
         _solidifyAge += Time.deltaTime;
         float t = Mathf.Clamp01(_solidifyAge / SolidifySeconds);
 
-        // Splat: flatten on impact, elastic settle to a solid cube; molten -> natural colour.
+        // Splat: flatten on impact, elastic settle to a solid cube; molten -> cooled basalt.
         float e = FxKit.Elastic(t, 0.35f, 5f, 18f);
         SetScale(e, 2f - e);
-        for (int i = 0; i < _renderers.Length; i++)
-            if (_renderers[i] != null) _renderers[i].color = Color.Lerp(_moltenColor, _baseColors[i], t);
+        if (_skin != null) _skin.SetHeat(1f - t);
 
         if (t >= 1f)
         {
@@ -114,9 +115,4 @@ public sealed class MagmaBlobVisual : MonoBehaviour
         }
     }
 
-    private void ApplyTint(Color c)
-    {
-        for (int i = 0; i < _renderers.Length; i++)
-            if (_renderers[i] != null) _renderers[i].color = c;
-    }
 }

@@ -30,6 +30,6 @@ MonoBehaviour:
     Park it far from anything you love.
   fuseSeconds: 1
   touchRange: 0.15
-  explosionEffect: {fileID: 3003832800008046713, guid: af157fd49e0bd8140925b56bc936c4b0, type: 3}
+  explosionEffect: {fileID: 2276227864871765421, guid: dc33651fb5cb74466b734073245a94e2, type: 3}
   explosionScale: 2.5
-  breakPuffEffect: {fileID: 2150967500386247403, guid: 12942baf24d16dd4281ffa4f2c8f5376, type: 3}
+  breakPuffEffect: {fileID: 9074069341850579288, guid: 602e50d01bb5b43e6ab47bd72e5f4a5b, type: 3}

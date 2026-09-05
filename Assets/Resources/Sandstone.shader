@@ -9,6 +9,8 @@ Shader "MadTowers/Sandstone"
     // Theme-independent by design (the chapter art is hidden).
     Properties
     {
+        _HazardSurface ("Baked stone relief", 2D) = "gray" {}
+        _MagmaCracks ("Baked plate boundaries", 2D) = "white" {}
         [PerRendererData] _MainTex ("Sprite", 2D) = "white" {}
         _Seed ("Per-cell Seed", Float) = 0
         _Damage ("Damage (ratcheted load)", Range(0, 1)) = 0
@@ -39,9 +41,13 @@ Shader "MadTowers/Sandstone"
         Pass
         {
             HLSLPROGRAM
+            // HLSLcc produces flickering edge marks on Adreno 830; use DXC.
+            #pragma use_dxc vulkan
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "HazardSurface.hlsl"
+            TEXTURE2D(_MagmaCracks); SAMPLER(sampler_MagmaCracks);
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
@@ -76,51 +82,14 @@ Shader "MadTowers/Sandstone"
                 Varyings o;
                 o.positionHCS = TransformObjectToHClip(v.positionOS.xyz);
                 o.uv = v.uv;
-                o.color = v.color;
+                o.color = v.color * unity_SpriteColor;
                 return o;
             }
 
-            float hash21(float2 p)
-            {
-                p = frac(p * float2(234.34, 435.345) + _Seed);
-                p += dot(p, p + 34.23);
-                return frac(p.x * p.y);
-            }
-
-            float vnoise(float2 p)
-            {
-                float2 i2 = floor(p);
-                float2 f = frac(p);
-                float2 u = f * f * (3.0 - 2.0 * f);
-                float a = hash21(i2);
-                float b = hash21(i2 + float2(1, 0));
-                float c = hash21(i2 + float2(0, 1));
-                float d = hash21(i2 + float2(1, 1));
-                return lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
-            }
-
-            // Cracked-earth network: Voronoi plate edges. Returns x = distance to the nearest
-            // plate border (thin where cracks live), y = the nearest plate's reveal order, so
-            // damage cracks the brick plate by plate - unmistakably fracture, never camouflage.
+            float sampleGrain(float2 p) { return HazardSurface(p/64.0).b; }
             float2 crackNet(float2 uv)
             {
-                float2 p = uv * 3.6 + _Seed;
-                float2 ip = floor(p);
-                float2 fp = frac(p);
-                float f1 = 8.0;
-                float f2 = 8.0;
-                float id = 1.0;
-                for (int y = -1; y <= 1; y++)
-                for (int x = -1; x <= 1; x++)
-                {
-                    float2 g = float2(x, y);
-                    float2 o = float2(hash21(ip + g), hash21(ip + g + 17.7));
-                    float2 r = g + o - fp;
-                    float d = dot(r, r);
-                    if (d < f1) { f2 = f1; f1 = d; id = hash21(ip + g + 41.3); }
-                    else if (d < f2) { f2 = d; }
-                }
-                return float2(sqrt(f2) - sqrt(f1), id);
+                return float2(SAMPLE_TEXTURE2D(_MagmaCracks,sampler_MagmaCracks,uv).r*.38,HazardSurface(uv).g);
             }
 
             half4 frag(Varyings i) : SV_Target
@@ -135,15 +104,11 @@ Shader "MadTowers/Sandstone"
                 float mask = 1.0 - smoothstep(0.0, aa, d); // house AA edge (Boulder pattern)
                 if (d > aa) discard;
 
-                // Body: horizontal sediment strata + grain speckle.
-                float strata = vnoise(float2(i.uv.x * 2.0, i.uv.y * 7.0) + _Seed);
-                float grain = hash21(floor(i.uv * 46.0));
-                half3 col = lerp(_SandDark.rgb, _SandLight.rgb, 0.35 + 0.5 * strata + 0.15 * grain);
-
-                // Bevel light: top-lit lip, darker base (house recipe). Both terms reference
-                // their EDGE (uv.y = 1 / uv.y = 0) so the lit strips are _BevelWidth wide.
-                col *= 1.0 + smoothstep(-_BevelWidth, 0.0, -(1.0 - i.uv.y)) * 0.12
-                           - smoothstep(-_BevelWidth, 0.0, -(i.uv.y)) * 0.10;
+                half4 surface=HazardSurface(i.uv);
+                float strata=HazardSurface(float2(i.uv.x*.6,i.uv.y*2.8)).g;
+                half3 tint=lerp(_SandDark.rgb,_SandLight.rgb,.54);
+                half3 col=HazardStone(i.uv,tint,d,22.0/256,17.0/256,26.0/256,surface);
+                col*=.92+.16*strata;
 
                 // THE CRACKS: plates fracture one by one as damage grows (reveal order per
                 // plate), and every open crack WIDENS with damage - continuous, never healing.
@@ -158,20 +123,19 @@ Shader "MadTowers/Sandstone"
                 // Fine sand TRICKLE inside the open cracks while under load: grain streaks
                 // sliding down the crack columns.
                 float trickleMask = open * _Load;
-                float streak = step(0.86, hash21(floor(float2(i.uv.x * 30.0, 0.0))))
-                             * frac(i.uv.y * 3.0 + _Time.y * 1.6 + _Seed);
+                float streak = step(0.86, sampleGrain(floor(float2(i.uv.x * 30.0, 0.0))))
+                             * frac(i.uv.y * 3.0 + _Time.y * 1.6);
                 col = lerp(col, _SandDark.rgb * 0.8, trickleMask * streak * 0.5);
 
                 // Edge chipping at high damage: corners and rim erode darker.
                 float rim = smoothstep(-0.10, 0.0, d);
                 col = lerp(col, _CrackColor.rgb * 0.9,
-                           rim * _Damage * _Damage * (0.4 + 0.4 * hash21(floor(i.uv * 14.0))));
+                           rim * _Damage * _Damage * (0.4 + 0.4 * sampleGrain(floor(i.uv * 14.0))));
 
                 // Near-black outline (house framing).
-                float outline = smoothstep(-_OutlineWidth, -_OutlineWidth * 0.4, d);
-                col = lerp(col, _OutlineColor.rgb, outline);
+                col = HazardOutline(col,tint,d,17.0/256);
 
-                return half4(col, i.color.a * mask);
+                return half4(col, mask)*i.color;
             }
             ENDHLSL
         }

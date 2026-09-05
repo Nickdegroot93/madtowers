@@ -1,0 +1,50 @@
+fileFormatVersion: 2
+guid: 61b9a41fd55443b9bfc35140964a1681
+TextureImporter:
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    borderMipMap: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  textureFormat: 1
+  maxTextureSize: 256
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 0
+  nPOTScale: 0
+  compressionQuality: 100
+  textureType: 8
+  textureShape: 1
+  spriteMode: 1
+  spriteMeshType: 1
+  spritePixelsToUnits: 32
+  spritePivot: {x: 0.5, y: 0.5}
+  spriteSheet:
+    serializedVersion: 2
+    sprites: []
+    spriteID: b705a30f35e44180801341dc0a9046a5
+  alphaSource: 1
+  alphaIsTransparency: 1
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 256
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 100
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+  userData: Hazard material data; linear RGBA; repeat; never a sprite
+  assetBundleName:
+  assetBundleVariant:

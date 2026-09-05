@@ -82,7 +82,7 @@ public class BombBlockBehaviour : MonoBehaviour
 
         // The bomb itself shatters in dark iron (its own boom already played above).
         if (self != null && self.TryGetWorldBounds(out Bounds bombBounds))
-            BlockShatterFx.Spawn(bombBounds, IronTint);
+            BombBlockSkin.Shatter(bombBounds, IronTint);
         if (self != null) GameEvents.RaiseBlockDestroyed(self);
         Destroy(gameObject);
     }
@@ -92,7 +92,7 @@ public class BombBlockBehaviour : MonoBehaviour
         if (victim == null) return;
 
         if (victim.TryGetWorldBounds(out Bounds bounds))
-            BlockShatterFx.Spawn(bounds, VictimTint(victim));
+            BombBlockSkin.Shatter(bounds, VictimTint(victim));
         ImpactFx.BurstFromEveryCell(victim, _breakPuffEffect); // smoke puff per cell (no-op if unassigned)
 
         GameEvents.RaiseBlockDestroyed(victim);

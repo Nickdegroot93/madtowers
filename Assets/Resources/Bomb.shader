@@ -1,212 +1,112 @@
 Shader "MadTowers/Bomb"
 {
-    // Bomb cell: a near-black iron POWDER KEG. Two riveted reinforcement bands hoop each cell, and a
-    // recessed round fuse-porthole sits in the centre with an ember burning inside. As the fuse runs
-    // (_Fuse 0 -> 1, driven by BombBlockSkin with an accelerating heartbeat in _Pulse) jagged radial
-    // cracks split outward from the porthole and the glow climbs from sleepy ember to white-hot pre-flash.
-    // Framed by the shared brick recipe (gradient, embossed bevel, near-black outline, grain).
-    // Theme-independent (the chapter art is hidden).
+    // Weathered stone held by forged iron hoops, with a copper fuse socket.
+    // The authoritative fuse is still supplied by BombBlockBehaviour.
     Properties
     {
         [PerRendererData] _MainTex ("Sprite", 2D) = "white" {}
-        _IronColor ("Iron Colour", Color) = (0.25, 0.26, 0.31, 1)
-        _BandColor ("Band Colour", Color) = (0.42, 0.44, 0.50, 1)
-        _EmberColor ("Ember Colour", Color) = (1.0, 0.55, 0.15, 1)
-        _HotColor ("White-hot Colour", Color) = (1.0, 0.93, 0.80, 1)
-        _CornerRadius ("Corner Radius", Range(0, 0.3)) = 0.086
-        _OutlineWidth ("Outline Width", Range(0, 0.2)) = 0.066
-        _BevelWidth ("Bevel Width", Range(0, 0.3)) = 0.102
-        _CoreRadius ("Fuse Porthole Radius", Range(0.05, 0.3)) = 0.17
-        _IdleEmber ("Idle Ember Strength", Range(0, 1)) = 0.35
-        _Fuse ("Fuse (0..1, driven)", Range(0, 1)) = 0
-        _Pulse ("Heartbeat (0..1, driven)", Range(0, 1)) = 0
+        _HazardSurface ("Baked stone relief", 2D) = "gray" {}
+        _IronColor ("Stone casing", Color) = (.39, .405, .375, 1)
+        _BandColor ("Forged iron", Color) = (.22, .245, .23, 1)
+        _EmberColor ("Fuse ember", Color) = (1, .30, .055, 1)
+        _HotColor ("White-hot fuse", Color) = (1, .88, .61, 1)
+        _CornerRadius ("Corner radius", Range(0, .3)) = .0859375
+        _OutlineWidth ("Outline", Range(0, .2)) = .06640625
+        _BevelWidth ("Bevel", Range(0, .3)) = .1015625
+        _CoreRadius ("Fuse socket radius", Range(.05, .3)) = .15
+        _IdleEmber ("Idle ember", Range(0, 1)) = .30
+        _Fuse ("Authoritative fuse", Range(0, 1)) = 0
+        _Pulse ("Heartbeat", Range(0, 1)) = 0
     }
-
     SubShader
     {
-        Tags
-        {
-            "Queue" = "Transparent"
-            "RenderType" = "Transparent"
-            "RenderPipeline" = "UniversalPipeline"
-            "IgnoreProjector" = "True"
-            "PreviewType" = "Plane"
-        }
+        Tags { "Queue"="Transparent" "RenderType"="Transparent" "RenderPipeline"="UniversalPipeline" "IgnoreProjector"="True" "PreviewType"="Plane" }
         Blend SrcAlpha OneMinusSrcAlpha
         Cull Off
         ZWrite Off
-
         Pass
         {
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-
-            TEXTURE2D(_MainTex);
-            SAMPLER(sampler_MainTex);
-
+            #include "HazardSurface.hlsl"
             CBUFFER_START(UnityPerMaterial)
-                float4 _MainTex_ST;
-                float4 _IronColor;
-                float4 _BandColor;
-                float4 _EmberColor;
-                float4 _HotColor;
-                float _CornerRadius;
-                float _OutlineWidth;
-                float _BevelWidth;
-                float _CoreRadius;
-                float _IdleEmber;
-                float _Fuse;
-                float _Pulse;
+                half4 _IronColor, _BandColor, _EmberColor, _HotColor;
+                float _CornerRadius, _OutlineWidth, _BevelWidth, _CoreRadius;
+                float _IdleEmber, _Fuse, _Pulse;
             CBUFFER_END
-
-            struct Attributes
+            struct Attributes { float4 positionOS:POSITION; float2 uv:TEXCOORD0; half4 color:COLOR; };
+            struct Varyings { float4 positionHCS:SV_POSITION; float2 uv:TEXCOORD0; half4 color:COLOR; };
+            Varyings vert(Attributes v)
             {
-                float4 positionOS : POSITION;
-                float2 uv         : TEXCOORD0;
-            };
-
-            struct Varyings
-            {
-                float4 positionHCS : SV_POSITION;
-                float2 uv          : TEXCOORD0;
-            };
-
-            float hash21(float2 p)
-            {
-                p = frac(p * float2(123.34, 345.45));
-                p += dot(p, p + 34.345);
-                return frac(p.x * p.y);
+                Varyings o;
+                o.positionHCS = TransformObjectToHClip(v.positionOS.xyz);
+                o.uv = v.uv;
+                o.color = v.color * unity_SpriteColor;
+                return o;
             }
-
-            float vnoise(float2 p)
+            half4 frag(Varyings i):SV_Target
             {
-                float2 i = floor(p), f = frac(p);
-                float2 u = f * f * (3.0 - 2.0 * f);
-                float a = hash21(i);
-                float b = hash21(i + float2(1, 0));
-                float c = hash21(i + float2(0, 1));
-                float d = hash21(i + float2(1, 1));
-                return lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
-            }
-
-            float sdRoundBox(float2 p, float2 b, float r)
-            {
-                float2 q = abs(p) - b + r;
-                return length(max(q, float2(0.0, 0.0))) + min(max(q.x, q.y), 0.0) - r;
-            }
-
-            // A dome rivet: returns (mask, shade) - top-left highlight, dark seat ring.
-            float2 rivet(float2 p, float2 c, float rad, float aa)
-            {
-                float2 d = p - c;
-                float sd = length(d) - rad;
-                float m = 1.0 - smoothstep(0.0, aa, sd);
-                float2 nd = d / max(length(d), 1e-4);
-                float dome = saturate(dot(nd, normalize(float2(-1.0, 1.0))));
-                float shade = (dome - 0.45) * m;
-                float ring = smoothstep(0.0, aa, sd) * (1.0 - smoothstep(aa, rad * 0.6, sd));
-                return float2(m, shade - ring * 0.5);
-            }
-
-            Varyings vert(Attributes IN)
-            {
-                Varyings OUT;
-                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
-                OUT.uv = TRANSFORM_TEX(IN.uv, _MainTex);
-                return OUT;
-            }
-
-            half4 frag(Varyings IN) : SV_Target
-            {
-                float2 uv = IN.uv;
-                float3 iron = _IronColor.rgb;
-
-                float2 p = uv - 0.5;
-                float halfBox = 0.5;
-                float r = min(_CornerRadius, halfBox - 0.001);
-                float2 bb = float2(halfBox, halfBox);
-                float d = sdRoundBox(p, bb, r);
-                float aa = max(fwidth(d), 0.001);
-                float mask = 1.0 - smoothstep(0.0, aa, d);
-
-                // Shared frame: gradient + embossed bevel + AO ring.
-                float grad = 1.13 - 0.36 * pow(saturate(1.0 - uv.y), 1.15);
-                float3 body = iron * grad;
-                float e = 0.012;
-                float dY = sdRoundBox(p + float2(0, e), bb, r) - sdRoundBox(p - float2(0, e), bb, r);
-                float dX = sdRoundBox(p + float2(e, 0), bb, r) - sdRoundBox(p - float2(e, 0), bb, r);
-                float ny = dY / (2.0 * e);
-                float nx = dX / (2.0 * e);
-                float band = pow(saturate((d + _OutlineWidth + _BevelWidth) / max(_BevelWidth, 0.001)), 1.6);
-                band *= saturate((-d - _OutlineWidth * 0.55) / max(_OutlineWidth * 0.45, 0.001));
-                float topness  = saturate((ny - 0.25) / 0.5);
-                float botness  = saturate((-ny - 0.25) / 0.5);
-                float sideness = saturate((abs(nx) - 0.25) / 0.5) * (1.0 - topness) * (1.0 - botness);
-                body *= (1.0 - 0.09 * band);
-                float3 hiCol = lerp(iron * 1.6, 1.0 - (1.0 - iron) * 0.42, 0.4) * grad;
-                body = lerp(body, hiCol, 0.60 * band * topness);
-                body *= (1.0 - 0.26 * band * botness);
-                body *= (1.0 - 0.12 * band * sideness);
-
-                // Brushed iron grain.
-                float streak = (hash21(float2(floor(uv.y * 150.0), 3.0)) - 0.5) * 0.05;
-                body *= (1.0 + streak);
-
-                // Two riveted reinforcement bands hooping the keg (raised: lit top edge, shaded bottom).
-                float bandHalf = 0.052;
-                float by1 = abs(uv.y - 0.235) - bandHalf;
-                float by2 = abs(uv.y - 0.765) - bandHalf;
-                float bandD = min(by1, by2);
-                float bandMask = smoothstep(0.008, 0.0, bandD);
-                float3 bandCol = _BandColor.rgb * grad;
-                float bandEdgeHi = smoothstep(0.014, 0.0, abs(bandD + bandHalf * 1.6)) * 0.35;  // top lip
-                float bandEdgeLo = smoothstep(0.014, 0.0, abs(bandD - 0.004)) * 0.30;           // seat shadow
-                body = lerp(body, bandCol * (1.0 + bandEdgeHi) * (1.0 - bandEdgeLo), bandMask);
-
-                float2 rv;
-                rv = rivet(p, float2(-0.30, 0.265), 0.030, aa);
-                float rivetMask = rv.x; float rivetShade = rv.y;
-                rv = rivet(p, float2( 0.30, 0.265), 0.030, aa); rivetMask = max(rivetMask, rv.x); rivetShade += rv.y;
-                rv = rivet(p, float2(-0.30, -0.265), 0.030, aa); rivetMask = max(rivetMask, rv.x); rivetShade += rv.y;
-                rv = rivet(p, float2( 0.30, -0.265), 0.030, aa); rivetMask = max(rivetMask, rv.x); rivetShade += rv.y;
-                body = lerp(body, _BandColor.rgb * 1.35 * grad, rivetMask * 0.6);
-                body *= (1.0 + rivetShade * 0.9);
-
-                // Fuse energy: idle ember -> accelerating heartbeat -> white-hot pre-flash.
-                float heat = _IdleEmber * (0.7 + 0.3 * _Pulse) + _Fuse * (1.2 + 1.8 * _Fuse) * (0.6 + 0.4 * _Pulse);
-                float3 hot = lerp(_EmberColor.rgb, _HotColor.rgb, saturate(_Fuse * 1.2 - 0.2));
-
-                // Recessed fuse porthole: dark seat ring, molten interior, glassy inner shading.
+                float2 uv = i.uv, p = uv - .5;
+                float d = HazardRoundBox(p, float2(.5, .5), _CornerRadius);
+                float aa = max(fwidth(d), .001);
+                float mask = 1 - smoothstep(0, aa, d);
+                half4 surface = HazardSurface(uv);
+                half3 body = HazardStone(uv, _IronColor.rgb, d, _CornerRadius, _OutlineWidth, _BevelWidth, surface);
+                // Raised forged hoops: cast seat shadow, worn top lip and lower chamfer.
+                float by = abs(p.y) - .245;
+                float hoopD = abs(by) - .045;
+                float hoop = 1 - smoothstep(-aa, aa, hoopD);
+                float seat = (1 - smoothstep(.008, .035, hoopD)) * (1 - hoop);
+                body *= 1 - .35 * seat;
+                float localY = by * sign(p.y);
+                half3 metal = _BandColor.rgb * (surface.r * 1.8 + .10);
+                metal *= 1.0 + .18 * p.y;
+                float upperLip = smoothstep(.023, .039, localY);
+                float lowerLip = 1 - smoothstep(-.041, -.021, localY);
+                metal = lerp(metal, half3(.48, .50, .44), upperLip * .80);
+                metal *= 1 - .42 * lowerLip;
+                body = lerp(body, metal, hoop);
+                // Symmetric forged studs; no random surface or colour per cell.
+                float2 rp = float2(abs(p.x) - .31, abs(p.y) - .245);
+                float rd = length(rp);
+                float rivet = 1 - smoothstep(.023, .027, rd);
+                float studSeat = 1 - smoothstep(.028, .040, rd);
+                body *= 1 - .48 * studSeat;
+                half3 stud = lerp(_BandColor.rgb * .58, half3(.65, .64, .52), saturate(.45 + rp.y * sign(p.y) * 20));
+                body = lerp(body, stud, rivet);
+                // Recessed hexagonal copper collar, lit from straight above.
+                float2 hp = abs(p);
+                float hex = max(hp.x * .8660254 + hp.y * .5, hp.y);
+                float socket = 1 - smoothstep(.197, .202, hex);
+                float socketSeat = 1 - smoothstep(.204, .225, hex);
+                body *= 1 - .60 * socketSeat;
+                float top = saturate(.5 + p.y * 2.5);
+                half3 copper = lerp(half3(.14, .085, .047), half3(.60, .40, .19), top);
+                copper *= surface.r * 1.75 + .12;
+                body = lerp(body, copper, socket);
                 float pr = length(p);
-                float coreD = pr - _CoreRadius;
-                float seat = smoothstep(0.020, 0.0, abs(coreD)) ;
-                float coreMask = 1.0 - smoothstep(0.0, aa * 2.0, coreD);
-                float coreInner = saturate(1.0 - pr / max(_CoreRadius, 1e-4));
-                float3 coreCol = lerp(_EmberColor.rgb * 0.25, hot * (0.6 + 1.4 * heat), pow(coreInner, 1.6));
-                body = lerp(body, coreCol, coreMask);
-                body *= (1.0 - seat * 0.55);                 // the porthole sits IN the casing
-
-                // Jagged radial cracks splitting outward as the fuse runs; they reach further as _Fuse rises.
-                float theta = atan2(p.y, p.x);
-                float spokes = abs(frac(theta / 6.2831853 * 7.0 + (vnoise(float2(pr * 9.0, theta * 2.2)) - 0.5) * 0.35) - 0.5) * 2.0;
-                float reach = _CoreRadius + 0.06 + 0.30 * saturate(_Fuse * 1.15);
-                float inReach = smoothstep(reach, reach - 0.10, pr) * smoothstep(_CoreRadius - 0.02, _CoreRadius + 0.04, pr);
-                float crack = (1.0 - smoothstep(0.0, 0.14, spokes)) * inReach;
-                body = lerp(body, hot * (0.5 + 1.5 * heat), crack * saturate(0.25 + heat));
-
-                // Outline: thick, near-black iron.
-                float tOut = saturate(1.0 + d / max(_OutlineWidth, 0.001));
-                float lumT = dot(iron, float3(0.299, 0.587, 0.114));
-                float3 outCol = lerp(iron, float3(lumT, lumT, lumT), 0.30) * 0.22;
-                body = lerp(body, outCol * grad, tOut);
-
-                return half4(body, mask);
+                float core = 1 - smoothstep(_CoreRadius - .003, _CoreRadius + .003, pr);
+                float inner = saturate(1 - pr / _CoreRadius);
+                float heat = _IdleEmber * (.92 + .08 * _Pulse) + _Fuse * _Fuse * (1.1 + .65 * _Pulse);
+                half3 hot = lerp(_EmberColor.rgb, _HotColor.rgb, saturate(_Fuse * 1.1));
+                half3 ember = lerp(half3(.07, .025, .008), hot * (.65 + heat), pow(inner, .85));
+                // Dark grate bars give the ember physical depth at rest.
+                float grateD = min(abs(p.x), abs(abs(p.x) - .070));
+                float grate = 1 - smoothstep(.008, .015, grateD);
+                ember *= 1 - grate * (.76 - _Fuse * .35);
+                body = lerp(body, ember, core);
+                // Arming lights the existing stone fractures, never a second timer.
+                float reach = .19 + .48 * _Fuse;
+                float fissure = surface.a * (1 - smoothstep(reach - .12, reach, pr)) * (1 - socketSeat);
+                body = lerp(body, hot * (1 + heat), fissure * _Fuse * (.35 + .65 * _Pulse));
+                body += hot * _Fuse * _Fuse * .08 * exp(-pr * 5) * (1 - core);
+                body = HazardOutline(body, _IronColor.rgb, d, _OutlineWidth);
+                return half4(body, mask) * i.color;
             }
             ENDHLSL
         }
     }
-
     Fallback Off
 }

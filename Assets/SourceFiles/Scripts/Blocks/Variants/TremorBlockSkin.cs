@@ -19,7 +19,7 @@ public sealed class TremorBlockSkin : BlockVariantSkin
     private static readonly int QuakeId = Shader.PropertyToID("_Quake");
 
     private const float WaveSpeed = 0.35f;     // travelling-pulse loops per second
-    private const float BuzzIdle = 0.012f;     // micro-jitter amplitude while falling (local units)
+    private const float BuzzIdle = 0.006f;     // micro-jitter amplitude while falling (local units)
     private const float BuzzQuake = 0.05f;     // extra jitter at the peak of the discharge
     private const float QuakeDuration = 0.55f;
     private const float SettleDuration = 2.5f; // after landing, the buzz tapers to calm over this long

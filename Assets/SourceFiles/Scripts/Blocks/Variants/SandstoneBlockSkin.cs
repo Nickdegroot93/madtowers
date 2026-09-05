@@ -35,7 +35,14 @@ public sealed class SandstoneBlockSkin : BlockVariantSkin
     protected override void ConfigureCell(int index, int col, int row, SpriteRenderer overlay,
         MaterialPropertyBlock mpb)
     {
-        mpb.SetFloat(SeedId, (index * 0.6180339f) % 1f * 43f); // golden-ratio desync per cell
+        mpb.SetTexture("_MagmaCracks", Resources.Load<Texture2D>("MagmaCracks"));
+    }
+
+    private static Sprite _shard;
+    public static void Shatter(Bounds bounds, Color tint)
+    {
+        if (_shard == null) _shard = Resources.Load<Sprite>("HazardShard");
+        BlockShatterFx.Spawn(bounds, tint, 14, _shard);
     }
 
     private void LateUpdate()

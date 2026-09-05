@@ -7,7 +7,7 @@ using UnityEngine;
 /// shaded by a procedural material loaded from Resources by name, sorted just above the chapter art.
 /// Subclasses supply ONLY what's unique to their brick:
 ///   - <see cref="MaterialResource"/>  : which Resources material/shader to draw with
-///   - <see cref="HidesChapterArt"/>   : replace the chapter art (Anchor/Boulder/Magma) or sit over it (Vine)
+///   - <see cref="HidesChapterArt"/>   : replace the chapter art or sit over it (Vine spreading onto neighbours)
 ///   - <see cref="ConfigureCell"/>     : optional per-cell material props (a tint, a seed, a root direction)
 ///   - their own LateUpdate           : the motion (a flash, a slam, a wobble, a growth)
 /// Build the overlays with <see cref="BuildCells"/>; animate via <see cref="SetCellsFloat"/> /
@@ -35,7 +35,7 @@ public abstract class BlockVariantSkin : MonoBehaviour
     protected abstract string MaterialResource { get; }
 
     /// <summary>True hides the chapter art and replaces it (Anchor/Boulder/Magma); false overlays on top
-    /// of it so the block keeps its chapter colour (Vine).</summary>
+    /// of it so the block keeps its chapter colour (Vine spreading onto neighbours).</summary>
     protected virtual bool HidesChapterArt => true;
 
     /// <summary>Name of the per-cell overlay GameObjects; kept distinct so the sort scan skips them.</summary>
@@ -56,16 +56,30 @@ public abstract class BlockVariantSkin : MonoBehaviour
 
     /// <summary>True parents the overlay cells under the chapter PieceSkin child instead of the block
     /// root, so they inherit the LandingSquashFx squash-and-stretch and always deform WITH the chapter
-    /// art beneath them (Ice). Only for overlay-mode skins whose motion never drives the PieceSkin or
+    /// art beneath them (Ice). Only for skins whose motion never drives the PieceSkin or
     /// the cells' rotation itself - Locked flinch-rotates the PieceSkin AND its cells separately, so
     /// riding the skin would double-transform them. Default false = block root (status quo).</summary>
     protected virtual bool CellsFollowPieceSkin => false;
 
     /// <summary>Fixed-look identity bricks (replace-mode: Maw, Bomb, Curse, ...) refuse foreign
     /// cosmetic creep - a vine growing over the Curse's eye or the Bomb's fuse hides exactly
-    /// the signal the brick exists to show (Nick 2026-08-02). Overlay-mode skins (Vine, Ice)
-    /// keep accepting. Checked by whatever spreads looks onto neighbours (VineBlockBehaviour).</summary>
-    public bool BlocksForeignOverlays => HidesChapterArt;
+    /// the signal the brick exists to show (Nick 2026-08-02). Vine, Ice and Locked explicitly
+    /// keep accepting independently of their fixed primary materials. Checked by whatever spreads looks onto neighbours (VineBlockBehaviour).</summary>
+    public virtual bool BlocksForeignOverlays => HidesChapterArt;
+
+    /// <summary>Promote an existing overlay to an opaque skin without rebuilding its cells.
+    /// Record hidden art so Sanitize can restore it, just as for an initially opaque skin.</summary>
+    protected void HideChapterArt()
+    {
+        foreach (SpriteRenderer sr in GetComponentsInChildren<SpriteRenderer>(true))
+        {
+            if (sr == null || sr.sprite == null || !sr.enabled) continue;
+            string n = sr.gameObject.name;
+            if (n.Contains("PlacementBeam") || n.Contains("VectorGuide") || n == CellName) continue;
+            sr.enabled = false;
+            _hiddenChapterArt.Add(sr);
+        }
+    }
 
     /// <summary>Optional hook to set per-cell material properties at build time. <paramref name="col"/>/
     /// <paramref name="row"/> are the cell's position in the piece's local grid (stable under movement and
@@ -75,6 +89,13 @@ public abstract class BlockVariantSkin : MonoBehaviour
     /// <summary>Build one overlay quad per cell collider. Idempotent.</summary>
     protected void BuildCells()
     {
+        // ApplyData tints every existing renderer before invoking the new skin.
+        // Fixed skins previously ignored RGB in their shaders. Keep that identity
+        // when migrating to proper Unity 6 sprite colour support, including an
+        // in-place reapply or an additive transmutation. Renderer alpha stays live.
+        foreach (BlockVariantSkin skin in GetComponents<BlockVariantSkin>())
+            foreach (SpriteRenderer cell in skin.Cells)
+                if (cell != null) cell.color = new Color(1f, 1f, 1f, cell.color.a);
         if (IsBuilt) return;
 
         Material material = LoadMaterial(MaterialResource);
@@ -231,6 +252,10 @@ public abstract class BlockVariantSkin : MonoBehaviour
             Shader shader = Resources.Load<Shader>(resource);
             if (shader != null) material = new Material(shader);
         }
+        // Opt-in only: existing skins keep their materials until migrated.
+        // Small offline-baked relief replaces fragment hash noise on mobile.
+        if (material != null && material.HasProperty("_HazardSurface"))
+            material.SetTexture("_HazardSurface", Resources.Load<Texture2D>("HazardSurface"));
         MaterialCache[resource] = material;
         return material;
     }

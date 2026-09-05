@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// The Locked look: a rusted iron gear bound by a chain and a screw-head locking pin per cell (procedural
-/// Resources/Locked shader), drawn OVER the kept chapter art - the brick stays solid; only the hardware
+/// Resources/Locked shader), seated in a fixed weathered slate casing; only the hardware
 /// reacts. The chain runs across mid-height and connects cell-to-cell (via <c>_Col</c>) into one chain
 /// binding the whole piece. Nothing spins idly (it's locked); instead it carries a faint involuntary
 /// <c>_Strain</c> twitch, and when the player tries to rotate, <see cref="PlayRefuse"/> kicks a damped
@@ -70,7 +70,8 @@ public sealed class LockedBlockSkin : BlockVariantSkin
     }
 
     protected override string MaterialResource => "Locked";
-    protected override bool HidesChapterArt => false; // the hardware sits over the chapter colour
+    protected override bool HidesChapterArt => true; // fixed slate and iron casing
+    public override bool BlocksForeignOverlays => false; // material replacement must not change vine eligibility
     protected override string CellName => "LockedCell";
 
     protected override void ConfigureCell(int index, int col, int row, SpriteRenderer overlay, MaterialPropertyBlock mpb)

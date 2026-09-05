@@ -1,166 +1,116 @@
 Shader "MadTowers/Vine"
 {
-    // A vine OVERLAY: stems + leaves drawn ON TOP of the kept chapter art (unlike Anchor/Boulder which
-    // replace it), so a Vine brick is "a normal chapter-coloured block with vines growing over it".
-    // Fixed green (theme-independent) so it always reads as vine; sparse, so the block's real colour
-    // shows between the stems. _Growth (0..1) reveals the vine from its root edge outward (it grows in,
-    // and - phase 2 - creeps onto a welded neighbour from the contact side, set via _RootDir). _Seed
-    // varies each cell so a 1x4 isn't four identical vines; a gentle sway makes it feel alive.
     Properties
     {
         [PerRendererData] _MainTex ("Sprite", 2D) = "white" {}
-        _VineColor ("Stem Colour", Color) = (0.24, 0.30, 0.12, 1)
-        _LeafColor ("Leaf Colour", Color) = (0.36, 0.66, 0.24, 1)
-        _Growth ("Growth (0..1)", Range(0, 1)) = 1
-        _Seed ("Per-cell Seed", Float) = 0
-        _Sway ("Sway Amount", Range(0, 0.1)) = 0.02
-        _RootDir ("Root Direction (xy)", Vector) = (0, 1, 0, 0)
+        _HazardSurface ("Baked stone relief", 2D) = "gray" {}
+        _StoneColor ("Moss stone", Color) = (.32, .38, .19, 1)
+        _VineColor ("Woody stem", Color) = (.30, .29, .13, 1)
+        _LeafColor ("Leaf", Color) = (.35, .54, .17, 1)
+        _Growth ("Growth", Range(0, 1)) = 1
+        _StoneBody ("Intrinsic brick", Float) = 1
+        _Sway ("Tip sway", Float) = .006
+        _RootDir ("Root direction", Vector) = (0, 1, 0, 0)
     }
-
     SubShader
     {
-        Tags
-        {
-            "Queue" = "Transparent"
-            "RenderType" = "Transparent"
-            "RenderPipeline" = "UniversalPipeline"
-            "IgnoreProjector" = "True"
-            "PreviewType" = "Plane"
-        }
+        Tags { "Queue"="Transparent" "RenderType"="Transparent" "RenderPipeline"="UniversalPipeline" "IgnoreProjector"="True" }
         Blend SrcAlpha OneMinusSrcAlpha
         Cull Off
         ZWrite Off
-
         Pass
         {
             HLSLPROGRAM
+            // HLSLcc produces flickering edge marks on Adreno 830; use DXC.
+            #pragma use_dxc vulkan
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-
-            TEXTURE2D(_MainTex);
-            SAMPLER(sampler_MainTex);
-
+            #define MADTOWERS_HAZARD_FLOAT
+            #include "HazardSurface.hlsl"
             CBUFFER_START(UnityPerMaterial)
-                float4 _MainTex_ST;
-                float4 _VineColor;
-                float4 _LeafColor;
-                float _Growth;
-                float _Seed;
-                float _Sway;
-                float4 _RootDir;
+                float4 _MainTex_ST, _StoneColor, _VineColor, _LeafColor, _RootDir;
+                float _Growth, _StoneBody, _Sway;
             CBUFFER_END
-
-            struct Attributes
+            struct Attributes { float4 positionOS:POSITION; float2 uv:TEXCOORD0; float4 color:COLOR; };
+            struct Varyings { float4 positionHCS:SV_POSITION; float2 uv:TEXCOORD0; float4 color:COLOR; };
+            Varyings vert(Attributes i)
             {
-                float4 positionOS : POSITION;
-                float2 uv         : TEXCOORD0;
-            };
-
-            struct Varyings
-            {
-                float4 positionHCS : SV_POSITION;
-                float2 uv          : TEXCOORD0;
-            };
-
-            float stemCenter(float g, float ph)
-            {
-                return 0.20 * sin(g * 5.0 + ph);
+                Varyings o;
+                o.positionHCS=TransformObjectToHClip(i.positionOS.xyz);
+                o.uv=i.uv; o.color=i.color*unity_SpriteColor; return o;
             }
-
-            // Signed distance (normalized) to an ellipse rotated by ang, taller than wide.
-            float leafDist(float2 q, float ang, float2 sz)
+            float stemCenter(float g) { return .17*sin(g*5.1)*sin(g*3.14159); }
+            // Composite straight-alpha layers without adding a dark halo on transparent neighbours.
+            void over(float3 paint, float mask, inout float3 rgb, inout float alpha)
             {
-                float c = cos(ang), s = sin(ang);
-                float2 r = float2(c * q.x - s * q.y, s * q.x + c * q.y);
-                return length(r / sz) - 1.0;
+                float a=mask+alpha*(1-mask);
+                rgb=(paint*mask+rgb*alpha*(1-mask))/max(a,.0001); alpha=a;
             }
-
-            // One shaded leaf: dark rim (reads as an outline over the brick), brighter centre, and an
-            // extra light lobe offset toward the tip - matches the game's outlined/bevelled language.
-            void addLeaf(float2 q, float2 c, float ang, float2 sz, float reveal, float growth, float idx,
-                         inout float mask, inout float shade, inout float varr)
+            void leaf(float2 q, float2 centre, float angle, float2 size, float reveal,
+                      float2 dir, float2 perp, float4 surface, inout float3 col, inout float alpha)
             {
-                float d = leafDist(q - c, ang, sz);
-                float m = smoothstep(0.06, -0.04, d) * step(reveal, growth);
-                if (m <= mask) return;
-                float inner = saturate(-d * 4.5);
-                float hi = saturate(-leafDist(q - c - float2(0.012, 0.024), ang, sz * 0.62) * 4.0);
-                mask = m;
-                shade = 0.45 + 0.55 * inner + 0.38 * hi;
-                varr = frac(idx * 0.618 + 0.13);
+                float cs=cos(angle), sn=sin(angle);
+                float2 local=q-centre;
+                float2 p=float2(cs*local.x-sn*local.y,sn*local.x+cs*local.y)/size;
+                // Pointed lens, with a central fold and small painted secondary veins.
+                float width=pow(saturate(1-p.y*p.y),.82);
+                float d=max(abs(p.x)-width,abs(p.y)-1);
+                float grown=smoothstep(reveal,reveal+.18,_Growth);
+                float mask=(1-smoothstep(-.035,.035,d))*grown;
+                float rim=smoothstep(-.24,-.07,d);
+                float fold=smoothstep(-.035,.035,p.x);
+                float top=dot(float2(sn,cs),float2(perp.y,dir.y));
+                float vein=1-smoothstep(.018,.045,abs(p.x));
+                float sideVeins=(1-smoothstep(.035,.075,abs(frac(p.y*3.2-abs(p.x)*.7)-.5)))*.11;
+                float3 paint=_LeafColor.rgb*(.75+.40*fold+.12*p.y*top)*(surface.r*1.3+.34);
+                paint*=1-sideVeins;
+                paint=lerp(paint,_LeafColor.rgb*1.26,vein*.65);
+                paint=lerp(paint,_LeafColor.rgb*.25,rim);
+                float shadow=(1-smoothstep(-.05,.12,d)) * grown * .46;
+                over(float3(.055,.072,.025),shadow,col,alpha);
+                over(paint,mask,col,alpha);
             }
-
-            Varyings vert(Attributes IN)
+            float4 frag(Varyings i):SV_Target
             {
-                Varyings OUT;
-                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
-                OUT.uv = TRANSFORM_TEX(IN.uv, _MainTex);
-                return OUT;
-            }
-
-            half4 frag(Varyings IN) : SV_Target
-            {
-                float2 uv = IN.uv;
-                float ph = _Seed * 6.2831;
-                float leafScale = 0.85 + 0.30 * frac(_Seed * 3.1 + 0.2); // slight per-cell leaf-size variance
-
-                // Vine coordinate frame: g runs 0 (root edge) -> 1 (far edge) along _RootDir,
-                // lat is the perpendicular offset across the stem.
-                float2 dir = normalize(_RootDir.xy + float2(1e-4, 1e-4));
-                float2 perp = float2(-dir.y, dir.x);
-                float2 rel = uv - 0.5;
-                float g = saturate(dot(rel, dir) + 0.5);
-                float lat = dot(rel, perp);
-
-                // Living sway - free ends (high g) move more than the rooted base.
-                float sway = _Sway * sin(_Time.y * 1.6 + ph) * g;
-                float lat2 = lat - sway;
-
-                // Main winding stem, tapering toward the tip; revealed up to _Growth. Drawn with a dark
-                // outline ring (outCore) so it reads as part of the outlined art, not a decal.
-                float sc = stemCenter(g, ph);
-                float stemW = lerp(0.085, 0.030, g);
-                float dstem = abs(lat2 - sc) - stemW;
-
-                // A thinner offshoot for density.
-                float sc2 = 0.20 * sin(g * 5.0 + ph + 2.5) + 0.12;
-                float dstem2 = abs(lat2 - sc2) - 0.032;
-                dstem = min(dstem, dstem2);
-
-                float grow = step(g, _Growth);
-                float stem = smoothstep(0.012, 0.0, dstem) * grow;         // stem body
-                float stemOut = smoothstep(0.034, 0.016, dstem) * grow;    // body + dark rim
-
-                // Leaves sprout along the stem, alternating sides; each pops in as growth passes it.
-                // Larger, layered clusters than before - a big and a small lobe per node.
-                float2 q = float2(lat2, g);
-                float lm = 0.0, lsh = 1.0, lv = 0.0;
-                addLeaf(q, float2(stemCenter(0.20, ph) - 0.085, 0.20), -0.75, float2(0.115, 0.190) * leafScale, 0.20, _Growth, 1.0, lm, lsh, lv);
-                addLeaf(q, float2(stemCenter(0.20, ph) + 0.060, 0.16),  0.95, float2(0.070, 0.120) * leafScale, 0.20, _Growth, 2.0, lm, lsh, lv);
-                addLeaf(q, float2(stemCenter(0.44, ph) + 0.080, 0.44),  0.80, float2(0.095, 0.160) * leafScale, 0.44, _Growth, 3.0, lm, lsh, lv);
-                addLeaf(q, float2(stemCenter(0.62, ph) - 0.080, 0.62), -0.85, float2(0.105, 0.175) * leafScale, 0.62, _Growth, 4.0, lm, lsh, lv);
-                addLeaf(q, float2(stemCenter(0.62, ph) + 0.055, 0.70),  0.70, float2(0.062, 0.105) * leafScale, 0.62, _Growth, 5.0, lm, lsh, lv);
-                addLeaf(q, float2(stemCenter(0.86, ph) + 0.060, 0.86),  0.85, float2(0.080, 0.135) * leafScale, 0.86, _Growth, 6.0, lm, lsh, lv);
-                addLeaf(q, float2(stemCenter(0.33, ph) + 0.075, 0.33),  0.88, float2(0.082, 0.140) * leafScale, 0.33, _Growth, 7.0, lm, lsh, lv);
-                addLeaf(q, float2(stemCenter(0.75, ph) - 0.070, 0.76), -0.78, float2(0.092, 0.155) * leafScale, 0.75, _Growth, 8.0, lm, lsh, lv);
-
-                // Stem: dark outline ring under a tube-shaded core (lighter on one side).
-                float tube = 0.85 + 0.30 * saturate((sc - lat2) / max(stemW, 1e-3));
-                float3 stemDark = _VineColor.rgb * 0.35;
-                float3 col = lerp(stemDark, _VineColor.rgb * tube, stem);
-                float a = stemOut;
-
-                // Leaves over stems: per-leaf value variance, dark rims, bright tip lobes.
-                float3 leafCol = _LeafColor.rgb * lerp(0.85, 1.18, lv) * lsh;
-                col = lerp(col, leafCol, lm);
-                a = max(a, lm);
-
-                return half4(col, saturate(a));
+                float2 uv=i.uv;
+                float radius=22.0/256, outline=17.0/256, bevel=26.0/256;
+                float d=HazardRoundBox(uv-.5,.5, radius);
+                float body=1-smoothstep(-.003,.001,d);
+                float4 surface=HazardSurface(uv);
+                float3 stone=HazardStone(uv,_StoneColor.rgb,d,radius,outline,bevel,surface);
+                // Moss catches in porous depressions, while the bevel stays exposed.
+                float moss=smoothstep(.56,.72,surface.g)*(1-smoothstep(-.20,-.10,d));
+                stone=lerp(stone,float3(.20,.28,.085)*(surface.r+.45),moss*.36);
+                float3 col=HazardOutline(stone,_StoneColor.rgb,d,outline);
+                float alpha=body*_StoneBody;
+                float2 dir=normalize(_RootDir.xy+float2(.00001,.00001));
+                float2 perp=float2(-dir.y,dir.x);
+                float2 rel=uv-.5;
+                float g=dot(rel,dir)+.5;
+                float lat=dot(rel,perp)-_Sway*sin(_Time.y*.7)*sin(g*3.14159)*g;
+                float sc=stemCenter(g), width=lerp(.044,.019,saturate(g));
+                float dist=abs(lat-sc)-width;
+                float grow=1-smoothstep(_Growth-.025,_Growth+.015,g);
+                float stem=(1-smoothstep(-.004,.004,dist))*grow;
+                float shadow=(1-smoothstep(.005,.029,dist))*grow*.66;
+                over(float3(.055,.06,.022),shadow,col,alpha);
+                float stemOffset=(lat-sc)/width;
+                float tube=sqrt(saturate(1-stemOffset*stemOffset)); // defined on both sides of the stem under DXC
+                float topLip=(1-smoothstep(.004,.015,abs(lat-sc+width*.47)))*.17;
+                float3 bark=_VineColor.rgb*(.55+.55*tube+topLip)*(surface.r+.46);
+                bark*=1-.24*surface.a;
+                over(bark,stem,col,alpha);
+                float2 q=float2(lat,g);
+                leaf(q,float2(stemCenter(.23)-.085,.25),-.72,float2(.086,.16),.10,dir,perp,surface,col,alpha);
+                leaf(q,float2(stemCenter(.44)+.08,.46),.8,float2(.10,.17),.30,dir,perp,surface,col,alpha);
+                leaf(q,float2(stemCenter(.64)-.085,.65),-.75,float2(.09,.16),.49,dir,perp,surface,col,alpha);
+                leaf(q,float2(stemCenter(.84)+.063,.83),.68,float2(.068,.135),.69,dir,perp,surface,col,alpha);
+                // Keep plants inside the closed stone silhouette, including when growing on neighbours.
+                return float4(col,alpha*body)*i.color;
             }
             ENDHLSL
         }
     }
-
     Fallback Off
 }

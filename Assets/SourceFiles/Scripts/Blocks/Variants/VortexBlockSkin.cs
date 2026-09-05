@@ -14,7 +14,7 @@ public sealed class VortexBlockSkin : BlockVariantSkin
     private static readonly int SwirlId = Shader.PropertyToID("_Swirl");
     private static readonly int SeedId = Shader.PropertyToID("_Seed");
 
-    private const float MaxAngVel = 2.0f;    // rad/s peak churn speed
+    private const float MaxAngVel = 0.65f;    // rad/s peak churn speed
     private const float ReverseRate = 0.34f; // rad/s of the speed oscillator (sign flips every PI/ReverseRate)
 
     protected override string MaterialResource => "Vortex";

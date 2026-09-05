@@ -20,4 +20,15 @@ public class BlockDefinition : ScriptableObject
     public BlockData DefaultData => defaultData;
     public int BagCopies => Mathf.Max(1, bagCopies);
     public bool LockDefaultData => lockDefaultData && defaultData != null;
+
+    // A melt fragment keeps the source stone's data/identity but owns a transient cell layout.
+    // The fragment destroys this clone when it leaves the scene; authored definitions never change.
+    internal BlockDefinition CloneWithPrefab(GameObject runtimePrefab)
+    {
+        BlockDefinition clone = Instantiate(this);
+        clone.name = name;
+        clone.hideFlags = HideFlags.HideAndDontSave;
+        clone.prefab = runtimePrefab;
+        return clone;
+    }
 }

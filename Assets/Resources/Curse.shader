@@ -21,8 +21,9 @@ Shader "MadTowers/Curse"
     Properties
     {
         [PerRendererData] _MainTex ("Sprite", 2D) = "white" {}
-        _StoneColor ("Obsidian Colour", Color) = (0.085, 0.115, 0.10, 1)
-        _SheenColor ("Polish Sheen Colour", Color) = (0.22, 0.30, 0.27, 1)
+        _HazardSurface ("Baked obsidian relief", 2D) = "gray" {}
+        _StoneColor ("Obsidian Colour", Color) = (0.19, 0.225, 0.21, 1)
+        _SheenColor ("Polish Sheen Colour", Color) = (0.26, 0.34, 0.30, 1)
         _VeinColor ("Corruption Colour", Color) = (0.42, 1.0, 0.35, 1)
         _ScleraColor ("Eye Sclera Colour", Color) = (0.82, 0.88, 0.62, 1)
         _IrisColor ("Iris Colour", Color) = (0.35, 0.95, 0.25, 1)
@@ -65,6 +66,7 @@ Shader "MadTowers/Curse"
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "HazardSurface.hlsl"
 
             TEXTURE2D(_MainTex);
             SAMPLER(sampler_MainTex);
@@ -99,30 +101,24 @@ Shader "MadTowers/Curse"
             {
                 float4 positionOS : POSITION;
                 float2 uv         : TEXCOORD0;
+                half4 color       : COLOR;
             };
 
             struct Varyings
             {
                 float4 positionHCS : SV_POSITION;
                 float2 uv          : TEXCOORD0;
+                half4 color        : COLOR;
             };
 
-            float hash21(float2 p)
+            float sampleGrain(float2 p)
             {
-                p = frac(p * float2(123.34, 345.45));
-                p += dot(p, p + 34.345);
-                return frac(p.x * p.y);
+                return HazardSurface(p * .071 + .19).b;
             }
 
-            float vnoise(float2 p)
+            float sampleMottle(float2 p)
             {
-                float2 i = floor(p), f = frac(p);
-                float2 u = f * f * (3.0 - 2.0 * f);
-                float a = hash21(i);
-                float b = hash21(i + float2(1, 0));
-                float c = hash21(i + float2(0, 1));
-                float d = hash21(i + float2(1, 1));
-                return lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
+                return HazardSurface(p * .125).g;
             }
 
             float sdRoundBox(float2 p, float2 b, float r)
@@ -131,33 +127,14 @@ Shader "MadTowers/Curse"
                 return length(max(q, float2(0.0, 0.0))) + min(max(q.x, q.y), 0.0) - r;
             }
 
-            // Hairline crack network: Voronoi plate edges (F2-F1) - real fracture geometry,
-            // thin polygonal seams, never the closed blobs a noise iso-line makes.
-            float veins(float2 p, float seed)
-            {
-                float2 g = floor(p);
-                float2 f = frac(p);
-                float f1 = 8.0, f2 = 8.0;
-                [unroll(3)]
-                for (int y = -1; y <= 1; y++)
-                [unroll(3)]
-                for (int x = -1; x <= 1; x++)
-                {
-                    float2 o = float2(x, y);
-                    float2 site = o + float2(hash21(g + o + seed * 13.0), hash21(g + o + seed * 13.0 + 7.7)) - f;
-                    float dd = dot(site, site);
-                    if (dd < f1) { f2 = f1; f1 = dd; }
-                    else if (dd < f2) { f2 = dd; }
-                }
-                float edge = sqrt(f2) - sqrt(f1);      // 0 exactly on a plate boundary
-                return 1.0 - smoothstep(0.0, 0.05, edge);
-            }
+
 
             Varyings vert(Attributes IN)
             {
                 Varyings OUT;
                 OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
                 OUT.uv = TRANSFORM_TEX(IN.uv, _MainTex);
+                OUT.color = IN.color * unity_SpriteColor;
                 return OUT;
             }
 
@@ -188,31 +165,13 @@ Shader "MadTowers/Curse"
                 float aa = max(fwidth(d), 0.001);
                 float mask = 1.0 - smoothstep(0.0, aa, d);
 
-                // Shared frame: gradient + embossed bevel + AO ring.
-                float grad = 1.13 - 0.36 * pow(saturate(1.0 - bodyUv.y), 1.15);
-                float3 body = stone * grad;
-                float e = 0.012;
-                float dY = sdRoundBox(pb + float2(0, e), bb, r) - sdRoundBox(pb - float2(0, e), bb, r);
-                float dX = sdRoundBox(pb + float2(e, 0), bb, r) - sdRoundBox(pb - float2(e, 0), bb, r);
-                float ny = dY / (2.0 * e);
-                float nx = dX / (2.0 * e);
-                float band = pow(saturate((d + _OutlineWidth + _BevelWidth) / max(_BevelWidth, 0.001)), 1.6);
-                band *= saturate((-d - _OutlineWidth * 0.55) / max(_OutlineWidth * 0.45, 0.001));
-                float topness  = saturate((ny - 0.25) / 0.5);
-                float botness  = saturate((-ny - 0.25) / 0.5);
-                float sideness = saturate((abs(nx) - 0.25) / 0.5) * (1.0 - topness) * (1.0 - botness);
-                body *= (1.0 - 0.09 * band);
-                float3 hiCol = lerp(stone * 2.2, _SheenColor.rgb, 0.55) * grad;
-                body = lerp(body, hiCol, 0.55 * band * topness);
-                body *= (1.0 - 0.30 * band * botness);
-                body *= (1.0 - 0.14 * band * sideness);
-
-                // Obsidian character: a soft diagonal polish sheen + dark mottle, so the black
-                // reads as glassy volcanic stone, never flat gray.
-                float sheenBand = 1.0 - smoothstep(0.0, 0.5, abs(pb.x + pb.y * 0.6 - 0.12 + (_Seed - 0.5) * 0.3));
-                body += _SheenColor.rgb * sheenBand * 0.10;
-                float mottle = vnoise(pb * 5.0 + _Seed * 17.0) - 0.5;
-                body *= (1.0 + mottle * 0.14);
+                // Static chipped obsidian: broad conchoidal facets, pits and a
+                // readable top bevel. The material never pulses while dormant.
+                half4 surface = HazardSurface(bodyUv);
+                float3 body = HazardStone(bodyUv, stone, d, r, _OutlineWidth, _BevelWidth, surface);
+                float facet = smoothstep(.37, .62, surface.g);
+                body *= .84 + .28 * facet;
+                body += _SheenColor.rgb * max(surface.r * 2 - 1, 0) * .24;
 
                 float doom = 1.0 - saturate(_Left / max(_MaxLeft, 1.0));
                 float lastOne = saturate(1.0 - abs(_Left - 1.0));   // 1 exactly when one sigil remains
@@ -223,7 +182,7 @@ Shader "MadTowers/Curse"
                 // CORRUPTION CRACKS: faint dark hairline seams at rest; as doom rises they glow
                 // acid green from within, pulsing with the heartbeat - the whole-brick alarm.
                 // A sigil burn (_Tick) makes them flash briefly on every cell.
-                float vein = veins(pb * 2.6 + float2(_Seed * 3.7, _Seed * 9.2), _Seed);
+                float vein = surface.a; // fixed fractures; no per-cell random plate layout
                 body *= (1.0 - vein * 0.18);                        // engraved, always
                 float veinGlow = alive * (doom * doom * (0.30 + 0.55 * _Pulse) + _Tick * 0.8);
                 veinGlow = max(veinGlow, alive * lastOne * (0.40 + 0.45 * _Pulse));
@@ -272,7 +231,7 @@ Shader "MadTowers/Curse"
                     // Bloodshot: thin RADIAL strokes creeping in from the corners as doom rises.
                     float theta = atan2(ep.y, ep.x);
                     float streaks = 1.0 - smoothstep(0.0, 0.30,
-                        abs(frac(theta * 3.5 + hash21(float2(_Seed, 3.3)) * 7.0) - 0.5) * 2.0);
+                        abs(frac(theta * 3.5 + sampleGrain(float2(_Seed, 3.3)) * 7.0) - 0.5) * 2.0);
                     float blood = streaks * smoothstep(0.10, 0.30, abs(ep.x)) * saturate(doom * 1.2);
                     eyeCol = lerp(eyeCol, _BloodColor.rgb, blood * 0.6);
 
@@ -304,11 +263,7 @@ Shader "MadTowers/Curse"
                 float prBody = length(pb);
                 body = lerp(body, _FireColor.rgb, saturate(flare * (1.7 - prBody * 1.6)) * sig);
 
-                // Outline: thick, near-black.
-                float tOut = saturate(1.0 + d / max(_OutlineWidth, 0.001));
-                float lumT = dot(stone, float3(0.299, 0.587, 0.114));
-                float3 outCol = lerp(stone, float3(lumT, lumT, lumT), 0.30) * 0.22;
-                body = lerp(body, outCol * grad, tOut);
+                body = HazardOutline(body, stone, d, _OutlineWidth);
 
                 // SOUL SMOKE above the body - only while exposed and awake; thicker and faster
                 // as doom rises.
@@ -331,7 +286,7 @@ Shader "MadTowers/Curse"
                         float cx = baseX + sway;
                         float width = lerp(0.055, 0.016, sy) * thick;
                         float strand = 1.0 - smoothstep(0.0, width, abs(p.x - cx));
-                        float fade = (1.0 - sy) * (0.55 + 0.45 * vnoise(float2(sy * 5.0 - _Phase * 1.2 * speed, _Seed * 9.0 + fw2)));
+                        float fade = (1.0 - sy) * (0.55 + 0.45 * sampleMottle(float2(sy * 5.0 - _Phase * 1.2 * speed, _Seed * 9.0 + fw2)));
                         smokeA = max(smokeA, strand * fade);
                     }
                     smokeA = saturate(smokeA * alive * (0.7 + 0.35 * doom));
@@ -350,7 +305,7 @@ Shader "MadTowers/Curse"
                 float3 outRgb = lerp(smokeCol, body, mask);
                 outRgb = lerp(outRgb, _FireColor.rgb, saturate(shock));
                 float outA = max(max(mask, smokeA), saturate(shock));
-                return half4(outRgb, outA);
+                return half4(outRgb, outA) * IN.color;
             }
             ENDHLSL
         }

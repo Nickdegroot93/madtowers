@@ -10,6 +10,8 @@ Shader "MadTowers/Locked"
     // drives _Strain/_Flash on scaled time so a pause freezes them (PHYSICS.md). See BLOCKVARIANTS.md.
     Properties
     {
+        _HazardSurface ("Baked stone relief", 2D) = "gray" {}
+        _StoneColor ("Slate casing", Color) = (.29,.32,.34,1)
         [PerRendererData] _MainTex ("Sprite", 2D) = "white" {}
         _RustColor ("Gear iron", Color) = (0.34, 0.31, 0.28, 1)
         _RustHi ("Gear highlight", Color) = (0.80, 0.78, 0.72, 1)
@@ -45,15 +47,20 @@ Shader "MadTowers/Locked"
         Pass
         {
             HLSLPROGRAM
+            // HLSLcc produces flickering edge marks on Adreno 830; use DXC.
+            #pragma use_dxc vulkan
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #define MADTOWERS_HAZARD_FLOAT
+            #include "HazardSurface.hlsl"
 
             TEXTURE2D(_MainTex);
             SAMPLER(sampler_MainTex);
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
+                float4 _StoneColor;
                 float4 _RustColor;
                 float4 _RustHi;
                 float4 _ChainColor;
@@ -71,10 +78,10 @@ Shader "MadTowers/Locked"
                 float _MaxLurch;
             CBUFFER_END
 
-            struct Attributes { float4 positionOS : POSITION; float2 uv : TEXCOORD0; };
-            struct Varyings   { float4 positionHCS : SV_POSITION; float2 uv : TEXCOORD0; };
+            struct Attributes { float4 positionOS : POSITION; float4 color : COLOR; float2 uv : TEXCOORD0; };
+            struct Varyings   { float4 positionHCS : SV_POSITION; float4 color : COLOR; float2 uv : TEXCOORD0; };
 
-            static const float2 LIGHT = float2(-0.5547, 0.8321); // top-left
+            static const float2 LIGHT = float2(0, 1); // straight overhead
 
             float sdRoundBox(float2 p, float2 b, float r)
             {
@@ -97,18 +104,21 @@ Shader "MadTowers/Locked"
                 Varyings OUT;
                 OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
                 OUT.uv = TRANSFORM_TEX(IN.uv, _MainTex);
+                OUT.color = IN.color * unity_SpriteColor;
                 return OUT;
             }
 
-            half4 frag(Varyings IN) : SV_Target
+            float4 frag(Varyings IN) : SV_Target
             {
                 float2 p = IN.uv - 0.5;
-                float3 col = 0.0;
-                float alpha = 0.0;
+                float bodyD=HazardRoundBox(p,.5,22.0/256);
+                float4 surface=HazardSurface(IN.uv);
+                float3 col=HazardStone(IN.uv,_StoneColor.rgb,bodyD,22.0/256,17.0/256,26.0/256,surface);
+                float alpha=1;
                 const float3 SEAT = float3(0.09, 0.06, 0.05); // dark contact outline so it pops on any chapter colour
 
                 // ---- Gear (rotates with strain) ----
-                float gr = _GearAngle + _Strain * _MaxLurch;
+                float gr = .12 + _Strain * _MaxLurch; // fixed rest phase
                 float cg = cos(gr), sg = sin(gr);
                 float2 q = float2(cg * p.x + sg * p.y, -sg * p.x + cg * p.y);
 
@@ -116,6 +126,8 @@ Shader "MadTowers/Locked"
                 float gaa = fwidth(gd) + 1e-4;
                 float gmask = 1.0 - smoothstep(0.0, gaa, gd);
                 float gout = 1.0 - smoothstep(0.0, gaa, gd - 0.020); // dilated for the dark outline
+                float shadow=1-smoothstep(.02,.05,gearDist(q+float2(0,.015)));
+                col *= 1-.45*shadow;
                 col = lerp(col, SEAT, gout);
                 alpha = max(alpha, gout);
                 if (gmask > 0.001)
@@ -129,7 +141,7 @@ Shader "MadTowers/Locked"
                     float3 gcol = _RustColor.rgb;
                     gcol *= 0.78 + 0.34 * (0.35 - rad);                         // center brighter, rim darker (form)
                     gcol *= 0.82 + 0.42 * saturate(gdir);                       // domed: top-left face lit, far side in shade
-                    float edge = 1.0 - smoothstep(-0.06, 0.0, gd);             // near the rim/teeth
+                    float edge = smoothstep(-0.06, -0.008, gd);             // near the rim/teeth
                     gcol += _RustHi.rgb * saturate(gdir) * edge * 0.60;        // bright lit teeth/rim
                     gcol += _RustHi.rgb * 0.05;                                // a touch of overall warmth
 
@@ -139,13 +151,14 @@ Shader "MadTowers/Locked"
                     gcol *= (1.0 - 0.34 * hubInside);
                     gcol *= (1.0 - 0.45 * (1.0 - smoothstep(0.0, 0.02, abs(hd))));
 
-                    col = gcol;
-                    alpha = gmask;
+                    gcol *= .65 + surface.r*.72;
+                    gcol = lerp(gcol,gcol*float3(1.18,.79,.55),smoothstep(.54,.70,surface.g)*.55);
+                    col = lerp(col,gcol,gmask);
                 }
 
                 // ---- Chain (over the gear; links continuous across cells via _Col) ----
                 const float P = 0.25;                       // link pitch (divides 1 -> seamless cell-to-cell)
-                const float2 HB = float2(0.155, 0.094);     // link half-extents (rounded box)
+                const float2 HB = float2(0.155, 0.094);     // link float-extents (rounded box)
                 const float CR = 0.085;                     // link corner radius
                 const float WALL = 0.040;                   // ring wall thickness
                 float xc = p.x + _Col;
@@ -190,7 +203,7 @@ Shader "MadTowers/Locked"
                         lc += _ChainHi.rgb * tension * 0.22;                    // whole chain glints when taut
 
                         chainMask = m;
-                        chainCol = lc;
+                        chainCol = lc * (.72 + surface.r*.52);
                     }
                 }
                 col = lerp(col, SEAT, chainOut);   // dark outline (also separates chain from gear)
@@ -236,7 +249,8 @@ Shader "MadTowers/Locked"
                     alpha = max(alpha, spark);
                 }
 
-                return half4(col, saturate(alpha));
+                col=HazardOutline(col,_StoneColor.rgb,bodyD,17.0/256);
+                return float4(col,1-smoothstep(-.003,.001,bodyD))*IN.color;
             }
             ENDHLSL
         }
