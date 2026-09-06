@@ -58,8 +58,17 @@ infinitely strong anchor for accumulated tower load. **Never clamp a hooked resu
 edge or remove the hook bound.** Either change turns hooks into torque sinks that can hold an
 arbitrarily lopsided, gravity-defying tower.
 
-Support destruction uses the same revalidation process. No structural-release impulse or special
-low-friction material exists.
+**Ice-only exception:** a block whose current applied data is `IceBlockData` cannot use the
+hook exemption. A verified hook-dependent ice placement releases through the existing structural
+check into Dynamic physics with its authored `IceSurface` material and a one-time outward velocity
+of 0.5 cell/second. This lets S/Z ice slide clear instead of catching in a shallow physical lean.
+There is no ongoing force or pose correction. Fully supported ice placements
+still use the ordinary balance test. Normal and other non-ice hooks keep the exact same hold,
+load limits and torque propagation. Check the current data, never an old skin or replaced variant,
+so neutralizing/transmuting ice restores the replacement variant's normal support rules.
+
+Support destruction uses the same revalidation process. Apart from the ice-only hook slip above,
+no structural-release impulse or special low-friction material exists.
 Tremors and failed nudges intentionally release the affected connected structure before applying
 their normal velocity/impulse. A released block never becomes grid-stable again.
 
@@ -316,6 +325,9 @@ standalone L hook stays exact; flat O on one narrowed cell releases; centered O-
 the documented four-piece J/T/Z/L edge sculpture releases at the Z interface; the documented
 two-piece J/S edge stack releases at the base; a cumulatively overloaded hook releases its support
 and the unsupported branch follows in the same validation pass.
+For the ice exception, repeat L/J and S/Z hooks with Ice: they must release to Dynamic physics;
+fully supported ice stays exact, neutralized ice regains the normal hook hold, and Freeze/Anchor
+still remains Static.
 
 ---
 

@@ -61,6 +61,7 @@ public partial class BlockController
     }
 
     private bool _isGridStable;
+    private int _iceHookSlipDirection;
 
     /// <summary>True only while this landed block is owned by the exact placement grid.</summary>
     public bool IsGridStable =>
@@ -495,6 +496,7 @@ public partial class BlockController
         float tolerance,
         BlockController ignoredBlock)
     {
+        _iceHookSlipDirection = 0;
         if (!TryGetGridSupportSpan(supports, out float minX, out float maxX)) return false;
 
         float grid = Mathf.Max(0.01f, gridSpacing);
@@ -553,7 +555,16 @@ public partial class BlockController
 
             float outsideX = supportedCell.x + direction * grid;
             if (!ownKeys.Contains(ToPlacementGridKey(outsideX, supportedCell.y))) continue;
-            if (ownKeys.Contains(ToPlacementGridKey(outsideX, supportedCell.y - grid))) return true;
+            if (!ownKeys.Contains(ToPlacementGridKey(outsideX, supportedCell.y - grid))) continue;
+
+            // Only current ice forfeits a verified hook. Remember the outward direction
+            // for its one-time slip when structural validation releases this body.
+            if (_appliedData is IceBlockData)
+            {
+                _iceHookSlipDirection = direction;
+                return false;
+            }
+            return true;
         }
 
         return false;
@@ -688,6 +699,11 @@ public partial class BlockController
         if (_dynamicControlReady) _rb.centerOfMass = _originalCenterOfMass;
         _rb.gravityScale = ResolveLandedGravityScale();
         _rb.WakeUp();
+        if (_iceHookSlipDirection != 0 && _appliedData is IceBlockData ice)
+        {
+            ice.SlipOffHook(this, _iceHookSlipDirection);
+        }
+        _iceHookSlipDirection = 0;
     }
 
     private void ReleaseGridStructureForForce()
