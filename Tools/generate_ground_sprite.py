@@ -1,22 +1,26 @@
 #!/usr/bin/env python3
-"""Procedurally renders each theme's plateau strip and floating island cells:
+"""Generate chapter ground fills/caps and 1x1 support-island sprites.
 
-  Skins/<Theme>/plateau.png - one tile (256x96 px = 2 x 0.75 units) of the landable
-  surface; the game TILES it to any floor width (never stretched) with outlined end
-  caps preserved by a 12px sprite border (set by BlockSkinImportSettings).
+Ground: seamless 128x128 fill and horizontally seamless 256x64 cap, 128 px/unit.
+Islands: three 128x128 cells. Legacy materials are rotation-safe; carved materials
+use upright visual children. Shapes and collision belong to FloorTerrain and
+StaticSupportIslandManager, independently of these images. STYLE.md / FLOORS.md.
 
-  Skins/<Theme>/island_1..3.png - 1x1-cell floating support islands (128x128 px =
-  1 world unit), same material language as the plateau (base color, edge line,
-  grain). Deliberately SYMMETRIC - border ring all around, no lit "top", features
-  that read at any angle - so the game can rotate them in 90-degree steps for 12
-  effective looks per theme. Variants: 1 plain, 2 hairline crack, 3 pebble flecks.
-
-The plateau is the ONLY ground visual - theme scenery (hills, dunes, mountains, props)
-lives in the backdrop system (BackdropPreset), never attached to the floor, so nothing
-decorative can be mistaken for a landing surface. Buildings were removed by design
-(git history has the renderers). Pure stdlib, deterministic, 128 px/unit. STYLE.md.
+Run all chapters, or --theme Jungle for a single chapter. Carved renderers use
+numpy + Pillow (like the piece generator); all saved textures keep their old sizes.
 """
 import os, random, struct, zlib
+import functools, tempfile, uuid
+
+SELECTED_THEME = None
+
+def _for_theme(render):
+    @functools.wraps(render)
+    def selected(theme, *args, **kwargs):
+        if SELECTED_THEME is None or SELECTED_THEME == theme:
+            return render(theme, *args, **kwargs)
+    return selected
+
 
 PLATEAU_W, PLATEAU_H = 256, 96   # one tile: 2.0 x 0.75 world units
 ISLAND_S = 128                   # one island cell: 1.0 x 1.0 world units
@@ -34,9 +38,19 @@ def write_png(path, w, h, buf):
         raw.append(0)
         raw += buf[y * stride:(y + 1) * stride]
     ihdr = struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)
-    with open(path, "wb") as f:
+    # Unity can refresh mid-write. Register a new GUID first, then atomically swap
+    # the complete PNG; existing metas (and their automatic importer settings) stay intact.
+    meta = path + ".meta"
+    if not os.path.exists(meta):
+        fd, temporary = tempfile.mkstemp(dir=os.path.dirname(path), suffix=".tmp")
+        with os.fdopen(fd, "w") as f:
+            f.write(f"fileFormatVersion: 2\nguid: {uuid.uuid4().hex}\n")
+        os.replace(temporary, meta)
+    fd, temporary = tempfile.mkstemp(dir=os.path.dirname(path), suffix=".tmp")
+    with os.fdopen(fd, "wb") as f:
         f.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr)
                 + chunk(b"IDAT", zlib.compress(bytes(raw), 6)) + chunk(b"IEND", b""))
+    os.replace(temporary, path)
 
 
 def grain(x, y):
@@ -44,6 +58,7 @@ def grain(x, y):
     return 1.0 + (n / 1023.0 - 0.5) * 0.05
 
 
+@_for_theme
 def render_plateau(theme, base, line=None, blocks=2, bevel=0.12, tone_steps=(1.0, 0.94),
                    top=None, top_h=26):
     """One strip segment with real material reads:
@@ -101,6 +116,7 @@ def render_plateau(theme, base, line=None, blocks=2, bevel=0.12, tone_steps=(1.0
     print(f"{out}  ({w}x{h})")
 
 
+@_for_theme
 def render_islands(theme, base, line=None, variants=3):
     """Floating 1x1 support-island cells, `variants` per theme. Same material reads
     as the plateau (base + line + grain) but fully rotation-safe: a uniform border
@@ -162,6 +178,7 @@ def render_islands(theme, base, line=None, variants=3):
         print(f"{out}  ({s}x{s})")
 
 
+@_for_theme
 def remove_legacy(theme):
     out_dir = os.path.join(SKINS_DIR, theme)
     for name in ("ground.png", "ground_4.png", "ground_hill.png", "building.png"):
@@ -178,6 +195,7 @@ def _hash01(*vals):
     return (h % 10000) / 10000.0
 
 
+@_for_theme
 def render_ground_fill(theme, base, mortar_factor=0.32, tone_var=0.10):
     """Seamless 1x1-unit masonry tile (128x128) the grounded floor COLUMNS are built from
     (FloorTerrain tiles it from each run's top down into the fog). Running-bond bricks,
@@ -240,6 +258,7 @@ def _put(px, S, x, y, r, g, b):
     px[o + 3] = 255
 
 
+@_for_theme
 def render_ground_fill_panels(theme, base, seam_factor=0.35, tone_var=0.05, stain_strength=0.0):
     """Large slab paving: 0.5x0.5 u panels (64 px) with thin seams — prefab concrete
     (stain_strength > 0 adds weep streaks bleeding down from the seams: sovietwave
@@ -278,6 +297,7 @@ def render_ground_fill_panels(theme, base, seam_factor=0.35, tone_var=0.05, stai
     _write_fill(theme, px)
 
 
+@_for_theme
 def render_ground_fill_strata(theme, base, tone_var=0.08, line_factor=0.55,
                               crack_chance=0.5, fleck=None, fleck_chance=0.0,
                               bands=(24, 16, 32, 20, 36)):
@@ -324,6 +344,7 @@ def render_ground_fill_strata(theme, base, tone_var=0.08, line_factor=0.55,
     _write_fill(theme, px)
 
 
+@_for_theme
 def render_ground_fill_ashlar(theme, base, joint_factor=0.3, tone_var=0.07):
     """Castle-wall ashlar: 0.25 u tall courses of LARGE blocks (whole- or half-tile wide,
     per-course pattern and offset), thick dark joints, chiselled top-lit faces — Japanese
@@ -363,6 +384,7 @@ def render_ground_fill_ashlar(theme, base, joint_factor=0.3, tone_var=0.07):
     _write_fill(theme, px)
 
 
+@_for_theme
 def render_ground_fill_cobble(theme, base, joint_factor=0.35, tone_var=0.12, joint=None):
     """Irregular rounded cobbles: a jittered 0.25 u grid of stones, nearest-stone lookup
     with toroidal wrapping (seamless both axes), mossy joints between them — jungle ruin
@@ -408,6 +430,7 @@ def render_ground_fill_cobble(theme, base, joint_factor=0.35, tone_var=0.12, joi
     _write_fill(theme, px)
 
 
+@_for_theme
 def render_ground_fill_wetpave(theme, base, glows=((80, 220, 240), (240, 100, 180)),
                                seam_factor=0.55, tone_var=0.05, glow_strength=0.3):
     """Wet night pavement: large dark 0.5 u tiles with faintly lit seams (wet edges
@@ -442,6 +465,7 @@ def render_ground_fill_wetpave(theme, base, glows=((80, 220, 240), (240, 100, 18
     _write_fill(theme, px)
 
 
+@_for_theme
 def render_ground_fill_basalt(theme, base, seam_factor=0.30, tone_var=0.08,
                               lava=(255, 150, 54), lava_chance=0.30, lava_strength=0.8):
     """Volcanic basalt blocks: 0.5 u dark panels laid running-bond with near-black
@@ -496,6 +520,7 @@ def render_ground_fill_basalt(theme, base, seam_factor=0.30, tone_var=0.08,
     _write_fill(theme, px)
 
 
+@_for_theme
 def render_ground_cap(theme, cap, fleck=None, fleck_chance=0.0):
     """Walkable cap band (256x64 = 2 x 0.5 u, horizontally seamless) FloorTerrain lays along
     every floor-run top: a near-black baked outline at the very top (the landable line), a
@@ -541,7 +566,423 @@ def render_ground_cap(theme, cap, fleck=None, fleck_chance=0.0):
     print(f"{out}  ({W}x{H})")
 
 
+# Carved materials share a baked relief field; the output stays at 128 px/unit.
+# Supersampling is authoring-only. No new shader, texture budget or runtime noise.
+def _carved_fields(w, h, seed):
+    import numpy as np
+    from PIL import Image, ImageDraw, ImageFilter
+    rng = np.random.RandomState(seed)
+    def noise(nx, ny):
+        points = rng.uniform(-0.5, 0.5, (ny, nx))
+        xx = np.arange(w) * nx / w
+        yy = np.arange(h) * ny / h
+        ix, iy = xx.astype(int), yy.astype(int)
+        fx, fy = xx - ix, yy - iy
+        fx, fy = fx * fx * (3 - 2 * fx), fy * fy * (3 - 2 * fy)
+        a = points[iy[:, None], ix[None, :]]
+        b = points[iy[:, None], (ix[None, :] + 1) % nx]
+        c = points[(iy[:, None] + 1) % ny, ix[None, :]]
+        d = points[(iy[:, None] + 1) % ny, (ix[None, :] + 1) % nx]
+        return (a * (1-fx) + b * fx) * (1-fy[:, None]) + (c * (1-fx) + d * fx) * fy[:, None]
+    broad = noise(3, 3) * .62 + noise(7, 7) * .38
+    relief = noise(5, 5) * .65 + noise(13, 13) * .25 + noise(31, 31) * .10
+    # Wrap the derivative too: there is no special lighting seam at the tile boundary.
+    light = np.clip((np.roll(relief, 1, axis=0) - np.roll(relief, -1, axis=0)) * h / 60, -.13, .13)
+    marks = Image.new('L', (w * 3, h * 3))
+    pits = Image.new('L', marks.size)
+    md, pd = ImageDraw.Draw(marks), ImageDraw.Draw(pits)
+    for i in range(95):
+        x, y = rng.uniform(0, w), rng.uniform(0, h)
+        radius = rng.uniform(.5, 1.5) * w / 128
+        target = pd
+        if i < 14:
+            radius *= rng.uniform(3, 5)
+            target = md
+        points = [(x-radius, y), (x-radius*.35, y-radius*.6),
+                  (x+radius*.85, y-radius*.4), (x+radius, y+radius*.4),
+                  (x-radius*.2, y+radius*.8)]
+        value = int(rng.randint(95, 210))
+        for tx in range(3):
+            for ty in range(3):
+                target.polygon([(a+tx*w,b+ty*h) for a,b in points], fill=value)
+    flakes = np.asarray(marks.filter(ImageFilter.GaussianBlur(w/256)).crop((w,h,2*w,2*h)), dtype=float)/255
+    pits = np.asarray(pits.filter(ImageFilter.GaussianBlur(w/512)).crop((w,h,2*w,2*h)), dtype=float)/255
+    return broad, light, flakes, pits, noise(11, 11), noise(47, 47)
+
+
+def _carved_colour(base, fields, finish=None):
+    import numpy as np
+    broad, light, flakes, pits, wear, grain_field = fields
+    tone = 1 + np.clip(broad*.32, -.08, .08) + light
+    tone += (np.roll(flakes, 2, axis=0)-flakes)*.20 - flakes*.06
+    tone += (np.roll(pits, 2, axis=0)-pits)*.24 - pits*.13
+    tone += grain_field*.10
+    colour = np.asarray(base, float)[None, None, :] * tone[:, :, None]
+    if finish is None:
+        return colour
+    # Material marks are broad and periodic, baked into the face before the bevel
+    # and contour. No runtime noise or coloured silhouette lighting is introduced.
+    h, w = broad.shape
+    y, x = np.mgrid[:h, :w] / 4
+    kind = finish['kind']
+    if kind == 'sandstone':
+        strata = np.sin(y * 2*np.pi/16 + broad*4 + np.sin(x*2*np.pi/(w/4))*.6)
+        colour *= (1 + strata*.055 - flakes*.05)[:, :, None]
+    elif kind == 'concrete':
+        streak = np.clip((np.roll(broad, h//16, axis=0)+wear*.22)*2, 0, .35)
+        colour *= (1-streak*.24)[:, :, None]
+        colour += np.asarray(base)*np.clip(flakes-pits, 0, 1)[:, :, None]*.09
+    elif kind == 'ice':
+        glaze = np.clip((broad+.12)*2.4+flakes*.25, 0, .65)
+        colour = colour*(1-glaze[:, :, None]) + np.asarray((179,204,218))*glaze[:, :, None]
+        frost = np.clip(light*5 + grain_field*.16, 0, .35)
+        colour += np.asarray((142,174,196))*frost[:, :, None]*.24
+    elif kind == 'wet':
+        # Broken, horizontal reflected colour on the slab face, never its outline.
+        sheen = np.clip((broad+.08)*2.2, 0, .5)
+        bands = .5+.5*np.sin(y*2*np.pi/32+wear*3)
+        a, b = (np.asarray(c) for c in finish['reflections'])
+        tint = a[None,None,:]*bands[:,:,None] + b[None,None,:]*(1-bands[:,:,None])
+        mix = sheen*(.35+.65*np.clip(light*5+.25, 0, 1))*.32
+        colour = colour*(1-mix[:,:,None])+tint*mix[:,:,None]
+    elif kind == 'basalt':
+        colour *= (1-flakes*.14-pits*.12)[:,:,None]
+        ash = np.clip((broad+.03)*1.3, 0, .28)
+        colour = colour*(1-ash[:,:,None])+np.asarray((135,122,117))*ash[:,:,None]
+    return colour
+
+
+def _carved_export(theme, name, colour, alpha, size):
+    import numpy as np
+    from PIL import Image
+    pixels = np.dstack((np.clip(colour, 0, 255), np.clip(alpha*255, 0, 255))).astype('uint8')
+    im = Image.fromarray(pixels).resize(size, Image.Resampling.LANCZOS)
+    path = os.path.join(SKINS_DIR, theme, name + '.png')
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    write_png(path, *size, im.tobytes())
+    print(f'{path}  ({size[0]}x{size[1]})')
+
+
+@_for_theme
+def render_ground_fill_carved(theme, base, moss=(78, 103, 48), moss_strength=.38, finish=None):
+    """Periodic broad temple ashlar: 1 u x .5 u faces, worn bevels, recessed joints."""
+    import numpy as np
+    S = 512
+    y, x = np.mgrid[:S,:S] / 4
+    fields = _carved_fields(S, S, _seed(theme)+8127)
+    broad, light, flakes, pits, wear, fine = fields
+    # Both the joints and their wear wrap in X/Y. The half-bond repeats every unit.
+    yy = (y + 1.6*np.sin(x*np.pi/64) + wear*1.8) % 64
+    row = ((y + 1.6*np.sin(x*np.pi/64) + wear*1.8)//64).astype(int)
+    xx = (x + row*64 + 1.1*np.sin(y*np.pi/32) + wear*1.4) % 128
+    dx, dy = np.minimum(xx,128-xx), np.minimum(yy,64-yy)
+    edge = np.minimum(dx,dy)
+    colour = _carved_colour(base, fields, finish)
+    # Broad faces and real value range; straight overhead light, symmetric side shade.
+    tone = 1.13 - .36*np.power(yy/64,1.15)
+    top = np.clip(1-(yy-2.3)/13,0,1)**1.15
+    bottom = np.clip(1-(64-yy-2.3)/10,0,1)
+    sides = np.clip(1-(dx-2.3)/10,0,1)
+    colour *= (tone * (1-.26*bottom-.12*sides))[:,:,None]
+    rim = (np.asarray(base)*.60+255*.40)
+    mix = top*.72*(.83+wear*.35)
+    colour = colour*(1-mix[:,:,None]) + rim*mix[:,:,None]
+    groove = np.clip((3.2-edge)/1.2,0,1)
+    colour *= (1-groove*.63)[:,:,None]
+    # Two angular hairline fractures, continuous across the repeat and kept subordinate.
+    fracture_x = 31 + 12*(1-np.abs((y/64)%2-1)) + 3*np.sin(y*np.pi/32) + wear*2
+    dist = np.abs((x-fracture_x+64)%128-64)
+    fracture = np.clip(1-dist/1.15,0,1) * (.45+.55*np.clip((edge-3)/10,0,1))
+    colour *= (1-fracture*.30)[:,:,None]
+    lip = np.clip(1-np.abs(dist-1.5),0,1)*.08
+    colour += np.asarray(base)[None,None,:]*lip[:,:,None]
+    moss_mask = np.clip((broad+.04)*3,0,1)*np.clip(1-edge/18,0,1)*moss_strength
+    moss_colour = np.asarray(moss)[None,None,:]*(.82+light[:,:,None])
+    colour = colour*(1-moss_mask[:,:,None])+moss_colour*moss_mask[:,:,None]
+    _carved_export(theme,'ground_fill',colour,np.ones((S,S)),(128,128))
+
+
+@_for_theme
+def render_ground_cap_carved(theme, base, moss=(91, 124, 55), moss_strength=.85, finish=None):
+    """A chipped stone ledge: continuous 8 px contour, 13 px top bevel, irregular lip."""
+    import numpy as np
+    W,H = 1024,256
+    y,x = np.mgrid[:H,:W]/4
+    fields = _carved_fields(W,H,_seed(theme)+5193)
+    broad,light,flakes,pits,wear,fine = fields
+    colour = _carved_colour(base,fields,finish)
+    edge = 49+3*np.sin(x*np.pi/64)+2*np.sin(x*np.pi/16)+wear*5
+    # Weathering stays inside the silhouette. The top remains a continuous landable line.
+    top = np.clip(1-(y-8)/13,0,1)
+    tone = 1.13-.36*np.clip((y-8)/40,0,1)**1.15
+    lower = np.clip(1-(edge-y)/10,0,1)
+    colour *= (tone*(1-lower*.30))[:,:,None]
+    rim=np.asarray(base)*.6+255*.4
+    mix=top*.72
+    colour=colour*(1-mix[:,:,None])+rim*mix[:,:,None]
+    moss_mask=np.clip((broad+.11)*3,0,1)*np.clip(1-(y-8)/24,0,1)*moss_strength
+    moss_colour=np.asarray(moss)[None,None,:]*(1.13+top[:,:,None]*.20+light[:,:,None])
+    colour=colour*(1-moss_mask[:,:,None])+moss_colour*moss_mask[:,:,None]
+    joint=np.abs((x+wear*1.5+64)%128-64)
+    colour *= (1-np.clip((2.1-joint)/1.1,0,1)*.50)[:,:,None]
+    # Chipped underside and bevel pits share one stone colour, never a coloured outline.
+    outline=np.asarray(base)*.22
+    colour=np.where((y<8)[:,:,None],outline,colour)
+    alpha=np.clip(edge-y+.5,0,1)
+    _carved_export(theme,'ground_cap',colour,alpha,(256,64))
+
+
+@_for_theme
+def render_islands_carved(theme, base, moss=(78,103,48), variants=3, moss_strength=.55, finish=None):
+    """Upright quarried cells; all wear stays inside the existing 1x1-cell canvas."""
+    import numpy as np
+    S=512
+    y,x=np.mgrid[:S,:S]/4
+    for variant in range(1,variants+1):
+        fields=_carved_fields(S,S,_seed(theme)+1203+variant*97)
+        broad,light,flakes,pits,wear,fine=fields
+        dx=np.minimum(x,128-x);dy=np.minimum(y,128-y);edge=np.minimum(dx,dy)
+        colour=_carved_colour(base,fields,finish)
+        top=np.clip(1-(y-8)/13,0,1)
+        bottom=np.clip(1-(128-y-8)/18,0,1)
+        sides=np.clip(1-(dx-8)/13,0,1)
+        colour*=((1.13-.36*(y/128)**1.15)*(1-.30*bottom-.12*sides))[:,:,None]
+        mix=top*.72
+        colour=colour*(1-mix[:,:,None])+(np.asarray(base)*.6+255*.4)*mix[:,:,None]
+        # Quiet, large angular fracture; unlike the old hairline it has a lit cut lip.
+        curve=42+y*.24+3*np.sin(y*np.pi/48)+wear*2
+        dist=np.abs(x-curve)
+        crack=np.clip(1-dist/1.7,0,1)*np.clip((edge-9)/7,0,1)
+        colour*=(1-crack*.48)[:,:,None]
+        colour+=np.asarray(base)*np.clip(1-np.abs(x-curve-2)/1.2,0,1)[:,:,None]*.15
+        moss_mask=np.clip((broad+.08)*3,0,1)*np.clip(1-(y-8)/33,0,1)*moss_strength
+        colour=colour*(1-moss_mask[:,:,None])+np.asarray(moss)*(1.1+light[:,:,None])*moss_mask[:,:,None]
+        colour=np.where((edge<8)[:,:,None],np.asarray(base)*.22,colour)
+        _carved_export(theme,'island_'+str(variant),colour,np.ones((S,S)),(128,128))
+
+
+def _rock_relief(x, y, style, wear):
+    """Periodic natural fault network, without courses or rectangular masonry bonds."""
+    import numpy as np
+    if style == 'basalt':
+        sites = ((18, 22), (60, 66), (106, 100))
+        aspect = .36  # long, columnar breaks, not brick-sized basalt blocks
+    else:
+        sites = ((20, 25), (88, 17), (39, 93), (109, 83))
+        aspect = .82
+    first = np.full(x.shape, np.inf)
+    second = first.copy()
+    # Minimum-image distances make the pattern periodic without a border special case.
+    for sx, sy in sites:
+        dx = (x+wear*6-sx+64) % 128-64
+        dy = ((y+wear*4-sy+64) % 128-64)*aspect
+        distance = np.sqrt(dx*dx+dy*dy)
+        closer = distance < first
+        second = np.where(closer, first, np.minimum(second, distance))
+        first = np.minimum(first, distance)
+    edge = np.maximum((second-first)*.55+wear*.9, 0)
+    relief = np.clip((edge-.8)/12, 0, 1)
+    # Positive slope down the image faces the overhead light. Wrap the derivative.
+    slope = (np.roll(relief, -1, axis=0)-np.roll(relief, 1, axis=0))*10
+    return edge, np.clip(slope, -.30, .36)
+
+
+def _ground_surface(base, fields, style, finish=None, cap=False):
+    """Material structure at the existing 128 px/unit, before silhouette dressing.
+
+    Every field is periodic. Manufactured surfaces have restrained roughness and
+    straight construction joints; natural ones have bedding or irregular faults.
+    Timber uses directional grain, not stone pitting disguised by a palette swap.
+    """
+    import numpy as np
+    broad, light, flakes, pits, wear, fine = fields
+    h, w = broad.shape
+    y, x = np.mgrid[:h, :w]/4
+    rgb = np.asarray(base, float)
+    colour = _carved_colour(base, fields, finish)
+    if style in ('cladding', 'fluted', 'concrete', 'plaster'):
+        roughness = {'cladding':.25, 'fluted':.30, 'concrete':.58, 'plaster':.72}[style]
+        colour = rgb + (colour-rgb)*roughness
+        if style in ('cladding', 'fluted'):
+            # Large architectural sheets, square-set, without stagger or rock cracks.
+            xx, yy = x % 128, y % 128
+            dx = np.minimum(xx, 128-xx)
+            dy = np.minimum(yy, 128-yy)
+            if not cap:
+                side = np.clip(1-(dx-2)/10, 0, 1)
+                top = np.clip(1-(yy-2)/13, 0, 1)
+                bottom = np.clip(1-(128-yy-2)/10, 0, 1)
+                colour *= (1-side*.18-bottom*.22)[:,:,None]
+                colour += rgb*top[:,:,None]*.22
+                joint = np.clip((2.0-np.minimum(dx,dy))/1.1, 0, 1)
+                colour *= (1-joint*.55)[:,:,None]
+            if style == 'fluted' and not cap:
+                # Broad vertical folded-metal ribs, visible at gameplay zoom.
+                rib = (.5+.5*np.cos(x*2*np.pi/32))**3
+                colour *= (1-.16*rib)[:,:,None]
+            else:
+                # A recessed vertical service channel and broad satin reflection.
+                channel = np.clip(1-np.abs((x-25+64)%128-64)/4,0,1)
+                if not cap:colour *= (1-channel*.18)[:,:,None]
+            sheen = (.5+.5*np.cos(x*2*np.pi/128 + broad*.7))**3
+            colour += rgb*sheen[:,:,None]*.09
+            if finish and 'reflections' in finish:
+                a,b = (np.asarray(c) for c in finish['reflections'])
+                tint = a*sheen[:,:,None]+b*(1-sheen[:,:,None])
+                mix = .10+light*.18
+                colour = colour*(1-mix[:,:,None])+tint*mix[:,:,None]
+        elif style == 'concrete':
+            # Large precast panels and formwork staining; shallow expansion joints.
+            if not cap:
+                xx,yy=x%128,y%128
+                edge=np.minimum(np.minimum(xx,128-xx),np.minimum(yy,128-yy))
+                joint=np.clip((1.7-edge)/1.0,0,1)
+                colour*=(1-joint*.42)[:,:,None]
+                colour+=rgb*np.clip(1-(yy-2)/13,0,1)[:,:,None]*.13
+                colour*= (1-np.clip(1-(128-yy-2)/9,0,1)*.11)[:,:,None]
+            stain=np.clip((np.roll(broad,h//12,axis=0)+wear*.16)*2,0,.45)
+            colour*=(1-stain*.18)[:,:,None]
+        else:
+            # Continuous lime-plaster: broad rubbed patches and exposed aggregate.
+            patch=np.clip((broad+.03)*2.2,0,.50)
+            colour*= (1-patch*.17)[:,:,None]
+            colour+=rgb*flakes[:,:,None]*.12
+    elif style == 'timber':
+        # Face grain is vertical; a coping beam runs horizontally along the cap.
+        u,v=(y,x) if cap else (x,y)
+        bend=3*np.sin(v*2*np.pi/128)+2*np.sin(v*2*np.pi/64)
+        grain=np.sin((u+bend)*2*np.pi/9+np.sin(v*2*np.pi/128))
+        wide=np.sin((u+bend)*2*np.pi/32)
+        colour=rgb*(1+broad*.15+grain*.035+wide*.075)[:,:,None]
+        colour+=rgb*light[:,:,None]*.35
+        if not cap:
+            xx=x%64;edge=np.minimum(xx,64-xx)
+            groove=np.clip((2.0-edge)/1.0,0,1)
+            colour*=(1-groove*.56-np.clip(1-edge/8,0,1)*.10)[:,:,None]
+        # One stretched knot in the repeat, integrated into grain rather than a decal.
+        du=(u-35+64)%128-64;dv=(v-69+64)%128-64
+        ring=np.sqrt((du/11)**2+(dv/25)**2)
+        knot=np.exp(-ring*ring*.85)*np.sin(ring*15)*.065
+        colour*= (1+knot)[:,:,None]
+    elif style in ('sandrock','slate','coastal'):
+        # Continuous rock bedding, with no vertical mortar joints or offset courses.
+        period={'sandrock':32,'slate':16,'coastal':64}[style]
+        wave=4*np.sin(x*2*np.pi/128)+1.8*np.sin(x*2*np.pi/64)+wear*2
+        phase=(y+wave)%period
+        distance=np.minimum(phase,period-phase)
+        strength={'sandrock':.25,'slate':.30,'coastal':.20}[style]
+        bedding=np.clip(1-distance/2.4,0,1)
+        colour*=(1-bedding*strength)[:,:,None]
+        lip=np.clip(1-np.abs(phase-4)/4,0,1)
+        colour+=rgb*lip[:,:,None]*.16
+        colour*= (1+.06*np.cos((y+wave)*2*np.pi/period))[:,:,None]
+        if style=='coastal':
+            salt=np.clip((broad+.04)*1.4,0,.28)
+            colour=colour*(1-salt[:,:,None])+rgb*1.22*salt[:,:,None]
+    elif style == 'glacier':
+        # One wandering crevasse and a short branch. No tessellated ice tiles.
+        bend=14*(1-np.abs((y/64)%2-1))+5*np.sin(y*np.pi/32)
+        curve=36+bend+wear*5
+        distance=np.abs((x-curve+64)%128-64)
+        fissure=np.clip(1-distance/2.0,0,1)
+        lip=np.clip(1-np.abs(distance-4)/3,0,1)
+        branch_x=curve+(y-62)*.6
+        branch=np.clip(1-np.abs((x-branch_x+64)%128-64)/1.6,0,1)
+        branch*=np.clip((y-62)/10,0,1)*np.clip((110-y)/10,0,1)
+        colour*=(1-fissure*.26-branch*.18)[:,:,None]
+        colour+=np.asarray((156,186,212))*lip[:,:,None]*.13
+    elif style in ('quarried','basalt'):
+        edge,slope=_rock_relief(x,y,style,wear)
+        strength=.44 if style=='quarried' else .32
+        colour*= (1-np.clip(1-edge/1.6,0,1)*strength+slope*.62)[:,:,None]
+    else:
+        raise ValueError('Unknown ground structure: '+style)
+    return colour
+
+
+@_for_theme
+def render_ground_fill_material(theme, base, deposit, strength, style, finish=None):
+    """Structure-specific seamless fill; silhouettes and physics are runtime-owned."""
+    import numpy as np
+    fields=_carved_fields(512,512,_seed(theme)+8127)
+    broad,light,flakes,pits,wear,fine=fields
+    colour=_ground_surface(base,fields,style,finish)
+    mask=np.clip((broad+.03)*2,0,1)*strength*.45
+    colour=colour*(1-mask[:,:,None])+np.asarray(deposit)*mask[:,:,None]
+    _carved_export(theme,'ground_fill',colour,np.ones((512,512)),(128,128))
+
+
+@_for_theme
+def render_ground_cap_material(theme, base, deposit, strength, style, finish=None):
+    """A material-appropriate coping beam/ledge, inside the original cap band."""
+    import numpy as np
+    y,x=np.mgrid[:256,:1024]/4
+    fields=_carved_fields(1024,256,_seed(theme)+5193)
+    broad,light,flakes,pits,wear,fine=fields
+    colour=_ground_surface(base,fields,style,finish,cap=True)
+    manufactured=style in ('cladding','fluted','concrete','timber','plaster')
+    irregular=.25 if manufactured else 1.0
+    edge=49+irregular*(3*np.sin(x*np.pi/64)+2*np.sin(x*np.pi/16)+wear*5)
+    top=np.clip(1-(y-8)/13,0,1)
+    lower=np.clip(1-(edge-y)/10,0,1)
+    colour*=((1.13-.36*np.clip((y-8)/40,0,1)**1.15)*(1-lower*.30))[:,:,None]
+    rim=np.asarray(base)*.60+255*.40;mix=top*.72
+    colour=colour*(1-mix[:,:,None])+rim*mix[:,:,None]
+    mask=np.clip((broad+.11)*3,0,1)*np.clip(1-(y-8)/24,0,1)*strength
+    colour=colour*(1-mask[:,:,None])+np.asarray(deposit)*(1.13+top[:,:,None]*.2)*mask[:,:,None]
+    if style in ('cladding','fluted'):
+        # Formed metal coping: one recessed horizontal fold, not a stone joint.
+        colour*=(1-np.clip(1-np.abs(y-36)/3,0,1)*.20)[:,:,None]
+    colour=np.where((y<8)[:,:,None],np.asarray(base)*.22,colour)
+    _carved_export(theme,'ground_cap',colour,np.clip(edge-y+.5,0,1),(256,64))
+
+
+@_for_theme
+def render_islands_material(theme, base, deposit, strength, style, finish=None):
+    """Same material on the fixed support cells; upright light, painted underside."""
+    import numpy as np
+    y,x=np.mgrid[:512,:512]/4
+    dx=np.minimum(x,128-x);dy=np.minimum(y,128-y);edge=np.minimum(dx,dy)
+    for variant in range(1,4):
+        fields=_carved_fields(512,512,_seed(theme)+1203+variant*97)
+        broad,light,flakes,pits,wear,fine=fields
+        colour=_ground_surface(base,fields,style,finish)
+        top=np.clip(1-(y-8)/13,0,1)
+        bottom=np.clip(1-(128-y-8)/18,0,1)
+        sides=np.clip(1-(dx-8)/13,0,1)
+        colour*=((1.13-.36*(y/128)**1.15)*(1-.30*bottom-.12*sides))[:,:,None]
+        mix=top*.72
+        colour=colour*(1-mix[:,:,None])+(np.asarray(base)*.6+255*.4)*mix[:,:,None]
+        mask=np.clip((broad+.08)*3,0,1)*np.clip(1-(y-8)/33,0,1)*strength
+        colour=colour*(1-mask[:,:,None])+np.asarray(deposit)*(1.1+light[:,:,None])*mask[:,:,None]
+        colour=np.where((edge<8)[:,:,None],np.asarray(base)*.22,colour)
+        _carved_export(theme,'island_'+str(variant),colour,np.ones((512,512)),(128,128))
+
+
+@_for_theme
+def render_ground_material(theme, base, cap, deposit, strengths, structure, finish=None):
+    """One chapter material for fill, ledge and islands; strengths are fill/cap/island.
+
+    Structure selects construction/rock formation; finish supplies surface wear.
+    Deposits can be moss, salt, sand or frost. Canvases and silhouette dressing
+    retain the approved Jungle dimensions and line weight.
+    """
+    if structure != "masonry":
+        render_islands_material(theme, base, deposit, strengths[2], structure, finish)
+        render_ground_fill_material(theme, base, deposit, strengths[0], structure, finish)
+        render_ground_cap_material(theme, cap, deposit, strengths[1], structure, finish)
+        return
+    render_islands_carved(theme, base, deposit, moss_strength=strengths[2], finish=finish)
+    render_ground_fill_carved(theme, base, deposit, moss_strength=strengths[0], finish=finish)
+    render_ground_cap_carved(theme, cap, deposit, moss_strength=strengths[1], finish=finish)
+
+
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--theme", help="Render only this chapter folder; omit to render all.")
+    SELECTED_THEME = parser.parse_args().theme
+
     # Classic: chunky beveled stone blocks; masonry columns in the same stone family.
     STONE = (148, 142, 132)
     render_plateau("Classic", STONE, line=tuple(v * 0.30 for v in STONE),
@@ -551,143 +992,132 @@ if __name__ == "__main__":
     render_ground_cap("Classic", (172, 164, 148))
     remove_legacy("Classic")
 
-    # Sakura Ridge: indigo stone with a sakura-coral cap. Dark enough to separate
-    # from the pale sky, warm enough to belong with the temple/flower foreground.
+    # Legacy plateau output retained unchanged.
     render_plateau("Japan", (74, 75, 116), line=(34, 34, 62),
                    blocks=1, top=(232, 145, 138), top_h=24)
-    render_islands("Japan", (74, 75, 116), line=(34, 34, 62))
-    render_ground_fill_ashlar("Japan", (88, 90, 128))
-    render_ground_cap("Japan", (150, 168, 128), fleck=(232, 145, 152), fleck_chance=0.010)
+    # Irregular indigo foundation stone with mineral wear and lichen.
+    render_ground_material("Japan", (112, 116, 137), (137, 144, 153),
+                         (111, 128, 99), (0.12, 0.38, 0.25), structure="quarried")
     remove_legacy("Japan")
 
-    # Desert: sun-baked terracotta capped with wind-blown sand - the floor belongs to
-    # the dunes the same way each chapter's cap belongs to its scenery.
+    # Legacy plateau output retained unchanged.
     render_plateau("Desert", (206, 118, 82),
                    blocks=1, top=(243, 190, 132))
-    render_islands("Desert", (206, 118, 82))
-    render_ground_fill_strata("Desert", (182, 118, 78))
-    render_ground_cap("Desert", (238, 192, 124), fleck=(210, 158, 96), fleck_chance=0.012)
+    # Continuous wind-cut sandstone bedding; no rectangular masonry courses.
+    render_ground_material("Desert", (180, 133, 94), (204, 166, 119),
+                         (203, 172, 123), (0.1, 0.38, 0.27),
+                         finish={'kind': 'sandstone'}, structure="sandrock")
     remove_legacy("Desert")
 
     # Jungle: damp dark stone capped with moss, matching the imported jungle layers
     # without making the floor read like scenery.
     render_plateau("Jungle", (74, 103, 76), line=(35, 55, 43),
                    blocks=1, top=(83, 151, 79), top_h=30)
-    render_islands("Jungle", (74, 103, 76), line=(35, 55, 43))
-    render_ground_fill_cobble("Jungle", (86, 106, 84), joint=(38, 56, 40))
-    render_ground_cap("Jungle", (96, 158, 74), fleck=(140, 196, 96), fleck_chance=0.012)
+    # Approved reference material: preserve these defaults when extending the renderers.
+    # All fifteen chapter materials opt into ChapterSkins.GroundHasCarvedRelief.
+    render_islands_carved("Jungle", (126, 138, 110))
+    render_ground_fill_carved("Jungle", (126, 138, 110))
+    render_ground_cap_carved("Jungle", (140, 150, 118))
     remove_legacy("Jungle")
 
-    # Frozen Peaks: cold steel-blue stone under a deep snow cap - dark enough to hold
-    # its edge against the pale winter backdrop, capped in the same near-white as the
-    # imported snowfields so the floor belongs to the mountain.
+    # Legacy plateau output retained unchanged.
     render_plateau("Winter", (78, 92, 120), line=(36, 44, 62),
                    blocks=1, top=(238, 243, 252), top_h=26)
-    render_islands("Winter", (78, 92, 120), line=(36, 44, 62))
-    render_ground_fill_strata("Winter", (96, 110, 142), tone_var=0.05, line_factor=0.62,
-                              crack_chance=0.35, fleck=(198, 214, 240), fleck_chance=0.004,
-                              bands=(36, 20, 28, 44))
-    render_ground_cap("Winter", (236, 242, 252), fleck=(190, 205, 235), fleck_chance=0.010)
+    # Ice-glazed rock with wandering crevasses and a frost-worn ledge.
+    render_ground_material("Winter", (110, 137, 163), (187, 207, 223),
+                         (200, 221, 232), (0.22, 0.72, 0.54),
+                         finish={'kind': 'ice'}, structure="glacier")
     remove_legacy("Winter")
 
-    # Fangkuai District: dusk aubergine stone with a lantern-rose cap - the floor picks
-    # up the pack's glowing-window pink without competing with the pieces.
+    # Legacy plateau output retained unchanged.
     render_plateau("Fangkuai", (84, 62, 90), line=(38, 26, 42),
                    blocks=1, top=(206, 116, 138), top_h=24)
-    render_islands("Fangkuai", (84, 62, 90), line=(38, 26, 42))
-    render_ground_fill_panels("Fangkuai", (96, 72, 102), tone_var=0.11)
-    render_ground_cap("Fangkuai", (204, 118, 140), fleck=(236, 152, 170), fleck_chance=0.010)
+    # Weathered plum-stained timber, vertical grain and a horizontal coping beam.
+    render_ground_material("Fangkuai", (130, 110, 126), (156, 132, 143),
+                         (166, 139, 145), (0.09, 0.22, 0.16),
+                         structure="timber")
     remove_legacy("Fangkuai")
 
-    # Kvartal 4: sovietwave panel concrete - grey-green slabs under a worn courtyard-grass
-    # cap, dark enough to belong to the night district without vanishing into it.
+    # Legacy plateau output retained unchanged.
     render_plateau("Kvartal", (96, 104, 98), line=(44, 48, 45),
                    blocks=2, bevel=0.10, tone_steps=(1.0, 0.94), top=(88, 108, 72), top_h=22)
-    # Fill/islands warmed 2026-09-02 (Nick): grey-green read as a stranger to the khaki
-    # sodium-lit suburb behind it - now weathered yellowish prefab concrete.
-    render_islands("Kvartal", (128, 118, 90), line=(56, 50, 38))
-    render_ground_fill_panels("Kvartal", (134, 122, 92), stain_strength=0.18)
-    render_ground_cap("Kvartal", (92, 114, 76), fleck=(130, 148, 108), fleck_chance=0.008)
+    # Sodium-warmed precast concrete with square expansion joints and runoff stains.
+    render_ground_material("Kvartal", (146, 135, 105), (157, 151, 119),
+                         (102, 119, 81), (0.1, 0.45, 0.3),
+                         finish={'kind': 'concrete'}, structure="concrete")
     remove_legacy("Kvartal")
 
-    # Molten Caldera: dark basalt blocks over live magma - near-black panels with a few
-    # glowing bedding joints and ember specks, capped in scorched crust with ember flecks.
+    # Legacy plateau output retained unchanged.
     render_plateau("Volcano", (76, 56, 62), line=(30, 20, 26),
                    blocks=2, bevel=0.10, tone_steps=(1.0, 0.93))
-    render_islands("Volcano", (76, 56, 62), line=(30, 20, 26))
-    render_ground_fill_basalt("Volcano", (62, 46, 54))
-    render_ground_cap("Volcano", (126, 82, 74), fleck=(255, 156, 66), fleck_chance=0.012)
+    # Columnar basalt with irregular vertical faults, pitting and ash.
+    render_ground_material("Volcano", (104, 86, 90), (133, 111, 104),
+                         (146, 123, 107), (0.12, 0.3, 0.24),
+                         finish={'kind': 'basalt'}, structure="basalt")
     remove_legacy("Volcano")
 
-    # Giza Dusk: monumental sandstone ashlar under a wind-blown rose-sand cap - the
-    # floor reads as pharaonic masonry against the dusty silhouettes.
+    # Legacy plateau output retained unchanged.
     render_plateau("Egypt", (172, 130, 98), line=(80, 58, 44),
                    blocks=2, bevel=0.11, tone_steps=(1.0, 0.93))
-    render_islands("Egypt", (172, 130, 98), line=(80, 58, 44))
-    render_ground_fill_ashlar("Egypt", (138, 102, 76), joint_factor=0.5, tone_var=0.05)
-    render_ground_cap("Egypt", (216, 162, 124), fleck=(240, 196, 120), fleck_chance=0.010)
+    # Monumental rose sandstone masonry, eroded sediment and mineral dust.
+    render_ground_material("Egypt", (166, 132, 104), (194, 161, 127),
+                         (200, 174, 130), (0.09, 0.3, 0.2),
+                         finish={'kind': 'sandstone'}, structure="masonry")
     remove_legacy("Egypt")
 
-    # Lost City: weathered slate-teal ruin masonry - cobbles like the pack's fallen
-    # aqueduct stones, capped in pale oasis moss with moonlit flecks.
+    # Legacy plateau output retained unchanged.
     render_plateau("LostCity", (78, 104, 108), line=(36, 50, 54),
                    blocks=1, top=(104, 158, 144), top_h=24)
-    render_islands("LostCity", (78, 104, 108), line=(36, 50, 54))
-    render_ground_fill_cobble("LostCity", (72, 106, 112), joint=(34, 52, 58))
-    render_ground_cap("LostCity", (100, 156, 142), fleck=(158, 214, 192), fleck_chance=0.010)
+    # Irregular teal ruin foundations, mineral wear and oasis moss.
+    render_ground_material("LostCity", (110, 139, 140), (134, 160, 153),
+                         (97, 136, 117), (0.27, 0.58, 0.4), structure="quarried")
     remove_legacy("LostCity")
 
-    # Sector Isla: overgrown resort stone - green-grey cobbles with mossy joints,
-    # capped in tropical grass with pale palm-frond flecks.
+    # Legacy plateau output retained unchanged.
     render_plateau("Island", (90, 114, 98), line=(42, 56, 46),
                    blocks=1, top=(96, 168, 104), top_h=26)
-    render_islands("Island", (90, 114, 98), line=(42, 56, 46))
-    render_ground_fill_cobble("Island", (86, 112, 96), joint=(44, 62, 48))
-    render_ground_cap("Island", (94, 164, 102), fleck=(170, 220, 140), fleck_chance=0.011)
+    # Continuous worn resort plaster, rubbed patches and moss on the ledge.
+    render_ground_material("Island", (126, 146, 125), (150, 165, 137),
+                         (85, 130, 79), (0.29, 0.7, 0.48), structure="plaster")
     remove_legacy("Island")
 
-    # Hallow's End: graveyard cobbles - near-black violet stones with shadowed
-    # joints, capped in lantern-lit amber so the landable line glows like the
-    # pumpkin rows behind it.
+    # Legacy plateau output retained unchanged.
     render_plateau("Hallow", (84, 62, 98), line=(36, 24, 46),
                    blocks=1, top=(224, 134, 72), top_h=24)
-    render_islands("Hallow", (84, 62, 98), line=(36, 24, 46))
-    render_ground_fill_cobble("Hallow", (78, 58, 92), joint=(34, 22, 44))
-    render_ground_cap("Hallow", (222, 132, 70), fleck=(246, 172, 96), fleck_chance=0.012)
+    # Layered violet slate with cleft bedding and dry ochre lichen.
+    render_ground_material("Hallow", (117, 100, 130), (147, 124, 143),
+                         (151, 130, 99), (0.13, 0.34, 0.25), structure="slate")
     remove_legacy("Hallow")
 
-    # Monsoon Sector: rain-slick night pavement - dark teal tiles catching neon-green
-    # and cyan reflections, wet asphalt cap with neon flecks along the landable line.
+    # Legacy plateau output retained unchanged.
     render_plateau("Techno", (46, 60, 58), line=(20, 28, 26),
                    blocks=1, top=(96, 168, 130), top_h=24)
-    render_islands("Techno", (46, 60, 58), line=(20, 28, 26))
-    render_ground_fill_wetpave("Techno", (34, 46, 46), glows=((110, 240, 160), (70, 200, 210)))
-    render_ground_cap("Techno", (56, 76, 68), fleck=(130, 240, 170), fleck_chance=0.014)
+    # Rain-slick architectural cladding with restrained green/cyan reflections.
+    render_ground_material("Techno", (91, 116, 113), (118, 139, 128),
+                         (112, 140, 128), (0, 0.12, 0.08),
+                         finish={'kind': 'wet', 'reflections': ((104, 192, 148), (90, 164, 184))}, structure="cladding")
     remove_legacy("Techno")
 
-    # Amber Tide: dusk-plum shore cobbles under a coral sunset cap - the landable
-    # line keeps the beauty shot's amber light while the body stays jungle-dark.
+    # Legacy plateau output retained unchanged.
     render_plateau("Tide", (100, 66, 92), line=(46, 26, 44),
                    blocks=1, top=(226, 142, 110), top_h=24)
-    render_islands("Tide", (100, 66, 92), line=(46, 26, 44))
-    render_ground_fill_cobble("Tide", (108, 70, 96), joint=(52, 30, 48))
-    render_ground_cap("Tide", (226, 142, 110), fleck=(244, 182, 140), fleck_chance=0.012)
+    # Continuous salt-worn coastal rock with broad sedimentary bedding.
+    render_ground_material("Tide", (144, 108, 126), (179, 142, 143),
+                         (183, 165, 146), (0.18, 0.4, 0.3), structure="coastal")
     remove_legacy("Tide")
 
-    # Neon Nightfall: wet night promenade - large dark violet tiles catching cyan/pink
-    # reflections from the glowing city, fairy-light glints along the walkable cap.
-    # Lifted 2026-09-02 (Nick): the near-black pavement vanished against the night backdrop.
+    # Legacy plateau output retained unchanged.
     render_plateau("Neon", (84, 76, 112), line=(30, 26, 46), blocks=1)
-    render_islands("Neon", (84, 76, 112), line=(30, 26, 46))
-    render_ground_fill_wetpave("Neon", (74, 66, 100))
-    render_ground_cap("Neon", (58, 52, 82), fleck=(120, 230, 250), fleck_chance=0.014)
+    # Fluted metal cladding with folded coping and cyan/rose reflected colour.
+    render_ground_material("Neon", (111, 104, 140), (139, 132, 164),
+                         (139, 142, 169), (0, 0.1, 0.06),
+                         finish={'kind': 'wet', 'reflections': ((101, 181, 202), (182, 111, 164))}, structure="fluted")
     remove_legacy("Neon")
 
-    # Crimson Core: rain-dark boulevard under the red sun - near-black warm tiles
-    # catching crimson and pale-rose sign reflections, ember glints along the cap.
-    # Lifted 2026-09-02 (Nick): near-black tiles on a near-black city were invisible.
+    # Legacy plateau output retained unchanged.
     render_plateau("Crimson", (92, 66, 72), line=(34, 20, 24), blocks=1)
-    render_islands("Crimson", (92, 66, 72), line=(34, 20, 24))
-    render_ground_fill_wetpave("Crimson", (78, 56, 62), glows=((240, 90, 90), (235, 205, 210)))
-    render_ground_cap("Crimson", (62, 44, 50), fleck=(245, 120, 110), fleck_chance=0.014)
+    # Satin composite cladding with recessed channels and crimson/rose reflections.
+    render_ground_material("Crimson", (123, 98, 109), (150, 125, 133),
+                         (153, 134, 137), (0, 0.12, 0.08),
+                         finish={'kind': 'wet', 'reflections': ((201, 104, 104), (185, 155, 168))}, structure="cladding")
     remove_legacy("Crimson")

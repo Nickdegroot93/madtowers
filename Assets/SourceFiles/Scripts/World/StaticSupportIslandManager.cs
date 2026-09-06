@@ -532,8 +532,8 @@ public class StaticSupportIslandManager : MonoBehaviour
         }
     }
 
-    // Chapter look on a VISUAL CHILD (random variant, random 90-degree rotation - the art is
-    // rotation-safe, giving 12 looks per chapter), so the pop animation can scale the sprite
+    // Chapter look on a VISUAL CHILD (random variant; legacy art can quarter-turn,
+    // carved art stays upright), so the pop animation can scale the sprite
     // while the collider stays physics-ready. The prefab's own gray renderer becomes the
     // fallback for a (never-shipped) chapter with no island art at all.
     private void ConfigureIslandCellVisual(GameObject cell, bool popIn, float popDelay, bool withSound)
@@ -560,7 +560,11 @@ public class StaticSupportIslandManager : MonoBehaviour
         SpriteRenderer renderer = visual.GetComponent<SpriteRenderer>();
         renderer.sprite = sprite;
         renderer.sortingOrder = 0; // world level, same plane as the blocks
-        visual.localRotation = Quaternion.Euler(0f, 0f, 90f * Random.Range(0, 4));
+        // Carved art is lit from above. Consume the same rotation draw even when its
+        // visual stays upright, so island placement and subsequent gameplay RNG do not shift.
+        int quarterTurns = Random.Range(0, 4);
+        visual.localRotation = Quaternion.Euler(0f, 0f,
+            ChapterSkins.GroundHasCarvedRelief ? 0f : 90f * quarterTurns);
 
         IslandPopFx pop = visual.GetComponent<IslandPopFx>();
         if (popIn) pop.Play(popDelay, withSound);

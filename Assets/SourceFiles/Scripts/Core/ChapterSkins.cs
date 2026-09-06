@@ -58,7 +58,18 @@ public static class ChapterSkins
     public static Sprite LoadGroundCap() => LoadWithFallback("ground_cap");
 
     /// <summary>
-    /// One floating support-island cell (1x1, rotation-safe; variant 1..3 per chapter,
+    /// Chapters using baked carved ground relief. Keep this opt-in aligned with
+    /// generate_ground_sprite.py; it selects cosmetic atmosphere, cut bevels and upright
+    /// island art only. Classic and unknown folders keep the legacy fallback presentation.
+    /// </summary>
+    public static bool GroundHasCarvedRelief => Folder is
+        "Skins/Jungle" or "Skins/Japan" or "Skins/Neon" or "Skins/Winter" or
+        "Skins/Kvartal" or "Skins/Desert" or "Skins/Island" or "Skins/Fangkuai" or
+        "Skins/LostCity" or "Skins/Volcano" or "Skins/Egypt" or "Skins/Tide" or
+        "Skins/Techno" or "Skins/Hallow" or "Skins/Crimson";
+
+    /// <summary>
+    /// One floating support-island cell (1x1; variant 1..3 per chapter,
     /// see generate_ground_sprite.py). Out-of-range variants clamp to 1.
     /// </summary>
     public static Sprite LoadIsland(int variant)
@@ -67,7 +78,7 @@ public static class ChapterSkins
         return LoadWithFallback($"island_{variant}");
     }
 
-    /// <summary>How many island looks each chapter supplies (x4 rotations at the spawner).</summary>
+    /// <summary>Island looks per chapter (legacy art also gets x4 rotations at spawn).</summary>
     public const int IslandVariantCount = 3;
 
     // Partial skins are legal (ART.md: "only supply what should differ"): a chapter folder

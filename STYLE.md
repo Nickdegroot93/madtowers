@@ -12,10 +12,10 @@ here changes, change it in every generator (and the C# constant it mirrors).
 - Block sprites: **256 px = one cell**, 32 px bleed margin (canvas sizes fixed
   per shape; see ART.md §1).
 - Ground sprites (128 px = one unit): `ground_fill.png`, a 128×128 seamless
-  masonry tile (running-bond 0.5×0.25 u bricks) that `FloorTerrain` tiles from
+  material tile (chapter-specific masonry/rock) that `FloorTerrain` tiles from
   every floor column's top down past the screen bottom, and `ground_cap.png`,
   a 256×64 horizontally-seamless walkable cap band (baked top outline +
-  scalloped lower edge). The floor is GROUNDED terrain — columns that sink
+  lower edge: carved stone in Jungle, legacy scallops elsewhere). The floor is GROUNDED terrain — columns that sink
   into a chapter-tinted fog bank — never a floating strip. Scenery is the
   backdrop's job, never attached to the floor. (`plateau.png` is legacy.)
 - Silhouette corner radius: **22 px** on blocks (≈ 8.5% of a cell); concave
@@ -76,6 +76,22 @@ here changes, change it in every generator (and the C# constant it mirrors).
   blocks 0 · front fog 43 (pieces falling into gaps sink INTO it; all fog = GroundFog shader). Pockets are
   REAL holes in the fill geometry (backdrop shows through), outlined only on
   their solid edges.
+
+**Ground material relief (all fifteen chapters, September 2026)**
+- Ground structure follows the chapter: masonry, irregular stone, concrete, metal
+  cladding, timber, plaster, rock bedding or ice. Keep the approved palettes; do not
+  apply a universal brick bond. Share straight-above light, depth and restrained wear.
+  The cap's 13 px bevel at 128 px/unit matches the bricks' 26 px/256; the ground
+  contour stays 8 px and fully opaque.
+- Cut-face shading sits inside exposed boundaries, with a lit pocket floor and a
+  shadowed ceiling/underside. No coloured silhouette rim or new sorting layer.
+- Chapter atmosphere overlay strengths are ambient **0.20**, mottle **0.10**, wash
+  **0.09**, bottom haze **0.30**, sky light **0.06** (sky fraction remains **0.22**).
+  Classic and unknown folders keep the legacy overlay values; see FLOORS.md §2.
+  Fog rendering is independent and unchanged.
+- Carved island art stays upright so the baked light remains above; legacy island
+  materials keep their quarter-turn presentation. All island geometry and gameplay
+  random draw counts remain unchanged.
 
 **Global post-processing (the cross-theme glue)**
 - One stack over every theme (`PostFxController`): soft vignette (0.22), gentle bloom

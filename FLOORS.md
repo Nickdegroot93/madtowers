@@ -95,55 +95,119 @@ Columns −6…−2 and 2…6 are ground; −1…1 is a void gap.
 
 ## 2. The look (per chapter, generated)
 
-The ground's look is **chapter-wide** (levels inherit their chapter's `skinFolder`), and
-generated — never painted — by `Tools/generate_ground_sprite.py`. Two calls per theme in
-its `__main__` block:
+All fifteen chapters use the shared relief pipeline in `Tools/generate_ground_sprite.py`.
+Levels inherit their chapter's `skinFolder`; geometry is independent of the art. Jungle
+sets the bevel, outline and weathering quality, **not a universal brick pattern**.
+Each chapter chooses a material structure that belongs to its architecture or terrain.
+The approved chapter palettes are retained. Classic remains the legacy fallback.
+
+Presets live in the generator's `__main__` block. Most chapters use one wrapper call:
 
 ```python
-render_ground_fill_<style>("<Theme>", (r, g, b), ...)     # column material (see styles)
-render_ground_cap("<Theme>", (r, g, b),                   # cap band colour
-                  fleck=(r, g, b), fleck_chance=0.012)    # optional flecks (petals, grains)
+render_ground_material("Desert", (180, 133, 94), (204, 166, 119),
+                     (203, 172, 123), (.10, .38, .27),
+                     structure='sandrock', finish={'kind': 'sandstone'})
 ```
 
-- `ground_fill.png` — 128×128 = **1×1 world unit, seamless both axes**. One fill *style*
-  per theme — the material is a design choice, not always bricks:
+Arguments are body colour, cap colour, recess-deposit colour, deposit strengths
+(fill/cap/islands), an explicit `structure`, and an optional material finish. Jungle
+retains its three approved individual calls and defaults. Run
+**`python3 Tools/generate_ground_sprite.py --theme Desert`** for one chapter; omit
+`--theme` for the full generator. The relief renderers
+require numpy + Pillow, like the piece generator. Their 4× authoring pass does not
+increase the saved texture sizes or runtime texture budget.
 
-  | Style function | Reads as | Used by |
-  |---|---|---|
-  | `render_ground_fill` | running-bond bricks (0.5×0.25 u, mortar, bevel) | Classic |
-  | `render_ground_fill_ashlar` | giant staggered castle-wall stones (ishigaki); sandstone palette = pharaonic masonry | Japan, Egypt |
-  | `render_ground_fill_strata` | sedimentary layers + cracks; cool palette + pale flecks = glacier ice | Desert, Winter |
-  | `render_ground_fill_cobble` | packed irregular rounded stones, mossy joints | Jungle, LostCity (slate-teal ruin), Island (mossy resort stone) |
-  | `render_ground_fill_panels` | 0.5 u slabs; `stain_strength>0` = weeping concrete prefab panels, 0 = courtyard flagstones | Kvartal, Fangkuai |
-  | `render_ground_fill_wetpave` | wet night pavement: dark 0.5 u tiles, light-catching seams, neon reflection streaks (`glows` colors) | Neon |
-  | `render_ground_fill_basalt` | dark running-bond basalt panels, a few bedding joints glowing molten (guaranteed ≥ 1 per tile), ember specks | Volcano |
+| Function | Output / contract | Surface language |
+|---|---|---|
+| `render_ground_fill_carved` | `ground_fill.png`, 128×128, 128 px/unit, seamless both axes | Two staggered 1×0.5 u courses; deep joints, overhead-lit worn bevels, shallow flakes, pits and fractures |
+| `render_ground_cap_carved` | `ground_cap.png`, 256×64, 128 px/unit, horizontally seamless | Continuous opaque 8 px top contour; 13 px lit bevel; chipped, shaded lower lip |
+| `render_islands_carved` | `island_1..3.png`, each 128×128, 128 px/unit | Same stone relief on the original opaque square; closed 8 px outline and shaded underside |
+| `render_ground_fill_material` | Same 128×128 seamless fill contract | Structure-specific concrete, cladding, timber, plaster, strata or natural faults |
+| `render_ground_cap_material` | Same 256×64 cap contract | Timber coping beam, folded metal coping or a worn natural ledge |
+| `render_islands_material` | Same three 128×128 support cells | Matching material, upright overhead bevel and painted underside |
+| `render_ground_material` | Chooses masonry or structure-specific renderers | Shared palette/finish, independent deposits; structure selected per chapter |
 
-- `ground_cap.png` — 256×64 = **2×0.5 u, horizontally seamless**. Baked near-black top
-  outline (THE landable line; 8 px = the same 0.0625 u as the runtime side strips - one
-  contour weight, see STYLE.md), top-lit band, scalloped shadowed lower edge, flecks.
-- Rerun `python3 Tools/generate_ground_sprite.py`. Import settings auto-apply to any
-  `ground_*` file under `Assets/Resources/Skins/<Theme>/`. A theme without its own set
-  falls back to Classic. **New chapter look = two lines + rerun.** All styles work with
-  every terrain shape (pillars, pockets, steps) — the runtime only needs the sizes and
-  seamlessness; outlines, depth shading and fog are added on top.
+`_carved_fields` supplies deterministic periodic relief, wear and grain.
+`_ground_surface` supplies **construction or rock formation**, independently of colour:
+straight sheet seams/folds, precast expansion joints, directional timber grain and
+knots, continuous rubbed plaster, sedimentary bedding, or irregular natural faults.
+`_rock_relief` builds periodic irregular stone/columnar breaks. Glacial surfaces use
+wandering crevasses rather than a tiled ice-wall pattern. No material introduces
+runtime randomness, additional textures, geometry or shaders.
 
-**Want yet another material?** Two sanctioned paths:
+`_carved_colour` provides surface finish: sediment, staining, ice glaze, reflected
+colour or basalt pitting/ash. Manufactured faces reduce the stone roughness;
+timber replaces it with grain (vertical on faces, horizontal on coping beams).
+Reflection is confined to the face, never a coloured silhouette rim. Moss, sand,
+salt, frost and lichen remain baked deposits. Every fill/island is fully opaque;
+cap wear stays within its original canvas. Pivots, bounds and filenames are unchanged.
 
-1. **Hand-drop override**: place ANY seamless 128×128 PNG named `ground_fill.png` (and a
-   256×64 `ground_cap.png`) in the theme folder — smooth earth, wood planks, circuit
-   board, whatever. Import settings apply automatically; the runtime doesn't care what the
-   pixels are, only the sizes. Follow STYLE.md's lighting language to keep it cohesive.
-2. **New render function** in `generate_ground_sprite.py` (like the five above)
-   writing the same file name/size — keeps the "everything is regenerable" property. Never
-   fork the pipeline; add a function + preset parameters.
+PNGs are installed atomically. A minimal GUID meta is written first only for a new
+asset; existing metas and automatic importer settings are left intact. Ground and
+island importers still supply 128 px/unit. Legacy plateau outputs and Classic art
+are unchanged. Partial skin folders still fall back to Classic per file.
 
-Runtime dressing (free, per shape): the **atmosphere pass** (2026-09-01 - everything derived
-from the chapter's resolved fog colour, no authoring): an ambient hue cast on fill + cap, a
-seamless 3 u weathering mottle in the haze colour, and one gradient per run (sky light under
-the cap, fog haze toward the base) that replaced the flat black depth shade; near-black
-silhouette outlines on exposed sides (split around pocket openings); the fade into fog.
-Dials are the `Ambient*/Mottle*/Haze*/SkyLight*` constants in `FloorTerrain.cs`. Sorting
-orders in STYLE.md.
+As built (September 2026; body/cap RGB values remain in the generator presets):
+
+| Chapter / skin folder | Structure preset | Material and construction |
+|---|---|---|
+| Jungle Depths / Jungle | Approved `carved` calls | Mossy temple masonry; pilot PNGs unchanged |
+| Sakura Ridge / Japan | `quarried` | Irregular indigo foundation stone, mineral wear and lichen |
+| Neon Nightfall / Neon | `fluted` | Folded metal cladding, vertical ribs, cyan/rose reflection and formed coping |
+| Frozen Peaks / Winter | `glacier` | Ice-glazed rock with wandering crevasses and frost |
+| Kvartal 4 / Kvartal | `concrete` | Warm precast concrete panels, shallow expansion joints and runoff staining |
+| Barren Lands / Desert | `sandrock` | Continuous wind-cut sedimentary sandstone; no masonry bond |
+| Sector Isla / Island | `plaster` | Worn resort lime-plaster, rubbed patches and moss on the ledge |
+| Fangkuai District / Fangkuai | `timber` | Weathered plum-stained timber, vertical grain and horizontal coping beams |
+| Lost City / LostCity | `quarried` | Irregular teal ruin foundations, mineral wear and oasis moss |
+| Burning Steppes / Volcano | `basalt` | Columnar volcanic rock, vertical faults, pitting and ash |
+| Giza Dusk / Egypt | `masonry` | Monumental rose sandstone masonry and mineral dust |
+| Amber Tide / Tide | `coastal` | Salt-worn coastal rock, broad sedimentary bedding and a muted coral ledge |
+| Monsoon Sector / Techno | `cladding` | Rain-slick architectural sheets with recessed channels and green/cyan reflection |
+| Hallow's End / Hallow | `slate` | Layered violet slate, cleft bedding and dry lichen |
+| Crimson Core / Crimson | `cladding` | Satin composite panels, recessed channels and crimson/rose reflection |
+
+**Material identity is binding:** choose the structure from the chapter's buildings or
+terrain. Do not turn every floor into a recoloured brick wall. Share outline weight,
+light direction and depth quality; masonry bonds belong only where masonry fits.
+
+**Runtime dressing.** `ChapterSkins.GroundHasCarvedRelief` enables the carved visual
+path for all fifteen folders above; Classic and unknown folders retain the legacy
+presentation. Keep this list aligned with the generator when adding a chapter.
+`FloorTerrain` keeps its atmosphere pass in the chapter's resolved fog hue, with
+ambient tint **0.20**, mottle **0.10**, wash **0.09**, bottom haze **0.30**, and sky
+light **0.06**. Legacy values remain **0.35 / 0.22 / 0.18 / 0.55 / 0.16**;
+`SkyLightFraction` stays **0.22**. These are surface overlays. Fog shader, geometry,
+colours and animation are unchanged. Sorting orders are in STYLE.md.
+
+**Pocket/exposed faces.** Collider-free `GroundCutBevel` ramps sit inside the existing
+8 px silhouette strips. They reuse the exposed spans and pocket splits, trimmed at
+corners so shading cannot paint over another outline. A pocket floor catches top
+light; a ceiling/fragment underside is shaded; side faces receive equal shade.
+Nothing extends into the hole or alters the terrain silhouette or sorting orders.
+The bevel is 13/128 u, matching the bricks' 26/256 u language.
+
+**Sky islands.** `ConfigureIslandCellVisual` holds relief art upright so baked light
+stays above. It still consumes the original quarter-turn RNG draw, preserving later
+placement/gameplay randomness. Collider roots, 1×1 canvases, bounds, cluster layouts,
+pop timing and density are unchanged. Material undersides are painted inside the existing
+square; no hanging geometry is added. Legacy art keeps its quarter-turn presentation.
+
+**Verification.** Unity Custom Game captures cover each original representative floor
+and a shared temporary pocket/floating-fragment layout with four sky-island cells.
+The original 126 floor collider records match across all fifteen chapters; each
+chapter also matches the nine-box pocket layout, four island boxes and subsequent
+RNG value. A Pip enters and lands motionless in that pocket in every chapter; Jungle
+also passed entry at −0.4/0/+0.4 cell vertical offsets during the pilot. Each chapter
+has a maximum zoom-out (24) fog capture. These are controlled material and landing
+checks, not full campaign playthroughs. Comparisons use `ScreenCapture.CaptureScreenshot`
+at gameplay zoom. Review images and test evidence stay outside the repository.
+
+**New material or override.** Extend a renderer with parameters or add a render
+function writing the same filenames/sizes; never fork the pipeline. Hand-drop
+seamless PNG overrides at those names and sizes remain sanctioned, subject to
+STYLE.md lighting and the same importer/geometry contract. Existing legacy style
+functions remain available, but no current chapter calls them for fill/cap/islands.
 
 ---
 

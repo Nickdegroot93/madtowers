@@ -154,6 +154,15 @@ public sealed class FloorTerrain : MonoBehaviour
     private const float SkyLightAlpha = 0.16f;
     private const float SkyLightFraction = 0.22f;     // top share of each run the sky light covers
 
+    // Baked carved materials already carry depth. Keep the chapter air, with less wash
+    // over the relief. Opted-in chapters only; the fog material/geometry is independent.
+    private const float CarvedAmbientTintStrength = 0.20f;
+    private const float CarvedMottleAlpha = 0.10f;
+    private const float CarvedWashAlpha = 0.09f;
+    private const float CarvedHazeBottomAlpha = 0.30f;
+    private const float CarvedSkyLightAlpha = 0.06f;
+    private const float CutBevelWidth = 13f / 128f; // same world band as the bricks' 26/256
+
     // Dark scenes (Neon, Crimson: fog luma below ~0.2) must not get darker still: over this
     // luma window the haze stops pulling toward black and the sky-light lift grows. (A pale
     // rim contour was tried for them and rejected - "coloured outline, old-school"; dark
@@ -166,6 +175,7 @@ public sealed class FloorTerrain : MonoBehaviour
     private Color _ambientTint;
     private Color _mottleColor;
     private float _darkness;
+    private bool _carvedRelief;
     private Sprite _atmosphereRamp;                    // per-build gradient (chapter colours baked)
 
     // Fully opaque (at 0.92 the masonry seams showed through and read as a half-transparent
@@ -481,12 +491,12 @@ public sealed class FloorTerrain : MonoBehaviour
                 bool solidLeft = leftTop >= top - 0.01f && !HollowOver(pocketSpans, c - 1, top, bottom);
                 bool solidRight = rightTop >= top - 0.01f && !HollowOver(pocketSpans, c + 1, top, bottom);
                 if (top < colTop - 0.01f)                                     // solid above the hole
-                    CreateOutlineRect(colLeft, colLeft + grid, top + w, top);
+                    CreateOutlineRect(colLeft, colLeft + grid, top + w, top, Vector2.up);
                 if (bottom > datumY - 0.01f)                                  // floor of the hole -
-                    CreateOutlineRect(colLeft, colLeft + grid, bottom, bottom - w); // none on an
+                    CreateOutlineRect(colLeft, colLeft + grid, bottom, bottom - w, Vector2.down); // none on an
                     // open-bottomed shaft (floating fragments carve past the datum into void)
-                if (solidLeft) CreateOutlineRect(colLeft - w, colLeft, top, bottom);
-                if (solidRight) CreateOutlineRect(colLeft + grid, colLeft + grid + w, top, bottom);
+                if (solidLeft) CreateOutlineRect(colLeft - w, colLeft, top, bottom, Vector2.left);
+                if (solidRight) CreateOutlineRect(colLeft + grid, colLeft + grid + w, top, bottom, Vector2.right);
                 // The run-spanning mottle + atmosphere quads would otherwise paint a faint
                 // washed square over the hole (Nick, Kvartal notches 2026-09-02): mask them out.
                 CreateHoleMask(colLeft, colLeft + grid, top, bottom);
@@ -571,16 +581,19 @@ public sealed class FloorTerrain : MonoBehaviour
 
     private void BuildAtmosphere(Color fogColor)
     {
+        _carvedRelief = ChapterSkins.GroundHasCarvedRelief;
         _fogColor = new Color(fogColor.r, fogColor.g, fogColor.b, 1f);
 
         // Ambient cast: the fog's HUE at full brightness (so it colours the masonry without
         // darkening it), blended toward white by the strength. Neutral fogs leave tiles alone.
         float peak = Mathf.Max(0.01f, Mathf.Max(_fogColor.r, Mathf.Max(_fogColor.g, _fogColor.b)));
         Color hue = new Color(_fogColor.r / peak, _fogColor.g / peak, _fogColor.b / peak, 1f);
-        _ambientTint = Color.Lerp(Color.white, hue, AmbientTintStrength);
+        _ambientTint = Color.Lerp(Color.white, hue,
+            _carvedRelief ? CarvedAmbientTintStrength : AmbientTintStrength);
 
         Color mottle = Color.Lerp(_fogColor, Color.black, 0.4f);
-        _mottleColor = new Color(mottle.r, mottle.g, mottle.b, MottleAlpha);
+        _mottleColor = new Color(mottle.r, mottle.g, mottle.b,
+            _carvedRelief ? CarvedMottleAlpha : MottleAlpha);
 
         // Scene darkness from the fog's luma (drives the haze/sky-light adjustments below).
         float luma = 0.2126f * _fogColor.r + 0.7152f * _fogColor.g + 0.0722f * _fogColor.b;
@@ -595,7 +608,10 @@ public sealed class FloorTerrain : MonoBehaviour
         // the sky light gets stronger, so the run top still separates from the backdrop.
         Color hazeDark = Color.Lerp(Color.Lerp(Color.black, _fogColor, 0.65f), _fogColor, _darkness);
         Color skyLight = Color.Lerp(_fogColor, Color.white, 0.55f);
-        float skyLightAlpha = SkyLightAlpha * Mathf.Lerp(1f, DarkSceneSkyLightBoost, _darkness);
+        float skyLightAlpha = (_carvedRelief ? CarvedSkyLightAlpha : SkyLightAlpha)
+            * Mathf.Lerp(1f, DarkSceneSkyLightBoost, _darkness);
+        float washAlpha = _carvedRelief ? CarvedWashAlpha : WashAlpha;
+        float hazeBottomAlpha = _carvedRelief ? CarvedHazeBottomAlpha : HazeBottomAlpha;
         const int H = 256;
         var tex = new Texture2D(1, H, TextureFormat.RGBA32, false)
         {
@@ -604,11 +620,11 @@ public sealed class FloorTerrain : MonoBehaviour
         for (int y = 0; y < H; y++)
         {
             float t = (float)y / (H - 1);                                   // 0 bottom -> 1 top
-            float hazeA = HazeBottomAlpha * Mathf.Pow(1f - t, 1.4f);
+            float hazeA = hazeBottomAlpha * Mathf.Pow(1f - t, 1.4f);
             float sky = Mathf.Clamp01((t - (1f - SkyLightFraction)) / SkyLightFraction);
             float skyA = skyLightAlpha * sky * sky;
-            float sum = Mathf.Max(0.0001f, WashAlpha + hazeA + skyA);
-            Color c = (_fogColor * WashAlpha + hazeDark * hazeA + skyLight * skyA) / sum;
+            float sum = Mathf.Max(0.0001f, washAlpha + hazeA + skyA);
+            Color c = (_fogColor * washAlpha + hazeDark * hazeA + skyLight * skyA) / sum;
             c.a = Mathf.Clamp01(sum);
             tex.SetPixel(0, y, c);
         }
@@ -668,7 +684,8 @@ public sealed class FloorTerrain : MonoBehaviour
         mask.backSortingOrder = SortMottle;
     }
 
-    private void CreateOutlineRect(float left, float right, float topY, float bottomY)
+    private void CreateOutlineRect(float left, float right, float topY, float bottomY,
+        Vector2 bevelInward = default)
     {
         float width = right - left;
         float height = topY - bottomY;
@@ -679,6 +696,25 @@ public sealed class FloorTerrain : MonoBehaviour
         sr.sprite = RuntimeSprites.Square();
         sr.color = OutlineColor;
         sr.transform.localScale = new Vector3(width, height, 1f);
+
+        if (_carvedRelief && bevelInward != Vector2.zero)
+        {
+            // The bevel is wholly INSIDE the solid face, beyond the unchanged contour.
+            // These use the already-split exposed spans, so nothing paints across a pocket.
+            float thickness = bevelInward.x != 0f ? width : height;
+            // Leave the perpendicular contour intact at corners where bevel strips meet.
+            float length = (bevelInward.x != 0f ? height : width) - 2f * OutlineWidth;
+            if (length <= 0f) return;
+            Vector3 offset = (Vector3)bevelInward * (thickness + CutBevelWidth) * 0.5f;
+            SpriteRenderer bevel = CreateChild("GroundCutBevel", sr.transform.position + offset, SortDetail);
+            bevel.sprite = RuntimeSprites.AlphaRamp();
+            bevel.color = bevelInward.y < 0f
+                ? new Color(1f, 1f, 1f, 0.22f) // sky-facing pocket floor
+                : new Color(0f, 0f, 0f, bevelInward.y > 0f ? 0.32f : 0.16f);
+            ScaleToRect(bevel, length, CutBevelWidth);
+            bevel.transform.rotation = Quaternion.Euler(0f, 0f,
+                Mathf.Atan2(-bevelInward.x, bevelInward.y) * Mathf.Rad2Deg);
+        }
     }
 
     private void CreateSideOutline(float edgeX, float fromY, float toY, bool inward,
@@ -688,6 +724,7 @@ public sealed class FloorTerrain : MonoBehaviour
 
         float x0 = inward ? edgeX : edgeX - OutlineWidth;
         float x1 = x0 + OutlineWidth;
+        Vector2 bevelInward = inward ? Vector2.right : Vector2.left;
 
         // Emit strip pieces top-down, skipping any pocket span that opens through this face.
         float cursor = toY;
@@ -697,11 +734,11 @@ public sealed class FloorTerrain : MonoBehaviour
             {
                 (float gTop, float gBottom) = gaps[i];
                 if (gBottom >= cursor || gTop <= fromY) continue;
-                CreateOutlineRect(x0, x1, cursor, Mathf.Max(gTop, fromY));
+                CreateOutlineRect(x0, x1, cursor, Mathf.Max(gTop, fromY), bevelInward);
                 cursor = gBottom;
             }
         }
-        if (cursor > fromY) CreateOutlineRect(x0, x1, cursor, fromY);
+        if (cursor > fromY) CreateOutlineRect(x0, x1, cursor, fromY, bevelInward);
     }
 
     // ---- fog bank --------------------------------------------------------------------------
