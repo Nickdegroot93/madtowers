@@ -68,8 +68,7 @@ public class LevelRuntimeController : MonoBehaviour
     private RectTransform _countdownBarLeft;       // accent fills draining toward the cube
     private RectTransform _countdownBarRight;
     private RectTransform _countdownCube;          // the armed rung's cube, wobbling to steady
-    private int _countdownShownSecond = -1;
-    private float _countdownDigitPunchAge;
+    private HoldSteadyFx _countdownFx;
     private bool _hasTimeLimit;
     private float _timeRemaining;
     private GameObject _timerRoot;
@@ -88,6 +87,8 @@ public class LevelRuntimeController : MonoBehaviour
     /// (the pause menu's quit/restart). Published here, never via Find - a rebuild frame's
     /// Find can grab a dying instance.</summary>
     public static LevelRuntimeController Active { get; private set; }
+
+    public bool HasEarnedTierThisRun => _highestTierEarnedThisRun.HasValue;
 
     /// <summary>True while the timed-goal clock card occupies the top-right HUD row - MedalHud
     /// yields the slot to it (same arrangement as the wave pill). Live, not per-run: the card
@@ -592,7 +593,10 @@ public class LevelRuntimeController : MonoBehaviour
         TextMeshProUGUI wordmark = CreateShadowedText(_countdownRoot.transform, "HoldSteady",
             "HOLD STEADY", 46, Color.white, RuntimeUiKit.TitleFont, 10f,
             new Vector2(0.5f, WordmarkY), new Vector2(960f, 90f),
-            wrap: false, display: true, out _, out _);
+            wrap: false, display: true, out _, out RectTransform wordmarkRoot);
+        wordmarkRoot.anchorMin = new Vector2(.08f, WordmarkY);
+        wordmarkRoot.anchorMax = new Vector2(.92f, WordmarkY);
+        wordmarkRoot.sizeDelta = new Vector2(0f, 90f);
         RuntimeUiKit.ApplyHorizontalGradient(wordmark, Color.Lerp(accent, Color.white, 0.65f), accent);
 
         // The centerpiece line: ---- cube ---- (Nick 2026-08-29, "one composition"). The armed
@@ -611,7 +615,7 @@ public class LevelRuntimeController : MonoBehaviour
             _countdownCube.SetParent(_countdownRoot.transform, false);
             _countdownCube.anchorMin = _countdownCube.anchorMax = new Vector2(0.5f, LineY);
             _countdownCube.pivot = new Vector2(0.5f, 0.5f);
-            _countdownCube.sizeDelta = new Vector2(96f, 96f);
+            _countdownCube.sizeDelta = new Vector2(120f, 120f);
             Image cubeImage = cube.GetComponent<Image>();
             cubeImage.sprite = MedalStyle.Sprite(_armedTier.Value, earned: true);
             cubeImage.color = MedalStyle.IconTint(earned: true);
@@ -621,12 +625,14 @@ public class LevelRuntimeController : MonoBehaviour
 
         // The countdown itself: one huge digit tucked under the line that punches in on every
         // second (5 -> 4 -> 3...), so the wait reads as a countdown, not a frozen banner.
-        _countdownDigit = CreateShadowedText(_countdownRoot.transform, "Digit", "", 140,
+        _countdownDigit = CreateShadowedText(_countdownRoot.transform, "Digit", "", 100,
             RuntimeUiKit.TitleColor, RuntimeUiKit.TitleFont, 0f,
             new Vector2(0.5f, DigitY), new Vector2(400f, 180f),
             wrap: false, display: true, out _countdownDigitShadow, out _countdownDigitRoot);
 
-        _countdownShownSecond = -1; // force the first digit to set + punch immediately
+        _countdownFx = HoldSteadyFx.Attach(_countdownRoot, _countdownCube, _countdownDigitRoot,
+            _countdownDigit, _countdownDigitShadow, _countdownBarLeft, _countdownBarRight,
+            WinVerificationSeconds, CountdownSegmentWidth);
     }
 
     // One tight stack (Nick 2026-08-29: minimal, little vertical margin): wordmark, the
@@ -636,10 +642,7 @@ public class LevelRuntimeController : MonoBehaviour
     private const float DigitY = 0.625f;
     private const float CountdownSegmentWidth = 150f;
     private const float CountdownBarHeight = 8f;
-    private const float CubeGapHalf = 58f; // cube half (48) + breathing room
-    private const float CubeBobPixels = 6f;      // full bob amplitude - subtle, never a shake
-    private const float CubeBobHz = 0.6f;        // slow float, ~1.7s per cycle
-    private const float CubeBobSettleFrac = 0.4f; // glide to a dead stop over the final 40%
+    private const float CubeGapHalf = 74f; // cube half (60) + breathing room
 
     // One side of the ---- cube ---- line. The pivot sits at the INNER end (next to the
     // cube), so a shrinking fill drains from its outer edge toward the cube.
@@ -691,54 +694,9 @@ public class LevelRuntimeController : MonoBehaviour
         return main;
     }
 
-    private const float DigitPunchSeconds = 0.3f;
-    private const float DigitPunchStartScale = 1.7f;
-
     private void UpdateCountdownLabel()
     {
-        if (_countdownDigit == null) return;
-
-        // Everything but the cube is built unconditionally alongside _countdownDigit (the
-        // early-return above), so only the cube gets a guard - it exists per armed tier.
-        float remainingFrac = Mathf.Clamp01(_verificationRemaining / WinVerificationSeconds);
-        Vector2 fillSize = new Vector2(CountdownSegmentWidth * remainingFrac, CountdownBarHeight);
-        _countdownBarLeft.sizeDelta = fillSize;
-        _countdownBarRight.sizeDelta = fillSize;
-
-        // The cube floats on a slow, subtle bob (never a rotation shake - rejected as ugly,
-        // Nick 2026-08-29) and glides to a dead stop over the final stretch of the window, so
-        // a perfectly still cube marks the hold landing - the beat the earned pill pops on.
-        if (_countdownCube != null)
-        {
-            float amp = CubeBobPixels * Mathf.SmoothStep(0f, 1f, Mathf.Min(1f, remainingFrac / CubeBobSettleFrac));
-            float bob = Mathf.Sin(Time.unscaledTime * 2f * Mathf.PI * CubeBobHz) * amp;
-            _countdownCube.anchoredPosition = new Vector2(0f, bob);
-        }
-
-        int seconds = Mathf.CeilToInt(Mathf.Max(0f, _verificationRemaining));
-        if (seconds != _countdownShownSecond)
-        {
-            _countdownShownSecond = seconds;
-            _countdownDigit.text = seconds.ToString();
-            _countdownDigitShadow.text = _countdownDigit.text;
-            _countdownDigitPunchAge = 0f;
-        }
-
-        // Scale-punch: lands big and settles to rest size over the punch window. The root
-        // carries the scale so the digit and its painted shadow punch as one.
-        _countdownDigitPunchAge += Time.deltaTime;
-        float t = Mathf.Clamp01(_countdownDigitPunchAge / DigitPunchSeconds);
-        float eased = 1f - (1f - t) * (1f - t); // ease-out
-        float scale = Mathf.Lerp(DigitPunchStartScale, 1f, eased);
-        _countdownDigitRoot.localScale = new Vector3(scale, scale, 1f);
-
-        float presence = Mathf.Lerp(0.55f, 1f, eased);
-        Color color = RuntimeUiKit.TitleColor;
-        color.a = presence;
-        _countdownDigit.color = color;
-        Color shadowColor = _countdownDigitShadow.color;
-        shadowColor.a = 0.55f * presence;
-        _countdownDigitShadow.color = shadowColor;
+        if (_countdownFx != null) _countdownFx.SetRemaining(_verificationRemaining);
     }
 
     private void DestroyCountdownUi()
@@ -753,6 +711,7 @@ public class LevelRuntimeController : MonoBehaviour
         _countdownBarLeft = null;
         _countdownBarRight = null;
         _countdownCube = null;
+        _countdownFx = null;
     }
 
     // ---- Timed goals ---------------------------------------------------------------------------

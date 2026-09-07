@@ -138,7 +138,7 @@ the procedural circle badge survives only as the fallback for a tier whose rende
 landed. One art per tier: EARNED state is a tint — pair every `Sprite()` call with
 `MedalStyle.IconTint(earned)` on the Image (unearned = dark ghost).
 
-## 9. Celebration cards & modal restyle (as-built 2026-08-29)
+## 9. Celebration cards & modal restyle (updated 2026-09-06)
 
 The results-card redesign (Nick's mockup + `unity_tier_modal_handoff.md`, adapted to the
 runtime-UI architecture — the handoff's camera-space canvas / Shuriken / DOTween /
@@ -146,11 +146,14 @@ ScriptableObject configs were all replaced with our own idioms):
 
 - **Both tier-celebration cards** (gold mid-run victory AND bronze/silver newly earned on
   death) share one treatment: the tier cube badge half-in/half-out over the card's top
-  edge (overshoot pop from scale 0 — NO header outside the card, Nick cut it: badge +
+  edge (210-unit cube drops, compresses on impact, then catches a single light sweep —
+  NO header outside the card, Nick cut it: badge +
   chip carry the story), a "{TIER} TIER REACHED" gradient chip as the card's first row,
   the hero number in a
   cream→tier vertex gradient, and `ResultsCelebrationFx` behind the card: a slowly
   rotating per-tier ray fan + a 40-piece confetti burst of tumbling UI-Image paper.
+  Both start at the medal impact; the rays fade away within three seconds of impact. New-best-only
+  cards use a chapter-accent pill and cream hero, without confetti, rays or gold chrome.
   Everything runs on UNSCALED time (the victory card opens under timeScale 0 — a
   ParticleSystem would freeze; UI Images on the card's own overlay canvas, the CoinHud
   flight precedent). Chip capsule + ray sprite are procedural (`MedalStyle.ChipSprite`,
@@ -169,8 +172,14 @@ ScriptableObject configs were all replaced with our own idioms):
   its purple cast read as "a weird color" at full opacity): results card, pause-menu
   sheets, block-debut modal, level
   summary, boost picker, leaderboard, identity/sign-in, vault detail ×2, dev letter,
-  refill + notification offers. Inner cards/chips keep their neon edges (UI taste memory);
+  refill + notification offers. The results NEW BEST chip is also borderless;
   the Settings frosted side panel and inline message panels are screen layout, not modals.
+- **Reading order and responsive framing:** 80% safe-area width, capped at 860 reference
+  units; weighted sheet arrival, followed by headline, counting hero, record, details,
+  coins and equal-height actions. Full choreography is in JUICE.md §2c. Tap-to-fast-forward
+  still settles the entire card and enables actions immediately. Retry still calls
+  `RestartGame`; ad/regen rebuilds retain `muted: true`. Medal derivation, first-attempt
+  record exclusion, coin-line suppression and sting selection are unchanged.
 
 ## 9b. Menu surfaces: trophy row + chapter medal strip (as-built 2026-09-04)
 
@@ -195,10 +204,11 @@ ScriptableObject configs were all replaced with our own idioms):
   matches, and `ShowBanner` (instruction / "tower fell" / rung toasts) uses the same
   shadowed free text.
 - ~~Mid-run rung toast → badge-slam popup~~ — done 2026-08-29: `MedalHud`'s debut fly-in.
-  The rung debuts as the pill itself at double size center-screen (overshoot pop), holds
+  The rung debuts as the pill itself at double size at the countdown cube's position
+  (compression settle), holds
   a beat, then flies into the corner slot and hands off seamlessly (the debut IS the pill
   at 1/DebutScale). No text toast, no confetti mid-run - the game is still going. The
   hold-steady overlay likewise leads with the armed rung's cube + a light→accent gradient
   wordmark + a draining accent progress bar (all chapter-accent tinted, no strip).
-- **Pause-menu quit relabels to "Finish Run"** once any rung is earned this run
+- **Pause-menu quit relabels to "Finish Run"** (implemented 2026-09-06) once any rung is earned this run
   (psych review: quitting at a medal must feel like choosing to stop winning).

@@ -14,10 +14,10 @@ using UnityEngine.UI;
 public sealed class ResultsCelebrationFx : MonoBehaviour
 {
     private const int ConfettiCount = 40;
-    private const float RayDegreesPerSecond = 22f;   // handoff §4
-    private const float RaySize = 460f;
+    private const float RayDegreesPerSecond = 7f;   // handoff §4
+    private const float RaySize = 540f;
     private const float RayFadeInSeconds = 0.5f;
-    private const float RayAlpha = 0.20f;
+    private const float RayAlpha = 0.13f;
     private const float Gravity = 520f;              // canvas px/s² - floaty fall, not a drop
     private const float PieceFadeTail = 0.30f;       // fade over the last 30% of a piece's life
 
@@ -41,7 +41,7 @@ public sealed class ResultsCelebrationFx : MonoBehaviour
 
     /// <summary>Build the fx on <paramref name="layer"/> (a full-screen rect BEHIND the card
     /// panel), bursting from <paramref name="follow"/> (the badge) after
-    /// <paramref name="startDelay"/> unscaled seconds - the badge pop-in moment.</summary>
+    /// <paramref name="startDelay"/> unscaled seconds - the badge impact moment.</summary>
     public static ResultsCelebrationFx Attach(RectTransform layer, RectTransform follow,
         MedalTier tier, float startDelay)
     {
@@ -81,12 +81,13 @@ public sealed class ResultsCelebrationFx : MonoBehaviour
         if (_rays != null)
         {
             // Track the badge only until the burst (the card's ContentSizeFitter settles in
-            // the first frames; after that the badge only ever scales, never moves) - a
+            // the first frames; the impact then becomes the fixed burst origin) - a
             // world->local conversion per frame forever bought nothing.
             if (!_burstFired && _follow != null) _rays.rectTransform.position = _follow.position;
             _rayAge += dt;
             Color tint = _rays.color;
-            tint.a = RayAlpha * Mathf.Clamp01(_rayAge / RayFadeInSeconds);
+            tint.a = RayAlpha * Mathf.Clamp01(_rayAge / RayFadeInSeconds)
+                * (1f - Mathf.SmoothStep(0f, 1f, (_rayAge - 1.5f) / 1.5f));
             _rays.color = tint;
             _rays.rectTransform.Rotate(Vector3.forward, RayDegreesPerSecond * dt);
         }
@@ -98,6 +99,7 @@ public sealed class ResultsCelebrationFx : MonoBehaviour
         }
 
         TickPieces(dt);
+        if (_burstFired && _pieces.Count == 0 && _rayAge >= 3f) enabled = false;
     }
 
     private void SpawnBurst()

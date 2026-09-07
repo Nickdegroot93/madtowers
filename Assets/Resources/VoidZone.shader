@@ -1,157 +1,109 @@
 Shader "MadTowers/VoidZone"
 {
-    // A Void Zone: a rectangular tear in the sky that devours placed bricks (VoidZoneModifier
-    // owns the rules). The look is a black-hole take on the Vortex language: a deep dark eye
-    // stretched to the zone's aspect, slow spiral arms of void-indigo swirling into it, a thin
-    // accretion rim that pulses, and starlight specks orbiting inward. Falling pieces pass in
-    // front of it untouched - the menace must read as a PLACE, not a wall, so edges feather
-    // out and the centre stays truly black. Theme-independent fixed look (the Magma rule).
+    // A rectangular tear with a chipped, inward-facing lip. WorldRect is still the
+    // modifier's exact footprint; only the small visual apron distorts the backdrop.
+    // Violet cut faces keep the footprint legible. Organic currents turn and breathe
+    // inside that fixed edge; tightening, snap and pull remain the strongest moments.
     Properties
     {
         [PerRendererData] _MainTex ("Sprite", 2D) = "white" {}
-        _Aspect ("Zone Aspect (w/h)", Float) = 1
-        _Seed ("Per-zone Seed", Float) = 0
-        _EyeColor ("Eye Colour", Color) = (0.0, 0.0, 0.005, 1)
-        _SwirlColor ("Swirl Colour", Color) = (0.16, 0.08, 0.28, 1)
-        _RimColor ("Accretion Rim Colour", Color) = (0.55, 0.3, 0.95, 1)
-        _SwirlSpeed ("Swirl Speed", Float) = 0.5
-        _Hunger ("Hunger (feeding pulse)", Range(0, 1)) = 0
+        _NoiseTex ("Tileable material noise", 2D) = "gray" {}
+        _Aspect ("Zone aspect", Float) = 1
+        _Seed ("Zone seed", Float) = 0
+        _ZoneSize ("Rule footprint", Vector) = (3,2,0,0)
+        _QuadSize ("Visual apron", Vector) = (3.5,2.5,0,0)
+        _EyeColor ("Depth", Color) = (.008,.003,.022,1)
+        _SwirlColor ("Violet currents", Color) = (.28,.10,.46,1)
+        _RimColor ("Violet cut face", Color) = (.64,.33,.90,1)
+        _Hunger ("Feeding pulse", Range(0,1)) = 0
+        _Phase ("Scaled visual time", Float) = 0
+        _Open ("Tear aperture", Range(0,1)) = 1
+        _Anticipation ("Tightening", Range(0,1)) = 0
+        _Closing ("Scar", Range(0,1)) = 0
     }
-
     SubShader
     {
-        Tags
-        {
-            "Queue" = "Transparent"
-            "RenderType" = "Transparent"
-            "RenderPipeline" = "UniversalPipeline"
-            "IgnoreProjector" = "True"
-            "PreviewType" = "Plane"
-        }
+        Tags { "Queue"="Transparent" "RenderType"="Transparent" "RenderPipeline"="UniversalPipeline" "IgnoreProjector"="True" }
         Blend SrcAlpha OneMinusSrcAlpha
-        Cull Off
-        ZWrite Off
-
+        Cull Off ZWrite Off
         Pass
         {
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-
+            TEXTURE2D(_NoiseTex); SAMPLER(sampler_NoiseTex);
+            TEXTURE2D(_VoidSceneTex); SAMPLER(sampler_VoidSceneTex);
             CBUFFER_START(UnityPerMaterial)
-                float4 _MainTex_ST;
-                float _Aspect;
-                float _Seed;
-                float4 _EyeColor;
-                float4 _SwirlColor;
-                float4 _RimColor;
-                float _SwirlSpeed;
-                float _Hunger;
+                float4 _ZoneSize, _QuadSize, _EyeColor, _SwirlColor, _RimColor;
+                float _Aspect, _Seed, _Hunger, _Phase, _Open, _Anticipation, _Closing;
             CBUFFER_END
-
-            struct Attributes
-            {
-                float4 positionOS : POSITION;
-                float2 uv         : TEXCOORD0;
-                float4 color      : COLOR;
-            };
-
-            struct Varyings
-            {
-                float4 positionHCS : SV_POSITION;
-                float2 uv          : TEXCOORD0;
-                float4 color       : COLOR;
-            };
-
+            struct Attributes { float4 positionOS:POSITION; float2 uv:TEXCOORD0; float4 color:COLOR; };
+            struct Varyings { float4 positionHCS:SV_POSITION; float2 uv:TEXCOORD0; float4 color:COLOR; };
             Varyings vert(Attributes v)
             {
-                Varyings o;
-                o.positionHCS = TransformObjectToHClip(v.positionOS.xyz);
-                o.uv = v.uv;
-                o.color = v.color;
-                return o;
+                Varyings o; o.positionHCS=TransformObjectToHClip(v.positionOS.xyz);
+                o.uv=v.uv; o.color=v.color*unity_SpriteColor; return o;
             }
-
-            float hash21(float2 p)
+            float box(float2 p, float2 b)
             {
-                p = frac(p * float2(234.34, 435.345) + _Seed);
-                p += dot(p, p + 34.23);
-                return frac(p.x * p.y);
+                float2 q=abs(p)-b+.055;
+                return length(max(q,0))+min(max(q.x,q.y),0)-.055;
             }
-
-            // Single-octave value noise - enough for a barely-there nebula whisper.
-            float vnoise(float2 p)
+            half4 frag(Varyings i):SV_Target
             {
-                float2 i2 = floor(p);
-                float2 f = frac(p);
-                float2 u = f * f * (3.0 - 2.0 * f);
-                float a = hash21(i2);
-                float b = hash21(i2 + float2(1, 0));
-                float c = hash21(i2 + float2(0, 1));
-                float d = hash21(i2 + float2(1, 1));
-                return lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
-            }
-
-            half4 frag(Varyings i) : SV_Target
-            {
-                // The look: a PITCH-BLACK rectangle - space itself missing, zero see-through -
-                // with a faint universe inside (sparse dim stars, a whisper of nebula) and ONE
-                // thin coloured border tracing the near-square boundary. The border is alive:
-                // hot arcs of energy circulate around the perimeter like a spinning wheel, and
-                // sectors glitch-flicker at random ticks. Nothing concentric: the danger area
-                // IS the rect and every element follows it, so 2x2 and 2x3 both read honestly.
-                float2 p = (i.uv - 0.5) * float2(_Aspect, 1.0);
-                float2 halfSize = float2(_Aspect * 0.5, 0.5);
-
-                // Box SDF, corners only just softened (0.04) so they read square, not rounded.
-                const float cornerR = 0.04;
-                float2 q = abs(p) - (halfSize - cornerR);
-                float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - cornerR;
-
-                // The ORGANIC edge: low-amplitude noise displaces the boundary, so the hole is
-                // ~95% square - splashed paint, not a die-cut sticker. The amplitude (~0.025
-                // local, well under the modifier's overlapInset) keeps the visual honest about
-                // the danger area, and the ultra-slow drift keeps the edge alive without
-                // reading as an animation.
-                float wob = vnoise(p * 6.0 + float2(_Seed * 3.1, _Time.y * 0.12)) - 0.5;
-                d += wob * 0.05;
-                if (d > 0.0) discard;
-
-                float t = _Time.y * _SwirlSpeed;
-
-                half3 col = _EyeColor.rgb;
-
-                // A whisper of nebula: huge slow noise, barely above black.
-                float neb = vnoise(p * 1.6 + float2(t * 0.12, _Seed));
-                col += _SwirlColor.rgb * neb * 0.05;
-
-                // Sparse dim stars drifting - the universe on the other side of the hole.
-                float2 starP = (p + float2(t * 0.08, 0)) * 11.0;
-                float2 starCell = floor(starP);
-                float2 starLocal = frac(starP) - 0.5;
-                float twinkle = 0.6 + 0.4 * sin(_Time.y * 1.7 + hash21(starCell) * 40.0);
-                float mote = step(0.975, hash21(starCell)) *
-                             (1.0 - smoothstep(0.03, 0.12, length(starLocal)));
-                col += mote * 0.22 * twinkle;
-
-                // THE border: a THIN line hugging the (wobbled) boundary...
-                float border = smoothstep(-0.034, -0.018, d);
-                // ...with two hot arcs CIRCULATING around the perimeter (the spinning-wheel
-                // energy - the border stays put, the light travels along it)...
-                float ang = atan2(p.y, p.x);
-                float chase = pow(0.5 + 0.5 * sin(ang * 2.0 - _Time.y * (2.2 + 6.0 * _Hunger)), 5.0);
-                // ...and OCCASIONAL per-sector glitch flickers - subtle bad reception on
-                // reality, not a rave.
-                float sector = floor(ang * 7.0 + 3.5);
-                float tick = floor(_Time.y * 7.0);
-                float glitch = step(0.95, hash21(float2(sector, tick))) * 0.5;
-                float energy = 0.28 + 0.75 * chase + glitch;
-                col += _RimColor.rgb * border * energy * (1.0 + 1.2 * _Hunger);
-
-                // Fully opaque body; only a hair (~1px) of anti-aliasing at the boundary.
-                float a = saturate(-d / 0.008) * i.color.a;
-                return half4(col, a);
+                float2 p=(i.uv-.5)*_QuadSize.xy;
+                float t=_Phase;
+                float4 n1=SAMPLE_TEXTURE2D(_NoiseTex,sampler_NoiseTex,p*.16+float2(_Seed*.017+t*.011,t*.016));
+                float4 n2=SAMPLE_TEXTURE2D(_NoiseTex,sampler_NoiseTex,p*.37+float2(-t*.014,_Seed*.031+t*.006));
+                float2 halfSize=_ZoneSize.xy*.5;
+                float full=box(p,halfSize);
+                float2 aperture=halfSize*float2(.40+.60*_Open,max(.012,_Open));
+                float chips=sin(p.x*24+p.y*19+n2.g*5)*sin(p.y*37-p.x*11)*.014;
+                float d=box(p,aperture)+(n2.r-.5)*.07+chips;
+                float aa=max(fwidth(d),.008);
+                float inside=1-smoothstep(-aa,aa,d);
+                float edge=1-smoothstep(.02,.22,d);
+                float2 screen=GetNormalizedScreenSpaceUV(i.positionHCS);
+                float distortion=(1-smoothstep(0,.24,abs(d)))*(.0025+_Hunger*.003);
+                float2 direction=normalize(p+float2(.0001,.0001));
+                half3 backdrop=SAMPLE_TEXTURE2D(_VoidSceneTex,sampler_VoidSceneTex,
+                    saturate(screen-direction*distortion+float2(n2.g-.5,n1.r-.5)*distortion)).rgb;
+                // The interior moves independently of the rule edge: a wandering eye,
+                // breathing folds and counter-moving currents instead of nested boxes.
+                float2 drift=float2(sin(t*.53+_Seed),cos(t*.41+_Seed*.7))*.075;
+                float2 tunnel=(p+float2(.10,-.06))/max(aperture,float2(.1,.1));
+                tunnel+=drift+sin(tunnel.yx*3.4+float2(t*.67,-t*.51))*.085;
+                tunnel+=(n1.rg-.5)*.16;
+                float radius=length(tunnel)*(.92+.055*sin(t*.83+n1.g*2));
+                float angle=atan2(tunnel.y,tunnel.x);
+                // Integer angular frequencies meet cleanly across the atan2 seam.
+                float flow=.5+.5*sin(radius*13-angle*2+t*.92+n1.r*3.2);
+                float undertow=.5+.5*sin(radius*20+angle*3-t*.61+n2.r*2.1);
+                float body=smoothstep(.12,.72,radius)*(1-smoothstep(1.0,1.5,radius));
+                float fold=flow*flow*flow*body;
+                undertow=undertow*undertow*body;
+                half3 depth=_EyeColor.rgb+_SwirlColor.rgb*(.055+fold*.76+undertow*.12);
+                depth+=half3(.06,.11,.24)*undertow*.28;
+                // A continuous coloured cut face identifies all four sides. Weathering
+                // changes its light, never erases whole stretches of the danger boundary.
+                float lip=1-smoothstep(.028,.105,abs(d+.038));
+                float top=saturate(p.y/max(.1,halfSize.y)*.5+.5);
+                half3 rim=_RimColor.rgb*(.52+top*.38+n2.g*.16);
+                float worn=(1-smoothstep(.008,.025,abs(d+.012)))*smoothstep(.35,.72,n2.g);
+                rim=lerp(rim,half3(.78,.62,.94),worn*.26);
+                depth=lerp(depth,rim,lip*(.84+_Hunger*.12));
+                depth*=1-exp(-abs(d+.16)*16)*.28;
+                half3 col=lerp(backdrop,depth,inside);
+                float opening=smoothstep(.02,.14,_Open);
+                float warning=(1-smoothstep(.015,.05,abs(full-(1-_Anticipation)*.14)))
+                    * _Anticipation*(1-opening)*(1-_Closing)*smoothstep(.28,.62,n1.g);
+                col=lerp(col,_RimColor.rgb*.65,warning);
+                float scar=(1-smoothstep(.015,.055,abs(p.y+(n2.r-.5)*.065)))
+                    *(1-smoothstep(halfSize.x*.7,halfSize.x,abs(p.x)))*_Closing;
+                col=lerp(col,_RimColor.rgb*.35,scar);
+                float alpha=max(edge*opening,max(warning,scar))*i.color.a;
+                return half4(col*i.color.rgb,alpha);
             }
             ENDHLSL
         }

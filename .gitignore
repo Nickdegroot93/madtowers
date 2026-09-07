@@ -72,3 +72,9 @@ Tools/thumb-gen/gen_raw/
 
 # Supabase CLI binaries (repo-local install, ~156MB - re-download per BACKEND.md §10.5)
 Tools/bin/
+
+# Local visual-review captures and temporary MCP staging scripts.
+# Keep the concise surface-review record; generated images/logs are not game assets.
+/ArtReviews/AppStore/
+/ArtReviews/SurfaceRestyle/*
+!/ArtReviews/SurfaceRestyle/README.md

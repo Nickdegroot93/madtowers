@@ -7,13 +7,13 @@ using UnityEngine.UI;
 /// The end-of-run results card - game over AND level complete share one anatomy, at two
 /// temperatures. The card leads with the ONE metric the level's goal cares about (blocks,
 /// height, or waves - never both), counts it up, and lands it with a thump; a new personal
-/// best gets the gold treatment (gold number + NEW BEST pill with the card-shine sweep),
+/// best gets a chapter-accent NEW BEST pill with a neutral reflected-light sweep,
 /// otherwise the stored best shows as a quiet reference line - never as a shortfall.
 ///
 /// Choreography runs on unscaled time (the completion screen opens while the game is
 /// paused) and any tap before the buttons arrive fast-forwards to the final state, so a
 /// retry is always one impatient tap away. Restraint per JUICE.md: no flashes, no chimes -
-/// the count-up thump and the gold sheen are the whole show.
+/// the count-up thump and material light sweep carry the record beat.
 /// </summary>
 public sealed class RunResultsScreen : MonoBehaviour
 {
@@ -41,18 +41,18 @@ public sealed class RunResultsScreen : MonoBehaviour
     private const float HeroAt = 0.35f;
     private const float CountStartAt = 0.45f;
     private const float CountSeconds = 0.9f;
-    private const float RecordAt = 1.6f;   // a breath after the count lands (1.35)
-    private const float DetailsAt = 1.8f;
-    private const float CoinsAt = 1.95f;
-    private const float PrimaryAt = 2.1f;
-    private const float SecondaryAt = 2.2f;
+    private const float RecordAt = 1.48f;   // a breath after the count lands (1.35)
+    private const float DetailsAt = 1.62f;
+    private const float CoinsAt = 1.75f;
+    private const float PrimaryAt = 1.94f;
+    private const float SecondaryAt = 2.02f;
 
     private const float PunchSeconds = 0.6f;
-    // Tier celebration (modal redesign, Nick 2026-08-29): the badge pops in with an overshoot
-    // at BadgeAt, and the confetti burst + ray fade-in fire on the same frame (handoff §5).
+    // The medal drops, compresses on impact, then catches a single light sweep.
+    // Earned-tier confetti and rays begin at the impact, .27 s after BadgeAt.
     private const float BadgeAt = 0.2f;
     private const float BadgePopSeconds = 0.6f;
-    private const float BadgeSize = 150f;
+    private const float BadgeSize = 210f;
     // The sanctioned reward-gold (golden brick, sheen) - one gold across the whole game.
     private static readonly Color Gold = GoldenBlockDirector.GoldTint;
 
@@ -74,6 +74,8 @@ public sealed class RunResultsScreen : MonoBehaviour
 
     private Content _content;
     private Image _backdrop;
+    private RectTransform _panel;
+    private MedalLightSweepFx _badgeSweep;
     private float _backdropAlpha;
     private readonly List<Reveal> _reveals = new List<Reveal>(10);
     private TextMeshProUGUI _hero;
@@ -144,10 +146,11 @@ public sealed class RunResultsScreen : MonoBehaviour
 
         GameObject panel = RuntimeUiKit.CreateCenteredPanel(transform, new Vector2(660f, 100f));
         GameMenuStyle.StylePanel(panel);
+        _panel = ModalPresentationFx.Frame(panel);
         panel.GetComponent<Image>().raycastTarget = false; // taps beside the rows reach the skip
         VerticalLayoutGroup layout = panel.GetComponent<VerticalLayoutGroup>();
         layout.childControlHeight = true; // rows declare their height via LayoutElement
-        layout.spacing = 16f;
+        layout.spacing = 12f;
         // The half-out badge claims the card's top band; the first row starts below it.
         if (celebrate) layout.padding.top = Mathf.RoundToInt(BadgeSize * 0.5f + 24f);
         ContentSizeFitter fitter = panel.AddComponent<ContentSizeFitter>();
@@ -171,7 +174,7 @@ public sealed class RunResultsScreen : MonoBehaviour
             AddReveal(kicker.gameObject, KickerAt);
         }
 
-        // The boosted honesty tag (SHOP.md §5): a quiet gold line under the kicker so an
+        // The boosted honesty tag (SHOP.md §5): a quiet chapter-accent line under the kicker so an
         // assisted run always says so - the score below belongs to the boosted board.
         if (_content.Boosted)
         {
@@ -186,9 +189,9 @@ public sealed class RunResultsScreen : MonoBehaviour
         metricLabel.characterSpacing = 14f;
         AddReveal(metricLabel.gameObject, HeroAt);
 
-        _hero = CreateRow(panel.transform, _content.Metric.Format(0f), 116,
-            record ? Gold : RuntimeUiKit.TitleColor, 148f, display: true);
-        RuntimeUiKit.AutoSize(_hero, 64f, 116f);
+        _hero = CreateRow(panel.transform, _content.Metric.Format(0f), 132,
+            RuntimeUiKit.TitleColor, 156f, display: true);
+        RuntimeUiKit.AutoSize(_hero, 64f, 132f);
         if (celebrate)
         {
             // The hero number wears the tier's gradient: cream into the tier's light tone.
@@ -282,7 +285,7 @@ public sealed class RunResultsScreen : MonoBehaviour
             AddReveal(primary.gameObject, PrimaryAt, isButton: true);
         }
 
-        Button menu = RuntimeUiKit.CreateButton(panel.transform, "Back to Menu", 84f, () =>
+        Button menu = RuntimeUiKit.CreateButton(panel.transform, "Back to Menu", 96f, () =>
         {
             SfxPlayer.Play("ui-leave-game");
             MainMenuRuntime.ReturnToMenu();
@@ -334,7 +337,7 @@ public sealed class RunResultsScreen : MonoBehaviour
 
         // The badge: the tier cube centered ON the card's top edge - half in, half out. It
         // rides the panel (ignoreLayout) so the dynamic card height can never detach it;
-        // ApplyTimeline drives its overshoot pop from scale 0 at BadgeAt.
+        // ApplyTimeline drives its weighted drop and compression from BadgeAt.
         GameObject badge = new GameObject("TierBadge", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         _badge = (RectTransform)badge.transform;
         _badge.SetParent(panel.transform, false);
@@ -349,6 +352,7 @@ public sealed class RunResultsScreen : MonoBehaviour
         badgeImage.color = MedalStyle.IconTint(earned: true);
         badgeImage.preserveAspect = true;
         badgeImage.raycastTarget = false;
+        _badgeSweep = MedalLightSweepFx.Attach(badgeImage, BadgeAt + .42f);
 
         // "{TIER} TIER REACHED" - dark text on the tier's gradient capsule, the card's first row.
         GameObject chipRow = new GameObject("ChipRow", typeof(RectTransform));
@@ -363,11 +367,12 @@ public sealed class RunResultsScreen : MonoBehaviour
         TextMeshProUGUI chipLabel = RuntimeUiKit.CreateTmp(chip, "Label",
             $"{MedalStyle.DisplayName(tier)} TIER REACHED", 22, MedalStyle.ChipText,
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        chipLabel.font = RuntimeUiKit.TmpDisplayFont;
         chipLabel.characterSpacing = 5f;
         AddReveal(chipRow, KickerAt);
 
-        // Confetti + rays fire on the badge's pop-in frame, behind the card.
-        _celebrationFx = ResultsCelebrationFx.Attach(fxLayer, _badge, tier, BadgeAt);
+        // Confetti + rays begin on the badge's impact frame, behind the card.
+        _celebrationFx = ResultsCelebrationFx.Attach(fxLayer, _badge, tier, BadgeAt + .27f);
     }
 
     // The card's centered horizontal row scaffold (medal row, coins row): fixed-size
@@ -424,8 +429,8 @@ public sealed class RunResultsScreen : MonoBehaviour
         return tmp;
     }
 
-    // The record celebration: a dark pill with a gold edge, gold NEW BEST, and the recurring
-    // card-shine sweep - the game's one sanctioned "this earned gold" visual word.
+    // The record marker: a borderless dark pill, chapter-accent type and a restrained
+    // neutral sweep. Reward gold belongs to currency and earned medal material.
     private void BuildNewBestPill(Transform parent)
     {
         GameObject row = new GameObject("NewBestRow", typeof(RectTransform));
@@ -438,16 +443,15 @@ public sealed class RunResultsScreen : MonoBehaviour
         Image fill = pill.gameObject.AddComponent<Image>();
         fill.sprite = RuntimeSprites.RoundedPanel();
         fill.type = Image.Type.Sliced;
-        fill.color = new Color(0.10f, 0.085f, 0.04f, 0.9f);
+        fill.color = new Color(.105f, .105f, .115f, 1f);
         fill.raycastTarget = false;
-        RuntimeUiKit.AddOutline(pill, WithAlpha(Gold, 0.8f));
 
-        TextMeshProUGUI label = RuntimeUiKit.CreateTmp(pill, "Label", "NEW BEST", 30, Gold,
+        TextMeshProUGUI label = RuntimeUiKit.CreateTmp(pill, "Label", "NEW BEST", 26, GameMenuStyle.Accent,
             TextAnchor.MiddleCenter, FontStyle.Normal, RuntimeUiKit.TitleFont);
         label.font = RuntimeUiKit.TmpDisplayFont;
         label.characterSpacing = 8f;
 
-        AbilityCardShine.Attach(pill, new Color(1f, 0.92f, 0.65f, 0.30f), 1.8f);
+        AbilityCardShine.Attach(pill, new Color(1f, 1f, 1f, .18f), 2.8f);
         AddReveal(row, RecordAt);
     }
 
@@ -498,6 +502,10 @@ public sealed class RunResultsScreen : MonoBehaviour
 
     private static void RoundButton(Button button)
     {
+        ModalPresentationFx.StyleAction(button);
+        ((RectTransform)button.transform).SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 96f);
+        var layout = button.GetComponent<LayoutElement>();
+        if (layout != null) layout.preferredHeight = 96f;
         Image image = button.GetComponent<Image>();
         image.sprite = RuntimeSprites.RoundedPanel();
         image.type = Image.Type.Sliced;
@@ -533,6 +541,7 @@ public sealed class RunResultsScreen : MonoBehaviour
 
     private void ApplyTimeline()
     {
+        ModalPresentationFx.Pose(_panel, _clock);
         if (_clock < 0.3f || _backdrop.color.a < _backdropAlpha)
         {
             SetBackdropAlpha(_backdropAlpha * Mathf.Clamp01(_clock / 0.25f));
@@ -543,11 +552,11 @@ public sealed class RunResultsScreen : MonoBehaviour
             Reveal reveal = _reveals[i];
             if (reveal.Group == null) continue;
             float t = Mathf.Clamp01((_clock - reveal.Start) / RevealSeconds);
-            reveal.Group.alpha = t;
+            reveal.Group.alpha = 1f - Mathf.Pow(1f - t, 3f);
             // Same curve as UiEntranceFx (the house UI arrival); hand-rolled here only because
             // the tap-to-skip fast-forward must be able to jump every element to its end state.
-            float overshoot = 1f + 0.06f * Mathf.Sin(t * Mathf.PI);
-            reveal.Group.transform.localScale = Vector3.one * (Mathf.Lerp(0.92f, 1f, t) * overshoot);
+            float ease = 1f - Mathf.Pow(1f - t, 3f);
+            reveal.Group.transform.localScale = Vector3.one * Mathf.Lerp(reveal.IsButton ? .985f : .96f, 1f, ease);
             if (reveal.IsButton && t >= 1f && !reveal.Group.interactable)
             {
                 reveal.Group.interactable = true;
@@ -559,15 +568,20 @@ public sealed class RunResultsScreen : MonoBehaviour
         TickHero();
     }
 
-    // The badge's overshoot pop (scale 0 -> past 1 -> settle), computed from the clock so
+    // The badge's weighted drop and compression, computed from the clock so
     // FastForward lands it at rest like every other element. Nulled once settled: the card
     // ticks on well past the pop, and re-writing an identical scale re-dirties the layout.
     private void TickBadge()
     {
         if (_badge == null) return;
         float t = (_clock - BadgeAt) / BadgePopSeconds;
-        float scale = FxKit.EaseOutBack(t); // clamps t; exactly 0 at 0, 1 at 1
-        _badge.localScale = new Vector3(scale, scale, 1f);
+        float u = Mathf.Clamp01(t);
+        float drop = Mathf.Clamp01(u / .45f);
+        float settle = Mathf.Clamp01((u - .45f) / .55f);
+        float compression = Mathf.Sin(settle * Mathf.PI * 2f) * Mathf.Exp(-settle * 4f);
+        float size = Mathf.Lerp(.76f, 1f, drop * drop);
+        _badge.anchoredPosition = new Vector2(0f, 74f * (1f - drop * drop));
+        _badge.localScale = _clock < BadgeAt ? Vector3.zero : new Vector3(size * (1f + .12f * compression), size * (1f - .10f * compression), 1f);
         if (t >= 1f) _badge = null;
     }
 
@@ -593,11 +607,11 @@ public sealed class RunResultsScreen : MonoBehaviour
         if (_landed && _punchAge < PunchSeconds)
         {
             _punchAge += Time.unscaledDeltaTime;
-            float scale = _punchAge >= PunchSeconds ? 1f : FxKit.Elastic(_punchAge, 0.16f, 6f, 18f);
+            float scale = _punchAge >= PunchSeconds ? 1f : FxKit.Elastic(_punchAge, 0.09f, 8f, 18f);
             _hero.rectTransform.localScale = new Vector3(scale, scale, 1f);
         }
 
-        // The gold moment gets its one quiet clink - the coin vocabulary, no fanfare.
+        // The record moment gets its one quiet clink - the coin vocabulary, no fanfare.
         if (_content.Metric.IsNewRecord && !_recordSfxPlayed && _clock >= RecordAt)
         {
             _recordSfxPlayed = true;
@@ -621,6 +635,7 @@ public sealed class RunResultsScreen : MonoBehaviour
         // The fx runs its own real-time clock: without this, a skip-tap in the first frames
         // lands the final card and THEN the confetti erupts, out of sync with everything.
         if (_celebrationFx != null) _celebrationFx.SkipDelay();
+        if (_badgeSweep != null) _badgeSweep.Finish();
         _landed = true;
         _punchAge = PunchSeconds;
         _recordSfxPlayed = true;
@@ -630,5 +645,16 @@ public sealed class RunResultsScreen : MonoBehaviour
             _hero.rectTransform.localScale = Vector3.one;
         }
         ApplyTimeline();
+        // Subtracting the final reveal's start can round just below its duration.
+        // A skip must expose every action immediately, including within this frame.
+        foreach (var reveal in _reveals)
+        {
+            if (reveal.Group == null) continue;
+            reveal.Group.alpha = 1f;
+            reveal.Group.transform.localScale = Vector3.one;
+            if (!reveal.IsButton) continue;
+            reveal.Group.interactable = true;
+            reveal.Group.blocksRaycasts = true;
+        }
     }
 }

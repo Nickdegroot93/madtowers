@@ -40,6 +40,7 @@ public sealed class FloodFx : MonoBehaviour
     // steal it and StopLoop would kill the water).
     private const float BedMaxVolume = 0.55f;
 
+    private static FloodFx _active;
     private Material _material;
     private AudioSource _bed;
     private float _phase;
@@ -51,11 +52,13 @@ public sealed class FloodFx : MonoBehaviour
     {
         var go = new GameObject("FloodFx");
         var fx = go.AddComponent<FloodFx>();
+        _active = fx;
 
         var sr = go.AddComponent<SpriteRenderer>();
         sr.sprite = RuntimeSprites.Square();
         Shader shader = Resources.Load<Shader>("Flood");
         fx._material = new Material(shader);
+        fx._material.SetTexture("_NoiseTex", SurfaceSceneFx.Acquire(flood: true));
         fx._material.SetColor("_ShallowColor", shallow);
         fx._material.SetColor("_DeepColor", deep);
         fx._material.SetColor("_FoamColor", foam);
@@ -93,6 +96,13 @@ public sealed class FloodFx : MonoBehaviour
     /// Stepped inputs are fine - the visual slews (see DangerSlewPerSecond).</summary>
     public void SetDanger(float danger) => _targetDanger = Mathf.Clamp01(danger);
 
+    /// <summary>The existing swallow splash dents the rendered shoulder only.</summary>
+    public static void Disturb(float x)
+    {
+        if (_active == null || _active._material == null) return;
+        _active._material.SetVector("_Splash", new Vector4(x, _active._phase, 0f, 0f));
+    }
+
     private void Update()
     {
         // Scaled time: a pause freezes the flood, visually and mechanically (PHYSICS.md).
@@ -127,6 +137,8 @@ public sealed class FloodFx : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (_active == this) _active = null;
         if (_material != null) Destroy(_material);
+        SurfaceSceneFx.Release(flood: true);
     }
 }

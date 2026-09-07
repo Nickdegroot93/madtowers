@@ -135,9 +135,9 @@ public class MedalHud : MonoBehaviour
         GameObject go = new GameObject("MedalDebut", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         RectTransform rect = (RectTransform)go.transform;
         rect.SetParent(_canvasRoot.transform, false);
-        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.7f);
         rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = new Vector2(0f, 120f); // a little above center, clear of the tower
+        rect.anchoredPosition = Vector2.zero; // bank at the countdown cube's position
         // The corner card's LIVE width (anchor-stretched to the bar geometry) at debut scale,
         // so the fly-in still lands pixel-identical on the card.
         float pillWidth = _pill != null && _pill.rect.width > 1f ? _pill.rect.width : 290f;
@@ -146,6 +146,7 @@ public class MedalHud : MonoBehaviour
 
         (Image icon, TextMeshProUGUI label) = BuildPillVisual(rect, DebutScale);
         ApplyTierVisual(icon, label, tier);
+        MedalLightSweepFx.Attach(icon, DebutPopSeconds);
         return rect;
     }
 
@@ -175,9 +176,10 @@ public class MedalHud : MonoBehaviour
 
         if (_debutClock < DebutPopSeconds)
         {
-            // Overshoot pop from zero - the same FxKit curve as the celebration cards' badge,
-            // so the two moments feel identical.
-            float scale = FxKit.EaseOutBack(_debutClock / DebutPopSeconds);
+            // A short compression settle at the countdown cube's position, then the
+            // existing hold and corner flight carry the banked rung into the HUD.
+            float u = Mathf.Clamp01(_debutClock / DebutPopSeconds);
+            float scale = Mathf.Lerp(.86f, 1f, FxKit.EaseOutBack(u));
             _debut.localScale = new Vector3(scale, scale, 1f);
             return;
         }

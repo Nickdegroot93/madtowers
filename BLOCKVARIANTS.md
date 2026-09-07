@@ -292,3 +292,32 @@ near-black threshold plus non-finite checks: a pure-black-only detector missed d
 brown artifacts. Editor screenshots and successful compilation alone cannot validate
 this bug. Check that the six DXC directives, precision opt-ins and Boulder branch
 survived before changing textures or shared rendering paths.
+
+## 7. Adjacent world surfaces (visual pass, 2026-09-06)
+
+The flood and void are level modifiers, not brick variants. Their presentation now uses
+the same material/value vocabulary as the carved chapter stone:
+
+- **Flood:** a dark rolling shoulder, sparse thin foam, depth absorption, shallow reflected
+  sky/tower colour and fading caustic ribbons. Half-resolution world sampling tints,
+  softens and slightly displaces submerged bricks. The existing swallow splash also
+  dents the rendered shoulder. Danger agitates the existing envelope without changing
+  the palette. `Flood.shader` uses exactly two tileable-noise taps per fragment, no hash
+  noise; one scene refraction tap plus a shallow-only reflection tap. `FloodFx` keeps
+  scaled phase integration, danger slew and its sound bed unchanged.
+- **Void:** a chipped violet cut face around the existing rectangular footprint, distorted
+  backdrop, organic purple currents around a wandering dark eye, and eight inward dust
+  chips. The coloured edge remains readable on all four sides; counter-moving folds
+  breathe inside the fixed footprint (visibility/motion refinement after feedback).
+  Tightening and snap fit inside the original 0.7 s arming interval. Feeding uses the existing `Feed`
+  signal. A preallocated cosmetic remnant collapses for 0.24 s and fades for 0.22 s
+  after the rule zone is removed; it never retains collision or extends zone lifetime.
+  The 0.25-unit visual apron is not an expansion of the gameplay rectangle. All void
+  phase/debris/close motion is scaled; `void_open` and `void_suck` remain rule-owned.
+
+`SurfaceSceneFx` supplies shared tileable noise and half-resolution world-only captures
+through URP RenderGraph. It adds no camera, collider, rigidbody or gameplay RNG calls.
+It redraws visible world renderers below the relevant sorting order, excluding surfaces,
+post processing and UI. Capture resources are released with the last surface/remnant.
+The modifier rule files and `VoidSuckFx` were not changed. Evidence and timing logs:
+`ArtReviews/SurfaceRestyle/`.

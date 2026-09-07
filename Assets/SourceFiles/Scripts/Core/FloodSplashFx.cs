@@ -38,6 +38,7 @@ public sealed class FloodSplashFx : MonoBehaviour
             y = Mathf.Max(y, cam.transform.position.y - cam.orthographicSize + 1.1f);
         }
 
+        FloodFx.Disturb(x);
         var go = new GameObject("FloodSplashFx");
         var fx = go.AddComponent<FloodSplashFx>();
         Vector3 center = new Vector3(x, y, 0f);
@@ -51,7 +52,7 @@ public sealed class FloodSplashFx : MonoBehaviour
             drop.transform.SetParent(go.transform, false);
             drop.transform.position = center + new Vector3(Random.Range(-0.35f, 0.35f), 0f, 0f);
             float size = Random.Range(0.14f, 0.32f);
-            drop.transform.localScale = new Vector3(size, size, 1f);
+            drop.transform.localScale = new Vector3(size * .60f, size * 1.25f, 1f);
             var sr = drop.AddComponent<SpriteRenderer>();
             sr.sprite = RuntimeSprites.SoftBlob();
             sr.color = DropletColor;
