@@ -21,8 +21,8 @@ public sealed class ModalPresentationFx : MonoBehaviour
         rect.anchorMax = new Vector2(.90f, .5f);
         rect.sizeDelta = new Vector2(0f, rect.sizeDelta.y);
         var layout = panel.GetComponent<VerticalLayoutGroup>();
-        layout.padding = new RectOffset(44, 44, 42, 38);
-        layout.spacing = 18f;
+        layout.padding = new RectOffset(56, 56, 54, 48);
+        layout.spacing = 24f;
         panel.AddComponent<WidthFitter>();
         return rect;
     }
@@ -64,7 +64,7 @@ public sealed class ModalPresentationFx : MonoBehaviour
             button.colors = colors;
         }
         foreach (var label in button.GetComponentsInChildren<TextMeshProUGUI>())
-            label.font = RuntimeUiKit.TmpDisplayFont;
+            label.font = RuntimeUiKit.TmpTitleFont;
     }
 
     private static void ReplaceType(Text label)
@@ -74,7 +74,7 @@ public sealed class ModalPresentationFx : MonoBehaviour
             Mathf.Max(20, label.fontSize), label.color, label.alignment,
             FontStyle.Normal, RuntimeUiKit.TitleFont);
         if (label.fontStyle == FontStyle.Bold || label.fontStyle == FontStyle.BoldAndItalic)
-            tmp.font = RuntimeUiKit.TmpDisplayFont;
+            tmp.font = RuntimeUiKit.TmpTitleFont;
         tmp.raycastTarget = false;
         label.enabled = false;
         var mirror = label.gameObject.AddComponent<DisplayLabel>();
@@ -100,7 +100,7 @@ public sealed class ModalPresentationFx : MonoBehaviour
     {
         float u = Mathf.Clamp01(age / .46f);
         float ease = 1f - Mathf.Pow(1f - u, 4f);
-        panel.anchoredPosition = new Vector2(0f, 46f * (1f - ease));
+        panel.anchoredPosition = new Vector2(0f, 24f * (1f - ease));
         float settle = Mathf.Sin(u * Mathf.PI) * Mathf.Exp(-u * 5f);
         panel.localScale = new Vector3(1f + settle * .018f, 1f - settle * .028f, 1f);
     }

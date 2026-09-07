@@ -31,8 +31,6 @@ public static partial class MainMenuRuntime
     private const float SettingsBodyTopInset = 344f;
     private const float SettingsBodyBottomInset = 236f;
     private const float SettingsBodySideInset = 60f;
-    private const float SettingsRailWidth = 220f;
-    private const float SettingsRailGap = 18f;
 
     private static void BuildSettingsScreen(Transform parent, ChapterDefinition chapter)
     {
@@ -86,103 +84,50 @@ public static partial class MainMenuRuntime
         TextMeshProUGUI subtitle = CreateTmp(parent, "SettingsSubtitle", "Adjust your game preferences.", 22,
             TextPrimary, TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.TitleFont,
             new Vector2(134f, -268f), new Vector2(640f, 32f), new Vector2(0f, 1f));
-        AddTextShadow(subtitle, 0.4f, new Vector2(0f, -1f), 0.4f);
+        AddTextShadow(subtitle, 0.18f, new Vector2(0f, -1f), 0.4f);
     }
 
     private static void BuildSettingsRail(Transform body, ChapterDefinition chapter, Color light)
     {
-        RectTransform rail = CreateRect(body, "SettingsRail",
-            new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f),
-            Vector2.zero, new Vector2(SettingsRailWidth, 0f));
-        Image railImage = rail.gameObject.AddComponent<Image>();
-        railImage.sprite = RuntimeSprites.RoundedPanel();
-        railImage.type = Image.Type.Sliced;
-        railImage.color = MenuGlassFill(chapter, 0.55f);
-        AddFrostedGlass(rail, chapter != null ? chapter.MenuBackgroundImage : null, 0.7f);
-        RuntimeUiKit.AddOutline(rail, GlassBorder);
-
-        SettingsTab[] tabs =
-        {
-            SettingsTab.Controls, SettingsTab.Graphics, SettingsTab.Sound,
-            SettingsTab.Notifications, SettingsTab.Account, SettingsTab.About
-        };
-        for (int i = 0; i < tabs.Length; i++) BuildSettingsTab(rail, tabs[i], i, tabs.Length, light);
+        var rail = CreateRect(body, "SettingsCategories", new Vector2(0,1), Vector2.one,
+            new Vector2(.5f,1), Vector2.zero, new Vector2(0,192));
+        SettingsTab[] tabs = { SettingsTab.Controls, SettingsTab.Graphics, SettingsTab.Sound,
+            SettingsTab.Notifications, SettingsTab.Account, SettingsTab.About };
+        for (int i=0;i<tabs.Length;i++) BuildSettingsTab(rail,tabs[i],i,tabs.Length,light);
     }
 
-    // One tab = a slot stretched to a fraction (1/count) of the rail height, top-down. Selected
-    // tab gets a chapter-light outline + soft glow + an inner-edge diamond notch.
     private static void BuildSettingsTab(Transform rail, SettingsTab tab, int index, int count, Color light)
     {
-        float top = 1f - index / (float)count;
-        float bottom = 1f - (index + 1) / (float)count;
-        RectTransform slot = CreateRect(rail, $"{tab}Tab",
-            new Vector2(0f, bottom), new Vector2(1f, top), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-        slot.offsetMin = Vector2.zero;
-        slot.offsetMax = Vector2.zero;
-        Image hit = slot.gameObject.AddComponent<Image>();
-        hit.color = Color.clear;
-        hit.raycastTarget = true;
-        Button button = slot.gameObject.AddComponent<Button>();
-        button.targetGraphic = hit;
-        button.onClick.AddListener(() =>
-        {
-            SfxPlayer.Play("ui-button-click");
-            _activeSettingsTab = tab;
-            BuildMenu();
-        });
-
-        bool selected = tab == _activeSettingsTab;
-        if (selected)
-        {
-            // Lit cell spanning the FULL rail width (only a small top/bottom inset, so adjacent
-            // tabs stay visually separated): chapter-light fill, bright outline, soft halo.
-            Image highlight = CreateImage(slot, "Highlight", RuntimeSprites.RoundedPanel(), WithAlpha(light, 0.12f));
-            highlight.type = Image.Type.Sliced;
-            RectTransform hr = highlight.rectTransform;
-            hr.anchorMin = Vector2.zero;
-            hr.anchorMax = Vector2.one;
-            hr.offsetMin = new Vector2(0f, 9f);
-            hr.offsetMax = new Vector2(0f, -9f);
-
-            // Soft halo behind the selected tile (uGUI has no box-shadow; a zero-distance blurred
-            // Replace-tinted shadow of the filled rect is the glow, same trick the level card uses).
-            UIEffect glow = highlight.gameObject.AddComponent<UIEffect>();
-            glow.shadowMode = ShadowMode.Shadow;
-            glow.shadowDistance = Vector2.zero;
-            glow.shadowIteration = 5;
-            glow.shadowBlurIntensity = 1f;
-            glow.shadowColorFilter = ColorFilter.Replace;
-            glow.shadowColor = WithAlpha(light, 0.8f);
-            RuntimeUiKit.AddOutline(highlight.transform, WithAlpha(light, 0.95f));
-        }
-
-        Color tint = selected ? Color.Lerp(light, Color.white, 0.25f) : TextMuted;
-        (string railLabel, _, _, Func<Color, Sprite> icon) = SettingsTabInfo(tab);
-
-        // Big icon and label, sitting as a tight centred cluster (small gap between the two).
-        Image glyph = CreateImage(slot, "Icon", icon(tint), Color.white);
-        glyph.preserveAspect = true;
-        SetCenteredAt(glyph.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, 20f), new Vector2(64f, 64f));
-
-        TextMeshProUGUI label = CreateTmp(slot, "Label", railLabel, 20, tint, TextAnchor.MiddleCenter,
-            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -38f), new Vector2(SettingsRailWidth - 16f, 28f),
-            new Vector2(0.5f, 0.5f));
-        label.characterSpacing = 1f;
-        AutoSize(label, 16, 20);
+        int column=index%3, row=index/3;
+        var slot=CreateRect(rail, tab+"Tab", new Vector2(column/3f,1-(row+1)/2f),
+            new Vector2((column+1)/3f,1-row/2f),new Vector2(.5f,.5f),Vector2.zero,Vector2.zero);
+        slot.offsetMin=new Vector2(6,6);slot.offsetMax=new Vector2(-6,-6);
+        bool selected=tab==_activeSettingsTab;
+        var hit=slot.gameObject.AddComponent<Image>();
+        hit.sprite=RuntimeSprites.RoundedPanel();hit.type=Image.Type.Sliced;hit.pixelsPerUnitMultiplier=3;
+        hit.color=selected ? Color.Lerp(light,Color.white,.78f) : new Color(.055f,.055f,.065f,.94f);
+        var button=slot.gameObject.AddComponent<Button>();button.targetGraphic=hit;
+        button.onClick.AddListener(()=>{SfxPlayer.Play("ui-button-click");_activeSettingsTab=tab;BuildMenu();});
+        Color ink=selected ? new Color(.13f,.13f,.14f,1):TextPrimary;
+        (string label,_,_,var icon)=SettingsTabInfo(tab);
+        var glyph=CreateImage(slot,"Icon",icon(ink),Color.white);glyph.preserveAspect=true;
+        SetCenteredAt(glyph.rectTransform,new Vector2(0,.5f),new Vector2(32,0),new Vector2(32,32));
+        var text=CreateTmp(slot,"Label",label,23,ink,TextAnchor.MiddleLeft,FontStyle.Normal,RuntimeUiKit.TitleFont);
+        text.rectTransform.offsetMin=new Vector2(62,0);text.rectTransform.offsetMax=new Vector2(-8,0);
     }
 
     private static RectTransform BuildSettingsPanel(Transform body, ChapterDefinition chapter)
     {
         RectTransform panel = CreateRect(body, "SettingsPanel",
             Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-        panel.offsetMin = new Vector2(SettingsRailWidth + SettingsRailGap, 0f);
-        panel.offsetMax = Vector2.zero;
+        panel.offsetMin = Vector2.zero;
+        panel.offsetMax = new Vector2(0f, -214f);
         Image panelImage = panel.gameObject.AddComponent<Image>();
         panelImage.sprite = RuntimeSprites.RoundedPanel();
         panelImage.type = Image.Type.Sliced;
-        panelImage.color = MenuGlassFill(chapter, 0.55f);
-        AddFrostedGlass(panel, chapter != null ? chapter.MenuBackgroundImage : null, 0.82f);
-        RuntimeUiKit.AddOutline(panel, GlassBorder);
+        panelImage.color = GameMenuStyle.PanelColor;
+
+        MenuRule(panel, GlassBorder);
         return panel;
     }
 
@@ -287,7 +232,7 @@ public static partial class MainMenuRuntime
         image.sprite = RuntimeSprites.RoundedPanel();
         image.type = Image.Type.Sliced;
         image.color = WithAlpha(accent, 0.14f);
-        RuntimeUiKit.AddOutline(button, WithAlpha(accent, 0.6f));
+        MenuRule(button, WithAlpha(accent, 0.6f));
         Button click = button.gameObject.AddComponent<Button>();
         click.targetGraphic = image;
         click.transition = Selectable.Transition.None;
@@ -476,7 +421,7 @@ public static partial class MainMenuRuntime
             guest ? "UNINSTALLING LOSES YOUR PROGRESS" : "YOUR PROGRESS IS SAFE ON EVERY DEVICE", 20,
             WithAlpha(TextMuted, 0.65f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(172f, -116f), new Vector2(520f, 24f), new Vector2(0f, 1f));
-        StretchIdentityText(detail, -116f, 24f);
+        StretchIdentityText(detail, -116f, 36f);
 
         // Same live-refresh + eager-unhook pattern as the Profile card (menu rebuilds are
         // constant, auth changes are rare - never leave dead closures on the static event).
@@ -514,7 +459,7 @@ public static partial class MainMenuRuntime
             else
             {
                 bg = CreateImage(buttons, goName, RuntimeSprites.RoundedPanel(), new Color(0.13f, 0.12f, 0.10f, 1f));
-                RuntimeUiKit.AddOutline(bg.transform, AccentOutline(0.35f));
+                MenuRule(bg.transform, AccentOutline(0.35f));
             }
             bg.type = Image.Type.Sliced;
             RectTransform rt = bg.rectTransform;
@@ -527,6 +472,7 @@ public static partial class MainMenuRuntime
             CreateTmp(bg.transform, "Label", label, 24,
                 gold ? new Color(0.16f, 0.11f, 0.04f, 1f) : TextPrimary,
                 TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+            StyleMenuAction(bg, gold, MenuAccent);
             Button button = bg.gameObject.AddComponent<Button>();
             button.targetGraphic = bg;
             button.onClick.AddListener(() => { SfxPlayer.Play("ui-button-click"); onClick?.Invoke(); });
@@ -735,7 +681,7 @@ public static partial class MainMenuRuntime
 
         CreateTmp(rows, "Credits", "MADE BY NICK DE GROOT  -  © 2026", 18,
             WithAlpha(TextMuted, 0.7f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, rowTop - 16f), new Vector2(600f, 24f), new Vector2(0.5f, 1f));
+            new Vector2(0f, rowTop - 16f), new Vector2(600f, 34f), new Vector2(0.5f, 1f));
     }
 
     /// <summary>A row whose action opens an external link (browser / mail). Same anatomy as
@@ -764,11 +710,11 @@ public static partial class MainMenuRuntime
         Image bg = CreateImage(row, goName, RuntimeSprites.RoundedPanel(), WithAlpha(accent, 0.14f));
         bg.type = Image.Type.Sliced;
         SetRect(bg.rectTransform, new Vector2(0f, -36f), new Vector2(190f, 72f), new Vector2(1f, 1f));
-        RuntimeUiKit.AddOutline(bg.rectTransform, WithAlpha(accent, 0.55f));
+        MenuRule(bg.rectTransform, WithAlpha(accent, 0.55f));
         bg.raycastTarget = true;
         TextMeshProUGUI text = CreateTmp(bg.transform, "Label", label, 22, textColor,
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
-        AutoSize(text, 16f, 22f);
+        AutoSize(text, 18f, 22f);
         Button button = bg.gameObject.AddComponent<Button>();
         button.targetGraphic = bg;
         return (button, text);
@@ -794,7 +740,7 @@ public static partial class MainMenuRuntime
         panel.type = Image.Type.Sliced;
         SetRect(panel.rectTransform, Vector2.zero, new Vector2(760f, 560f), new Vector2(0.5f, 0.5f));
         panel.raycastTarget = true;
-        RuntimeUiKit.AddOutline(panel.rectTransform, WithAlpha(danger, 0.5f));
+        MenuRule(panel.rectTransform, WithAlpha(danger, 0.5f));
 
         TextMeshProUGUI title = CreateTmp(panel.transform, "Title", "DELETE YOUR ACCOUNT?", 34, danger,
             TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
@@ -815,6 +761,7 @@ public static partial class MainMenuRuntime
         cancelBg.raycastTarget = true;
         CreateTmp(cancelBg.transform, "Label", "KEEP MY ACCOUNT", 26, new Color(0.10f, 0.08f, 0.03f, 1f),
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        StyleMenuAction(cancelBg, true, MenuAccent);
         Button cancel = cancelBg.gameObject.AddComponent<Button>();
         cancel.targetGraphic = cancelBg;
         cancel.onClick.AddListener(() =>
@@ -828,7 +775,7 @@ public static partial class MainMenuRuntime
             WithAlpha(danger, 0.12f));
         confirmBg.type = Image.Type.Sliced;
         SetRect(confirmBg.rectTransform, new Vector2(0f, 36f), new Vector2(640f, 78f), new Vector2(0.5f, 0f));
-        RuntimeUiKit.AddOutline(confirmBg.rectTransform, WithAlpha(danger, 0.6f));
+        MenuRule(confirmBg.rectTransform, WithAlpha(danger, 0.6f));
         confirmBg.raycastTarget = true;
         TextMeshProUGUI confirmLabel = CreateTmp(confirmBg.transform, "Label", "DELETE FOREVER", 23, danger,
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
@@ -884,10 +831,14 @@ public static partial class MainMenuRuntime
     /// fix THAT (hug the panel to its content / bottom watermark), not the row anchor.</summary>
     private static RectTransform NewRowsBlock(RectTransform panel)
     {
-        RectTransform block = CreateRect(panel, "Rows",
-            Vector2.zero, Vector2.one, new Vector2(0.5f, 1f), Vector2.zero, Vector2.zero);
-        block.offsetMin = Vector2.zero;
-        block.offsetMax = new Vector2(0f, -SettingsRowsTop);
+        var viewport=CreateRect(panel,"SettingsViewport",Vector2.zero,Vector2.one,new Vector2(.5f,.5f),Vector2.zero,Vector2.zero);
+        viewport.offsetMin=new Vector2(0,104);viewport.offsetMax=new Vector2(0,-SettingsRowsTop);
+        viewport.gameObject.AddComponent<RectMask2D>();
+        var hit=viewport.gameObject.AddComponent<Image>();hit.color=Color.clear;
+        var block=CreateRect(viewport,"Rows",new Vector2(0,1),Vector2.one,new Vector2(.5f,1),Vector2.zero,Vector2.zero);
+        var scroll=viewport.gameObject.AddComponent<ScrollRect>();scroll.viewport=viewport;scroll.content=block;
+        scroll.horizontal=false;scroll.vertical=true;scroll.movementType=ScrollRect.MovementType.Clamped;scroll.scrollSensitivity=40;
+        block.gameObject.AddComponent<MenuRowsFit>();
         return block;
     }
 
@@ -905,10 +856,10 @@ public static partial class MainMenuRuntime
         SetCenteredAt(glyph.rectTransform, new Vector2(0f, 1f), new Vector2(18f, -25f), new Vector2(36f, 36f));
         TextMeshProUGUI rowName = CreateTmp(row, "RowName", name, 28, TextPrimary, TextAnchor.MiddleLeft, FontStyle.Bold,
             RuntimeUiKit.TitleFont, new Vector2(52f, -6f), new Vector2(460f, 38f), new Vector2(0f, 1f));
-        StretchRowText(rowName, 52f, -6f, 38f);
+        StretchRowText(rowName, 52f, -2f, 48f);
         TextMeshProUGUI rowDesc = CreateTmp(row, "RowDesc", description, 21, SettingsDescColor, TextAnchor.MiddleLeft, FontStyle.Normal,
             RuntimeUiKit.TitleFont, new Vector2(0f, -52f), new Vector2(560f, 30f), new Vector2(0f, 1f));
-        StretchRowText(rowDesc, 0f, -52f, 30f);
+        StretchRowText(rowDesc, 0f, -54f, 38f);
     }
 
     /// <summary>Identity-block variant: stretch from the avatar column (x = 172) to the
@@ -972,7 +923,7 @@ public static partial class MainMenuRuntime
         {
             pct.text = $"{Mathf.RoundToInt(v * 100f)}%";
             onChanged?.Invoke(v);
-        }, trackThickness: 18f, handleSize: 54f);
+        }, trackThickness: 6f, handleSize: 44f);
         slider.gameObject.AddComponent<PointerUpProxy>().OnRelease = onCommit;
 
         AddRowDivider(row);
@@ -990,7 +941,7 @@ public static partial class MainMenuRuntime
         // 104x56: a real console-style switch, not a web checkbox - the row's one control
         // should look grabbable from arm's length.
         RectTransform pill = CreateRect(row, "Toggle", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
-            new Vector2(0f, -36f), new Vector2(104f, 56f));
+            new Vector2(0f, -36f), new Vector2(120f, 72f));
         CreatePillToggle(pill, value, accent, onChanged);
         return top - height;
     }
@@ -1055,7 +1006,7 @@ public static partial class MainMenuRuntime
         image.sprite = RuntimeSprites.RoundedPanel();
         image.type = Image.Type.Sliced;
         image.color = new Color(0.12f, 0.1f, 0.08f, 0.82f);
-        RuntimeUiKit.AddOutline(rect, WithAlpha(light, 0.4f));
+        MenuRule(rect, WithAlpha(light, 0.4f));
         Button button = rect.gameObject.AddComponent<Button>();
         button.targetGraphic = image;
         button.onClick.AddListener(() =>

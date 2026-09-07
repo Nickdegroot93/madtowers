@@ -1,5 +1,12 @@
 # SETTINGS.md — Settings screen design spec
 
+**September 2026 presentation update:** MENU.md supersedes the older rail/glass/
+glow typography specifications below. Six categories now occupy a three-column,
+two-row selector above a full-width opaque body. Long row sets scroll above the
+footer. Existing controls, persistence, restore, account, and notification actions
+retain their original owners. Manrope replaces the earlier menu fonts.
+
+
 **Status:** binding. **Sound & Haptics, Graphics, Controls and Account are
 implemented** — `MainMenuRuntime.Settings.cs` builds the chapter-themed rail and
 panels (wired into `BuildMenu` under `MenuTab.Settings`), `SettingsService`

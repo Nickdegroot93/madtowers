@@ -78,3 +78,5 @@ Tools/bin/
 /ArtReviews/AppStore/
 /ArtReviews/SurfaceRestyle/*
 !/ArtReviews/SurfaceRestyle/README.md
+
+/ArtReviews/MenuRestyle/

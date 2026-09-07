@@ -112,7 +112,7 @@ public static partial class MainMenuRuntime
     /// One height for tiered and untiered levels: the progress track (2026-08-29 redesign)
     /// occupies the same vertical as the classic TARGET/BEST pair.</summary>
     private static float ModalHeightWithSupplies(LevelDefinition level)
-        => 768f + SuppliesSectionHeight(level);
+        => 792f + SuppliesSectionHeight(level);
 
     private static string CoinText(int amount) => amount.ToString("N0", CultureInfo.InvariantCulture);
 
@@ -157,7 +157,7 @@ public static partial class MainMenuRuntime
 
         TextMeshProUGUI header = CreateTmp(section, "Header", "SUPPLIES - THIS RUN ONLY", 18,
             WithAlpha(TextMuted, 0.9f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(4f, 0f), new Vector2(500f, 22f), new Vector2(0f, 1f));
+            new Vector2(4f, 0f), new Vector2(500f, 28f), new Vector2(0f, 1f));
         header.characterSpacing = 3f;
 
         // A mode that grants its lives for free (the Flood: all 3) gets the acknowledgment
@@ -328,7 +328,7 @@ public static partial class MainMenuRuntime
     {
         CreateTmp(row, "Label", "RUN LIVES", 21, TextPrimary, TextAnchor.UpperLeft,
             FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(24f, -16f), new Vector2(220f, 28f), new Vector2(0f, 1f));
+            new Vector2(24f, -16f), new Vector2(220f, 32f), new Vector2(0f, 1f));
     }
 
     private static void BuildLivesPips(RectTransform row, int filledCount)
@@ -336,9 +336,8 @@ public static partial class MainMenuRuntime
         for (int i = 0; i < RunState.MaxLives; i++)
         {
             bool filled = i < filledCount;
-            Sprite pipSprite = filled ? HeartSprites.Full() : HeartSprites.Empty();
-            Color pipColor = filled || HeartSprites.HasDedicatedEmpty
-                ? Color.white : new Color(1f, 1f, 1f, 0.16f);
+            Sprite pipSprite = HudGlyphs.Get(filled ? HudGlyphs.Mark.Heart : HudGlyphs.Mark.EmptyHeart);
+            Color pipColor = filled ? Color.Lerp(MenuAccent, new Color(.82f,.4f,.43f,1), .65f) : WithAlpha(TextMuted,.7f);
             Image pip = CreateImage(row, $"Pip{i}", pipSprite, pipColor);
             pip.preserveAspect = true;
             SetRect(pip.rectTransform, new Vector2(24f + i * 48f, 12f), new Vector2(40f, 40f), new Vector2(0f, 0f));
@@ -353,7 +352,7 @@ public static partial class MainMenuRuntime
 
         CreateTmp(row, "Label", "BOOSTS", 21, TextPrimary, TextAnchor.UpperLeft,
             FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(24f, -16f), new Vector2(300f, 28f), new Vector2(0f, 1f));
+            new Vector2(24f, -16f), new Vector2(300f, 32f), new Vector2(0f, 1f));
 
         // Picked boosts render as their ICONS under the title (redesign, Nick 2026-08-29) -
         // equipment looks like equipment, and the icons echo the picker cards.
@@ -361,7 +360,7 @@ public static partial class MainMenuRuntime
         {
             CreateTmp(row, "Picked", "NONE PICKED", 18, WithAlpha(TextMuted, 0.9f),
                 TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-                new Vector2(24f, -54f), new Vector2(ui.ContentW - 300f, 24f), new Vector2(0f, 1f));
+                new Vector2(24f, -54f), new Vector2(ui.ContentW - 300f, 30f), new Vector2(0f, 1f));
         }
         else
         {
@@ -575,8 +574,8 @@ public static partial class MainMenuRuntime
         Image fill = row.gameObject.AddComponent<Image>();
         fill.sprite = RuntimeSprites.RoundedPanel();
         fill.type = Image.Type.Sliced;
-        fill.color = new Color(0.10f, 0.10f, 0.115f, 1f); // neutral - the warm brown fill read as off-palette (Nick 2026-08-29)
-        RuntimeUiKit.AddOutline(row, GlassBorder);
+        fill.color = Color.clear; // neutral - the warm brown fill read as off-palette (Nick 2026-08-29)
+        MenuRule(row, GlassBorder);
         return row;
     }
 
@@ -595,22 +594,22 @@ public static partial class MainMenuRuntime
         // RIGHT edge relative to the row's right edge - callers pass e.g. (-24, 0).
         SetRect(bg.rectTransform, rightOffset, new Vector2(width, 80f), new Vector2(1f, 0.5f));
         bg.raycastTarget = true;
-        RuntimeUiKit.AddOutline(bg.rectTransform,
+        MenuRule(bg.rectTransform,
             accented ? WithAlpha(accent, enabled ? 0.8f : 0.3f) : WithAlpha(TextMuted, enabled ? 0.5f : 0.2f));
 
         Color textColor = enabled ? (accented ? accent : TextPrimary) : WithAlpha(LockedColor, 0.8f);
         if (price < 0)
         {
-            TextMeshProUGUI text = CreateTmp(bg.transform, "Label", label, 19, textColor,
+            TextMeshProUGUI text = CreateTmp(bg.transform, "Label", label, 22, textColor,
                 TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
-            AutoSize(text, 16f, 19f);
+            AutoSize(text, 18f, 22f);
         }
         else
         {
-            TextMeshProUGUI text = CreateTmp(bg.transform, "Label", label, 19, textColor,
+            TextMeshProUGUI text = CreateTmp(bg.transform, "Label", label, 22, textColor,
                 TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
                 new Vector2(20f, 0f), new Vector2(width - 130f, 32f), new Vector2(0f, 0.5f));
-            AutoSize(text, 16f, 19f);
+            AutoSize(text, 18f, 22f);
             CreateCoinAmount(bg.transform, price, 19, textColor, -16f);
         }
 
@@ -628,7 +627,7 @@ public static partial class MainMenuRuntime
         const float numberW = 74f;
         CreateTmp(parent, "Amount", CoinText(amount), fontSize, color, TextAnchor.MiddleRight,
             FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(rightX, 0f), new Vector2(numberW, 30f), new Vector2(1f, 0.5f));
+            new Vector2(rightX, 0f), new Vector2(numberW, 36f), new Vector2(1f, 0.5f));
         Sprite coin = MenuIcon("coin");
         if (coin == null) return;
         Image icon = CreateImage(parent, "Coin", coin, Color.white);
@@ -689,21 +688,22 @@ public static partial class MainMenuRuntime
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(W, H));
         Image panelImage = panel.gameObject.AddComponent<Image>();
-        GameMenuStyle.StylePanel(panel.gameObject); // the one modal-panel treatment
+        GameMenuStyle.StylePanel(panel.gameObject);
+        ModalSafeFrame.Attach(panel); // the one modal-panel treatment
         panelImage.raycastTarget = true;
 
         TextMeshProUGUI title = CreateTmp(panel, "Title", "BOOSTS", 36, TextPrimary,
             TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(pad, -34f), new Vector2(400f, 46f), new Vector2(0f, 1f));
+            new Vector2(pad, -34f), new Vector2(400f, 54f), new Vector2(0f, 1f));
         title.characterSpacing = 4f;
         CreateTmp(panel, "Sub", "THIS RUN ONLY - TAP TO EQUIP", 18,
             WithAlpha(TextMuted, 0.85f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(pad, -82f), new Vector2(600f, 22f), new Vector2(0f, 1f));
+            new Vector2(pad, -82f), new Vector2(600f, 28f), new Vector2(0f, 1f));
 
         // The slot counter tells the player where the cap lives before they hit it.
         TextMeshProUGUI slots = CreateTmp(panel, "Slots", "", 26, ui.Accent, TextAnchor.UpperRight,
             FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(-pad - 76f, -38f), new Vector2(160f, 34f), new Vector2(1f, 1f));
+            new Vector2(-pad - 76f, -38f), new Vector2(160f, 40f), new Vector2(1f, 1f));
         slots.characterSpacing = 2f;
 
         Color closeFill = new Color(0.03f, 0.03f, 0.04f, 0.55f);
@@ -771,6 +771,7 @@ public static partial class MainMenuRuntime
         TextMeshProUGUI doneLabel = CreateTmp(doneBg.transform, "Label", "DONE", 30,
             TextPrimary, TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
         doneLabel.characterSpacing = 3f;
+        StyleMenuAction(doneBg, true, ui.Accent);
         Button doneButton = doneBg.gameObject.AddComponent<Button>();
         doneButton.targetGraphic = doneBg;
         doneButton.onClick.AddListener(() =>
@@ -802,7 +803,7 @@ public static partial class MainMenuRuntime
         body.type = Image.Type.Sliced;
         Stretch(body.rectTransform);
         body.raycastTarget = true;
-        RuntimeUiKit.AddOutline(card, selected
+        MenuRule(card, selected
             ? WithAlpha(accent, 0.9f)
             : WithAlpha(GlassBorder, interactable ? 1f : 0.5f));
 
@@ -813,10 +814,12 @@ public static partial class MainMenuRuntime
         CreateBoostIconAt(card, boost.Id, ui.Accent, new Vector2(30f, 0f), 60f, new Vector2(0f, 0.5f), alpha);
         CreateTmp(card, "Name", boost.DisplayName.ToUpperInvariant(), 25, WithAlpha(TextPrimary, alpha),
             TextAnchor.LowerLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(110f, 20f), new Vector2(width - 358f, 32f), new Vector2(0f, 0.5f));
-        CreateTmp(card, "Blurb", boost.Blurb, 18, WithAlpha(TextMuted, alpha),
+            new Vector2(110f, 20f), new Vector2(width - 358f, 38f), new Vector2(0f, 0.5f));
+        var blurb = CreateTmp(card, "Blurb", boost.Blurb, 18, WithAlpha(TextMuted, alpha),
             TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont,
-            new Vector2(110f, -16f), new Vector2(width - 358f, 24f), new Vector2(0f, 0.5f));
+            new Vector2(110f, -16f), new Vector2(width - 358f, 54f), new Vector2(0f, 0.5f));
+
+        blurb.textWrappingMode = TextWrappingModes.Normal;
 
         if (selected)
         {
@@ -832,7 +835,7 @@ public static partial class MainMenuRuntime
             check.raycastTarget = false;
             CreateTmp(card, "Tag", "EQUIPPED", 18, accent, TextAnchor.MiddleCenter,
                 FontStyle.Bold, RuntimeUiKit.TitleFont,
-                new Vector2(-64f, -32f), new Vector2(140f, 20f), new Vector2(1f, 0.5f));
+                new Vector2(-64f, -32f), new Vector2(140f, 28f), new Vector2(1f, 0.5f));
         }
         else
         {
@@ -842,7 +845,7 @@ public static partial class MainMenuRuntime
             {
                 CreateTmp(card, "Full", "SLOTS FULL", 18, WithAlpha(LockedColor, 0.85f),
                     TextAnchor.MiddleRight, FontStyle.Bold, RuntimeUiKit.TitleFont,
-                    new Vector2(-32f, -34f), new Vector2(160f, 18f), new Vector2(1f, 0.5f));
+                    new Vector2(-32f, -34f), new Vector2(160f, 28f), new Vector2(1f, 0.5f));
             }
         }
 
@@ -885,9 +888,9 @@ public static partial class MainMenuRuntime
         ui.PlayLabel.fontSize = boosted || !canStart ? 27f : 36f;
         if (ui.PlayOutline != null) UnityEngine.Object.Destroy(ui.PlayOutline);
         ui.PlayOutline = boosted && canStart
-            ? RuntimeUiKit.AddOutline(ui.PlayBg.rectTransform, WithAlpha(Color.Lerp(ui.Accent, Color.white, 0.35f), 0.95f)).gameObject
+            ? MenuRule(ui.PlayBg.rectTransform, WithAlpha(Color.Lerp(ui.Accent, Color.white, 0.35f), 0.95f)).gameObject
             : null;
-        ui.PlayBg.color = canStart ? Color.white : new Color(0.45f, 0.45f, 0.45f, 1f);
+        ui.PlayBg.color = canStart ? Color.Lerp(ui.Accent, Color.white, .78f) : new Color(.45f,.45f,.45f,1f);
         if (ui.PlayButton != null) ui.PlayButton.interactable = canStart;
     }
 }

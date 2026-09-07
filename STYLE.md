@@ -123,5 +123,6 @@ here changes, change it in every generator (and the C# constant it mirrors).
 The gameplay HUD uses open groups over the chapter: objective left, a muted chapter-ink next piece
 centred inside fine open brackets in the centre, simple hearts and pause bars right. Typography
 is Manrope Medium/Semibold, with chapter-specific ink from `HudVisualStyle`. Secondary
-readouts and hold-steady share it. This is distinct from the opaque near-black modal
-sheets and Archivo Black display headings. Full specification: [HUD.md](HUD.md).
+readouts and hold-steady share it. The surrounding menu and modal UI now shares this typography: opaque near-black sheets,
+pale chapter-ink actions, and quiet separators. Pause is open over its frozen shroud.
+Specifications: [HUD.md](HUD.md), [MENU.md](MENU.md).

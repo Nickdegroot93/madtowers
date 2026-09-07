@@ -19,7 +19,7 @@ public static partial class MainMenuRuntime
     private const float CurrencyCardFrostWash = 0.82f;
     private const float LevelCardFrostWash = 0.95f;
 
-    private const float LevelListTopInset = 485f;
+    private const float LevelListTopInset = 414f;
     // The list's scroll area must end ABOVE the next-chapter card (card bottom 232 + height 160
     // + a small gap): long chapters scroll behind neither the card nor the nav, and a partly
     // visible next row peeks out at this edge as the natural "there's more" cue.
@@ -38,11 +38,11 @@ public static partial class MainMenuRuntime
     // Text column region inside a card: starts right of the thumbnail/number plate, ends
     // before the action badge. The column itself flows with a layout group, so these are
     // the only two card-internal x values left to tune.
-    private const float LevelCardTextLeft = 248f;
+    private const float LevelCardTextLeft = 232f;
     private const float LevelCardTextRight = 124f;
 
-    private static readonly Color TextPrimary = new Color(0.96f, 0.93f, 0.86f, 1f);
-    private static readonly Color TextMuted = new Color(0.74f, 0.7f, 0.64f, 1f);
+    private static readonly Color TextPrimary = new Color(0.94f, 0.93f, 0.90f, 1f);
+    private static readonly Color TextMuted = new Color(0.72f, 0.72f, 0.71f, 1f);
     private static readonly Color LockedColor = new Color(0.44f, 0.46f, 0.48f, 1f);
     private static readonly Color CardDark = new Color(0.07f, 0.06f, 0.05f, 0.76f);
     // (GoldBase, the menu's old gold chrome constant, was retired 2026-08-30 - Nick: no gold

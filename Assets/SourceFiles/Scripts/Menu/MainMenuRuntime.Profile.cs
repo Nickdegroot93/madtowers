@@ -112,7 +112,7 @@ public static partial class MainMenuRuntime
             else
             {
                 bg = CreateImage(card, goName, RuntimeSprites.RoundedPanel(), new Color(0.13f, 0.12f, 0.10f, 1f));
-                RuntimeUiKit.AddOutline(bg.transform, AccentOutline(0.35f));
+                MenuRule(bg.transform, AccentOutline(0.35f));
             }
             bg.type = Image.Type.Sliced;
             RectTransform rt = bg.rectTransform;
@@ -125,6 +125,7 @@ public static partial class MainMenuRuntime
             CreateTmp(bg.transform, "Label", label, 23,
                 gold ? new Color(0.16f, 0.11f, 0.04f, 1f) : TextPrimary,
                 TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+            StyleMenuAction(bg, gold, MenuAccent);
             Button button = bg.gameObject.AddComponent<Button>();
             button.targetGraphic = bg;
             button.onClick.AddListener(() => { SfxPlayer.Play("ui-button-click"); onClick?.Invoke(); });
@@ -215,7 +216,7 @@ public static partial class MainMenuRuntime
             new Vector2(pairLeft + iconSize + gap, -2f - iconSize * 0.5f), new Vector2(numberW, iconSize),
             new Vector2(0.5f, 1f));
         number.rectTransform.pivot = new Vector2(0f, 0.5f);
-        number.font = RuntimeUiKit.TmpDisplayFont;
+        number.font = RuntimeUiKit.TmpTitleFont;
 
         TextMeshProUGUI caption = CreateTmp(cell, "Label", label, 18,
             WithAlpha(TextMuted, lit ? 0.8f : 0.5f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
@@ -256,44 +257,24 @@ public static partial class MainMenuRuntime
         const float heroH = 170f;
         RectTransform card = CreateProfileCard(content, 580f); // 4 benefit lines at the bigger 20pt size
         // The pitch card carries the accent edge - the single accent on this page.
-        RuntimeUiKit.AddOutline(card, WithAlpha(MenuAccent, 0.55f));
+        MenuRule(card, WithAlpha(MenuAccent, 0.55f));
 
         // Hero band: a quiet accent-tinted field with the goods spilling out of it - the big
         // coin flanked by full hearts (the warm-brown glow field was retired 2026-08-30 with
         // the rest of the gold chrome). PLACEHOLDER composition; swap for painted key art later.
-        Image hero = CreateImage(card, "Hero", MenuSprites.VerticalFade(
-            Color.Lerp(new Color(0.10f, 0.10f, 0.12f, 1f), MenuAccent, 0.14f),
-            new Color(0.055f, 0.055f, 0.065f, 1f)), Color.white);
+        Image hero = CreateImage(card, "Hero", null, Color.clear);
         SetRect(hero.rectTransform, new Vector2(0f, 0f), new Vector2(0f, heroH), new Vector2(0.5f, 1f));
         hero.rectTransform.anchorMin = new Vector2(0f, 1f);
         hero.rectTransform.anchorMax = new Vector2(1f, 1f);
         hero.rectTransform.offsetMin = new Vector2(8f, -heroH - 8f);
         hero.rectTransform.offsetMax = new Vector2(-8f, -8f);
 
-        Sprite coin = MenuIcon("coin");
-        if (coin != null)
-        {
-            Image bigCoin = CreateImage(hero.transform, "Coin", coin, Color.white);
-            bigCoin.preserveAspect = true;
-            SetCenteredAt(bigCoin.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, 6f), new Vector2(110f, 110f));
-        }
-        // Flags, not hearts: the premium pitch is unlimited ATTEMPTS (AttemptSprites).
-        Sprite flag = AttemptSprites.Flag();
-        if (flag != null)
-        {
-            for (int i = 0; i < 2; i++)
-            {
-                Image side = CreateImage(hero.transform, $"Flag{i}", flag, Color.white);
-                side.preserveAspect = true;
-                float x = i == 0 ? -110f : 110f;
-                SetCenteredAt(side.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(x, -6f), new Vector2(64f, 64f));
-                side.rectTransform.localRotation = Quaternion.Euler(0f, 0f, i == 0 ? 12f : -12f);
-            }
-        }
+        CreateTmp(hero.transform,"Infinity","∞",110,MenuAccent,TextAnchor.MiddleCenter,
+            FontStyle.Normal,RuntimeUiKit.TitleFont);
 
-        TextMeshProUGUI title = CreateTmp(card, "Title", "HAZARD HEIGHTS UNLIMITED", 34, MenuAccent,
+        TextMeshProUGUI title = CreateTmp(card, "Title", "Hazard Heights Unlimited", 38, MenuAccent,
             TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, -heroH - 26f), new Vector2(720f, 42f), new Vector2(0.5f, 1f));
+            new Vector2(0f, -heroH - 26f), new Vector2(720f, 54f), new Vector2(0.5f, 1f));
         title.characterSpacing = 2f;
         CreateTmp(card, "Pitch", "THE FULL GAME, FOREVER", 18, TextPrimary,
             TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
@@ -313,9 +294,9 @@ public static partial class MainMenuRuntime
             Image check = CreateImage(card, $"Check{i}", MenuSprites.CheckMark(MenuAccent), Color.white);
             check.preserveAspect = true;
             SetRect(check.rectTransform, new Vector2(150f, y - 4f), new Vector2(28f, 28f), new Vector2(0f, 1f));
-            CreateTmp(card, $"Benefit{i}", benefits[i], 20, WithAlpha(TextPrimary, 0.92f),
+            CreateTmp(card, $"Benefit{i}", benefits[i], 24, WithAlpha(TextPrimary, 0.92f),
                 TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-                new Vector2(188f, y), new Vector2(540f, 30f), new Vector2(0f, 1f));
+                new Vector2(188f, y), new Vector2(540f, 36f), new Vector2(0f, 1f));
         }
 
         // The CTA slot: full-width, 92px, rebuilt in place as ownership/state changes -
@@ -355,7 +336,7 @@ public static partial class MainMenuRuntime
                 new Color(0.12f, 0.12f, 0.14f, 1f));
             owned.type = Image.Type.Sliced;
             Stretch(owned.rectTransform);
-            RuntimeUiKit.AddOutline(owned.rectTransform, WithAlpha(MenuAccent, 0.75f));
+            MenuRule(owned.rectTransform, WithAlpha(MenuAccent, 0.75f));
             Image check = CreateImage(owned.transform, "Check", MenuSprites.CheckMark(MenuAccent), Color.white);
             check.preserveAspect = true;
             SetCenteredAt(check.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(-170f, 0f), new Vector2(34f, 34f));
@@ -376,6 +357,7 @@ public static partial class MainMenuRuntime
         Stretch(cta.rectTransform);
         cta.raycastTarget = purchasable;
 
+        StyleMenuAction(cta, true, MenuAccent);
         if (!purchasable)
         {
             cta.color = new Color(0.75f, 0.75f, 0.75f, 1f); // dimmed: no store yet
@@ -391,6 +373,7 @@ public static partial class MainMenuRuntime
         TextMeshProUGUI label = CreateTmp(cta.transform, "Label",
             $"GET UNLIMITED - {PremiumStore.PriceText}", 26,
             ctaDarkText, TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        StyleMenuAction(cta, true, MenuAccent);
         Button buy = cta.gameObject.AddComponent<Button>();
         buy.targetGraphic = cta;
         buy.onClick.AddListener(() =>
@@ -446,8 +429,8 @@ public static partial class MainMenuRuntime
         Image fill = card.gameObject.AddComponent<Image>();
         fill.sprite = RuntimeSprites.RoundedPanel();
         fill.type = Image.Type.Sliced;
-        fill.color = CardDark;
-        RuntimeUiKit.AddOutline(card, AccentOutline(0.18f));
+        fill.color = GameMenuStyle.PanelColor;
+        MenuRule(card, AccentOutline(0.18f));
         LayoutElement layout = card.gameObject.AddComponent<LayoutElement>();
         layout.preferredHeight = height;
         return card;

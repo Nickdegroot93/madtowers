@@ -132,20 +132,18 @@ public class PauseMenuController : MonoBehaviour
         // The attempts row adds a line for non-premium players; size the sheet for it.
         bool showLives = RunLivesUi.Applies;
         GameObject panel = RuntimeUiKit.CreateCenteredPanel(_menuCanvas.transform,
-            new Vector2(560f, showLives ? 660f : 590f));
+            new Vector2(560f, showLives ? 660f : 590f), drawBackground: false);
         GameMenuStyle.StylePanel(panel);
         BuildPauseGlyph(panel.transform);
-        RuntimeUiKit.CreateLabel(panel.transform, "PAUSED", 54, 78f, FontStyle.Bold, RuntimeUiKit.TitleColor);
+        RuntimeUiKit.CreateLabel(panel.transform, "Paused", 64, 100f, FontStyle.Bold, RuntimeUiKit.TitleColor);
         // The meter is invisible mid-run, so a player deciding whether to restart was
         // deciding blind - restarts felt free and running dry felt random (Nick 2026-08-09).
         RunLivesUi.BuildStatusRow(panel.transform);
 
-        // Three-tier button hierarchy (Nick 2026-08-30: Restart and Back read as the exact
-        // same button): filled Resume on top, an accent divider separating "continue" from
-        // the two run-ending choices, then outlined Restart above plain Back.
-        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Resume", 88f, Resume), primary: true);
+        // Filled Resume leads; a chapter hairline separates the two run-ending actions.
+        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Resume", 112f, Resume), primary: true);
         BuildAccentDivider(panel.transform);
-        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Restart Level", 88f, () =>
+        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Restart Level", 112f, () =>
         {
             // Out of attempts: a restart would only bounce to the menu after a doomed server
             // round trip. Offer the refills instead of pretending.
@@ -154,8 +152,18 @@ public class PauseMenuController : MonoBehaviour
                 showMeter: true);
         }), primary: false, outlined: true);
         GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform,
-            LevelRuntimeController.Active != null && LevelRuntimeController.Active.HasEarnedTierThisRun ? "Finish Run" : "Back to Menu", 88f,
+            LevelRuntimeController.Active != null && LevelRuntimeController.Active.HasEarnedTierThisRun ? "Finish Run" : "Back to Menu", 112f,
             () => BuildConfirm("Quit to the level menu?\nYour current run will be lost.", ReturnToMenu)), primary: false);
+        // The pause view is an open composition over the frozen, obscured world.
+        // Keep the full button hit areas while secondary actions have no visible boxes.
+        foreach (var action in panel.GetComponentsInChildren<Button>())
+        {
+            var colors=action.colors;
+            if (colors.normalColor.maxColorComponent > .4f) continue;
+            colors.normalColor=Color.clear; colors.selectedColor=Color.clear;
+            colors.highlightedColor=new Color(1,1,1,.06f);colors.pressedColor=new Color(1,1,1,.1f);
+            action.colors=colors;
+        }
         ModalPresentationFx.Play(panel);
     }
 
@@ -216,9 +224,9 @@ public class PauseMenuController : MonoBehaviour
             RuntimeUiKit.CreateLabel(panel.transform, "An attempt regenerates on the timer above.",
                 24, 56f, FontStyle.Normal, GameMenuStyle.BodyText);
         }
-        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Keep playing this run", 88f, Resume),
+        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Keep playing this run", 112f, Resume),
             primary: actions == 0);
-        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Back to Menu", 88f,
+        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Back to Menu", 112f,
             () => BuildConfirm("Quit to the level menu?\nYour current run will be lost.", ReturnToMenu)),
             primary: false);
         ModalPresentationFx.Play(panel);
@@ -269,8 +277,8 @@ public class PauseMenuController : MonoBehaviour
         RuntimeUiKit.CreateLabel(panel.transform, "Are you sure?", 46, 70f, FontStyle.Bold, GameMenuStyle.Accent);
         RuntimeUiKit.CreateLabel(panel.transform, question, 28, 92f, FontStyle.Normal, GameMenuStyle.BodyText);
         if (meter) RunLivesUi.BuildStatusRow(panel.transform);
-        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Yes", 88f, onYes), primary: false);
-        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "No, keep playing", 88f,
+        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "Yes", 112f, onYes), primary: false);
+        GameMenuStyle.StyleButton(RuntimeUiKit.CreateButton(panel.transform, "No, keep playing", 112f,
             () => BuildMenu()), primary: true);
         ModalPresentationFx.Play(panel);
     }
@@ -290,8 +298,8 @@ public class PauseMenuController : MonoBehaviour
             bar.transform.SetParent(holder.transform, false);
             RectTransform rect = (RectTransform)bar.transform;
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = new Vector2(i == 0 ? -15f : 15f, 0f);
-            rect.sizeDelta = new Vector2(16f, 50f);
+            rect.anchoredPosition = new Vector2(i == 0 ? -8f : 8f, 0f);
+            rect.sizeDelta = new Vector2(6f, 30f);
             Image image = bar.AddComponent<Image>();
             image.sprite = RuntimeSprites.RoundedPanel();
             image.type = Image.Type.Sliced;

@@ -79,16 +79,16 @@ at the death, starts `DeathBeatFx`, and shows the card after `GameOverCardDelayS
 
 The card follows `DeathBeatFx`; it adds no second death delay or camera beat. All modal
 motion uses **unscaled time**, including pause at timeScale zero. The opaque `#0E0E10`
-sheet arrives from 46 reference units above over 0.46 s with quartic easing and a small
+sheet arrives from 24 reference units above over 0.46 s with quartic easing and a small
 compression settle. Content sits inside a `SafeAreaFitter`; width is 80% of the safe
-canvas, capped at 860 reference units. Archivo Black carries display copy and actions;
-normal explanatory text remains Inter. No panel border or glow.
+canvas, capped at 860 reference units. Manrope Medium/Semibold carries headings,
+explanatory copy and actions. No panel border or glow.
 
 `RunResultsScreen` reveals in reading order: kicker 0.15 s, hero 0.35 s, linear count
 0.45–1.35 s, record 1.48 s, details 1.62 s, coins 1.75 s, actions 1.94/2.02 s. Each
 reveal eases over 0.28 s. The existing count thump and record clink keep their conditions.
 Tapping the backdrop settles every row and immediately enables both actions, skipping
-late sounds. Normal paired buttons are both 96 units tall.
+late sounds. Normal paired results buttons are both 120 units tall.
 
 An **earned tier only** gets the 210-unit medal: drop starts at 0.20 s, impact at 0.47 s,
 compression settles by 0.80 s, and a single 0.55 s reflected-light sweep starts at 0.62 s.
@@ -97,7 +97,8 @@ begin on impact; rays disappear 3 s after impact. A new best without a tier uses
 pill and cream hero, with no medal, confetti or rays. Gold remains currency/tier material.
 
 Pause retains the frozen, downsampled scene capture under a neutral 74% shroud. Its
-sheet uses the same weighted arrival, then rows enter 45 ms apart. Capture, pause owners,
+open composition uses the same weighted arrival, then rows enter 45 ms apart. Its
+112-unit actions retain their hit areas; confirmations remain sheets. Capture, pause owners,
 phase requests, confirmation actions, attempt gates and refill callbacks are unchanged.
 
 `HoldSteadyFx` only reads the verification clock. The cube breathes gently, compresses

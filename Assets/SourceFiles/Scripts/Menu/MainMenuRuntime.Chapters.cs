@@ -172,7 +172,7 @@ public static partial class MainMenuRuntime
         cardImage.type = Image.Type.Sliced;
         cardImage.color = new Color(0.022f, 0.022f, 0.028f, 0.97f);
         cardImage.raycastTarget = false;
-        RuntimeUiKit.AddOutline(card, WithAlpha(TextPrimary, 0.12f));
+        MenuRule(card, WithAlpha(TextPrimary, 0.12f));
 
         Image badge = CreateImage(card, "Badge",
             MenuSprites.CircleBadge(WithAlpha(Color.black, 0.5f), WithAlpha(LockedColor, 0.65f)),
@@ -205,22 +205,6 @@ public static partial class MainMenuRuntime
         Color chapterLight = ChapterLight(chapter);
         Color green = new Color(0.56f, 0.74f, 0.5f, 1f);
 
-        if (current)
-        {
-            // The level cards' active halo: the 9-sliced GlowFrame ring stretched slightly past
-            // the card, behind it, so "your chapter" blooms the same way "your level" does.
-            const float grow = 12f;
-            RectTransform halo = CreateRect(row, "ActiveHalo",
-                Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            halo.offsetMin = new Vector2(ChapterCardSideInset - grow, CellGap - grow);
-            halo.offsetMax = new Vector2(-(ChapterCardSideInset - grow), -(CellGap - grow));
-            Image haloImage = halo.gameObject.AddComponent<Image>();
-            haloImage.sprite = MenuSprites.GlowFrame();
-            haloImage.type = Image.Type.Sliced;
-            haloImage.color = WithAlpha(Color.Lerp(chapterLight, Color.white, 0.2f), 0.6f);
-            haloImage.raycastTarget = false;
-        }
-
         RectTransform card = CreateRect(row, "Card",
             Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
         card.offsetMin = new Vector2(ChapterCardSideInset, CellGap);
@@ -235,7 +219,7 @@ public static partial class MainMenuRuntime
         Color border = current
             ? WithAlpha(Color.Lerp(chapterLight, Color.white, 0.25f), 1f)
             : WithAlpha(TextPrimary, 0.34f);
-        RuntimeUiKit.AddOutline(card, border);
+        MenuRule(card, border);
 
         // Text block, bottom-left over the scrim: eyebrow / name / levels progress + capsule bar.
         TextMeshProUGUI eyebrow = CreateTmp(card, "Eyebrow",

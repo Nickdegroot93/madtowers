@@ -22,8 +22,8 @@ public static class GameMenuStyle
         }
     }
 
-    // Modern neutral chrome: the chapter colour lives in the ACCENTS (title, border, primary
-    // button), never the surfaces - panels stay near-black translucent like the rest of the HUD.
+    // Chapter colour belongs to ink and primary actions. Sheets are opaque near-black;
+    // the pause landing is an open composition over its frozen, obscured backdrop.
     // #0E0E10, FULLY OPAQUE (modal redesign, Nick 2026-08-29): every modal panel shares this
     // exact fill - no per-chapter tint, no translucency (whatever renders behind bleeding
     // through reads as a bug, not atmosphere) and no border (the outline look was retired).
@@ -42,28 +42,23 @@ public static class GameMenuStyle
         {
             image.sprite = RuntimeSprites.RoundedPanel();
             image.type = Image.Type.Sliced;
+            image.pixelsPerUnitMultiplier = 3f;
             image.color = PanelColor;
         }
         // Deliberately NO outline (modal redesign): borders on modal panels read old-school.
     }
 
-    /// <summary>Style a kit button: primary = filled with the chapter accent; secondary = dark
-    /// panel tone with accent-tinted text. <paramref name="outlined"/> adds an accent hairline
-    /// ring to a secondary button - the middle rung of a three-tier hierarchy (pause sheet:
-    /// filled Resume / outlined Restart / plain Back, Nick 2026-08-30).</summary>
+    /// <summary>Pale chapter-ink primary action and open secondary label. The outlined
+    /// argument remains source-compatible with older builders; sheets no longer draw rings.</summary>
     public static void StyleButton(UnityEngine.UI.Button button, bool primary, bool outlined = false)
     {
         if (button == null) return;
-        if (outlined && !primary)
-        {
-            RuntimeUiKit.AddOutline(button.transform, WithAlpha(Accent, 0.55f));
-        }
 
         // The Button's ColorTint transition rewrites the target graphic's colour every frame,
         // so the fill must be expressed through the ColorBlock (image stays white).
         Color fill = primary
-            ? WithAlpha(Color.Lerp(Accent, Color.white, 0.10f), 1f)
-            : new Color(0.13f, 0.145f, 0.16f, 1f); // neutral dark; the accent lives in the text
+            ? WithAlpha(Color.Lerp(Accent, Color.white, 0.78f), 1f)
+            : PanelColor; // neutral dark; the accent lives in the text
         Image image = button.GetComponent<Image>();
         if (image != null) image.color = Color.white;
         ColorBlock colors = button.colors;
@@ -79,8 +74,9 @@ public static class GameMenuStyle
         {
             label.color = primary
                 ? Color.Lerp(Accent, Color.black, 0.82f)
-                : Color.Lerp(Accent, Color.white, 0.45f);
-            label.fontStyle = FontStyle.Bold;
+                : Color.Lerp(Accent, Color.white, 0.72f);
+            label.font = RuntimeUiKit.TitleFont;
+            label.fontStyle = FontStyle.Normal;
         }
     }
 

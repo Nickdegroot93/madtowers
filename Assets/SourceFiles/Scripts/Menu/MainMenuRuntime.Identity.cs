@@ -54,7 +54,8 @@ public static partial class MainMenuRuntime
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(W, H));
         Image panelImage = panel.gameObject.AddComponent<Image>();
-        GameMenuStyle.StylePanel(panel.gameObject); // the one modal-panel treatment
+        GameMenuStyle.StylePanel(panel.gameObject);
+        ModalSafeFrame.Attach(panel); // the one modal-panel treatment
         panelImage.raycastTarget = true;
 
         Image ring = CreateImage(panel, "AvatarRing", MenuSprites.CircleBadge(
@@ -92,6 +93,7 @@ public static partial class MainMenuRuntime
         claimBg.raycastTarget = true;
         TextMeshProUGUI claimLabel = CreateTmp(claimBg.transform, "Label", renaming ? "SAVE NAME" : "CLAIM", 30,
             new Color(0.16f, 0.11f, 0.04f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        StyleMenuAction(claimBg, true, MenuAccent);
         Button claimButton = claimBg.gameObject.AddComponent<Button>();
         claimButton.targetGraphic = claimBg;
 
@@ -186,7 +188,7 @@ public static partial class MainMenuRuntime
         well.type = Image.Type.Sliced;
         SetRect(well.rectTransform, anchoredPosition, size, new Vector2(0f, 1f));
         well.raycastTarget = true;
-        RuntimeUiKit.AddOutline(well.transform, GlassBorder);
+        MenuRule(well.transform, GlassBorder);
 
         RectTransform viewport = CreateRect(well.transform, "Text Area",
             Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
@@ -303,7 +305,8 @@ public static partial class MainMenuRuntime
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(W, H));
         Image panelImage = panel.gameObject.AddComponent<Image>();
-        GameMenuStyle.StylePanel(panel.gameObject); // the one modal-panel treatment
+        GameMenuStyle.StylePanel(panel.gameObject);
+        ModalSafeFrame.Attach(panel); // the one modal-panel treatment
         panelImage.raycastTarget = true;
 
         Image ring = CreateImage(panel, "AvatarRing", MenuSprites.CircleBadge(
@@ -367,7 +370,7 @@ public static partial class MainMenuRuntime
         bg.type = Image.Type.Sliced;
         SetRect(bg.rectTransform, anchoredPosition, new Vector2(width, 92f), new Vector2(0f, 1f));
         bg.raycastTarget = true;
-        RuntimeUiKit.AddOutline(bg.transform, AccentOutline(0.35f));
+        MenuRule(bg.transform, AccentOutline(0.35f));
         CreateTmp(bg.transform, "Label", label, 26, TextPrimary,
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
         Button button = bg.gameObject.AddComponent<Button>();

@@ -93,7 +93,7 @@ public static partial class MainMenuRuntime
         barImage.sprite = RuntimeSprites.RoundedPanel();
         barImage.type = Image.Type.Sliced;
         barImage.color = MenuGlassFill(chapter, 0.55f);
-        RuntimeUiKit.AddOutline(bar, GlassBorder);
+        MenuRule(bar, GlassBorder);
 
         // Bricks show the found count alone - no denominator (the ambiguity rule).
         (int bricksFound, _) = BrickCollectionCounts();
@@ -114,8 +114,8 @@ public static partial class MainMenuRuntime
         Image fill = half.gameObject.AddComponent<Image>();
         fill.sprite = RuntimeSprites.RoundedPanel();
         fill.type = Image.Type.Sliced;
-        fill.color = selected ? WithAlpha(MenuAccent, 0.16f) : Color.clear;
-        if (selected) RuntimeUiKit.AddOutline(half, WithAlpha(MenuAccent, 0.55f));
+        fill.color = selected ? Color.Lerp(MenuAccent, Color.white, .78f) : Color.clear;
+        if (selected) MenuRule(half, WithAlpha(MenuAccent, 0.55f));
 
         Button button = half.gameObject.AddComponent<Button>();
         button.targetGraphic = fill;
@@ -128,7 +128,7 @@ public static partial class MainMenuRuntime
             BuildMenu();
         });
 
-        CreateTmp(half, "Label", label, 24, selected ? TextPrimary : TextMuted,
+        CreateTmp(half, "Label", label, 24, selected ? new Color(.13f,.13f,.14f,1) : TextMuted,
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
     }
 
@@ -292,8 +292,8 @@ public static partial class MainMenuRuntime
         Image plate = cell.gameObject.AddComponent<Image>();
         plate.sprite = RuntimeSprites.RoundedPanel();
         plate.type = Image.Type.Sliced;
-        plate.color = CardDark;
-        RuntimeUiKit.AddOutline(cell, GlassBorder);
+        plate.color = GameMenuStyle.PanelColor;
+        MenuRule(cell, GlassBorder);
 
         // The square thumbnail zone fills the card's left end (card height minus padding), the
         // text block takes the rest.
@@ -464,7 +464,7 @@ public static partial class MainMenuRuntime
         image.sprite = RuntimeSprites.RoundedPanel();
         image.type = Image.Type.Sliced;
         image.color = WithAlpha(CardDark, 0.9f);
-        RuntimeUiKit.AddOutline(banner, WithAlpha(MenuAccent, 0.4f));
+        MenuRule(banner, WithAlpha(MenuAccent, 0.4f));
 
         CreateTmp(banner, "Title", title, 32, MenuAccent, TextAnchor.MiddleCenter, FontStyle.Bold,
             RuntimeUiKit.TitleFont, new Vector2(0f, -46f), new Vector2(700f, 44f), new Vector2(0.5f, 1f));
@@ -542,7 +542,8 @@ public static partial class MainMenuRuntime
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(880f, 1240f));
         Image panelImage = panel.gameObject.AddComponent<Image>();
-        GameMenuStyle.StylePanel(panel.gameObject); // the one modal-panel treatment
+        GameMenuStyle.StylePanel(panel.gameObject);
+        ModalSafeFrame.Attach(panel); // the one modal-panel treatment
         panelImage.raycastTarget = true;
 
         // The live looping demo across the top.
@@ -654,7 +655,8 @@ public static partial class MainMenuRuntime
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(680f, 660f)); // height finalized below
         Image panelImage = panel.gameObject.AddComponent<Image>();
-        GameMenuStyle.StylePanel(panel.gameObject); // the one modal-panel treatment
+        GameMenuStyle.StylePanel(panel.gameObject);
+        ModalSafeFrame.Attach(panel); // the one modal-panel treatment
         panelImage.raycastTarget = true;
 
         // The hero: painterly icon over a soft type-colored backlight, house entrance pop.
@@ -663,7 +665,7 @@ public static partial class MainMenuRuntime
         TextMeshProUGUI title = CreateTmp(panel, "Title", ability.DisplayName.ToUpperInvariant(), 42,
             TextPrimary, TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -258f), new Vector2(600f, 54f), new Vector2(0.5f, 1f));
-        title.font = RuntimeUiKit.TmpDisplayFont;
+        title.font = RuntimeUiKit.TmpTitleFont;
         title.characterSpacing = 2f;
         AutoSize(title, 26f, 42f);
 

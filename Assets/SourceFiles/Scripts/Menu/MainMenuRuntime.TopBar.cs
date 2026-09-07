@@ -10,24 +10,33 @@ using static RuntimeUiKit;
 // (partial of MainMenuRuntime, split from the main file for readability - same class, shared statics.)
 public static partial class MainMenuRuntime
 {
+    private static Sprite StatusBadgeSprite(ChapterDefinition chapter) => MenuSprites.PointHexBadge(
+        ChromeFill(chapter), Color.Lerp(ChromeFill(chapter), Color.black, .3f),
+        WithAlpha(chapter != null ? ChapterLight(chapter) : MenuAccent, .55f));
+
     private static void BuildTopStatusBar(Transform parent, ChapterDefinition chapter)
     {
         PlayerProfileStore.Snapshot profile = PlayerProfileStore.Current;
-        Color chapterTint = chapter != null ? chapter.MenuAccentSecondaryColor : MenuAccent;
         Sprite statBackground = chapter != null ? chapter.MenuBackgroundImage : null;
 
+        var atmosphere = CreateImage(parent, "StatusAtmosphere", MenuSprites.VerticalFade(
+            new Color(.025f,.025f,.035f,.82f), new Color(.025f,.025f,.035f,0)), Color.white);
+        var atmosphereRect = atmosphere.rectTransform;
+        atmosphereRect.anchorMin = new Vector2(0,1); atmosphereRect.anchorMax = Vector2.one;
+        atmosphereRect.pivot = new Vector2(.5f,1); atmosphereRect.sizeDelta = new Vector2(0,210);
         RectTransform bar = CreateRect(parent, "TopStatusBar",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
             new Vector2(0f, -34f), new Vector2(-48f, 122f));
         Image barImage = bar.gameObject.AddComponent<Image>();
         barImage.sprite = RuntimeSprites.RoundedPanel();
         barImage.type = Image.Type.Sliced;
-        barImage.color = WithAlpha(Color.Lerp(chapterTint, TextPrimary, 0.18f), 0.07f);
+        barImage.color = ChromeFill(chapter);
+        _statusEdges.Clear();
+        _statusEdges.Add(RuntimeUiKit.AddOutline(bar, WithAlpha(chapter != null ? ChapterLight(chapter) : MenuAccent, .28f)));
         // Register the chapter-tinted pieces for the swipe cross-fade (see OnChapterBlend).
         _topBarWashImage = barImage;
         _chromeFrostBlurs.Clear();
-        AddFrostedGlass(bar, statBackground, TopBarFrostWash, chapterBlend: true);
-        RuntimeUiKit.AddOutline(bar, GlassBorder);
+        // Resource compartments and the level medallion share one chapter-tinted frame.
 
         HorizontalLayoutGroup layout = bar.gameObject.AddComponent<HorizontalLayoutGroup>();
         layout.padding = new RectOffset(28, 28, 14, 14);
@@ -38,18 +47,19 @@ public static partial class MainMenuRuntime
         layout.childForceExpandWidth = false;
         layout.childForceExpandHeight = false;
 
-        Image badge = CreateImage(bar, "LevelBadge",
-            MenuSprites.PointHexBadge(
-                new Color(0.10f, 0.095f, 0.085f, 0.62f),
-                new Color(0.035f, 0.032f, 0.028f, 0.72f),
-                GlassBorder),
-            Color.white);
+        // The layout slot and live level text stay unique during chapter swipes.
+        // Only the decorative face below is eligible for a colour cross-fade twin.
+        Image badge = CreateImage(bar, "LevelBadge", null, Color.clear);
         LayoutElement badgeLayout = badge.gameObject.AddComponent<LayoutElement>();
-        badgeLayout.preferredWidth = 82f;
-        badgeLayout.preferredHeight = 82f;
-        TextMeshProUGUI levelText = CreateTmp(badge.transform, "LevelText", profile.PlayerLevel.ToString(), 30, TextPrimary,
+        badgeLayout.preferredWidth = 94f;
+        badgeLayout.preferredHeight = 100f;
+        _statusBadge = CreateImage(badge.transform, "BadgeFace", StatusBadgeSprite(chapter), Color.white);
+        Stretch(_statusBadge.rectTransform);
+        _statusBadge.preserveAspect = true;
+        TextMeshProUGUI levelText = CreateTmp(badge.transform, "LevelText", profile.PlayerLevel.ToString(), 42, TextPrimary,
             TextAnchor.MiddleCenter, FontStyle.Normal, RuntimeUiKit.DefaultFont);
 
+        SetCenteredAt(levelText.rectTransform, new Vector2(.5f, .5f), Vector2.zero, new Vector2(82f, 64f));
         RectTransform profileColumn = CreateRect(bar, "ProfileInfo",
             Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
         LayoutElement profileLayout = profileColumn.gameObject.AddComponent<LayoutElement>();
@@ -132,6 +142,7 @@ public static partial class MainMenuRuntime
             TextMeshProUGUI infinity = FindTmp(attemptsCard, "Primary");
             infinity.enableAutoSizing = false;   // the glyph is the whole message - let it be big
             infinity.fontSize = 44f;
+            infinity.rectTransform.sizeDelta = new Vector2(96f,64f);
             // ∞ is an x-height glyph (visual centre ~0.27em vs the line centre ~0.35em), so
             // Middle alignment renders it visibly LOW next to the dead-centred icon at this
             // size - lift the box to put the loops back on the icon's midline (Nick 2026-08-01).
@@ -344,9 +355,8 @@ public static partial class MainMenuRuntime
         Image cardImage = card.gameObject.AddComponent<Image>();
         cardImage.sprite = RuntimeSprites.RoundedPanel();
         cardImage.type = Image.Type.Sliced;
-        cardImage.color = new Color(0.02f, 0.018f, 0.016f, 0.68f);
-        AddFrostedGlass(card, background, CurrencyCardFrostWash, chapterBlend: true);
-        RuntimeUiKit.AddOutline(card, GlassBorder);
+        cardImage.color = new Color(.025f, .03f, .04f, .7f);
+        _statusEdges.Add(RuntimeUiKit.AddOutline(card, WithAlpha(_chapters.Length > 0 ? ChapterLight(_chapters[_chapterIndex]) : MenuAccent, .28f)));
 
         if (!string.IsNullOrEmpty(coinGlyph))
         {
@@ -376,9 +386,9 @@ public static partial class MainMenuRuntime
         }
 
         Vector2 primaryPosition = string.IsNullOrEmpty(secondary) ? new Vector2(78f, 0f) : new Vector2(78f, 12f);
-        TextMeshProUGUI primaryText = CreateTmp(card, "Primary", primary, 23, TextPrimary, TextAnchor.MiddleLeft,
+        TextMeshProUGUI primaryText = CreateTmp(card, "Primary", primary, 28, TextPrimary, TextAnchor.MiddleLeft,
             FontStyle.Normal, RuntimeUiKit.DefaultFont, primaryPosition, new Vector2(96f, 34f), new Vector2(0f, 0.5f));
-        AutoSize(primaryText, 16, 23);
+        AutoSize(primaryText, 20, 28);
         if (!string.IsNullOrEmpty(secondary))
         {
             CreateTmp(card, "Secondary", secondary, 18, TextMuted, TextAnchor.MiddleLeft,

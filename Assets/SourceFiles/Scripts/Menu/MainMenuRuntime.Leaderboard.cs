@@ -37,7 +37,8 @@ public static partial class MainMenuRuntime
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(W, H));
         Image panelImage = panel.gameObject.AddComponent<Image>();
-        GameMenuStyle.StylePanel(panel.gameObject); // the one modal-panel treatment
+        GameMenuStyle.StylePanel(panel.gameObject);
+        ModalSafeFrame.Attach(panel); // the one modal-panel treatment
         panelImage.raycastTarget = true;
 
         Image trophy = CreateImage(panel, "Trophy", MenuSprites.Trophy(accent), Color.white);
@@ -134,7 +135,7 @@ public static partial class MainMenuRuntime
         SetRect(bg.rectTransform, new Vector2(0f, -300f), new Vector2(320f, 80f), new Vector2(0.5f, 1f));
         bg.rectTransform.pivot = new Vector2(0.5f, 1f);
         bg.raycastTarget = true;
-        RuntimeUiKit.AddOutline(bg.transform, AccentOutline(0.35f));
+        MenuRule(bg.transform, AccentOutline(0.35f));
         CreateTmp(bg.transform, "Label", buttonLabel, 26, MenuAccent,
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
         Button button = bg.gameObject.AddComponent<Button>();
@@ -203,7 +204,7 @@ public static partial class MainMenuRuntime
         if (isYou)
         {
             fill.color = new Color(0.15f, 0.13f, 0.10f, 1f);
-            RuntimeUiKit.AddOutline(row, AccentOutline(0.6f));
+            MenuRule(row, AccentOutline(0.6f));
         }
 
         Color rankColor = entry.rank <= 3 ? MenuAccent : WithAlpha(TextMuted, 0.9f);

@@ -185,7 +185,7 @@ public sealed class RunResultsScreen : MonoBehaviour
         }
 
         TextMeshProUGUI metricLabel = CreateRow(panel.transform, _content.Metric.Label, 24,
-            new Color(1f, 1f, 1f, 0.55f), 32f, display: false);
+            new Color(1f, 1f, 1f, 0.55f), 38f, display: false);
         metricLabel.characterSpacing = 14f;
         AddReveal(metricLabel.gameObject, HeroAt);
 
@@ -279,13 +279,13 @@ public sealed class RunResultsScreen : MonoBehaviour
         else
         {
             Button primary = RuntimeUiKit.CreateButton(panel.transform,
-                string.IsNullOrEmpty(_content.PrimaryLabel) ? "Try Again" : _content.PrimaryLabel, 96f, OnPrimaryClicked);
+                string.IsNullOrEmpty(_content.PrimaryLabel) ? "Try Again" : _content.PrimaryLabel, 120f, OnPrimaryClicked);
             GameMenuStyle.StyleButton(primary, primary: true);
             RoundButton(primary);
             AddReveal(primary.gameObject, PrimaryAt, isButton: true);
         }
 
-        Button menu = RuntimeUiKit.CreateButton(panel.transform, "Back to Menu", 96f, () =>
+        Button menu = RuntimeUiKit.CreateButton(panel.transform, "Back to Menu", 120f, () =>
         {
             SfxPlayer.Play("ui-leave-game");
             MainMenuRuntime.ReturnToMenu();
@@ -362,12 +362,12 @@ public sealed class RunResultsScreen : MonoBehaviour
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             Vector2.zero, MedalStyle.ChipSize); // the sprite is generated at exactly this size
         Image chipImage = chip.gameObject.AddComponent<Image>();
-        chipImage.sprite = MedalStyle.ChipSprite(tier);
+        chipImage.color = Color.clear;
         chipImage.raycastTarget = false;
         TextMeshProUGUI chipLabel = RuntimeUiKit.CreateTmp(chip, "Label",
-            $"{MedalStyle.DisplayName(tier)} TIER REACHED", 22, MedalStyle.ChipText,
+            $"{MedalStyle.DisplayName(tier)} TIER REACHED", 24, GameMenuStyle.BodyText,
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
-        chipLabel.font = RuntimeUiKit.TmpDisplayFont;
+        chipLabel.font = RuntimeUiKit.TmpTitleFont;
         chipLabel.characterSpacing = 5f;
         AddReveal(chipRow, KickerAt);
 
@@ -424,7 +424,7 @@ public sealed class RunResultsScreen : MonoBehaviour
     {
         TextMeshProUGUI tmp = RuntimeUiKit.CreateTmp(parent, "Row", text, size, color,
             TextAnchor.MiddleCenter, FontStyle.Normal, RuntimeUiKit.TitleFont);
-        if (display) tmp.font = RuntimeUiKit.TmpDisplayFont; // Archivo: the hero voice
+        if (display) tmp.font = RuntimeUiKit.TmpTitleFont; // Manrope: shared with the gameplay HUD
         tmp.gameObject.AddComponent<LayoutElement>().preferredHeight = height;
         return tmp;
     }
@@ -448,7 +448,7 @@ public sealed class RunResultsScreen : MonoBehaviour
 
         TextMeshProUGUI label = RuntimeUiKit.CreateTmp(pill, "Label", "NEW BEST", 26, GameMenuStyle.Accent,
             TextAnchor.MiddleCenter, FontStyle.Normal, RuntimeUiKit.TitleFont);
-        label.font = RuntimeUiKit.TmpDisplayFont;
+        label.font = RuntimeUiKit.TmpTitleFont;
         label.characterSpacing = 8f;
 
         AbilityCardShine.Attach(pill, new Color(1f, 1f, 1f, .18f), 2.8f);
@@ -488,7 +488,7 @@ public sealed class RunResultsScreen : MonoBehaviour
             RuntimeUiKit.CreateTmp(cell, "Goal", goal, 22,
                 earned ? MedalStyle.TierColor(tier) : WithAlpha(MedalStyle.Unearned, 0.8f),
                 TextAnchor.LowerCenter, FontStyle.Normal, RuntimeUiKit.TitleFont,
-                new Vector2(0f, 2f), new Vector2(110f, 28f), new Vector2(0.5f, 0f));
+                new Vector2(0f, 2f), new Vector2(110f, 34f), new Vector2(0.5f, 0f));
 
             if (earned && _content.TierEarnedThisRun.HasValue && tier == _content.TierEarnedThisRun.Value)
             {
@@ -503,9 +503,9 @@ public sealed class RunResultsScreen : MonoBehaviour
     private static void RoundButton(Button button)
     {
         ModalPresentationFx.StyleAction(button);
-        ((RectTransform)button.transform).SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 96f);
+        ((RectTransform)button.transform).SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 120f);
         var layout = button.GetComponent<LayoutElement>();
-        if (layout != null) layout.preferredHeight = 96f;
+        if (layout != null) layout.preferredHeight = 120f;
         Image image = button.GetComponent<Image>();
         image.sprite = RuntimeSprites.RoundedPanel();
         image.type = Image.Type.Sliced;

@@ -160,22 +160,18 @@ public static partial class MainMenuRuntime
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(W, 840f));
         Image panelImage = panel.gameObject.AddComponent<Image>();
-        GameMenuStyle.StylePanel(panel.gameObject); // the one modal-panel treatment
+        GameMenuStyle.StylePanel(panel.gameObject);
+        ModalSafeFrame.Attach(panel); // the one modal-panel treatment
         panelImage.raycastTarget = true;
 
-        // The sign-in sheet's person badge: the letter IS a person, lead with that.
-        Image ring = CreateImage(panel, "AvatarRing", MenuSprites.CircleBadge(
-            new Color(0.12f, 0.11f, 0.09f, 1f), WithAlpha(MenuAccent, 0.55f)), Color.white);
-        SetRect(ring.rectTransform, new Vector2(0f, -40f), new Vector2(104f, 104f), new Vector2(0.5f, 1f));
-        ring.rectTransform.pivot = new Vector2(0.5f, 1f);
-        Image person = CreateImage(ring.transform, "Person", MenuSprites.Person(WithAlpha(MenuAccent, 0.85f)), Color.white);
-        person.preserveAspect = true;
-        SetCenteredAt(person.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(52f, 52f));
-
-        TextMeshProUGUI title = CreateTmp(panel, "Title", "FROM THE DEVELOPER", 34, TextPrimary,
-            TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, -168f), new Vector2(contentW, 44f), new Vector2(0.5f, 1f));
-        title.characterSpacing = 3f;
+        var rule=CreateImage(panel,"LetterMark",RuntimeSprites.Square(),MenuAccent);
+        SetRect(rule.rectTransform,new Vector2(pad,-52),new Vector2(48,3),new Vector2(0,1));
+        TextMeshProUGUI title = CreateTmp(panel, "Title", "A note from Nick", 48, TextPrimary,
+            TextAnchor.UpperLeft, FontStyle.Normal, RuntimeUiKit.TitleFont,
+            new Vector2(pad,-78),new Vector2(contentW,74),new Vector2(0,1));
+        CreateTmp(panel,"Eyebrow","THE DEVELOPER OF HAZARD HEIGHTS",19,MenuAccent,
+            TextAnchor.UpperLeft,FontStyle.Normal,RuntimeUiKit.TitleFont,
+            new Vector2(pad,-158),new Vector2(contentW,34),new Vector2(0,1));
 
         // Copy is Nick's, verbatim (DEVLETTER.md §2, rewritten 2026-08-22) - including
         // "If you can be bothered.", deliberate personality, not sloppiness. The rules
@@ -192,11 +188,11 @@ public static partial class MainMenuRuntime
             "If you're enjoying the game, a quick review in the store helps me out " +
             "a lot too. If you can be bothered.\n\n" +
             "Thanks for playing.\n\n- Nick";
-        TextMeshProUGUI body = CreateTmp(panel, "Body", letter, 27, WithAlpha(TextPrimary, 0.92f),
+        TextMeshProUGUI body = CreateTmp(panel, "Body", letter, 28, WithAlpha(TextPrimary, 0.92f),
             TextAnchor.UpperLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont,
             new Vector2(pad, -236f), new Vector2(contentW, 430f), new Vector2(0f, 1f));
         body.textWrappingMode = TextWrappingModes.Normal;   // CreateTmp defaults to NoWrap
-        body.lineSpacing = 6f;
+        body.lineSpacing = 8f;
 
         // Size the sheet from the text it actually holds: 236 header block above, then the
         // measured body, a 32px breather, the 96px button and its 44px bottom margin. The
@@ -211,9 +207,10 @@ public static partial class MainMenuRuntime
         keepBg.type = Image.Type.Sliced;
         SetRect(keepBg.rectTransform, new Vector2(pad, 44f), new Vector2(contentW, 96f), new Vector2(0f, 0f));
         keepBg.raycastTarget = true;
-        TextMeshProUGUI keepLabel = CreateTmp(keepBg.transform, "Label", "KEEP PLAYING", 30,
+        TextMeshProUGUI keepLabel = CreateTmp(keepBg.transform, "Label", "Keep playing", 30,
             new Color(0.10f, 0.08f, 0.03f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
         keepLabel.characterSpacing = 3f;
+        StyleMenuAction(keepBg, true, MenuAccent);
         Button keepButton = keepBg.gameObject.AddComponent<Button>();
         keepButton.targetGraphic = keepBg;
         keepButton.onClick.AddListener(() => { SfxPlayer.Play("ui-button-click"); Close(); });

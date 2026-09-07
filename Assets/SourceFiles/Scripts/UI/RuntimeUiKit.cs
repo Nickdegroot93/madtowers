@@ -9,9 +9,10 @@ using UnityEngine.UI;
 /// </summary>
 public static partial class RuntimeUiKit
 {
-    public static Font DefaultFont => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+    private static Font _bodyFont;
+    public static Font DefaultFont => _bodyFont != null ? _bodyFont : (_bodyFont = Resources.Load<Font>("Fonts/Manrope-Medium") ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
 
-    // Display font for titles/buttons (Inter, OFL - Resources/Fonts): a humanist sans that
+    // Manrope Semibold for titles/buttons (OFL - Resources/Fonts): a clear sans that
     // reads warmer and less mechanical than a geometric/condensed display face. Falls back to
     // the built-in font if the asset is ever missing, so UI never hard-fails.
     private static Font _titleFont;
@@ -21,7 +22,7 @@ public static partial class RuntimeUiKit
         {
             if (_titleFont == null)
             {
-                _titleFont = Resources.Load<Font>("Fonts/ArchivoBlack-Regular");
+                _titleFont = Resources.Load<Font>("Fonts/Manrope-SemiBold");
                 if (_titleFont == null) _titleFont = Resources.Load<Font>("Fonts/Inter-Variable");
                 if (_titleFont == null) _titleFont = DefaultFont;
             }
@@ -262,15 +263,15 @@ public static partial class RuntimeUiKit
         {
             if (_tmpTitleFont == null)
             {
-                Font inter = Resources.Load<Font>("Fonts/Inter-Variable");
-                _tmpTitleFont = inter != null ? TMP_FontAsset.CreateFontAsset(inter) : TmpBodyFont;
+                Font source = Resources.Load<Font>("Fonts/Manrope-SemiBold");
+                _tmpTitleFont = source != null ? TMP_FontAsset.CreateFontAsset(source) : TmpBodyFont;
             }
             return _tmpTitleFont;
         }
     }
 
     // The heavy display face (Archivo Black) as a TMP asset - the ability cards' titles,
-    // chips and buttons use it. TmpTitleFont (Inter) stays the menu's default title face;
+    // chips and buttons use it. TmpTitleFont (Manrope) stays the menu's default title face;
     // this is the louder voice for card/hero moments.
     private static TMP_FontAsset _tmpDisplayFont;
     public static TMP_FontAsset TmpDisplayFont
@@ -343,10 +344,10 @@ public static partial class RuntimeUiKit
         tmp.fontSize = size;
         tmp.color = color;
         tmp.alignment = TmpAlign(alignment);
-        tmp.fontStyle = style == FontStyle.Bold ? FontStyles.Bold
-            : style == FontStyle.Italic ? FontStyles.Italic
-            : style == FontStyle.BoldAndItalic ? (FontStyles.Bold | FontStyles.Italic)
-            : FontStyles.Normal;
+        // Real Semibold outlines, never synthetic emboldening of a display face.
+        if (style == FontStyle.Bold || style == FontStyle.BoldAndItalic) tmp.font = TmpTitleFont;
+        tmp.fontStyle = style == FontStyle.Italic || style == FontStyle.BoldAndItalic
+            ? FontStyles.Italic : FontStyles.Normal;
         tmp.richText = true;
         tmp.textWrappingMode = TextWrappingModes.NoWrap;
         tmp.overflowMode = TextOverflowModes.Overflow;

@@ -159,3 +159,11 @@ and edge distances** that must be fractional/stretched.
 - [ ] Background/full-bleed art? → keep it **outside** any fitter.
 - [ ] Verified on a notched aspect (e.g. iPhone with Dynamic Island in the Device Simulator)
       **and** a clean 9:16, confirming no regression on the notchless case.
+
+## September 2026 menu pass
+
+Authored menu sheets use `ModalSafeFrame`: a live safe-area container and a separate
+fit wrapper preserve the panel's entrance animation while fitting width and height.
+Pause/results keep their existing safe-area flow layout. Settings uses a full-width
+scroll body below six category buttons, with its footer outside the scroll viewport.
+See MENU.md for reference sizes and the distinction between Unity units and device dp.

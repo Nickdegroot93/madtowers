@@ -11,7 +11,7 @@ labels and secondary values. These are static instances of the Google Fonts OFL 
 not the differently licensed Manrope v5 download. Source:
 https://github.com/google/fonts/tree/main/ofl/manrope. The license ships beside the two
 TTFs in `Resources/Fonts`. TMP creates and caches dynamic SDF font assets at runtime;
-no platform-installed font is required. Main-menu/modal Archivo display type is unchanged.
+no platform-installed font is required. The menu and modal pass now shares Manrope; see MENU.md.
 
 At the existing 1080×1920 reference scale, the main value is 60 units, captions/NEXT
 20, secondary values 30 and pause hitbox 72×72. Heights account for Manrope's line

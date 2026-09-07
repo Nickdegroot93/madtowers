@@ -58,13 +58,14 @@ public static partial class MainMenuRuntime
         // ONE height for tiered and untiered: the progress track (2026-08-29 redesign) fits
         // the exact vertical the classic TARGET/BEST pair uses.
         bool tiered = LevelTiers.HasTiers(level);
-        float H = suppliesOn ? ModalHeightWithSupplies(level) : 840f;
+        float H = suppliesOn ? ModalHeightWithSupplies(level) : 864f;
         Color panelColor = GameMenuStyle.PanelColor; // kept local: the thumbnail fade blends into it
         RectTransform panel = CreateRect(overlay.transform, "Panel",
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(W, H));
         Image panelImage = panel.gameObject.AddComponent<Image>();
-        GameMenuStyle.StylePanel(panel.gameObject); // the one modal-panel treatment
+        GameMenuStyle.StylePanel(panel.gameObject);
+        ModalSafeFrame.Attach(panel); // the one modal-panel treatment
         panelImage.raycastTarget = true;
 
         // Thumbnail, full-bleed across the top (rounded corners match the panel).
@@ -86,11 +87,11 @@ public static partial class MainMenuRuntime
         // with a hazard badge (Airtight) leads with its icon - the same mark the in-run pill
         // shows, taught here next to the label + the instruction line below.
         LevelMenuPresentation.Snapshot presentation = LevelMenuPresentation.Build(level, completed);
-        Sprite badgeIcon = LevelMenuPresentation.FindBadgeIcon(level);
+        Sprite badgeIcon = HudGlyphs.Get(HudGlyphs.ForLevel(level));
         float challengeX = pad;
         if (badgeIcon != null)
         {
-            Image badge = CreateImage(panel, "ChallengeBadge", badgeIcon, Color.white);
+            Image badge = CreateImage(panel, "ChallengeBadge", badgeIcon, lightChapter);
             SetRect(badge.rectTransform, new Vector2(pad - 2f, -254f), new Vector2(32f, 32f), new Vector2(0f, 1f));
             badge.preserveAspect = true;
             badge.raycastTarget = false;
@@ -102,8 +103,8 @@ public static partial class MainMenuRuntime
         challenge.characterSpacing = 4f;
 
         // Title (bold white), baseline near the image bottom.
-        CreateTmp(panel, "Title", level.DisplayName.ToUpperInvariant(), 50, TextPrimary, TextAnchor.UpperLeft,
-            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(pad, -290f), new Vector2(contentW, 64f), new Vector2(0f, 1f));
+        CreateTmp(panel, "Title", level.DisplayName, 50, TextPrimary, TextAnchor.UpperLeft,
+            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(pad, -290f), new Vector2(contentW, 72f), new Vector2(0f, 1f));
 
         // Stat area. Tiered (goal-bearing) levels: the PROGRESS TRACK (redesign, Nick
         // 2026-08-29) - one line with the tier cubes sitting at their thresholds and the fill
@@ -153,6 +154,9 @@ public static partial class MainMenuRuntime
                 new Vector2(pad, belowStatsY - 26f), new Vector2(contentW, 130f), new Vector2(0f, 1f));
         }
 
+        var instruction = panel.Find("Description")?.GetComponent<TextMeshProUGUI>();
+        if (instruction != null) instruction.textWrappingMode = TextWrappingModes.Normal;
+
         // The supplies section (RUN LIVES + BOOSTS card rows + the status line, SHOP.md §9.1)
         // sits between the description and the buttons; the extra panel height made room.
         SuppliesUi suppliesUi = null;
@@ -167,12 +171,14 @@ public static partial class MainMenuRuntime
         Image playBg = CreateImage(panel, "Play", MenuSprites.RoundedGradient(
             Color.Lerp(chapter.PlayButtonTopColor, Color.white, 0.06f), chapter.PlayButtonBottomColor), Color.white);
         playBg.type = Image.Type.Sliced;
-        SetRect(playBg.rectTransform, new Vector2(pad, 44f), new Vector2(playW, 112f), new Vector2(0f, 0f));
+        SetRect(playBg.rectTransform, new Vector2(pad, 44f), new Vector2(playW, 128f), new Vector2(0f, 0f));
         playBg.raycastTarget = true;
         Image playIcon = CreateImage(playBg.transform, "PlayIcon", MenuSprites.TrianglePlay(), TextPrimary);
         SetCenteredAt(playIcon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(-64f, 0f), new Vector2(38f, 38f));
         TextMeshProUGUI playLabel = CreateTmp(playBg.transform, "PlayLabel", "PLAY", 36, TextPrimary,
-            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(24f, 0f), new Vector2(260f, 48f), new Vector2(0.5f, 0.5f));
+            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(24f, 0f), new Vector2(260f, 56f), new Vector2(0.5f, 0.5f));
+        StyleMenuAction(playBg, true, lightChapter);
+        playIcon.color = new Color(.13f,.13f,.14f,1);
         Button playButton = playBg.gameObject.AddComponent<Button>();
         playButton.targetGraphic = playBg;
         playButton.onClick.AddListener(() =>
@@ -256,9 +262,9 @@ public static partial class MainMenuRuntime
         float ranksW = contentW - playW - 18f;
         Image ranksBg = CreateImage(panel, "Ranks", RuntimeSprites.RoundedPanel(), new Color(0.13f, 0.13f, 0.15f, 1f));
         ranksBg.type = Image.Type.Sliced;
-        SetRect(ranksBg.rectTransform, new Vector2(ranksX, 44f), new Vector2(ranksW, 112f), new Vector2(0f, 0f));
+        SetRect(ranksBg.rectTransform, new Vector2(ranksX, 44f), new Vector2(ranksW, 128f), new Vector2(0f, 0f));
         ranksBg.raycastTarget = true;
-        RuntimeUiKit.AddOutline(ranksBg.transform, WithAlpha(lightChapter, 0.4f));
+        MenuRule(ranksBg.transform, WithAlpha(lightChapter, 0.4f));
         Image trophy = CreateImage(ranksBg.transform, "RanksIcon", MenuSprites.Trophy(lightChapter), Color.white);
         trophy.preserveAspect = true;
         SetCenteredAt(trophy.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(-58f, 0f), new Vector2(36f, 36f));
@@ -302,13 +308,13 @@ public static partial class MainMenuRuntime
         string label = level.WinCondition.HasTimeLimit
             ? $"YOUR PROGRESS - TARGETS IN {TimedWinCondition.FormatDuration(level.TimeLimitSeconds)}"
             : "YOUR PROGRESS";
-        TextMeshProUGUI labelText = CreateTmp(panel, "ProgressLabel", label, 18, labelColor,
+        TextMeshProUGUI labelText = CreateTmp(panel, "ProgressLabel", label, 21, labelColor,
             TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(pad, y), new Vector2(contentW - 220f, 24f), new Vector2(0f, 1f));
+            new Vector2(pad, y), new Vector2(contentW - 250f, 34f), new Vector2(0f, 1f));
         labelText.characterSpacing = 3f;
-        CreateTmp(panel, "ProgressBest", $"BEST  {bestText.ToUpperInvariant()}", 18, bestColor,
+        CreateTmp(panel, "ProgressBest", $"BEST  {bestText.ToUpperInvariant()}", 21, labelColor,
             TextAnchor.UpperRight, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(pad, y), new Vector2(contentW, 24f), new Vector2(0f, 1f));
+            new Vector2(pad, y), new Vector2(contentW, 34f), new Vector2(0f, 1f));
 
         // The line. Inset so the endpoint cubes (gold sits at 100%) stay inside the content.
         // Chapter-colored fill on a quiet neutral track (a bronze->gold gradient scale was
@@ -317,7 +323,7 @@ public static partial class MainMenuRuntime
         float gold = LevelTiers.Threshold(level, LevelTiers.MaxTier);
         float trackX = pad + 6f;
         float trackW = contentW - 52f;
-        const float trackH = 14f;
+        const float trackH = 6f;
         float barTop = y - 46f;
         float barMid = barTop - trackH * 0.5f;
         Image track = CreateImage(panel, "Track", RuntimeSprites.RoundedPanel(), new Color(1f, 1f, 1f, 0.10f));
@@ -355,7 +361,7 @@ public static partial class MainMenuRuntime
             CreateTmp(panel, $"StopGoal{tier}", meters ? $"{goal}m" : goal.ToString(), 20,
                 earned ? MedalStyle.TierColor(tier) : WithAlpha(LockedColor, 0.9f),
                 TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-                new Vector2(cx - 55f, barMid - 42f), new Vector2(110f, 26f), new Vector2(0f, 1f));
+                new Vector2(cx - 55f, barMid - 42f), new Vector2(110f, 32f), new Vector2(0f, 1f));
         }
     }
 
@@ -395,9 +401,9 @@ public static partial class MainMenuRuntime
         fill.sprite = RuntimeSprites.RoundedPanel();
         fill.type = Image.Type.Sliced;
         fill.color = new Color(0.10f, 0.10f, 0.115f, 1f);
-        RuntimeUiKit.AddOutline(card, GlassBorder);
+        MenuRule(card, GlassBorder);
 
-        TextMeshProUGUI labelText = CreateTmp(card, "Label", label, 18, labelColor, TextAnchor.UpperLeft,
+        TextMeshProUGUI labelText = CreateTmp(card, "Label", label, 21, labelColor, TextAnchor.UpperLeft,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(22f, -18f), new Vector2(width - 36f, 24f), new Vector2(0f, 1f));
         labelText.characterSpacing = 3f;
         CreateTmp(card, "Value", value, 30, valueColor, TextAnchor.UpperLeft,
