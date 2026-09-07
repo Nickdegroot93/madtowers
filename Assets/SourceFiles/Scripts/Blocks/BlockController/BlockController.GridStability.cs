@@ -523,6 +523,14 @@ public partial class BlockController
         float overhangPastContact = escapeDirection < 0
             ? minX - resultantX
             : resultantX - maxX;
+
+        // A cell fitted into an exact one-row STATIC terrain socket has two contacts that can
+        // carry a moment: the floor pushes up on the tipping side while the ceiling pushes down
+        // on the opposite side. Treat that real form-lock as an anchor before applying the
+        // authored block-on-block hook limit. This is deliberately terrain-only; tower pieces
+        // touching above and below must still pass the ordinary support/load rules.
+        if (HasStaticPocketBrace(escapeDirection)) return true;
+
         float hookAllowance = GridHookMaxOverhangFraction * grid;
         if (overhangPastContact > hookAllowance + tolerance) return false;
         return HasGridHookAnchor(escapeDirection, ignoredBlock);

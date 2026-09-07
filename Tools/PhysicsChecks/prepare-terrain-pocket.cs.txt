@@ -1,0 +1,4 @@
+if(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name!="__PocketPhysicsReview") return "Wrong scene";
+foreach(var es in UnityEngine.Object.FindObjectsByType<UnityEngine.EventSystems.EventSystem>(FindObjectsInactive.Include,FindObjectsSortMode.None)) es.enabled=false;
+if(UnityEngine.Object.FindFirstObjectByType<AudioListener>()==null)new GameObject("Physics review audio listener").AddComponent<AudioListener>();
+return "Disabled auto-bootstrapped menu input in the temporary scene and installed a listener";

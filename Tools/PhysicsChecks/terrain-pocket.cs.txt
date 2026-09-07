@@ -1,0 +1,221 @@
+// Execute through Unity MCP execute_code in an EMPTY play-mode scene named
+// __PocketPhysicsReview. See README.md. Real prefabs, terrain builder and landing path;
+// the fixture never starts a run or changes player progress. Results go to Library/.
+if (!Application.isPlaying || UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "__PocketPhysicsReview"
+    || GameManager.Instance != null || BlockController.AllBlocks.Count != 0)
+    throw new Exception("Use an empty __PocketPhysicsReview play-mode scene with no game or blocks.");
+var bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+var checks = new List<object>();
+var observations = new List<object>();
+var errors = new List<string>();
+Application.LogCallback captureError = (message, stack, type) =>
+{
+    if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert) errors.Add(message);
+};
+Application.logMessageReceived += captureError;
+var roots = new List<GameObject>();
+var previousSimulation = Physics2D.simulationMode;
+float previousTimeScale = Time.timeScale;
+GameObject fixture = null;
+FloorTerrain terrain = null;
+void Check(string name, bool passed, object details = null) { checks.Add(new { name, passed, details }); }
+void Clear()
+{
+    foreach (var root in roots) if (root != null) UnityEngine.Object.DestroyImmediate(root);
+    roots.Clear();
+    Physics2D.SyncTransforms();
+}
+void Start(string name)
+{
+    Clear();
+    fixture = new GameObject(name); roots.Add(fixture);
+    terrain = fixture.AddComponent<FloorTerrain>();
+}
+BoxCollider2D Column(float x, float bottom, float top, bool rounded = true)
+{
+    typeof(FloorTerrain).GetMethod("CreateColumnCollider", bf).Invoke(terrain,
+        new object[] { x, bottom, top, 1f, .03f, rounded });
+    return terrain.transform.GetChild(terrain.transform.childCount - 1).GetComponent<BoxCollider2D>();
+}
+BlockController Piece(string shape, float x, float y, float angle = 0, string variant = "Normal", bool land = true)
+{
+    var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Blocks/Block_" + shape + ".prefab");
+    var go = UnityEngine.Object.Instantiate(prefab, new Vector3(x, y, 0), Quaternion.Euler(0, 0, angle), fixture.transform);
+    var block = go.GetComponent<BlockController>();
+    var data = UnityEditor.AssetDatabase.LoadAssetAtPath<BlockData>("Assets/Data/Blocks/" + variant + ".asset");
+    if (data == null) throw new Exception("Missing test variant " + variant);
+    block.ApplyData(data);
+    typeof(BlockController).GetMethod("InitDynamicControlBody", bf).Invoke(block, null);
+    if (land) Land(block);
+    block.enabled = false; // manual physics steps, no player input or maintenance between assertions
+    return block;
+}
+void Land(BlockController block)
+{
+    Physics2D.SyncTransforms();
+    typeof(BlockController).GetMethod("BeginPhysicsLanding", bf).Invoke(block, null);
+}
+void Simulate() { for (int step = 0; step < 150; step++) Physics2D.Simulate(.02f); }
+bool Exact(BlockController block, float angle = 0)
+{
+    var body = block.GetComponent<Rigidbody2D>();
+    var cells = new List<Vector2>(); block.GetWorldCellCenters(cells);
+    return block.IsGridStable && body.constraints == RigidbodyConstraints2D.FreezeAll
+        && Mathf.Abs(Mathf.DeltaAngle(body.rotation, angle)) < .001f
+        && cells.All(c => Mathf.Abs(c.x - Mathf.Round(c.x)) < .001f && Mathf.Abs(c.y - Mathf.Round(c.y)) < .001f);
+}
+bool Dynamic(BlockController block) => !block.IsGridStable && block.GetComponent<Rigidbody2D>().bodyType == RigidbodyType2D.Dynamic;
+try
+{
+    Time.timeScale = 0; Physics2D.simulationMode = SimulationMode2D.Script;
+    foreach (int direction in new[] { -1, 1 })
+    {
+        Start("Pocket " + direction);
+        Column(0, -3, -.5f); var ceiling = Column(0, .55f, 1.5f);
+        var arm = Piece("I", direction > 0 ? 2 : -1, 0);
+        Check("One-row pocket exact at landing " + direction, Exact(arm));
+        var load = Piece("O", direction > 0 ? 3 : -2, 1);
+        var cap = Piece("T", direction * 2, 3);
+        Simulate();
+        Check("Loaded pocket remains exact after three seconds " + direction, Exact(arm) && Exact(load) && Exact(cap),
+            new { angle = arm.GetComponent<Rigidbody2D>().rotation });
+        UnityEngine.Object.DestroyImmediate(ceiling.gameObject); Physics2D.SyncTransforms();
+        BlockController.WakeDynamicLandedBlocks();
+        Check("Removing ceiling releases arm and supported branch " + direction, Dynamic(arm) && Dynamic(load) && Dynamic(cap));
+    }
+    Start("Removed floor");
+    var floor = Column(0, -3, -.5f); Column(0, .55f, 1.5f);
+    var unsupported = Piece("I", 2, 0);
+    UnityEngine.Object.DestroyImmediate(floor.gameObject); Physics2D.SyncTransforms(); BlockController.WakeDynamicLandedBlocks();
+    Check("Removing pocket floor releases arm", Dynamic(unsupported));
+
+    foreach (string boundary in new[] { "absent", "two-row", "dynamic", "kinematic", "block", "slope" })
+    {
+        Start("Invalid ceiling " + boundary); Column(0, -3, -.5f);
+        if (boundary == "block")
+        {
+            var ceilingBlock = Piece("Pip", 0, 1.05f, land: false); ceilingBlock.FreezeInPlace();
+        }
+        else if (boundary != "absent")
+        {
+            var ceiling = Column(0, boundary == "two-row" ? 1.55f : .55f, boundary == "two-row" ? 2.5f : 1.5f);
+            if (boundary == "dynamic" || boundary == "kinematic")
+            {
+                var body = ceiling.gameObject.AddComponent<Rigidbody2D>();
+                body.bodyType = boundary == "dynamic" ? RigidbodyType2D.Dynamic : RigidbodyType2D.Kinematic;
+                body.gravityScale = 0;
+            }
+            if (boundary == "slope") ceiling.gameObject.AddComponent<LandableSlope>();
+        }
+        var arm = Piece("I", 2, 0);
+        Check("Overhang releases with " + boundary + " ceiling", Dynamic(arm));
+    }
+    Start("No floor"); Column(0, .55f, 1.5f);
+    Check("Ceiling alone cannot anchor a brick", Dynamic(Piece("I", 2, 0)));
+
+    Start("Island socket"); Column(0, -1.5f, -.5f); Column(0, .5f, 1.5f);
+    var islandArm = Piece("I", -2, 0, 180); Simulate();
+    Check("Exact one-row island socket holds rotated I", Exact(islandArm, 180));
+
+    // Real authored pocket generation, including its +0.05 ceiling clearance.
+    Start("Authored terrain");
+    var authored = FloorTerrain.Build(null, new[] { new FloorSegmentConfig(0, 1, 3, pockets: new[] { new FloorPocketConfig(0, 2) }) },
+        -1.5f, 1, .03f, .95f, FloorFogSettings.Resolve(null));
+    roots.Add(authored.gameObject);
+    Check("Authored FloorTerrain pocket stays exact", Exact(Piece("I", 2, 0)));
+
+    // Exercise the original vertical tuck across its documented +/-0.4 row window.
+    foreach (float offset in new[] { -.4f, 0f, .4f })
+    {
+        Start("Tuck " + offset); Column(0, -3, -.5f); Column(0, .55f, 1.5f);
+        var arm = Piece("I", 2, offset, land: false);
+        Physics2D.SyncTransforms();
+        typeof(BlockController).GetMethod("TuckIntoStaticPocket", bf).Invoke(arm, new object[] { new Vector3(3, offset, 0) });
+        float tuckX = arm.transform.position.x, tuckY = arm.transform.position.y;
+        Land(arm);
+        if (offset == 0)
+            Check("On-row tuck enters and seats exactly", Exact(arm) && Mathf.Abs(arm.transform.position.x - 2) < .001f);
+        else
+            // These entry refusals reproduced identically on the original support logic.
+            // Keep them visible as a separate existing issue; this patch only restores bracing.
+            observations.Add(new { name = "Existing off-row entry limitation", offset, tuckX, tuckY,
+                entered = Mathf.Abs(tuckX - 2) < .001f, gridStable = arm.IsGridStable });
+    }
+
+    // The hook-only Ice exception must remain intact for all four hook shapes.
+    string[] hookShapes = { "S", "Z", "J", "L" };
+    float[] hookX = { 1, 0, -1, 1 }, hookY = { 0, 0, -1, -1 }, hookAngle = { 90, 90, 270, 90 };
+    for (int i = 0; i < hookShapes.Length; i++)
+    {
+        foreach (string variant in new[] { "Normal", "Ice" })
+        {
+            Start(variant + " " + hookShapes[i] + " hook"); Column(0, -4, -.5f);
+            var hook = Piece(hookShapes[i], hookX[i], hookY[i], hookAngle[i], variant);
+            if (variant == "Normal") Check("Normal " + hookShapes[i] + " hook stays exact", Exact(hook, hookAngle[i]));
+            else
+            {
+                var body = hook.GetComponent<Rigidbody2D>();
+                int direction = hookShapes[i] == "S" || hookShapes[i] == "L" ? 1 : -1;
+                Check("Ice " + hookShapes[i] + " hook releases with original slip", Dynamic(hook)
+                    && Mathf.Abs(body.linearVelocity.x - direction * .5f) < .001f
+                    && body.sharedMaterial == UnityEditor.AssetDatabase.LoadAssetAtPath<BlockData>("Assets/Data/Blocks/Ice.asset").PhysicsMaterial);
+            }
+        }
+    }
+    Start("Neutralized ice hook"); Column(0, -4, -.5f);
+    var neutralized = Piece("S", 1, 0, 90, "Ice", false);
+    neutralized.ApplyData(UnityEditor.AssetDatabase.LoadAssetAtPath<BlockData>("Assets/Data/Blocks/Normal.asset"));
+    Land(neutralized);
+    Check("Current normal data restores ice hook hold", Exact(neutralized, 90));
+
+    Start("Supported ice"); Column(0, -4, -.5f); Column(1, -4, -.5f);
+    Check("Fully supported ice stays exact", Exact(Piece("O", 1, 0, variant: "Ice")));
+    Start("Ice pocket"); Column(0, -3, -.5f); Column(0, .55f, 1.5f);
+    Check("Terrain pocket braces ice independently of friction", Exact(Piece("I", 2, 0, variant: "Ice")));
+    Start("Anchor"); Column(0, -4, -.5f);
+    var anchor = Piece("O", 1, 0, variant: "Anchor");
+    Check("Anchor remains Static", anchor.IsFrozenInPlace);
+    Start("Freeze"); Column(0, -4, -.5f);
+    var frozen = Piece("O", 1, 0); frozen.FreezeInPlace(); BlockController.WakeDynamicLandedBlocks();
+    Check("Freeze remains Static", frozen.IsFrozenInPlace);
+
+    Start("Flat O overhang"); Column(0, -4, -.5f);
+    Check("O on one narrowed cell releases", Dynamic(Piece("O", 1, 0)));
+    Start("Flat L overhang"); Column(0, -4, -.5f);
+    Check("Unhooked L overhang releases", Dynamic(Piece("L", 1, 0)));
+    Start("O on O"); Column(0, -4, -.5f); Column(1, -4, -.5f);
+    var lower = Piece("O", 1, 0); var upper = Piece("O", 1, 2); Simulate();
+    Check("Centered O-on-O stays exact", Exact(lower) && Exact(upper));
+    Start("Hook overload"); Column(0, -4, -.5f);
+    var baseHook = Piece("S", 1, 0, 90); var heavy = Piece("Pip", 1, 1, variant: "Boulder");
+    Check("Overloaded hook and unsupported load both release", Dynamic(baseHook) && Dynamic(heavy));
+
+    Start("J/S edge stack"); for (int x = -3; x <= 0; x++) Column(x, -4, -.5f);
+    var j = Piece("J", 0, 0); bool jInitiallyStable = Exact(j);
+    var s = Piece("S", 1, 1);
+    Check("J/S added load releases the base and its unsupported branch", jInitiallyStable && Dynamic(j) && Dynamic(s));
+
+    Start("J/T/Z/L edge sculpture"); for (int x = -3; x <= 0; x++) Column(x, -4, .5f);
+    j = Piece("J", 0, 1, 180); var t = Piece("T", 0, 2); var z = Piece("Z", -1, 3, 90);
+    bool threeStable = Exact(j, 180) && Exact(t) && Exact(z, 90);
+    var l = Piece("L", -2, 5, 90);
+    Check("J/T/Z/L releases at Z while J and T remain exact",
+        threeStable && Exact(j, 180) && Exact(t) && Dynamic(z) && Dynamic(l));
+
+    Start("Forced release"); Column(0, -3, -.5f); Column(0, .55f, 1.5f);
+    var forced = Piece("I", 2, 0);
+    typeof(BlockController).GetMethod("ReleaseGridStructureForForce", bf).Invoke(forced, null);
+    Check("Explicit force still releases pocket structure", Dynamic(forced));
+    Simulate(); BlockController.WakeDynamicLandedBlocks();
+    Check("Released pocket piece never re-enters grid ownership", Dynamic(forced));
+}
+finally
+{
+    Clear(); Physics2D.simulationMode = previousSimulation; Time.timeScale = previousTimeScale;
+    Application.logMessageReceived -= captureError;
+}
+var output = Newtonsoft.Json.JsonConvert.SerializeObject(new { checks, observations, errors }, Newtonsoft.Json.Formatting.Indented);
+System.IO.File.WriteAllText("Library/terrain-pocket-checks.json", output);
+int failed = Newtonsoft.Json.Linq.JArray.FromObject(checks).Count(c => !(bool)c["passed"]);
+if (failed > 0 || errors.Count > 0) throw new Exception(failed + " failed checks, " + errors.Count + " runtime errors. See Library/terrain-pocket-checks.json.");
+return new { passed = checks.Count, failed, errors, observations, report = "Library/terrain-pocket-checks.json" };

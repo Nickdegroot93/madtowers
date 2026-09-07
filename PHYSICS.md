@@ -6,7 +6,7 @@ are ordinary physics bodies. The ownership boundary is explicit and one-way, pre
 snap/solver fights while preserving real falls and tower collapses.
 
 Sister file locations:
-- [BlockController/](Assets/SourceFiles/Scripts/Blocks/BlockController/) — descent, landing, grid stability, Dynamic-debris settling, and sleep. One class split into focused partials: core (fields/lifecycle), Input, Setup, Steering, Placement, Landing, GridStability, Settling, PlacementBeam — all the same `BlockController`, so everything in this document applies across them.
+- [BlockController/](Assets/SourceFiles/Scripts/Blocks/BlockController/) — descent, landing, grid stability, Dynamic-debris settling, and sleep. One class split into focused partials: core (fields/lifecycle), Input, Setup, Steering, Placement, Landing, GridStability, GridTerrainPocket, Settling, PlacementBeam — all the same `BlockController`, so everything in this document applies across them.
 - [StaticSupportIslandManager.cs](Assets/SourceFiles/Scripts/World/StaticSupportIslandManager.cs) — sky platforms
 - [PlayAreaController.cs](Assets/SourceFiles/Scripts/Levels/PlayAreaController.cs) — floor
 - [GameModeConfig.cs](Assets/SourceFiles/Scripts/Levels/GameModeConfig.cs) + `Assets/Data/GameModes/` + `Assets/Resources/GameModes/` — per-level tuning
@@ -57,6 +57,22 @@ real top contact. That is enough for the intended standalone L/S/Z hook poses, b
 infinitely strong anchor for accumulated tower load. **Never clamp a hooked resultant to the ledge
 edge or remove the hook bound.** Either change turns hooks into torque sinks that can hold an
 arbitrarily lopsided, gravity-defying tower.
+
+A one-row **STATIC terrain socket** is the other form-locked case, isolated in
+`BlockController.GridTerrainPocket.cs`. One cell of the piece must have an exact static floor below
+and an exact static ceiling above, one grid row apart (allowing the existing pocket-entry clearance).
+Their horizontal reaction intervals must form a couple opposing the attempted tip: ceiling left
+of a possible floor reaction for a rightward tip, mirrored for leftward. Only non-block Static world
+geometry qualifies: a block sandwich, Dynamic collider, slope, ceiling without a floor, ordinary
+ledge, or opening taller than one row does not. This test runs only inside the existing landing/load
+decision; it never corrects a pose later. A qualifying socket is an unyielding terrain anchor and
+may carry pieces stacked on its exposed arm. The 0.40-cell block-hook reach cap does not apply:
+the opposing floor/ceiling contacts distinguish the socket from a free overhang. The ice-only hook
+rule below still applies to ordinary ledges; a terrain socket does not depend on ice friction.
+
+Restored on `movement-test` in September 2026 from `3c49173`: that fix remained on `floor-test`
+after its earlier merge point and was absent here. The regression released an inserted horizontal
+I into Dynamic physics, allowing a shallow tilt before its ceiling contact caught it.
 
 **Ice-only exception:** a block whose current applied data is `IceBlockData` cannot use the
 hook exemption. A verified hook-dependent ice placement releases through the existing structural
@@ -311,6 +327,8 @@ These are the *designer* dials — safe to vary per level. Current defaults:
 | A genuine S/Z or J/L ledge hook tilts or slides away | Verify `HasGridHookAnchor` sees the supported top cell, outside same-row cell, and outside lower cell in the load-resultant direction (I3). |
 | A flat overhang remains rigid as though it were hooked | The hook test accepted a piece without an own cell below the ledge, or the ordinary resultant/contact-span test was bypassed (I3). |
 | A hooked multi-piece sculpture carries unlimited weight | Hook torque propagation lost its original line of action, or `GridHookMaxOverhangFraction` is no longer enforced. A hook is a bounded placement affordance, never an infinite anchor (I3). |
+| A horizontal brick pushed into an exact one-row terrain pocket tilts | `HasStaticPocketBrace` did not find both Static boundaries, so the load test released the brick to Dynamic and the pocket caught it only after rotation. Check the pocket floor/ceiling bounds and direction of their reaction couple; do not add friction or a later snap (I2/I3). |
+| A normal overhang becomes rigid after the pocket fix | The pocket detector accepted something without the same cell having both a Static floor and Static ceiling one row apart, or accepted a block/Dynamic/slope boundary. Keep the exception terrain-only (I3). |
 | Piece won't fit a gap it should fit; placements shove neighbours | Footprint width crept back toward 1.0, or islands/blocks width scales diverged (I4). Verify in Physics Debugger: collider outlines must sit visibly *inside* sprite sides while remaining full-height. |
 | Blocks land on invisible corners and tip | Landing filter weakened (`landingSupportNormalY`, `landingMinSupportWidthFraction`). |
 | Dynamic blocks feel like they are on ice | Their authored/normal material or the surface lost its expected friction. Rejected and released bodies must retain normal material; there is no collapse material. |
@@ -324,10 +342,19 @@ Mandatory I3 regression layouts before a physics change is accepted: standalone 
 standalone L hook stays exact; flat O on one narrowed cell releases; centered O-on-O stays exact;
 the documented four-piece J/T/Z/L edge sculpture releases at the Z interface; the documented
 two-piece J/S edge stack releases at the base; a cumulatively overloaded hook releases its support
-and the unsupported branch follows in the same validation pass.
+and the unsupported branch follows in the same validation pass. Also verify a horizontal I in an
+authored one-row floor pocket stays exact under stacked load in both directions, while the same I
+with no ceiling, a two-row opening, a block ceiling, or a Dynamic ceiling releases normally.
+Removing a pocket boundary must release an otherwise unbalanced arm on support revalidation.
 For the ice exception, repeat L/J and S/Z hooks with Ice: they must release to Dynamic physics;
 fully supported ice stays exact, neutralized ice regains the normal hook hold, and Freeze/Anchor
 still remains Static.
+
+Repeatable checks: `Tools/PhysicsChecks/terrain-pocket.cs.txt` (isolated Unity play mode;
+setup and exact J/S, J/T/Z/L coordinates in its companion README). The September restoration
+also reproduced a separate pre-existing off-row tuck refusal at ±0.4 cell: the same entry poses
+were refused before and after restoring the brace. This is a limitation of the documented
+entry window, not a reason to broaden the bracing fix into steering or overlap changes.
 
 ---
 
