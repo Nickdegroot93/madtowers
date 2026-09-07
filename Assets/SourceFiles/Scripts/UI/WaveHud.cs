@@ -13,9 +13,8 @@ using UnityEngine.UI;
 /// pierce the dark, and keeping the bill visible while playing against a memorized line is
 /// the point.
 ///
-/// One system, two views: the pill's outline and urgency tint borrow the laser's resolved
-/// chapter colour, so "this number" and "that line" read as the same mechanism. Restraint
-/// per JUICE.md: a small settle-pop when the number falls, a brief outline flash when it
+/// The open row shares the chapter HUD ink. Restraint per JUICE.md: a small settle-pop
+/// when the number falls, a brief value tint when it
 /// RISES (a destroyed block re-owes the bill - worth an honest signal), a colour shift for
 /// the last 3 and a gentle breathing pulse for the last 2. No sounds - the zap already owns
 /// one. State is POLLED off HeightLimitWavesModifier.ActiveRun, the same way the objective
@@ -36,17 +35,14 @@ public class WaveHud : MonoBehaviour
     private Canvas _canvas;
     private RectTransform _pill;
     private CanvasGroup _pillGroup;
-    private Image _outline;
     private TextMeshProUGUI _valueText;
     private RectTransform _row;
 
     private HeightLimitWavesModifier _run; // the clone we styled for; a retry makes a new one
-    private Color _tint = Color.white;
     private int _shownRemaining = -1;
     private float _pillShownTime = -1f;
     private float _popTime = float.PositiveInfinity;
     private float _deficitFlash;
-    private Vector3 _screenKey = -Vector3.one;
 
     private void OnEnable()
     {
@@ -80,21 +76,12 @@ public class WaveHud : MonoBehaviour
         if (!ReferenceEquals(run, _run))
         {
             _run = run;
-            _tint = run.LaserColor;
-            _tint.a = 1f;
             _shownRemaining = -1;
             _pill.gameObject.SetActive(true);
             _pillShownTime = Time.unscaledTime;
         }
 
-        // Safe area / resolution can settle late on boot and change mid-run; reposition only
-        // when the screen actually changed (UIManager's screen-key convention).
-        Vector3 screenKey = new Vector3(Screen.width, Screen.height, Screen.safeArea.yMax);
-        if (screenKey != _screenKey)
-        {
-            _screenKey = screenKey;
-            ApplyPillPosition();
-        }
+        ApplyPillPosition(); // includes side insets and canvas-scale changes
 
         if (_pillShownTime >= 0f)
         {
@@ -132,21 +119,19 @@ public class WaveHud : MonoBehaviour
         FxKit.TickSettlePop(_pill, ref _popTime, dt);
 
         _deficitFlash = Mathf.Max(0f, _deficitFlash - dt);
-        Color edge = _tint;
-        edge.a = Mathf.Lerp(0.55f, 1f, _deficitFlash / DeficitFlashSeconds);
-        _outline.color = edge;
 
         // Urgency ramp, double-coded (colour AND motion, never colour alone): the laser's
-        // tint for the last 3, plus a slow breathing pulse for the last 2. Alpha never
+        // danger ink for the last 3, plus a slow breathing pulse for the last 2. Alpha never
         // drops far - a countdown that blinks off reads as a glitch, not urgency.
         Color value = remaining <= UrgencyTintAt
-            ? Color.Lerp(_tint, Color.white, 0.25f)
-            : Color.white;
+            ? HudVisualStyle.Current.Danger
+            : HudVisualStyle.Current.Ink;
         if (remaining <= UrgencyPulseAt && remaining > 0)
         {
             value.a = 0.8f + 0.2f * Mathf.Sin(Time.unscaledTime * 4f);
         }
-        _valueText.color = value;
+        _valueText.color = Color.Lerp(value, HudVisualStyle.Current.Danger,
+            _deficitFlash / DeficitFlashSeconds);
     }
 
     // ---- construction ----------------------------------------------------------------------
@@ -160,7 +145,7 @@ public class WaveHud : MonoBehaviour
         _canvas = _canvasRoot.GetComponent<Canvas>();
 
         _pill = HudSubCard.Create(_canvasRoot.transform, "WavePill", HudSubCard.Side.Right);
-        _outline = RuntimeUiKit.AddOutline(_pill, new Color(1f, 1f, 1f, 0.55f));
+        // Open status row; urgency is carried by the value and its existing pulse.
 
         _pillGroup = _pill.gameObject.AddComponent<CanvasGroup>();
         _pillGroup.alpha = 0f;
@@ -172,7 +157,7 @@ public class WaveHud : MonoBehaviour
         _row = HudSubCard.CreateRow(_pill);
         HudSubCard.AddText(_row, "Caption", "NEXT WAVE", HudSubCard.CaptionFontSize,
             HudSubCard.CaptionColor, characterSpacing: 8f);
-        _valueText = HudSubCard.AddText(_row, "Value", "0", HudSubCard.ValueFontSize, Color.white);
+        _valueText = HudSubCard.AddText(_row, "Value", "0", HudSubCard.ValueFontSize, HudVisualStyle.Current.Ink);
 
         ApplyPillPosition();
         _pill.gameObject.SetActive(false); // no wave run live = no pill at all

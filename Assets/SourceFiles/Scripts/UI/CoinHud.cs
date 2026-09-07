@@ -243,7 +243,7 @@ public class CoinHud : MonoBehaviour
         Image icon = HudSubCard.AddIcon(row, "Coin", _coinSprite,
             _coinSpriteIsFallback ? FallbackCoinGold : Color.white);
         _iconRect = icon.rectTransform;
-        _valueText = HudSubCard.AddText(row, "Value", "0", HudSubCard.ValueFontSize, Color.white);
+        _valueText = HudSubCard.AddText(row, "Value", "0", HudSubCard.ValueFontSize, HudVisualStyle.Current.Ink);
 
         ApplyPillPosition();
         _pill.gameObject.SetActive(false); // no coins earned yet = no pill at all

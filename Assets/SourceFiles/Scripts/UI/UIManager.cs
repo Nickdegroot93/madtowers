@@ -17,54 +17,33 @@ public class UIManager : MonoBehaviour
 
     // Style values are code-owned (not serialized) so tweaks always take effect —
     // serialized defaults go stale in Unity's import caches (see memory/PHYSICS.md §2).
-    private static readonly Color NextPreviewTint = new Color(1f, 1f, 1f, 0.6f);
-    private static readonly Color NextSecondaryTint = new Color(1f, 1f, 1f, 0.32f); // dimmer next-next slot
-    // Top bar: one dark rounded master card with the OBJECTIVE card on the left ("62/100",
-    // "WAVE 3/5", "12.4/30m" - what you're chasing and how far you are), the lives sockets +
-    // pause on the right, and a taller NEXT card vertically centered between them.
-    // Pure greyscale: near-opaque black tones so translucent layers stacking over each
-    // other don't read as "weird lines" - each layer barely lets the one below through.
-    private static readonly Color BarColor = new Color(0f, 0f, 0f, 0.62f);
-    private static readonly Color BarInsetColor = new Color(0f, 0f, 0f, 0.78f);
-    private static readonly Color NextCardColor = new Color(0f, 0f, 0f, 0.78f);
-    private static readonly Color NextCardBorder = new Color(0.92f, 0.92f, 0.92f, 0.38f);
-    private static readonly Color StatLabelColor = new Color(0.80f, 0.80f, 0.80f, 0.55f);
-    private static readonly Color StatValueColor = new Color(0.97f, 0.97f, 0.97f, 1f);
-    private static readonly Color PauseFillColor = new Color(0f, 0f, 0f, 0.45f);
-    private static readonly Color PauseIconColor = new Color(0.85f, 0.85f, 0.85f, 0.85f);
-    private const float BarHeight = 104f;
-    private const float BarSideMargin = 120f; // breathing room per the design - nothing reserves this space
-    private const float BarCardInset = 14f;   // stat cards float inside their segment on all sides
-    private const float TopMarginBelowSafeArea = 64f;
-    // Published geometry for the sub-cards that hang under the bar (HudSubCard): the bar's
-    // bottom edge, and the inset cards' outer / center-facing edges, so a card below can share
-    // the inset card's exact left and right edges on every screen (anchor-relative, no widths).
+    private static Color NextPreviewTint => GameMenuStyle.WithAlpha(HudVisualStyle.Current.Secondary, .85f);
+    private static Color NextSecondaryTint => GameMenuStyle.WithAlpha(HudVisualStyle.Current.Secondary, .5f);
+    // Three open groups, sharing horizontal anchors with the secondary readouts.
+    private const float BarHeight = 120f;
+    private const float BarSideMargin = 64f;
+    private const float TopMarginBelowSafeArea = 62f;
     public const float BarBottomBelowSafeArea = TopMarginBelowSafeArea + BarHeight;
-    public const float InnerCardOuterMargin = BarSideMargin + BarCardInset;
-    public const float InnerCardCenterOffset = NextCardWidth * 0.5f - BarSeamTuck + BarCardInset;
-    private const float NextCardWidth = 200f;
-    private const float NextCardOverhang = 24f; // how far it sticks out above AND below
-    // Foresight widens the NEXT card DOWNWARD to a second, smaller/dimmer preview. The top
-    // (immediate-next) slot is identical to the single-preview layout, so the default card
-    // is pixel-for-pixel unchanged; only the second slot and the extra height are new.
-    private const float OneSlotCardHeight = BarHeight + NextCardOverhang * 2f;
-    private const float SecondSlotExtraHeight = 70f;
+    public const float InnerCardOuterMargin = BarSideMargin;
+    public const float InnerCardCenterOffset = NextCardWidth * .5f + 26f;
+    private const float NextCardWidth = 204f;
+    private const float NextCardOverhang = 18f;
+    private const float OneSlotCardHeight = 176f;
+    private const float SecondSlotExtraHeight = 78f;
     private const float TwoSlotCardHeight = OneSlotCardHeight + SecondSlotExtraHeight;
-    private const float NextSlotTopInset = 40f;          // space the "NEXT" label occupies
+    private const float NextSlotTopInset = 22f;
     private const float NextPrimarySlotSideInset = 30f;
-    private const float NextPrimarySlotHeight = 94f;     // OneSlotCardHeight - top - 18 bottom pad
-    private const float NextSlotGap = 6f;
-    private const float NextSecondarySlotSideInset = 56f; // narrower => visibly smaller
-    private const float NextSecondarySlotHeight = 64f;
-    // Bar segments slip this far under the card edge. Exactly the half-width of the
-    // card's border stroke: any deeper and the tucked bar shows through the translucent
-    // card as a dark sliver inside the border; any shallower risks a sky-gap at the seam.
-    private const float BarSeamTuck = 1f;
-    private const float HeartSize = 44f;
-    private const float HeartGap = 10f;
-    private const int MaxHearts = RunState.MaxLives; // three fixed sockets, empty ones stay visible
-    // The "/target" tail of the objective value, tinted down so the live number leads.
-    private static readonly string TargetSuffixHex = ColorUtility.ToHtmlStringRGBA(StatLabelColor);
+    private const float NextPrimarySlotHeight = 100f;
+    private const float NextSlotGap = 8f;
+    private const float NextSecondarySlotSideInset = 55f;
+    private const float NextSecondarySlotHeight = 66f;
+    private const float HeartSize = 45f;
+    private const float HeartGap = 14f;
+    private const int MaxHearts = RunState.MaxLives;
+    private TextMeshProUGUI _objectiveCaption;
+    private Image _objectiveTierIcon;
+    private bool _hasRemainingGoal;
+    private MedalTier? _chaseTier;
     private static readonly Color NudgePillColor = new Color(1f, 1f, 1f, 0.09f);
     private static readonly Color NudgeChevronColor = new Color(0.95f, 0.98f, 1f, 0.32f);
     private const float NudgeChevronSize = 30f;
@@ -91,9 +70,11 @@ public class UIManager : MonoBehaviour
     private RectTransform _hudRoot;
     private RectTransform _barLeft;
     private RectTransform _barRight;
+    private RectTransform _skyFade;
     private bool _topBarPositioned;
     private Vector3 _lastScreenState;
-    private readonly System.Collections.Generic.Dictionary<string, Sprite> _ghostSprites =
+    private Rect _lastSafeArea;
+    private readonly System.Collections.Generic.Dictionary<string, Sprite> _previewSprites =
         new System.Collections.Generic.Dictionary<string, Sprite>();
 
     private void Awake()
@@ -142,16 +123,14 @@ public class UIManager : MonoBehaviour
             Instance = null;
         }
 
-        // Ghost sprites are generated HideAndDontSave copies (they survive scene loads);
-        // destroy the ones we created - never the source piece sprites (cache stores the
-        // source itself when the texture wasn't readable).
-        foreach (Sprite ghost in _ghostSprites.Values)
+        // Only PieceGhost's generated copies belong to this view, never imported art.
+        foreach (Sprite sprite in _previewSprites.Values)
         {
-            if (ghost == null || !ghost.texture.hideFlags.HasFlag(HideFlags.HideAndDontSave)) continue;
-            Destroy(ghost.texture);
-            Destroy(ghost);
+            if (sprite == null || !sprite.hideFlags.HasFlag(HideFlags.HideAndDontSave)) continue;
+            Destroy(sprite.texture);
+            Destroy(sprite);
         }
-        _ghostSprites.Clear();
+        _previewSprites.Clear();
     }
 
     private void Start()
@@ -180,7 +159,7 @@ public class UIManager : MonoBehaviour
     private bool _waveObjective;
     private int _targetBlocks;
     private int _targetWaves;
-    private int _targetHeightMeters;
+    private float _targetHeightMeters;
     private int _shownWaveNumber = -1;
 
     private bool IsHeightObjective =>
@@ -202,37 +181,48 @@ public class UIManager : MonoBehaviour
             }
         }
 
-        // The denominator is the NEXT UNEARNED medal tier, not the authored (bronze) target: a
-        // replay with bronze banked opens straight onto silver's number, and a fully-golded
-        // level keeps showing gold's as the best-chase reference. Rolls live via TierEarned.
+        // Remaining follows the next unearned rung. After gold, show the live total.
+        // Keep height thresholds fractional; rounding the goal can report zero too soon.
         MedalTier? nextTier = LevelTiers.LowestUnearned(level);
-        int target = Mathf.RoundToInt(
-            LevelTiers.Threshold(level, nextTier ?? LevelTiers.MaxTier));
+        _chaseTier = nextTier;
+        _hasRemainingGoal = nextTier.HasValue;
+        float target = LevelTiers.Threshold(level, nextTier ?? LevelTiers.MaxTier);
         switch (_objectiveType)
         {
             case LevelTargetType.PlaceBlocks:
-            case LevelTargetType.TimedPlaceBlocks: _targetBlocks = target; break;
+            case LevelTargetType.TimedPlaceBlocks: _targetBlocks = Mathf.CeilToInt(target); break;
             case LevelTargetType.ReachHeight:
             case LevelTargetType.TimedReachHeight: _targetHeightMeters = target; break;
-            case LevelTargetType.ClearWaves: _targetWaves = target; break;
+            case LevelTargetType.ClearWaves: _targetWaves = Mathf.CeilToInt(target); break;
         }
     }
 
-    // A tier's hold-steady just completed: roll the objective denominator to the next rung.
+    // A tier's hold-steady just completed: roll remaining to the next rung.
     // The threshold comes from the event's level, never re-derived from the store - Custom
     // Game levels have no store identity, and the controller's session state isn't visible here.
     private void HandleTierEarned(LevelDefinition level, MedalTier tier)
     {
-        if (tier >= LevelTiers.MaxTier) return; // the top rung owns the victory card; the label stays put
         if (level == null || level != LevelSelectionState.SelectedLevel) return;
 
-        UpdateObjectiveTierIcon(tier + 1);
-        int next = Mathf.RoundToInt(LevelTiers.Threshold(level, tier + 1));
+        _hasRemainingGoal = tier < LevelTiers.MaxTier;
+        _chaseTier = _hasRemainingGoal ? tier + 1 : (MedalTier?)null;
+        UpdateObjectiveTierIcon(_chaseTier);
+        UpdateObjectiveCaption();
+        if (!_hasRemainingGoal)
+        {
+            if (GameManager.Instance != null)
+            {
+                HandleStandingBlocksChanged(GameManager.Instance.placedBlocks);
+                HandleHeightChanged(GameManager.Instance.liveTowerHeight);
+            }
+            return;
+        }
+        float next = LevelTiers.Threshold(level, tier + 1);
         switch (_objectiveType)
         {
             case LevelTargetType.PlaceBlocks:
             case LevelTargetType.TimedPlaceBlocks:
-                _targetBlocks = next;
+                _targetBlocks = Mathf.CeilToInt(next);
                 if (GameManager.Instance != null) HandleStandingBlocksChanged(GameManager.Instance.placedBlocks);
                 break;
             case LevelTargetType.ReachHeight:
@@ -241,30 +231,31 @@ public class UIManager : MonoBehaviour
                 if (GameManager.Instance != null) HandleHeightChanged(GameManager.Instance.liveTowerHeight);
                 break;
             case LevelTargetType.ClearWaves:
-                _targetWaves = next;
-                _shownWaveNumber = -1; // the polled readout redraws with the new denominator
+                _targetWaves = Mathf.CeilToInt(next);
+                _shownWaveNumber = -1; // redraw the polled wave readout
                 break;
         }
     }
 
-    private static string WithTarget(string current, string target) =>
-        string.IsNullOrEmpty(target) ? current : $"{current}<color=#{TargetSuffixHex}>/{target}</color>";
-
-    // The HUD total is the LIVE count of placed blocks still standing (drops when a block
-    // is destroyed or falls off), not the cumulative progression score.
+    // Presentation only: read the live counters and the armed tier's existing threshold.
+    public static int BlocksRemaining(int target, int standing) => Mathf.Max(0, target - standing);
+    public static int MetersRemaining(float target, float height) => Mathf.CeilToInt(Mathf.Max(0f, target - height));
     private void HandleStandingBlocksChanged(int placedBlocks)
     {
         if (scoreText == null || _waveObjective || IsHeightObjective) return;
-        scoreText.text = WithTarget(placedBlocks.ToString(),
-            _targetBlocks > 0 ? _targetBlocks.ToString() : null);
+        scoreText.text = (_hasRemainingGoal ? BlocksRemaining(_targetBlocks, placedBlocks) : placedBlocks).ToString();
     }
-
     private void HandleHeightChanged(float height)
     {
         if (scoreText == null || !IsHeightObjective) return;
-        // Whole meters, floored: decimals overflow the tag, and rounding up would show the
-        // target as reached (75/75m) while the tower is still short of it.
-        scoreText.text = WithTarget(Mathf.FloorToInt(height).ToString(), $"{_targetHeightMeters}m");
+        int value = _hasRemainingGoal ? MetersRemaining(_targetHeightMeters, height) : Mathf.FloorToInt(Mathf.Max(0, height));
+        scoreText.text = value + "<size=55%>m</size>";
+    }
+    private void UpdateObjectiveCaption()
+    {
+        if (_objectiveCaption == null) return;
+        _objectiveCaption.text = _waveObjective ? "WAVE" : _hasRemainingGoal
+            ? (IsHeightObjective ? "REMAINING" : "BLOCKS LEFT") : (IsHeightObjective ? "HEIGHT" : "BLOCKS");
     }
 
     private int _shownLives = -1;
@@ -310,11 +301,8 @@ public class UIManager : MonoBehaviour
 
     private void SetHeartState(Image heart, bool full)
     {
-        heart.sprite = full ? HeartSprites.Full() : HeartSprites.Empty();
-        // With no dedicated socket asset yet, the empty state is the full art dimmed.
-        heart.color = full || HeartSprites.HasDedicatedEmpty
-            ? Color.white
-            : new Color(0.25f, 0.22f, 0.22f, 0.55f);
+        heart.sprite = HudGlyphs.Get(full ? HudGlyphs.Mark.Heart : HudGlyphs.Mark.EmptyHeart);
+        heart.color = full ? HudVisualStyle.Current.Heart : HudVisualStyle.Current.EmptyHeart;
     }
 
     // The lost heart swells for a beat, then SHATTERS: it swaps to the empty socket while
@@ -344,7 +332,7 @@ public class UIManager : MonoBehaviour
     // always matches the art - no separate cracked asset to keep in sync.
     private void SpawnHeartShards(Image heart)
     {
-        Sprite full = HeartSprites.Full();
+        Sprite full = HudGlyphs.Get(HudGlyphs.Mark.Heart);
         if (full == null || _heartsContainer == null) return;
 
         Rect r = full.rect;
@@ -455,7 +443,7 @@ public class UIManager : MonoBehaviour
     private void SetSlotSprite(Image slot, string blockName)
     {
         string shape = ChapterSkins.ExtractShapeToken(blockName);
-        Sprite ghost = string.IsNullOrEmpty(shape) ? null : GetGhostSprite(shape);
+        Sprite ghost = string.IsNullOrEmpty(shape) ? null : GetPreviewSprite(shape);
         slot.sprite = ghost;
         slot.enabled = ghost != null;
     }
@@ -480,26 +468,49 @@ public class UIManager : MonoBehaviour
         NextCardBottomBelowSafeArea = TopMarginBelowSafeArea - NextCardOverhang + height;
     }
 
-    // Desaturated copy of the piece sprite so the preview reads as "coming up", not as a
-    // brick already in play. Cached per shape and skin folder.
-    private Sprite GetGhostSprite(string shape)
+    // Retain stone relief, but remove the playable piece's colour. The Image applies the
+    // same chapter ink as NEXT/brackets. Generated once per shape, freed with this view.
+    private Sprite GetPreviewSprite(string shape)
     {
         string cacheKey = $"{ChapterSkins.Folder}:{shape}";
-        if (_ghostSprites.TryGetValue(cacheKey, out Sprite cached)) return cached;
-
-        Sprite ghost = PieceGhost.Generate(shape, Desaturate);
-        _ghostSprites[cacheKey] = ghost;
-        return ghost;
+        if (_previewSprites.TryGetValue(cacheKey, out Sprite cached)) return cached;
+        Sprite sprite = PieceGhost.Generate(shape, NeutralizePreview);
+        if (sprite != null && sprite.hideFlags.HasFlag(HideFlags.HideAndDontSave))
+        {
+            // Chapter art can have uneven transparent bleed. Fit the visible silhouette,
+            // not the padded texture, so every shape shares the slot's visual centre.
+            Vector4 padding = UnityEngine.Sprites.DataUtility.GetPadding(sprite);
+            Rect bounds = sprite.rect;
+            bounds.x += padding.x;
+            bounds.y += padding.y;
+            bounds.width -= padding.x + padding.z;
+            bounds.height -= padding.y + padding.w;
+            if (bounds.width > 0 && bounds.height > 0)
+            {
+                Sprite trimmed = Sprite.Create(sprite.texture, bounds, new Vector2(.5f, .5f),
+                    sprite.pixelsPerUnit, 0, SpriteMeshType.FullRect);
+                trimmed.hideFlags = HideFlags.HideAndDontSave;
+                Destroy(sprite); // keep the generated texture, now owned by trimmed
+                sprite = trimmed;
+            }
+        }
+        _previewSprites[cacheKey] = sprite;
+        return sprite;
     }
 
-    // Desaturate toward the source so the preview reads as "coming up", keeping a hint of colour.
-    private static void Desaturate(Color[] pixels)
+    private static void NeutralizePreview(Color[] pixels)
     {
+        float peak = .001f;
+        foreach (Color pixel in pixels)
+            if (pixel.a > .05f) peak = Mathf.Max(peak, pixel.grayscale);
+
         for (int i = 0; i < pixels.Length; i++)
         {
-            Color c = pixels[i];
-            float gray = c.r * 0.299f + c.g * 0.587f + c.b * 0.114f;
-            pixels[i] = Color.Lerp(new Color(gray, gray, gray, c.a), c, 0.18f);
+            Color pixel = pixels[i];
+            // A restrained value range preserves seams and weathering without restoring
+            // the strong coloured/block-outline treatment of the active piece.
+            float value = Mathf.Lerp(.35f, 1f, Mathf.Clamp01(pixel.grayscale / peak));
+            pixels[i] = new Color(value, value, value, pixel.a);
         }
     }
 
@@ -536,239 +547,81 @@ public class UIManager : MonoBehaviour
         return HudRoot() != null ? HudRoot().GetComponentInParent<Canvas>() : null;
     }
 
+    private static RectTransform Group(Transform parent, string name)
+    {
+        var go = new GameObject(name, typeof(RectTransform));
+        var rect = (RectTransform)go.transform; rect.SetParent(parent, false); return rect;
+    }
     private void BuildTopBar()
     {
-        RectTransform root = HudRoot();
-        if (root == null) return;
-
-        // TWO bar segments, not one: the bar must not exist behind the NEXT card, or
-        // the card's translucency shows the bar instead of the game. Each segment's
-        // INNER edge is square (half-rounded sprite) and tucks just under the card's
-        // border, so the two segments read as one continuous bar passing behind it.
-        _barLeft = CreateBarSegment(root, "TopBarLeft", innerEdgeOnRight: true);
-        _barLeft.anchorMin = new Vector2(0f, 1f);
-        _barLeft.anchorMax = new Vector2(0.5f, 1f);
-
-        _barRight = CreateBarSegment(root, "TopBarRight", innerEdgeOnRight: false);
-        _barRight.anchorMin = new Vector2(0.5f, 1f);
-        _barRight.anchorMax = new Vector2(1f, 1f);
-
-        BuildObjectiveCard(_barLeft);
-        BuildLivesCard(_barRight);
-        BuildNextCard(root);
-
+        var root = HudRoot(); if (root == null) return;
+        _skyFade = HudVisualStyle.AddSkyFade(root);
+        _barLeft = Group(root, "ObjectiveGroup");
+        _barLeft.anchorMin = new Vector2(0,1); _barLeft.anchorMax = new Vector2(.5f,1);
+        _barRight = Group(root, "LivesGroup");
+        _barRight.anchorMin = new Vector2(.5f,1); _barRight.anchorMax = new Vector2(1,1);
+        BuildObjectiveCard(_barLeft); BuildLivesCard(_barRight); BuildNextCard(root);
         ApplyTopBarPosition();
     }
-
     private void ApplyTopBarPosition()
     {
         if (_barLeft == null || _barRight == null) return;
-
-        float topOffset = SafeAreaTopOffset();
-        float innerEnd = NextCardWidth * 0.5f - BarSeamTuck;
-
-        _barLeft.offsetMin = new Vector2(BarSideMargin, -topOffset - BarHeight);
-        _barLeft.offsetMax = new Vector2(-innerEnd, -topOffset);
-        _barRight.offsetMin = new Vector2(innerEnd, -topOffset - BarHeight);
-        _barRight.offsetMax = new Vector2(-BarSideMargin, -topOffset);
-
-        if (_nextPanel != null)
-        {
-            // Vertically centered on the bar: equal overhang above and below.
-            ((RectTransform)_nextPanel.transform).anchoredPosition = new Vector2(0f, -topOffset + NextCardOverhang);
-        }
+        Canvas canvas = HudCanvas(); float top = SafeAreaTopOffset();
+        if (_skyFade != null) _skyFade.sizeDelta = new Vector2(0, 480 + RuntimeUiKit.SafeAreaTopInset(canvas));
+        float left = BarSideMargin + RuntimeUiKit.SafeAreaLeftInset(canvas);
+        float right = BarSideMargin + RuntimeUiKit.SafeAreaRightInset(canvas);
+        _barLeft.offsetMin = new Vector2(left, -top-BarHeight);
+        _barLeft.offsetMax = new Vector2(-InnerCardCenterOffset, -top);
+        _barRight.offsetMin = new Vector2(InnerCardCenterOffset, -top-BarHeight);
+        _barRight.offsetMax = new Vector2(-right, -top);
+        if (_nextPanel != null) ((RectTransform)_nextPanel.transform).anchoredPosition = new Vector2(0,-top+NextCardOverhang);
     }
-
-    private static RectTransform CreateBarCard(Transform parent, string name, Color color)
+    private void BuildObjectiveCard(RectTransform parent)
     {
-        GameObject card = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform rect = (RectTransform)card.transform;
-        rect.SetParent(parent, false);
-        Image image = card.GetComponent<Image>();
-        image.sprite = RuntimeSprites.RoundedPanel();
-        image.type = Image.Type.Sliced;
-        image.color = color;
-        image.raycastTarget = false;
-        return rect;
+        var level = LevelSelectionState.SelectedLevel;
+        CreateBarIcon(parent, HudGlyphs.Get(HudGlyphs.ForLevel(level)), new Vector2(35,0), 72, HudVisualStyle.Current.Ink);
+        if (scoreText == null) scoreText = Group(parent,"ObjectiveValue").gameObject.AddComponent<TextMeshProUGUI>();
+        var rect = scoreText.rectTransform; rect.SetParent(parent,false);
+        rect.anchorMin = new Vector2(0,.5f); rect.anchorMax = new Vector2(1,.5f);
+        rect.pivot = new Vector2(0,.5f); rect.offsetMin = new Vector2(88,-29); rect.offsetMax = new Vector2(-8,67);
+        HudVisualStyle.Text(scoreText); scoreText.fontSize=60; scoreText.enableAutoSizing=false;
+        scoreText.alignment=TextAlignmentOptions.MidlineLeft;
+        var caption=Group(parent,"ObjectiveCaption");
+        caption.anchorMin=new Vector2(0,.5f);caption.anchorMax=new Vector2(1,.5f);
+        caption.offsetMin=new Vector2(90,-49);caption.offsetMax=new Vector2(-32,-21);
+        _objectiveCaption=caption.gameObject.AddComponent<TextMeshProUGUI>();
+        HudVisualStyle.Text(_objectiveCaption,true);_objectiveCaption.fontSize=20;_objectiveCaption.characterSpacing=3;
+        _objectiveCaption.color=HudVisualStyle.Current.Secondary;
+        _objectiveCaption.alignment=TextAlignmentOptions.MidlineLeft;
+        _objectiveTierIcon=CreateBarIcon(parent,null,new Vector2(0,-34),24,MedalStyle.IconTint(true));
+        _objectiveTierIcon.rectTransform.anchorMin=_objectiveTierIcon.rectTransform.anchorMax=new Vector2(1,.5f);
+        _objectiveTierIcon.rectTransform.anchoredPosition=new Vector2(-10,-34);
+        UpdateObjectiveTierIcon(_chaseTier); UpdateObjectiveCaption();
     }
-
-    // A bar segment: plain container + a half-rounded FILL child (square inner edge).
-    // The fill is a child (not the root) because the right segment's sprite is the left
-    // one rotated 180 degrees - rotating the root would rotate the stat card with it.
-    private static RectTransform CreateBarSegment(Transform parent, string name, bool innerEdgeOnRight)
+    private void UpdateObjectiveTierIcon(MedalTier? tier)
     {
-        GameObject segment = new GameObject(name, typeof(RectTransform));
-        RectTransform rect = (RectTransform)segment.transform;
-        rect.SetParent(parent, false);
-
-        GameObject fillObject = new GameObject("Fill", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform fillRect = (RectTransform)fillObject.transform;
-        fillRect.SetParent(rect, false);
-        fillRect.anchorMin = Vector2.zero;
-        fillRect.anchorMax = Vector2.one;
-        fillRect.offsetMin = Vector2.zero;
-        fillRect.offsetMax = Vector2.zero;
-        if (!innerEdgeOnRight) fillRect.localEulerAngles = new Vector3(0f, 0f, 180f);
-
-        Image image = fillObject.GetComponent<Image>();
-        image.sprite = RuntimeSprites.RoundedPanelSquareRight();
-        image.type = Image.Type.Sliced;
-        image.color = BarColor;
-        image.raycastTarget = false;
-        return rect;
+        if(_objectiveTierIcon==null)return;
+        _objectiveTierIcon.gameObject.SetActive(tier.HasValue);
+        if(tier.HasValue)_objectiveTierIcon.sprite=MedalStyle.Sprite(tier.Value,true);
     }
-
-    // Left segment's inset card: THE OBJECTIVE - fully rounded inside the segment (visible
-    // corners and padding on every side - it never tucks under the NEXT card). The caption
-    // names the metric ("BLOCKS" / "WAVE" / "HEIGHT"); the value carries current/target.
-    private void BuildObjectiveCard(RectTransform barSegment)
+    private void BuildLivesCard(RectTransform parent)
     {
-        RectTransform card = CreateBarCard(barSegment, "ObjectiveCard", BarInsetColor);
-        card.anchorMin = Vector2.zero;
-        card.anchorMax = Vector2.one;
-        card.offsetMin = new Vector2(BarCardInset, BarCardInset);
-        card.offsetMax = new Vector2(-BarCardInset, -BarCardInset);
-
-        // The LEADING icon is the target's tier (Nick 2026-08-29): a bronze cube next to
-        // "0/50" says what reaching 50 earns, and it rolls to silver the moment bronze lands
-        // (HandleTierEarned) - one icon, no separate badge. Ladder-less levels (Endless)
-        // keep the old grey cube on block goals and no icon on wave/height.
-        LevelDefinition level = LevelSelectionState.SelectedLevel;
-        bool tiered = LevelTiers.HasTiers(level);
-
-        if ((_waveObjective || IsHeightObjective) && !tiered)
-        {
-            RectTransform group = CreateCenteredGroup(card, new Vector2(150f, 60f), 0f);
-            CreateBarCaption(group, _waveObjective ? "WAVE" : "HEIGHT", new Vector2(0f, 16f));
-            if (scoreText != null) PlaceBarValue(scoreText, group, new Vector2(0f, -12f));
-            return;
-        }
-
-        string caption = _waveObjective ? "WAVE" : IsHeightObjective ? "HEIGHT" : "BLOCKS";
-        RectTransform iconGroup = CreateCenteredGroup(card, new Vector2(186f, 60f), 0f);
-        Image lead = CreateBarIcon(iconGroup, RuntimeSprites.CubeGlyph(), new Vector2(24f, 0f), 42f,
-            new Color(0.90f, 0.90f, 0.90f, 0.85f));
-        CreateBarCaption(iconGroup, caption, new Vector2(60f, 16f));
-        if (scoreText != null) PlaceBarValue(scoreText, iconGroup, new Vector2(60f, -12f));
-
-        if (tiered)
-        {
-            _objectiveTierIcon = lead;
-            lead.color = MedalStyle.IconTint(earned: true); // pairs the medal art per MedalStyle's contract
-            UpdateObjectiveTierIcon(LevelTiers.LowestUnearned(level) ?? LevelTiers.MaxTier);
-        }
+        // Preserve the forgiving whole-cluster pause hitbox; only its painted card is gone.
+        var hit=parent.gameObject.AddComponent<Image>();hit.color=Color.clear;
+        var button=parent.gameObject.AddComponent<Button>();button.targetGraphic=hit;
+        button.transition=Selectable.Transition.None;button.onClick.AddListener(OpenPauseMenu);
+        float heartsWidth=MaxHearts*HeartSize+(MaxHearts-1)*HeartGap;
+        var group=Group(parent,"HealthAndPause");
+        group.anchorMin=group.anchorMax=new Vector2(1,.5f);group.pivot=new Vector2(1,.5f);
+        group.sizeDelta=new Vector2(heartsWidth+36+72,72);group.anchoredPosition=Vector2.zero;
+        BuildHearts(group,heartsWidth);BuildPauseButton(group);
     }
-
-    // The objective card's leading icon once a ladder exists: WHICH rung the "/target"
-    // denominator belongs to. Rolls with the denominator via HandleTierEarned; on a
-    // fully-earned ladder it stays on the top rung, matching the best-chase denominator.
-    private Image _objectiveTierIcon;
-
-    // Full tier colour on purpose: this badge NAMES the target's rung (a label), it does not
-    // report earned state - the banked-state view is MedalHud's pill on the right.
-    private void UpdateObjectiveTierIcon(MedalTier tier)
-    {
-        if (_objectiveTierIcon == null) return;
-        _objectiveTierIcon.sprite = MedalStyle.Sprite(tier, earned: true);
-    }
-
-    // Right segment's inset card: the run's three life sockets and the pause glyph as ONE
-    // centered cluster (mirrors the objective card's centered group). Lives took the old
-    // HEIGHT slot: the left card owns the objective (height shows there when it IS the
-    // objective), and the ever-visible dark sockets are what a zero-lives run has to offer
-    // the shop to fill. The WHOLE card is the pause hitbox - the glyph is small and a
-    // mid-run tap must not need precision, so a tap on the hearts pauses too.
-    private void BuildLivesCard(RectTransform barSegment)
-    {
-        RectTransform card = CreateBarCard(barSegment, "LivesCard", BarInsetColor);
-        card.anchorMin = Vector2.zero;
-        card.anchorMax = Vector2.one;
-        card.offsetMin = new Vector2(BarCardInset, BarCardInset);
-        card.offsetMax = new Vector2(-BarCardInset, -BarCardInset);
-
-        Image cardImage = card.GetComponent<Image>();
-        cardImage.raycastTarget = true;
-        Button cardButton = card.gameObject.AddComponent<Button>();
-        cardButton.targetGraphic = cardImage;
-        cardButton.transition = Selectable.Transition.None;
-        cardButton.onClick.AddListener(OpenPauseMenu);
-
-        float heartsWidth = MaxHearts * HeartSize + (MaxHearts - 1) * HeartGap;
-        const float pauseGap = 18f;
-        const float pauseSize = 54f;
-        RectTransform group = CreateCenteredGroup(card,
-            new Vector2(heartsWidth + pauseGap + pauseSize, 60f), 0f);
-        BuildHearts(group, heartsWidth);
-        BuildPauseButton(group);
-    }
-
-    private static RectTransform CreateCenteredGroup(RectTransform parent, Vector2 size, float xOffset)
-    {
-        GameObject group = new GameObject("Group", typeof(RectTransform));
-        RectTransform rect = (RectTransform)group.transform;
-        rect.SetParent(parent, false);
-        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = new Vector2(xOffset, 0f);
-        rect.sizeDelta = size;
-        return rect;
-    }
-
     private Image CreateBarIcon(RectTransform parent, Sprite sprite, Vector2 center, float size, Color color)
     {
-        GameObject icon = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform rect = (RectTransform)icon.transform;
-        rect.SetParent(parent, false);
-        rect.anchorMin = rect.anchorMax = new Vector2(0f, 0.5f);
-        rect.anchoredPosition = center;
-        rect.sizeDelta = new Vector2(size, size);
-        Image image = icon.GetComponent<Image>();
-        image.sprite = sprite;
-        image.preserveAspect = true;
-        image.color = color;
-        image.raycastTarget = false;
-        return image;
-    }
-
-    private void CreateBarCaption(RectTransform parent, string text, Vector2 position)
-    {
-        GameObject label = new GameObject("Caption", typeof(RectTransform));
-        RectTransform rect = (RectTransform)label.transform;
-        rect.SetParent(parent, false);
-        rect.anchorMin = rect.anchorMax = new Vector2(0f, 0.5f);
-        rect.pivot = new Vector2(0f, 0.5f);
-        rect.anchoredPosition = position;
-        rect.sizeDelta = new Vector2(150f, 20f);
-
-        TextMeshProUGUI caption = label.AddComponent<TextMeshProUGUI>();
-        if (scoreText != null) caption.font = scoreText.font;
-        caption.text = text;
-        caption.fontSize = 15f;
-        caption.characterSpacing = 16f;
-        caption.fontStyle = FontStyles.Bold;
-        caption.alignment = TextAlignmentOptions.MidlineLeft;
-        caption.color = StatLabelColor; // neutral grey + translucent: greyscale overlay-blend look
-        caption.raycastTarget = false;
-    }
-
-    // Reparent the scene's stat text into the bar group and restyle it as a card value.
-    private void PlaceBarValue(TextMeshProUGUI text, RectTransform group, Vector2 position)
-    {
-        RectTransform rect = text.rectTransform;
-        rect.SetParent(group, false);
-        rect.anchorMin = rect.anchorMax = new Vector2(0f, 0.5f);
-        rect.pivot = new Vector2(0f, 0.5f);
-        rect.anchoredPosition = position;
-        rect.sizeDelta = new Vector2(150f, 38f);
-
-        text.color = StatValueColor;
-        text.alignment = TextAlignmentOptions.MidlineLeft;
-        text.fontStyle = FontStyles.Bold;
-        text.enableAutoSizing = false;
-        text.fontSize = 33f;
-        text.raycastTarget = false;
-        // "62/100" must never wrap inside the fixed value box; overflow spills right instead.
-        text.textWrappingMode = TextWrappingModes.NoWrap;
-        text.overflowMode = TextOverflowModes.Overflow;
+        var rect=Group(parent,"Icon");rect.anchorMin=rect.anchorMax=new Vector2(0,.5f);
+        rect.anchoredPosition=center;rect.sizeDelta=new Vector2(size,size);
+        var image=rect.gameObject.AddComponent<Image>();image.sprite=sprite;image.preserveAspect=true;
+        image.color=color;image.raycastTarget=false;return image;
     }
 
     // Shared by the glyph and the whole-card hitbox. Guarded on availability: the glyph
@@ -793,15 +646,16 @@ public class UIManager : MonoBehaviour
         rect.anchorMin = rect.anchorMax = new Vector2(1f, 0.5f);
         rect.pivot = new Vector2(1f, 0.5f);
         rect.anchoredPosition = Vector2.zero;
-        rect.sizeDelta = new Vector2(54f, 54f);
+        rect.sizeDelta = new Vector2(72f, 72f);
 
         Image fill = buttonObject.GetComponent<Image>();
         fill.sprite = RuntimeSprites.RoundedPanel();
         fill.type = Image.Type.Sliced;
-        fill.color = PauseFillColor;
+        fill.color = Color.clear;
 
         Button button = buttonObject.AddComponent<Button>();
         button.targetGraphic = fill;
+        button.transition = Selectable.Transition.None;
         button.onClick.AddListener(OpenPauseMenu);
 
         for (int i = 0; i < 2; i++)
@@ -810,19 +664,17 @@ public class UIManager : MonoBehaviour
             RectTransform barRect = (RectTransform)barObject.transform;
             barRect.SetParent(rect, false);
             barRect.anchorMin = barRect.anchorMax = new Vector2(0.5f, 0.5f);
-            barRect.anchoredPosition = new Vector2(i == 0 ? -7f : 7f, 0f);
-            barRect.sizeDelta = new Vector2(7f, 22f);
+            barRect.anchoredPosition = new Vector2(i == 0 ? -9f : 9f, 0f);
+            barRect.sizeDelta = new Vector2(7f, 32f);
             Image barImage = barObject.GetComponent<Image>();
-            barImage.color = PauseIconColor;
+            barImage.color = HudVisualStyle.Current.Ink;
             barImage.raycastTarget = false;
         }
 
         _pauseButton = buttonObject;
     }
 
-    // Center NEXT card: taller than the bar, lighter and translucent - what shows
-    // through it is the GAME (the bar segments stop at its edges), framed by a single
-    // thin off-white border. Positioned by ApplyTopBarPosition alongside the segments.
+    // Open NEXT brackets and a footer label. Each preview is centered in its own slot.
     private void BuildNextCard(RectTransform root)
     {
         _nextPanel = new GameObject("NextCard", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
@@ -838,30 +690,30 @@ public class UIManager : MonoBehaviour
         Image fill = _nextPanel.GetComponent<Image>();
         fill.sprite = RuntimeSprites.RoundedPanel();
         fill.type = Image.Type.Sliced;
-        fill.color = NextCardColor;
+        fill.color = Color.clear;
         fill.raycastTarget = false;
 
-        RuntimeUiKit.AddOutline(card, NextCardBorder);
+        HudVisualStyle.Brackets(card);
 
         if (scoreText != null)
         {
             GameObject label = new GameObject("NextLabel", typeof(RectTransform));
             RectTransform labelRect = (RectTransform)label.transform;
             labelRect.SetParent(card, false);
-            labelRect.anchorMin = new Vector2(0f, 1f);
-            labelRect.anchorMax = new Vector2(1f, 1f);
-            labelRect.pivot = new Vector2(0.5f, 1f);
-            labelRect.anchoredPosition = new Vector2(0f, -11f);
-            labelRect.sizeDelta = new Vector2(0f, 20f);
+            labelRect.anchorMin = new Vector2(0f, 0f);
+            labelRect.anchorMax = new Vector2(1f, 0f);
+            labelRect.pivot = new Vector2(0.5f, 0f);
+            labelRect.anchoredPosition = new Vector2(0f, -9.5f);
+            labelRect.sizeDelta = new Vector2(-58f, 40f);
 
             TextMeshProUGUI labelText = label.AddComponent<TextMeshProUGUI>();
-            labelText.font = scoreText.font;
+            HudVisualStyle.Text(labelText,true);
             labelText.text = "NEXT";
-            labelText.fontSize = 15f;
-            labelText.characterSpacing = 18f;
-            labelText.fontStyle = FontStyles.Bold;
+            labelText.fontSize = 20f;
+            labelText.characterSpacing = 9f;
+            labelText.fontStyle = FontStyles.Normal;
             labelText.alignment = TextAlignmentOptions.Center;
-            labelText.color = StatLabelColor; // same overlay-blend treatment as the stat captions
+            labelText.color = HudVisualStyle.Current.Secondary; // same overlay-blend treatment as the stat captions
             labelText.raycastTarget = false;
         }
 
@@ -884,9 +736,9 @@ public class UIManager : MonoBehaviour
         _activeSlotCount = 1;
     }
 
-    // A top-pinned preview box (stretches horizontally, fixed height). anchoredPosition.y
-    // places its TOP `topInset` below the card's top; sizeDelta.x of -2*sideInset insets
-    // both sides. preserveAspect keeps each piece's proportions within its slot.
+    // A top-anchored box with a CENTER pivot. Image.preserveAspect uses the pivot to align
+    // any spare space: a top pivot pins wide/short pieces (especially I) to the top edge.
+    // Offset by half the slot height to keep the box itself in the same location.
     private Image CreatePreviewSlot(RectTransform card, string name,
         float sideInset, float topInset, float height, Color tint)
     {
@@ -895,9 +747,9 @@ public class UIManager : MonoBehaviour
         rect.SetParent(card, false);
         rect.anchorMin = new Vector2(0f, 1f);
         rect.anchorMax = new Vector2(1f, 1f);
-        rect.pivot = new Vector2(0.5f, 1f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
         rect.sizeDelta = new Vector2(-2f * sideInset, height);
-        rect.anchoredPosition = new Vector2(0f, -topInset);
+        rect.anchoredPosition = new Vector2(0f, -topInset - height * .5f);
 
         Image image = slot.GetComponent<Image>();
         image.preserveAspect = true;
@@ -961,11 +813,13 @@ public class UIManager : MonoBehaviour
         // Safe area + canvas scale are only trustworthy once the first frame runs, and
         // both can change later (rotation, window resize, multitasking) - re-apply the
         // bar position whenever the screen geometry differs from the last applied one.
-        Vector3 screenState = new Vector3(Screen.width, Screen.height, Screen.safeArea.yMax);
-        if (!_topBarPositioned || screenState != _lastScreenState)
+        Canvas canvas = _hudRoot != null ? _hudRoot.GetComponentInParent<Canvas>() : null;
+        Vector3 screenState = new Vector3(Screen.width, Screen.height, canvas != null ? canvas.scaleFactor : 1f);
+        if (!_topBarPositioned || screenState != _lastScreenState || Screen.safeArea != _lastSafeArea)
         {
             _topBarPositioned = true;
             _lastScreenState = screenState;
+            _lastSafeArea = Screen.safeArea;
             ApplyTopBarPosition(); // the hearts ride the bar card, no separate reposition
         }
 
@@ -978,8 +832,7 @@ public class UIManager : MonoBehaviour
             if (wave != _shownWaveNumber)
             {
                 _shownWaveNumber = wave;
-                scoreText.text = WithTarget(wave.ToString(),
-                    _targetWaves > 0 ? _targetWaves.ToString() : null);
+                scoreText.text = wave.ToString();
             }
         }
 

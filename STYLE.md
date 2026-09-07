@@ -117,3 +117,11 @@ here changes, change it in every generator (and the C# constant it mirrors).
   never a fork of the pipeline.
 - Hand-made override PNGs must follow every invariant above to be accepted.
 - Judge all art in-game at gameplay zoom, not at full resolution.
+
+## Gameplay HUD (September 2026)
+
+The gameplay HUD uses open groups over the chapter: objective left, a muted chapter-ink next piece
+centred inside fine open brackets in the centre, simple hearts and pause bars right. Typography
+is Manrope Medium/Semibold, with chapter-specific ink from `HudVisualStyle`. Secondary
+readouts and hold-steady share it. This is distinct from the opaque near-black modal
+sheets and Archivo Black display headings. Full specification: [HUD.md](HUD.md).

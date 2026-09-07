@@ -102,9 +102,10 @@ Two things you **must** get right with the offset path:
 | Main menu top status bar | top | `SafeAreaFitter` (menu safe layer) |
 | Main menu bottom nav | bottom | `SafeAreaFitter` (menu safe layer) |
 | Main menu chapter content | all | `SafeAreaFitter` (menu safe layer) |
-| In-game top HUD bar + NEXT card | top | `SafeAreaTopInset` + `TopMarginBelowSafeArea`, re-applied in `UIManager.Update` |
-| In-game hearts (lives) | top (inside the bar's right card) | ride the bar card - covered by the bar's own inset handling |
-| Under-bar status cards: coin (`CoinHud`), NEXT WAVE (`WaveHud`), timed-goal clock (`LevelRuntimeController`), banked medal (`MedalHud`) | top, under the bar | ALL built by `HudSubCard`: horizontal edges ANCHORED to the bar's inset cards (`UIManager.InnerCardOuterMargin` / `InnerCardCenterOffset`, half-screen anchors like the bar segments) so they share the objective/lives card edges on every screen; vertical slot via `HudSubCard.Place` (`SafeAreaTopInset` + `TopOffsetBelowSafeArea`, rows stack 52 + 12); content is one centered row. Never give one of these a hardcoded width or margin. |
+| Open gameplay HUD + NEXT brackets | top and sides | Safe-area insets + authored padding; `UIManager.Update` checks full safe rect, screen size and canvas scale |
+| In-game hearts and pause | top and right | Ride the right HUD group; transparent pause hit area follows the visible group |
+| Secondary HUD rows: coin, NEXT WAVE, timed-goal clock, banked medal | top and sides | `HudSubCard` stretches to the objective/lives group's edges, re-applies top and side insets, and stacks 52-unit rows with 8-unit gaps; no fixed row width |
+| Hold-steady and medal debut origin | below the HUD | `HudVisualStyle.PlaceHold` uses the live NEXT bottom and safe-area top; Foresight pushes it down |
 | Ability/consumable slots | right side (player-arrangeable via `HudLayout`) | `SafeAreaFitter` container + normalized anchors, see `AbilityHud.ApplyLayout` |
 | Hold (pocket cache) bubble | left | `SafeAreaLeftInset`, re-applied in `HoldButton.Update` |
 | Menu background art | — | intentionally **full-screen**, bleeds behind the notch |
@@ -117,7 +118,7 @@ Two things you **must** get right with the offset path:
   pills barely overlap it.
 - **Centered modals** (pause, level complete, level summary) need no inset — they float in
   the middle. A top-pinned control *inside* a modal still does.
-- **Banners at a height fraction** (instruction / win-countdown at 74% height) are mid-screen,
+- **Banners at a height fraction** (instruction / hold-abort message at 74% height) are mid-screen,
   not edge-pinned; safe area doesn't apply.
 
 ---

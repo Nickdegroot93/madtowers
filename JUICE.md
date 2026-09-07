@@ -103,9 +103,14 @@ phase requests, confirmation actions, attempt gates and refill callbacks are unc
 `HoldSteadyFx` only reads the verification clock. The cube breathes gently, compresses
 on each displayed second, and holds larger and steadier in the final second. The two
 bar fills remain an exact linear representation of remaining time; thickness supplies
-tension without falsifying the timer. The digit supports the cube at 100 units. Banking
-hands off at the cube's 70%-height position to the existing `MedalHud` debut/flight and
-sting; a single material sweep lights the earned icon. No extra sound or bank event.
+tension without falsifying the timer. The open HUD pass uses Manrope Medium for the
+70-unit digit, Semibold for the 23-unit wordmark, an 82-unit cube and two 84-unit lines
+starting at 3 units thick. Labels and lines use `HudVisualStyle` chapter ink; the medal
+keeps its actual tier material. No gradient letters or shadow twin. The composition sits
+below the safe-area-adjusted header, including Foresight, and `MedalHud` uses that same
+origin for its existing debut/flight and sting. A single material sweep lights the earned
+icon. The controller still owns the five-second scaled verification clock, debounce,
+collapse abort, pause checks and banking; no extra sound or bank event.
 
 ## 3. The coin economy (shipped)
 
@@ -150,8 +155,8 @@ Silent. Runs on `BlockLocked` with ComboDetector's revalidate-after-settle patte
   temporary SpriteMasks (custom sorting range so nothing else clips). White for stacks,
   gold for golden. Single-brick sweeps follow the brick (falling golden glints).
 - **Coin flight**: 3–7 small coins (menu `coin` art) burst from the brick, hang a beat,
-  curve on staggered arcs into the counter pill; the pill (hidden until the first earn,
-  under the top bar's left card) ticks up per arrival with a ~10% elastic pulse and ONE
+  curve on staggered arcs into the open counter row; the row (hidden until the first earn,
+  under the objective group) ticks up per arrival with a ~10% elastic pulse and ONE
   soft `coin_settle_01` clink per batch (synthesized, deliberately un-chime-like).
 - First-earn origin bug to remember: the HUD canvas must be built at scene start — a canvas
   created mid-frame has no layout yet and world→canvas math lands at screen centre.

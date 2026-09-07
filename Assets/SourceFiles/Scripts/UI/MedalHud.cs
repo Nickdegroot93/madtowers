@@ -135,9 +135,9 @@ public class MedalHud : MonoBehaviour
         GameObject go = new GameObject("MedalDebut", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         RectTransform rect = (RectTransform)go.transform;
         rect.SetParent(_canvasRoot.transform, false);
-        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.7f);
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1f);
         rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = Vector2.zero; // bank at the countdown cube's position
+        HudVisualStyle.PlaceHold(rect); // bank at the live countdown composition
         // The corner card's LIVE width (anchor-stretched to the bar geometry) at debut scale,
         // so the fly-in still lands pixel-identical on the card.
         float pillWidth = _pill != null && _pill.rect.width > 1f ? _pill.rect.width : 290f;
@@ -173,6 +173,7 @@ public class MedalHud : MonoBehaviour
     {
         if (_debut == null) return;
         _debutClock += dt;
+        if (!_debutFlyStarted) HudVisualStyle.PlaceHold(_debut);
 
         if (_debutClock < DebutPopSeconds)
         {
@@ -263,7 +264,7 @@ public class MedalHud : MonoBehaviour
     {
         icon.sprite = MedalStyle.Sprite(tier, earned: true);
         label.text = MedalStyle.DisplayName(tier);
-        label.color = MedalStyle.TierColor(tier);
+        label.color = HudVisualStyle.Current.Ink;
         HudSubCard.MarkDirty(label.transform.parent as RectTransform);
     }
 

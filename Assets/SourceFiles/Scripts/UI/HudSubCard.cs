@@ -2,38 +2,30 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// THE one layout for the small status cards that hang under the top bar (coin total, NEXT
-/// WAVE countdown, timed-goal clock, banked medal). Each card is exactly as wide as the dark
-/// inset card in the bar segment above it - same left and right edges, on every screen size -
-/// because the edges are ANCHORED the way the bar segments are (half-screen anchor plus the
-/// same fixed offsets), never a hardcoded width. Content is one centered row (icon / caption /
-/// value), mirroring how the objective and lives cards center their own clusters, so a short
-/// value never leaves a stray gap against one edge (Nick 2026-09-04: "align it with the dark
-/// inner card"). Cards stack in rows below the bar when a corner has more than one tenant.
-/// </summary>
+/// <summary>Shared open secondary HUD rows: coins, wave countdown, clock and banked medal.
+/// Horizontal anchors follow the main objective/lives groups; no panel or border.</summary>
 public static class HudSubCard
 {
     public const float Height = 52f;
-    public const float GapBelowBar = 12f;
-    public const float RowGap = 12f;
+    public const float GapBelowBar = 20f;
+    public const float RowGap = 8f;
     public const float TopOffsetBelowSafeArea = UIManager.BarBottomBelowSafeArea + GapBelowBar;
 
-    /// <summary>UIManager's BarInsetColor - the cards read as the bar's inset cards continued.</summary>
-    public static readonly Color Fill = new Color(0f, 0f, 0f, 0.78f);
-    /// <summary>UIManager's StatLabelColor - captions match the bar's "WAVE"/"BLOCKS" captions.</summary>
-    public static readonly Color CaptionColor = new Color(0.80f, 0.80f, 0.80f, 0.55f);
+    /// <summary>Transparent backing retained for existing row choreography.</summary>
+    public static Color Fill => Color.clear;
+    /// <summary>Chapter ink shared with the main objective caption.</summary>
+    public static Color CaptionColor => HudVisualStyle.Current.Secondary;
 
     public const float IconSize = 34f;
     public const float ValueFontSize = 30f;
-    public const float CaptionFontSize = 16f;
-    public const float LabelFontSize = 17f;
-    public const float RowSpacing = 14f;
+    public const float CaptionFontSize = 20f;
+    public const float LabelFontSize = 20f;
+    public const float RowSpacing = 10f;
 
     public enum Side { Left, Right }
 
-    /// <summary>A rounded card under the bar on one side. Horizontal edges are anchored to the
-    /// inset card above; call <see cref="Place"/> (every frame is fine) for the vertical slot.</summary>
+    /// <summary>An open row under one side of the HUD. Horizontal edges follow the
+    /// group above; call <see cref="Place"/> (every frame is fine) for the vertical slot.</summary>
     public static RectTransform Create(Transform canvasRoot, string name, Side side)
     {
         GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
@@ -65,12 +57,15 @@ public static class HudSubCard
     }
 
     /// <summary>Vertical slot: row 0 sits GapBelowBar under the bar, each further row one card
-    /// plus RowGap lower. Safe-area aware; horizontal edges are untouched.</summary>
+    /// plus RowGap lower. Re-applies top and side safe-area insets.</summary>
     public static void Place(RectTransform card, Canvas canvas, int row)
     {
         float top = RuntimeUiKit.SafeAreaTopInset(canvas) + TopOffsetBelowSafeArea + row * (Height + RowGap);
         Vector2 min = card.offsetMin;
+        Vector2 inset = new Vector2(RuntimeUiKit.SafeAreaLeftInset(canvas), RuntimeUiKit.SafeAreaRightInset(canvas));
+        if(card.anchorMin.x == 0f) min.x = UIManager.InnerCardOuterMargin + inset.x;
         Vector2 max = card.offsetMax;
+        if(card.anchorMax.x == 1f) max.x = -UIManager.InnerCardOuterMargin - inset.y;
         min.y = -(top + Height);
         max.y = -top;
         card.offsetMin = min;
@@ -129,8 +124,8 @@ public static class HudSubCard
         TextMeshProUGUI text = go.AddComponent<TextMeshProUGUI>();
         text.text = value;
         text.fontSize = fontSize * scale;
-        text.fontStyle = FontStyles.Bold;
-        text.characterSpacing = characterSpacing;
+        HudVisualStyle.Text(text, true);
+        text.characterSpacing = Mathf.Min(characterSpacing, 3f);
         text.alignment = TextAlignmentOptions.Center;
         text.color = color;
         text.textWrappingMode = TextWrappingModes.NoWrap;

@@ -27,12 +27,13 @@ public sealed class HoldSteadyFx : MonoBehaviour
         if (second == _second) return;
         _second = second;
         _digit.text = second.ToString();
-        _shadow.text = _digit.text;
+        if (_shadow != null) _shadow.text = _digit.text;
         _beatAge = 0f;
     }
 
     private void Update()
     {
+        if (_cube != null) HudVisualStyle.PlaceHold(_cube.parent as RectTransform);
         _age += Time.unscaledDeltaTime;
         _beatAge += Time.unscaledDeltaTime;
         float tension = 1f - Mathf.Clamp01(_remaining / _duration);
@@ -41,18 +42,18 @@ public sealed class HoldSteadyFx : MonoBehaviour
         float inhale = Mathf.Sin(_age * 3.2f) * .012f * (1f - last);
         if (_cube != null)
         {
-            float scale = 1f + inhale + beat * (.10f + tension * .12f) + last * .075f;
+            float scale = 1f + inhale + beat * (.045f + tension * .065f) + last * .075f;
             _cube.localScale = new Vector3(scale + beat * .035f, scale - beat * .035f, 1f);
             _cube.anchoredPosition = new Vector2(0f, Mathf.Sin(_age * 2f) * 3f * (1f - tension));
         }
-        float digitScale = 1f + beat * .16f + last * .10f;
+        float digitScale = 1f + beat * .06f + last * .035f;
         _digitRoot.localScale = new Vector3(digitScale, digitScale, 1f);
-        _digit.color = Color.Lerp(RuntimeUiKit.TitleColor, Color.white, last);
-        _shadow.color = new Color(0f, 0f, 0f, .65f);
+        _digit.color = HudVisualStyle.Current.Ink;
+        if (_shadow != null) _shadow.color = Color.clear;
         // The fill remains an exact linear picture of the rules clock. Tension is carried
         // by thickness and the cube, never by pretending there is less time left.
         float width = _width * Mathf.Clamp01(_remaining / _duration);
-        float height = 6f + tension * 2f + beat * 2f;
+        float height = 3f + tension + beat;
         _left.sizeDelta = _right.sizeDelta = new Vector2(width, height);
     }
 }

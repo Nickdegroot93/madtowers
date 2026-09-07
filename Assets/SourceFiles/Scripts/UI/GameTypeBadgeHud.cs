@@ -40,6 +40,9 @@ public class GameTypeBadgeHud : MonoBehaviour
     private const float GapBelowNextCard = 12f;
     private const float PillWidth = 172f;
     private const float PillHeight = 52f;
+    /// <summary>Live bottom of the rule label, for overlays sharing the NEXT column.</summary>
+    public static float BottomBelowSafeArea =>
+        UIManager.NextCardBottomBelowSafeArea + GapBelowNextCard + PillHeight;
     private const float PillFadeInSeconds = 0.25f;
     private const float DangerPulseHz = 2.6f;
 
@@ -51,9 +54,8 @@ public class GameTypeBadgeHud : MonoBehaviour
     private const float DebutHoldSeconds = 3.2f;
     private const float DebutFlySeconds = 0.55f;
 
-    private static readonly Color PillColor = new Color(0f, 0f, 0f, 0.78f);   // UIManager BarInsetColor
-    private static readonly Color EmberColor = new Color(0.45f, 0.12f, 0.02f, 0.88f);
-    private static readonly Color LabelColor = new Color(1f, 0.66f, 0.34f, 1f); // the icon's flame family
+    private static readonly Color PillColor = Color.clear;
+    private static Color LabelColor => HudVisualStyle.Current.Secondary;
 
     private GameObject _canvasRoot;
     private Canvas _canvas;
@@ -101,7 +103,8 @@ public class GameTypeBadgeHud : MonoBehaviour
             if (show)
             {
                 Image icon = _iconRect.GetComponent<Image>();
-                icon.sprite = source.BadgeIcon;
+                icon.sprite = HudGlyphs.Get(HudGlyphs.Mark.Airtight);
+                icon.color = HudVisualStyle.Current.Ink;
                 TextMeshProUGUI label = _pill.GetComponentInChildren<TextMeshProUGUI>();
                 label.text = source.BadgeLabel;
                 StartDebut(source);
@@ -127,7 +130,8 @@ public class GameTypeBadgeHud : MonoBehaviour
         float glow = danger <= 0f
             ? 0f
             : danger * (0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * DangerPulseHz * 2f * Mathf.PI));
-        _background.color = Color.Lerp(PillColor, EmberColor, glow);
+        _background.color = Color.clear;
+        _iconRect.GetComponent<Image>().color = Color.Lerp(HudVisualStyle.Current.Ink, HudVisualStyle.Current.Danger, glow);
         float iconScale = 1f + 0.16f * glow;
         _iconRect.localScale = new Vector3(iconScale, iconScale, 1f);
 
@@ -161,10 +165,11 @@ public class GameTypeBadgeHud : MonoBehaviour
         _debutPill.SetParent(_debutRoot, false);
         _debutPill.sizeDelta = new Vector2(PillWidth * DebutScale, PillHeight * DebutScale);
         BuildPillVisual(_debutPill, DebutScale, out Image debutIcon, out TextMeshProUGUI debutLabel);
-        debutIcon.sprite = source.BadgeIcon;
+        debutIcon.sprite = HudGlyphs.Get(HudGlyphs.Mark.Airtight);
+        debutIcon.color = HudVisualStyle.Current.Ink;
         debutLabel.text = source.BadgeLabel;
 
-        // The rule line, shadow-twinned for legibility over the world (UI.Shadow ignores TMP).
+        // The chapter-coloured rule line shares the HUD typography.
         GameObject textGo = new GameObject("Rule", typeof(RectTransform));
         RectTransform textRect = (RectTransform)textGo.transform;
         textRect.SetParent(_debutRoot, false);
@@ -172,9 +177,7 @@ public class GameTypeBadgeHud : MonoBehaviour
         textRect.sizeDelta = new Vector2(860f, 120f);
         _debutTextGroup = textGo.AddComponent<CanvasGroup>();
         _debutTextGroup.blocksRaycasts = false;
-        TextMeshProUGUI ruleShadow = BuildRuleText(textRect, new Color(0f, 0f, 0f, 0.55f));
-        ruleShadow.rectTransform.anchoredPosition = new Vector2(0f, -4f);
-        BuildRuleText(textRect, new Color(0.97f, 0.95f, 0.92f, 1f));
+        BuildRuleText(textRect, HudVisualStyle.Current.Ink);
 
         _debutClock = 0f;
         _debutFlyStarted = false;
@@ -189,9 +192,10 @@ public class GameTypeBadgeHud : MonoBehaviour
         rect.anchorMax = Vector2.one;
         rect.offsetMin = rect.offsetMax = Vector2.zero;
         TextMeshProUGUI text = go.AddComponent<TextMeshProUGUI>();
+        HudVisualStyle.Text(text);
         text.text = AirtightRuleText;
         text.fontSize = 36f;
-        text.fontStyle = FontStyles.Bold;
+        text.fontStyle = FontStyles.Normal;
         text.alignment = TextAlignmentOptions.Center;
         text.color = color;
         text.textWrappingMode = TextWrappingModes.Normal;
@@ -301,9 +305,10 @@ public class GameTypeBadgeHud : MonoBehaviour
         labelRect.offsetMin = new Vector2(56f * scale, 0f);
         labelRect.offsetMax = new Vector2(-10f * scale, 0f);
         text = label.AddComponent<TextMeshProUGUI>();
-        text.fontSize = 17f * scale;
+        HudVisualStyle.Text(text, true);
+        text.fontSize = 20f * scale;
         text.characterSpacing = 2f;
-        text.fontStyle = FontStyles.Bold;
+        text.fontStyle = FontStyles.Normal;
         text.alignment = TextAlignmentOptions.MidlineLeft;
         text.color = LabelColor;
         // The fixed pill must never wrap its word (the MedalHud "BRONZ/E" lesson).

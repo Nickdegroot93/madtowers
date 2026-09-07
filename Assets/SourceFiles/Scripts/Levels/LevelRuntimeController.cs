@@ -63,8 +63,7 @@ public class LevelRuntimeController : MonoBehaviour
     private float _verificationRemaining;
     private GameObject _countdownRoot;
     private TextMeshProUGUI _countdownDigit;
-    private TextMeshProUGUI _countdownDigitShadow; // painted twin behind the digit (see CreateShadowedText)
-    private RectTransform _countdownDigitRoot;     // scaling this punches digit + shadow together
+    private RectTransform _countdownDigitRoot;     // second-beat scale without moving the layout
     private RectTransform _countdownBarLeft;       // accent fills draining toward the cube
     private RectTransform _countdownBarRight;
     private RectTransform _countdownCube;          // the armed rung's cube, wobbling to steady
@@ -141,16 +140,20 @@ public class LevelRuntimeController : MonoBehaviour
 
     // One-sentence goal banner in the upper third at level start: fade in, hold, fade out.
     // Unscaled time so it behaves the same if the level opens paused (power-up choice etc.).
-    // Free-floating shadowed text - the old full-width black strip read as a debug bar
-    // (Nick 2026-08-29, with the hold-steady restyle).
+    // Free-floating chapter ink, sharing the countdown typography.
     private System.Collections.IEnumerator ShowInstructionBanner(string text)
     {
         GameObject root = RuntimeUiKit.CreateOverlayCanvas("Level Instruction", 3000);
         _bannerRoot = root;
 
-        CreateShadowedText(root.transform, "Banner", text, 38, RuntimeUiKit.TitleColor,
-            RuntimeUiKit.TitleFont, 2f, new Vector2(0.5f, 0.74f), new Vector2(940f, 160f),
-            wrap: true, display: false, out _, out _);
+        var region = RuntimeUiKit.CreateRect(root.transform, "BannerRegion",
+            new Vector2(.08f,.74f), new Vector2(.92f,.74f), new Vector2(.5f,.5f),
+            Vector2.zero, new Vector2(0,160));
+        var label = HudVisualStyle.Label(region, "Banner", text, 32, Vector2.zero, Vector2.zero, true);
+        label.rectTransform.anchorMin = Vector2.zero;
+        label.rectTransform.anchorMax = Vector2.one;
+        label.rectTransform.offsetMin = label.rectTransform.offsetMax = Vector2.zero;
+        label.textWrappingMode = TextWrappingModes.Normal;
 
         CanvasGroup group = root.AddComponent<CanvasGroup>();
         group.blocksRaycasts = false;
@@ -580,119 +583,45 @@ public class LevelRuntimeController : MonoBehaviour
     private float LiveTowerHeight()
         => GameManager.Instance != null ? GameManager.Instance.liveTowerHeight : 0f;
 
+    private RectTransform _countdownComposition;
+    private const float CountdownSegmentWidth = 84f;
+    private const float CountdownBarHeight = 3f;
+    private const float CubeGapHalf = 52f;
+
     private void BuildCountdownUi()
     {
         if (_countdownRoot != null) return;
-
-        SfxPlayer.PlayLoop("countdown", 0.8f); // clock runs for the 5->0 hold; stopped in DestroyCountdownUi
+        SfxPlayer.PlayLoop("countdown", .8f);
         _countdownRoot = RuntimeUiKit.CreateOverlayCanvas("Win Verification", 3200);
-        Color accent = GameMenuStyle.Accent;
-
-        // HOLD STEADY: display-font wordmark, horizontal light-to-accent gradient (the hero
-        // number's language), painted shadow - no strip, no bar.
-        TextMeshProUGUI wordmark = CreateShadowedText(_countdownRoot.transform, "HoldSteady",
-            "HOLD STEADY", 46, Color.white, RuntimeUiKit.TitleFont, 10f,
-            new Vector2(0.5f, WordmarkY), new Vector2(960f, 90f),
-            wrap: false, display: true, out _, out RectTransform wordmarkRoot);
-        wordmarkRoot.anchorMin = new Vector2(.08f, WordmarkY);
-        wordmarkRoot.anchorMax = new Vector2(.92f, WordmarkY);
-        wordmarkRoot.sizeDelta = new Vector2(0f, 90f);
-        RuntimeUiKit.ApplyHorizontalGradient(wordmark, Color.Lerp(accent, Color.white, 0.65f), accent);
-
-        // The centerpiece line: ---- cube ---- (Nick 2026-08-29, "one composition"). The armed
-        // rung's cube sits IN the progress line, floating on a slow bob that glides to a dead
-        // stop as the window runs down (the hold, embodied - a perfectly still cube marks the
-        // landing); the two accent bars drain from their outer ends toward the cube.
-        BuildCountdownSegment("TrackL", GameMenuStyle.WithAlpha(accent, 0.18f), new Vector2(1f, 0.5f), -CubeGapHalf);
-        BuildCountdownSegment("TrackR", GameMenuStyle.WithAlpha(accent, 0.18f), new Vector2(0f, 0.5f), CubeGapHalf);
-        _countdownBarLeft = BuildCountdownSegment("FillL", GameMenuStyle.WithAlpha(accent, 0.95f), new Vector2(1f, 0.5f), -CubeGapHalf).rectTransform;
-        _countdownBarRight = BuildCountdownSegment("FillR", GameMenuStyle.WithAlpha(accent, 0.95f), new Vector2(0f, 0.5f), CubeGapHalf).rectTransform;
-
+        _countdownComposition = RuntimeUiKit.CreateRect(_countdownRoot.transform, "HoldComposition",
+            new Vector2(.5f,1), new Vector2(.5f,1), new Vector2(.5f,.5f), Vector2.zero, new Vector2(360,220));
+        HudVisualStyle.PlaceHold(_countdownComposition);
+        var wordmark = HudVisualStyle.Label(_countdownComposition, "HoldSteady", "HOLD STEADY", 23,
+            new Vector2(0,70), new Vector2(360,36), true);
+        wordmark.characterSpacing = 5f; wordmark.color = HudVisualStyle.Current.Secondary;
+        Color accent = HudVisualStyle.Current.Ink;
+        BuildCountdownSegment("TrackL", GameMenuStyle.WithAlpha(accent,.18f), new Vector2(1,.5f), -CubeGapHalf);
+        BuildCountdownSegment("TrackR", GameMenuStyle.WithAlpha(accent,.18f), new Vector2(0,.5f), CubeGapHalf);
+        _countdownBarLeft = BuildCountdownSegment("FillL", accent, new Vector2(1,.5f), -CubeGapHalf).rectTransform;
+        _countdownBarRight = BuildCountdownSegment("FillR", accent, new Vector2(0,.5f), CubeGapHalf).rectTransform;
         if (_armedTier.HasValue)
         {
-            GameObject cube = new GameObject("TierCube", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-            _countdownCube = (RectTransform)cube.transform;
-            _countdownCube.SetParent(_countdownRoot.transform, false);
-            _countdownCube.anchorMin = _countdownCube.anchorMax = new Vector2(0.5f, LineY);
-            _countdownCube.pivot = new Vector2(0.5f, 0.5f);
-            _countdownCube.sizeDelta = new Vector2(120f, 120f);
-            Image cubeImage = cube.GetComponent<Image>();
-            cubeImage.sprite = MedalStyle.Sprite(_armedTier.Value, earned: true);
-            cubeImage.color = MedalStyle.IconTint(earned: true);
-            cubeImage.preserveAspect = true;
-            cubeImage.raycastTarget = false;
+            var cube = new GameObject("TierCube", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            _countdownCube = (RectTransform)cube.transform; _countdownCube.SetParent(_countdownComposition,false);
+            _countdownCube.anchorMin = _countdownCube.anchorMax = new Vector2(.5f,.5f);
+            _countdownCube.sizeDelta = new Vector2(82,82);
+            var image = cube.GetComponent<Image>(); image.sprite = MedalStyle.Sprite(_armedTier.Value,true);
+            image.color = MedalStyle.IconTint(true); image.preserveAspect = true; image.raycastTarget = false;
         }
-
-        // The countdown itself: one huge digit tucked under the line that punches in on every
-        // second (5 -> 4 -> 3...), so the wait reads as a countdown, not a frozen banner.
-        _countdownDigit = CreateShadowedText(_countdownRoot.transform, "Digit", "", 100,
-            RuntimeUiKit.TitleColor, RuntimeUiKit.TitleFont, 0f,
-            new Vector2(0.5f, DigitY), new Vector2(400f, 180f),
-            wrap: false, display: true, out _countdownDigitShadow, out _countdownDigitRoot);
-
-        _countdownFx = HoldSteadyFx.Attach(_countdownRoot, _countdownCube, _countdownDigitRoot,
-            _countdownDigit, _countdownDigitShadow, _countdownBarLeft, _countdownBarRight,
-            WinVerificationSeconds, CountdownSegmentWidth);
+        _countdownDigit = HudVisualStyle.Label(_countdownComposition, "Digit", "", 70,
+            new Vector2(0,-79), new Vector2(180,86), false);
+        _countdownDigitRoot = _countdownDigit.rectTransform;
+        _countdownFx = HoldSteadyFx.Attach(_countdownRoot,_countdownCube,_countdownDigitRoot,
+            _countdownDigit,null,_countdownBarLeft,_countdownBarRight,WinVerificationSeconds,CountdownSegmentWidth);
     }
-
-    // One tight stack (Nick 2026-08-29: minimal, little vertical margin): wordmark, the
-    // cube-in-line right under it, the digit tucked under the cube.
-    private const float WordmarkY = 0.745f;
-    private const float LineY = 0.700f;
-    private const float DigitY = 0.625f;
-    private const float CountdownSegmentWidth = 150f;
-    private const float CountdownBarHeight = 8f;
-    private const float CubeGapHalf = 74f; // cube half (60) + breathing room
-
-    // One side of the ---- cube ---- line. The pivot sits at the INNER end (next to the
-    // cube), so a shrinking fill drains from its outer edge toward the cube.
     private Image BuildCountdownSegment(string name, Color color, Vector2 pivot, float innerX)
-    {
-        GameObject go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform rect = (RectTransform)go.transform;
-        rect.SetParent(_countdownRoot.transform, false);
-        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, LineY);
-        rect.pivot = pivot;
-        rect.anchoredPosition = new Vector2(innerX, 0f);
-        rect.sizeDelta = new Vector2(CountdownSegmentWidth, CountdownBarHeight);
-        Image image = go.GetComponent<Image>();
-        image.sprite = RuntimeSprites.RoundedPanel();
-        image.type = Image.Type.Sliced;
-        image.color = color;
-        image.raycastTarget = false;
-        return image;
-    }
-
-
-    /// <summary>Free-floating overlay text with a painted shadow twin behind it (UI.Shadow
-    /// does not touch TMP meshes, so the shadow is a second TMP). The main text is a CHILD of
-    /// the shadow, both under <paramref name="root"/> - scaling the root punches the pair
-    /// together. <paramref name="display"/> = the Archivo display voice.</summary>
-    private static TextMeshProUGUI CreateShadowedText(Transform parent, string name, string text,
-        int size, Color color, Font font, float spacing, Vector2 anchor, Vector2 sizeDelta,
-        bool wrap, bool display, out TextMeshProUGUI shadow, out RectTransform root)
-    {
-        root = RuntimeUiKit.CreateRect(parent, name, anchor, anchor, new Vector2(0.5f, 0.5f),
-            Vector2.zero, sizeDelta);
-
-        shadow = RuntimeUiKit.CreateTmp(root, "Shadow", text, size, new Color(0f, 0f, 0f, 0.55f),
-            TextAnchor.MiddleCenter, FontStyle.Normal, font);
-        shadow.rectTransform.anchoredPosition = new Vector2(0f, -4f);
-
-        TextMeshProUGUI main = RuntimeUiKit.CreateTmp(shadow.rectTransform, "Text", text, size,
-            color, TextAnchor.MiddleCenter, FontStyle.Normal, font);
-        main.rectTransform.anchoredPosition = new Vector2(0f, 4f); // cancels the shadow offset
-
-        foreach (TextMeshProUGUI tmp in new[] { shadow, main })
-        {
-            if (display) tmp.font = RuntimeUiKit.TmpDisplayFont;
-            tmp.characterSpacing = spacing;
-            tmp.textWrappingMode = wrap ? TextWrappingModes.Normal : TextWrappingModes.NoWrap;
-            tmp.overflowMode = TextOverflowModes.Overflow;
-            tmp.raycastTarget = false;
-        }
-        return main;
-    }
+        => HudVisualStyle.Line(_countdownComposition,name,new Vector2(.5f,.5f),new Vector2(.5f,.5f),
+            pivot,new Vector2(innerX,0),new Vector2(CountdownSegmentWidth,CountdownBarHeight),color);
 
     private void UpdateCountdownLabel()
     {
@@ -706,12 +635,12 @@ public class LevelRuntimeController : MonoBehaviour
         Destroy(_countdownRoot);
         _countdownRoot = null;
         _countdownDigit = null;
-        _countdownDigitShadow = null;
         _countdownDigitRoot = null;
         _countdownBarLeft = null;
         _countdownBarRight = null;
         _countdownCube = null;
         _countdownFx = null;
+        _countdownComposition = null;
     }
 
     // ---- Timed goals ---------------------------------------------------------------------------
@@ -772,12 +701,11 @@ public class LevelRuntimeController : MonoBehaviour
         // A HudSubCard under the bar's RIGHT segment: the same card the NEXT WAVE countdown
         // and the medal marker use, so every corner tenant shares one width and one row grid.
         _timerRect = HudSubCard.Create(_timerRoot.transform, "Timer", HudSubCard.Side.Right);
-        RuntimeUiKit.AddOutline(_timerRect, new Color(1f, 1f, 1f, 0.22f));
 
         RectTransform row = HudSubCard.CreateRow(_timerRect);
         HudSubCard.AddText(row, "Caption", "TIME", HudSubCard.CaptionFontSize, HudSubCard.CaptionColor,
             characterSpacing: 8f);
-        _timerLabel = HudSubCard.AddText(row, "Value", "", HudSubCard.ValueFontSize, RuntimeUiKit.TitleColor);
+        _timerLabel = HudSubCard.AddText(row, "Value", "", HudSubCard.ValueFontSize, HudVisualStyle.Current.Ink);
 
         PositionTimerUi();
     }
@@ -801,7 +729,7 @@ public class LevelRuntimeController : MonoBehaviour
         _timerShownSecond = seconds;
         _timerLabel.text = TimedWinCondition.FormatDuration(seconds);
         HudSubCard.MarkDirty(_timerLabel.transform.parent as RectTransform);
-        _timerLabel.color = seconds <= 10 ? new Color(1f, 0.48f, 0.42f, 1f) : RuntimeUiKit.TitleColor;
+        _timerLabel.color = seconds <= 10 ? HudVisualStyle.Current.Danger : HudVisualStyle.Current.Ink;
     }
 
     private void DestroyTimerUi()

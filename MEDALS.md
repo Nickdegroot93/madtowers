@@ -115,20 +115,21 @@ tier-count agnostic.
 
 ## 8. In-run medal HUD & medal art (as-built 2026-08-29)
 
-Two persistent surfaces so the chase always reads (Nick 2026-08-29):
+Two persistent surfaces keep the chase distinct from what this run has banked:
 
-- **Earned-this-run pill** (`MedalHud`, installed by GameSystemsInstaller): top-right
-  under the lives card, the CoinHud pill's EXACT size (150×52) mirrored to the right
-  edge. Shows only tiers earned THIS RUN (Nick 2026-08-29): a replay chasing silver
-  starts with no pill — the objective tier badge already names the chase, and a pill for
-  a previous run's bronze would read as this run's trophy. Appears when a rung lands
-  (`TierEarned`), settle-pops per rung. On a wave run it sits one row below the
-  wave-countdown pill (WaveHud outranks — live survival state owns the corner slot).
-- **Objective tier icon** (`UIManager.BuildObjectiveCard`): the objective card's LEADING
-  icon is the target's tier cube — a bronze cube next to "0/50" says what reaching 50
-  earns, rolling to silver the moment bronze lands (`TierEarned`). It replaced the old
-  grey cube glyph (which survives only on ladder-less block goals); it labels the target,
-  earned state is the pill's job.
+- **Earned-this-run row** (`MedalHud`): open text and the rendered tier cube below the
+  lives group. Same stretched bounds and 52-unit row height as `CoinHud`. It starts
+  hidden even on replays and appears only when `TierEarned` fires. A wave countdown or
+  timed-goal clock takes the first row; the medal then occupies the second row.
+- **Objective tier cue** (`UIManager`): a small tier cube beside the objective caption
+  names the next unearned rung. The leading icon now identifies the challenge (blocks,
+  height/Flood, Puzzle, Airtight or Void). Block and height goals display **remaining to
+  the next unearned tier**, clamped at zero, rolling forward only after that rung banks.
+  Height remaining is rounded upward from the exact threshold. A collapse increases
+  remaining. After gold, and in Endless, the readout shows the live total. Puzzle shows
+  its current wave, with the existing block debt in the separate NEXT WAVE row.
+- The new HUD uses `HudVisualStyle` chapter ink and Manrope; the medal icons keep
+  `MedalStyle` art/tints. No gold tint on ordinary captions. See [HUD.md](HUD.md).
 
 **Medal art landed 2026-08-29**: Nick's rendered block icons live at
 `Assets/Resources/Menu/medal_{bronze,silver,gold}.png` (256px, downscaled from the 2048px
@@ -197,18 +198,12 @@ ScriptableObject configs were all replaced with our own idioms):
 
 ## 10. TODO — remaining framing pass
 
-- ~~Replace the in-game banner look~~ — done 2026-08-29: the black strips are gone.
-  "HOLD STEADY" is a free-floating Archivo wordmark in the chapter accent with a painted
-  shadow twin (`CreateShadowedText` - UI.Shadow does not touch TMP meshes, so the shadow
-  is a second TMP the main text parents under; scale the root to punch both), the digit
-  matches, and `ShowBanner` (instruction / "tower fell" / rung toasts) uses the same
-  shadowed free text.
-- ~~Mid-run rung toast → badge-slam popup~~ — done 2026-08-29: `MedalHud`'s debut fly-in.
-  The rung debuts as the pill itself at double size at the countdown cube's position
-  (compression settle), holds
-  a beat, then flies into the corner slot and hands off seamlessly (the debut IS the pill
-  at 1/DebutScale). No text toast, no confetti mid-run - the game is still going. The
-  hold-steady overlay likewise leads with the armed rung's cube + a light→accent gradient
-  wordmark + a draining accent progress bar (all chapter-accent tinted, no strip).
+- The hold-steady overlay and abort banner now share the open HUD's Manrope and chapter
+  ink (September 2026). HOLD STEADY sits above the tier cube with thin draining lines,
+  and a restrained large digit below. No panel, gradient wordmark or shadow twin.
+- `MedalHud`'s existing debut starts at the countdown composition's safe-area-aware
+  origin, settles, holds, then flies into its live corner slot. The enlarged row is the
+  same icon/text composition as the destination, so the handoff remains seamless.
+  No mid-run confetti or extra toast; banking and sting rules are unchanged.
 - **Pause-menu quit relabels to "Finish Run"** (implemented 2026-09-06) once any rung is earned this run
   (psych review: quitting at a medal must feel like choosing to stop winning).
