@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""piece_Pyramid.png - the Giza Dusk signature brick's fixed look.
+"""Legacy sandstone pyramid generator (pre-departure design).
+
+The shipping art now comes from CyberPyramid.shader. In Unity play mode use
+Tools > MadTowers > Bake Cyber Pyramid Art to update NEXT and Vault together.
 
 One sprite, written to Skins/Classic only: every chapter falls back to Classic
 file-by-file (ChapterSkins.LoadWithFallback), so shipping no per-chapter override
@@ -18,7 +21,7 @@ Geometry contract (must match Block_Pyramid.prefab):
 Style: same SDF body/bevel/outline/mottle language as generate_piece_sprites.py
 (imported), plus carved ashlar course joints and a pharaoh-gold capstone.
 
-Usage: python3 Tools/generate_pyramid_sprite.py [--preview <dir>]
+Legacy-only usage: python3 Tools/generate_pyramid_sprite.py --legacy [--preview <dir>]
 """
 
 import os
@@ -195,6 +198,9 @@ def write_atomic(path, data: bytes):
 
 
 def main():
+    if "--legacy" not in sys.argv:
+        raise SystemExit("Use Unity: Tools > MadTowers > Bake Cyber Pyramid Art. "
+                         "Pass --legacy only to intentionally restore the old artwork.")
     img = render()
     out_png = os.path.join(OUT_DIR, "piece_Pyramid.png")
     from io import BytesIO

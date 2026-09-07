@@ -506,32 +506,33 @@ public static class BlockDemoScenarios
 
     public static IEnumerator Pyramid(BlockDemoStage stage)
     {
-        // The no-flat-top lesson, told twice by real physics: the pyramid lands like a
-        // monument, an O dropped dead on the peak tips and rolls away, and a wide I laid
-        // across the apex see-saws off. No shims at all - the slope IS the behaviour.
+        // Isolated physical puppets: illustrate the same three-placement rule without
+        // publishing placements or removing blocks from the player's actual ledger.
         stage.SetView(4.2f, 3.0f);
         yield return stage.Reveal();
-        yield return stage.Hold(0.3f);
-
-        // 3-wide monument. Cells sit at integer offsets from the pivot, and demo columns
-        // have their centres at n+0.5 - so the ON-GRID drop is x=0.5 (cells -0.5/0.5/1.5,
-        // apex over ~0.57, right where the O and I are aimed).
-        GameObject pyramid = DropIn(stage, "Pyramid", stage.Variant, new Vector2(0.5f, 6.6f));
+        GameObject pyramid = DropIn(stage, "Pyramid", stage.Variant, new Vector2(.5f, 6.6f));
+        var skin = Dress<PyramidBlockSkin>(pyramid);
+        skin.Apply();
+        BlockDemoPuppet.Relayer(pyramid);
         yield return stage.WaitForLand(pyramid);
-        yield return stage.Hold(0.8f);
-
-        // Attempt one: an O dead-centre on the peak - it tips and rolls off.
-        GameObject o = DropIn(stage, "O", null, new Vector2(0.5f, 7.6f));
-        yield return stage.WaitForLand(o);
-        yield return stage.Hold(2.0f); // physics: the topple and slide
-
-        // Attempt two: a wide I bridged across the apex - a see-saw with one ending.
-        GameObject beam = DropIn(stage, "I", null, new Vector2(0.5f, 8.4f));
-        yield return stage.WaitForLand(beam);
-        yield return stage.Hold(2.6f); // physics: the see-saw slides away
-
-        // The monument stands alone.
-        yield return stage.Hold(1.2f);
+        yield return stage.Hold(.5f);
+        for (int charge = 1; charge <= PyramidBlockBehaviour.PlacementsBeforeLaunch; charge++)
+        {
+            GameObject piece = charge == 3
+                ? DropIn(stage, "I", null, new Vector2(.5f, 7.6f))
+                : DropIn(stage, "O", null, new Vector2(charge == 1 ? -2.5f : 3.5f, 6f));
+            yield return stage.WaitForLand(piece);
+            skin.SetCharge(charge);
+            if (charge < 3) yield return stage.Hold(.5f);
+        }
+        for (float t = 0; t < PyramidBlockBehaviour.IgnitionSeconds; t += Time.deltaTime)
+        {
+            skin.SetIgnition(t / PyramidBlockBehaviour.IgnitionSeconds);
+            yield return null;
+        }
+        skin.Launch(stage.transform, playSound: false);
+        Object.Destroy(pyramid);
+        yield return stage.Hold(2f); // unsupported demo bricks settle through real physics
     }
 
     public static IEnumerator Maw(BlockDemoStage stage)

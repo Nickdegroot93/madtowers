@@ -9,10 +9,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3b0b26a1c947741b4ba0402b3db02c0c, type: 3}
+  m_Script: {fileID: 11500000, guid: 2d0a0fc9ea6e4e778c86ce6577abeaad, type: 3}
   m_Name: Pyramid
-  m_EditorClassIdentifier: Assembly-CSharp::BlockData
-  displayName: Pyramid
+  m_EditorClassIdentifier: Assembly-CSharp::PyramidBlockData
+  displayName: Cyber Pyramid
   mass: 1
   physicsMaterial: {fileID: 0}
   gravityScaleMultiplier: 1
@@ -24,8 +24,7 @@ MonoBehaviour:
   countsAsPlacedBlock: 1
   costsLifeWhenLost: 1
   isHazard: 0
-  behaviourSummary: A sandstone monument with no flat top - nothing rests easy on
-    its peak
-  vaultDescription: Two solid courses of Giza sandstone crowned by a golden peak.
-    It stacks proudly on anything - but whatever you drop on those slopes is going
-    for a slide. Build beside it, not above it.
+  behaviourSummary: Takes off after your next three placements, dropping anything it supports
+  vaultDescription: An ancient flying monument with three carved sun seals. Each successful
+    placement lights one seal. At three it ignites and leaves, even with bricks on top. Its
+    departure removes one standing block but costs no life. Build around it, not on it.
