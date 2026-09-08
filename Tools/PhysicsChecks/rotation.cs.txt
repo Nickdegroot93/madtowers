@@ -1,0 +1,211 @@
+// Unity MCP execute_code method body. Use the empty scene and preparation in README.md.
+if (!Application.isPlaying || UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "__PocketPhysicsReview"
+    || GameManager.Instance != null || BlockController.AllBlocks.Count != 0)
+    throw new Exception("Use an empty __PocketPhysicsReview play-mode scene with no game or blocks.");
+var f = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public;
+object Get(object o, string name) => o.GetType().GetField(name, f).GetValue(o);
+void Set(object o, string name, object value) => o.GetType().GetField(name, f).SetValue(o, value);
+object Call(object o, string name, params object[] args) => o.GetType().GetMethod(name, f).Invoke(o, args);
+var checks = new List<object>();
+var errors = new List<string>();
+Application.LogCallback capture = (message, stack, type) => { if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert) errors.Add(message); };
+Application.logMessageReceived += capture;
+var simulation = Physics2D.simulationMode;
+float scale = Time.timeScale;
+var gestures = BlockController.AllowedGestures;
+GameObject root = null;
+int rotations = 0;
+Action<BlockController, PieceGestures> onGesture = (block, gesture) => { if (gesture == PieceGestures.Rotate) rotations++; };
+GameEvents.PieceGesturePerformed += onGesture;
+void Check(string name, bool passed, object details = null)
+{
+    if (!passed && root != null) details = new { reason = details, blocks = root.GetComponentsInChildren<BlockController>().Select(b => new { b.name, angle=Angle(b), target=Get(b,"_targetAngleZ"), position=b.transform.position.ToString(), clear=Clear(b), cells=b.SolidColliders.Select(c=>c.bounds.center.ToString()).ToArray() }).ToArray(), obstacles = root.GetComponentsInChildren<BoxCollider2D>().Where(c=>c.GetComponentInParent<BlockController>()==null).Select(c=>new{center=c.bounds.center.ToString(),size=c.bounds.size.ToString()}).ToArray() };
+    checks.Add(new { name, passed, details });
+}
+void Start(string name)
+{
+    if (root != null) UnityEngine.Object.DestroyImmediate(root);
+    root = new GameObject(name); rotations = 0;
+    Physics2D.SyncTransforms();
+}
+BlockController Piece(string shape, Vector2 position, float angle = 90, bool land = false)
+{
+    var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Blocks/Block_" + shape + ".prefab");
+    var go = UnityEngine.Object.Instantiate(prefab, position, Quaternion.Euler(0, 0, angle), root.transform);
+    var block = go.GetComponent<BlockController>();
+    block.ApplyData(UnityEditor.AssetDatabase.LoadAssetAtPath<BlockData>("Assets/Data/Blocks/Normal.asset"));
+    Call(block, "InitDynamicControlBody");
+    block.enabled = false;
+    if (land) Call(block, "BeginPhysicsLanding");
+    else block.SetDescentSuspended(true);
+    Physics2D.SyncTransforms();
+    return block;
+}
+BoxCollider2D Box(Vector2 position, Vector2 size, RigidbodyType2D? bodyType = null)
+{
+    var go = new GameObject("Obstacle"); go.transform.SetParent(root.transform); go.transform.position = position;
+    if (bodyType.HasValue) { var body = go.AddComponent<Rigidbody2D>(); body.bodyType = bodyType.Value; body.gravityScale = 0; }
+    var box = go.AddComponent<BoxCollider2D>(); box.size = size;
+    Physics2D.SyncTransforms(); return box;
+}
+float Angle(BlockController block) => block.GetComponent<Rigidbody2D>().rotation;
+bool SameAngle(float a, float b) => Mathf.Abs(Mathf.DeltaAngle(a, b)) < .001f;
+bool Clear(BlockController block) => !(bool)Call(block, "HasMeaningfulGridPoseOverlap");
+void Turn(BlockController block, int direction) { if (direction < 0) block.RotateLeft(); else block.RotateRight(); }
+void Apply(BlockController block) => Call(block, "ApplyPendingControlRotation");
+try
+{
+    Time.timeScale = 0; Physics2D.simulationMode = SimulationMode2D.Script;
+    BlockController.AllowedGestures = PieceGestures.Everything;
+    foreach (int direction in new[] { -1, 1 })
+    {
+        Start("Narrow I slot " + direction);
+        Box(new Vector2(-1, 4), new Vector2(.94f, 10)); Box(new Vector2(1, 4), new Vector2(.94f, 10));
+        var block = Piece("I", new Vector2(0, 4));
+        Vector3 position = block.transform.position;
+        Vector2[] sizes = block.GetComponentsInChildren<BoxCollider2D>().Select(c => c.size).ToArray();
+        Set(block, "_targetColumnX", .123f); // rejection must also preserve any pending horizontal target
+        Turn(block, direction); Apply(block);
+        Check("Occupied quarter-turn is refused when applied " + direction,
+            Clear(block) && SameAngle((float)Get(block, "_targetAngleZ"), 90) && rotations == 0);
+        Check("Rejected turn restores pose, column and footprint " + direction,
+            block.transform.position == position && SameAngle(Angle(block), 90)
+            && (float)Get(block, "_targetColumnX") == .123f
+            && block.GetComponentsInChildren<BoxCollider2D>().Select(c => c.size).SequenceEqual(sizes));
+        for (int tap = 0; tap < 8; tap++) { Turn(block, direction); Apply(block); }
+        Set(block, "_targetColumnX", 0f); Apply(block);
+        Check("Repeated rejected taps never accumulate a hidden half-turn " + direction,
+            SameAngle(Angle(block), 90) && SameAngle((float)Get(block, "_targetAngleZ"), 90) && rotations == 0);
+        block.SetDescentSuspended(false); float y = block.transform.position.y;
+        Call(block, "SteerWhileFalling");
+        Check("Vertical brick keeps descending freely after refusal " + direction, block.transform.position.y < y && Clear(block));
+    }
+
+    Start("Real grid-stable tower walls");
+    Box(new Vector2(0, -1.5f), new Vector2(6, 2));
+    var left = Piece("I", new Vector2(-1, 2), 90, true);
+    var right = Piece("I", new Vector2(1, 2), 90, true);
+    var falling = Piece("I", new Vector2(0, 2.3f));
+    Vector3 leftPosition = left.transform.position, rightPosition = right.transform.position;
+    Check("Reproduction walls are real supported grid-stable bricks", left.IsGridStable && right.IsGridStable && Clear(falling));
+    falling.RotateLeft(); Apply(falling); falling.RotateRight(); Apply(falling);
+    for (int step = 0; step < 20; step++) Physics2D.Simulate(.02f);
+    Check("Rejected rotation cannot push or release either tower wall",
+        SameAngle(Angle(falling), 90) && Clear(falling) && left.IsGridStable && right.IsGridStable
+        && left.transform.position == leftPosition && right.transform.position == rightPosition);
+    falling.SetDescentSuspended(false);
+    for (int step = 0; step < 30 && !falling.HasLanded; step++) Call(falling, "SteerWhileFalling");
+    Check("Vertical I still lands exactly between the two towers", falling.HasLanded && falling.IsGridStable && Clear(falling) && SameAngle(Angle(falling), 90));
+
+    foreach (var kind in new RigidbodyType2D?[] { null, RigidbodyType2D.Static, RigidbodyType2D.Kinematic, RigidbodyType2D.Dynamic })
+    {
+        Start("Obstacle body " + kind);
+        var obstacle = Box(new Vector2(1.15f, 3), new Vector2(.8f, .8f), kind);
+        obstacle.transform.rotation = Quaternion.Euler(0, 0, 20);
+        var body = obstacle.attachedRigidbody;
+        if (body != null && kind == RigidbodyType2D.Dynamic) { body.linearVelocity = new Vector2(.3f, .2f); body.angularVelocity = 12; }
+        var block = Piece("I", new Vector2(0, 4));
+        Vector3 position = obstacle.transform.position; Quaternion rotation = obstacle.transform.rotation;
+        Vector2 velocity = body != null ? body.linearVelocity : Vector2.zero;
+        float angularVelocity = body != null ? body.angularVelocity : 0;
+        block.RotateRight(); Apply(block);
+        Check("Rotation respects solid geometry with body " + kind, Clear(block) && SameAngle(Angle(block), 90) && rotations == 0);
+        Check("Probe never moves or adds an impulse to blocker " + kind,
+            obstacle.transform.position == position && obstacle.transform.rotation == rotation
+            && (body == null || (body.linearVelocity == velocity && body.angularVelocity == angularVelocity)));
+    }
+
+    foreach (float obstacleY in new[] { 3f, 5f })
+    {
+        Start("Floor/ceiling " + obstacleY);
+        Box(new Vector2(0, obstacleY), new Vector2(8, 1));
+        var block = Piece("I", new Vector2(0, 4), 0);
+        bool startsClear = Clear(block); block.RotateRight(); Apply(block);
+        Check("Horizontal-to-vertical cannot enter floor or ceiling " + obstacleY, startsClear && SameAngle(Angle(block), 0) && Clear(block));
+    }
+
+    foreach (string shape in new[] { "I", "J", "L", "O", "S", "T", "Z" })
+    foreach (int direction in new[] { -1, 1 })
+    {
+        Start("Open-air " + shape + " " + direction);
+        var block = Piece(shape, new Vector2(0, 4), 0);
+        bool turnsFit = true;
+        for (int turn = 1; turn <= 4; turn++)
+        {
+            Turn(block, direction); Apply(block);
+            turnsFit &= SameAngle(Angle(block), turn * direction * 90) && Clear(block);
+        }
+        Check("All four open-air turns remain usable: " + shape + " " + direction, turnsFit && rotations == 4);
+    }
+
+    foreach (bool trigger in new[] { true, false })
+    {
+        Start(trigger ? "Trigger ignored" : "Filtered layer ignored");
+        var obstacle = Box(new Vector2(1, 4), Vector2.one); obstacle.isTrigger = trigger;
+        var block = Piece("I", new Vector2(0, 4));
+        if (!trigger)
+        {
+            obstacle.gameObject.layer = 2;
+            var filter = new ContactFilter2D(); filter.useTriggers = false; filter.SetLayerMask(1 << 0);
+            Set(block, "_contactFilter", filter);
+        }
+        block.RotateRight(); Apply(block);
+        Check("Non-blocking collider stays non-blocking: " + (trigger ? "trigger" : "excluded layer"), SameAngle(Angle(block), 180) && rotations == 1);
+    }
+
+    foreach (float penetration in new[] { 0f, .1f })
+    {
+        Start("Contact tolerance " + penetration);
+        var block = Piece("I", new Vector2(0, 4));
+        Vector3 position = block.transform.position;
+        Call(block, "SetRotationZPreservingGridPivot", 180f); Physics2D.SyncTransforms();
+        block.TryGetWorldBounds(out Bounds bounds);
+        Call(block, "RestoreContactPose", position, 90f); Set(block, "_targetColumnX", 0f);
+        Box(new Vector2(bounds.max.x + .06f + .5f - penetration, bounds.center.y), Vector2.one);
+        block.RotateRight(); Apply(block);
+        Check("Contact skin allowed, real penetration rejected: " + penetration,
+            SameAngle(Angle(block), penetration == 0f ? 180 : 90) && Clear(block));
+    }
+
+    Start("Moving obstacle invalidates queued rotation");
+    var queued = Piece("I", new Vector2(0, 4));
+    queued.RotateRight();
+    Check("Clear turn is initially queued", SameAngle((float)Get(queued, "_targetAngleZ"), 180));
+    var lateBlocker = Box(new Vector2(1, 3), Vector2.one, RigidbodyType2D.Dynamic);
+    Apply(queued);
+    Check("Physics-step recheck rejects a newly occupied destination", Clear(queued) && SameAngle(Angle(queued), 90) && SameAngle((float)Get(queued, "_targetAngleZ"), 90));
+    UnityEngine.Object.DestroyImmediate(lateBlocker.gameObject); Physics2D.SyncTransforms(); Apply(queued);
+    Check("Rejected queued turn cannot fire later when the obstacle leaves", SameAngle(Angle(queued), 90));
+
+    Start("Landing also checks a queued turn");
+    Box(new Vector2(0, -1.5f), new Vector2(6, 2));
+    queued = Piece("I", new Vector2(0, 2)); queued.RotateRight();
+    Box(new Vector2(1, 2), Vector2.one);
+    Call(queued, "BeginPhysicsLanding");
+    Check("Landing cannot bypass rotation validation", queued.IsGridStable && Clear(queued) && SameAngle(Angle(queued), 90));
+    float landedAngle = Angle(queued); queued.RotateLeft();
+    Check("Landed grid-owned blocks refuse control rotation", SameAngle(Angle(queued), landedAngle));
+    Call(queued, "ReleaseGridStructureForForce"); // released bodies remain solver-owned
+    var dynamicBody = queued.GetComponent<Rigidbody2D>(); float dynamicAngle = dynamicBody.rotation;
+    queued.RotateRight();
+    Check("Landed Dynamic blocks refuse control rotation", SameAngle(dynamicBody.rotation, dynamicAngle));
+
+    Start("Frozen active brick");
+    var frozen = Piece("I", new Vector2(0, 4)); frozen.FreezeInPlace();
+    float frozenAngle = Angle(frozen); frozen.RotateRight();
+    Check("Frozen blocks refuse control rotation", SameAngle(Angle(frozen), frozenAngle));
+}
+finally
+{
+    if (root != null) UnityEngine.Object.DestroyImmediate(root);
+    Physics2D.SyncTransforms();
+    Physics2D.simulationMode = simulation; Time.timeScale = scale;
+    BlockController.AllowedGestures = gestures;
+    GameEvents.PieceGesturePerformed -= onGesture;
+    Application.logMessageReceived -= capture;
+}
+int failed = Newtonsoft.Json.Linq.JArray.FromObject(checks).Count(c => !(bool)c["passed"]);
+string report = "Library/rotation-checks.json";
+System.IO.File.WriteAllText(report, Newtonsoft.Json.JsonConvert.SerializeObject(new { checks, errors }, Newtonsoft.Json.Formatting.Indented));
+if (failed > 0 || errors.Count > 0) throw new Exception("Rotation regression: " + failed + " failed, " + errors.Count + " errors; " + report);
+return new { passed = checks.Count, failed, errors, report };

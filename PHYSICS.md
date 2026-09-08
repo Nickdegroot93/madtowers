@@ -196,6 +196,21 @@ Code-level details that are part of the contract (not inspector values):
 - `Physics2D.SyncTransforms()` is called before every landing cast (`SteerWhileFalling`,
   `SettleOntoContact`) because **AutoSyncTransforms is off** project-wide. Without it,
   casts see last step's collider poses → landings measured at the wrong X.
+- **Controlled rotation must fit when it is applied.** `TryRotate` queues input as before.
+  `ApplyPendingControlRotation` validates the actual destination in steering and at first
+  contact, using the existing grid pivot, rotation-dependent solid colliders, and 0.03-cell
+  landing contact-skin tolerance. Tower blocks, terrain, frozen blocks and Dynamic debris
+  block meaningful overlap; triggers and excluded layers remain non-blocking. A clear turn
+  follows the original setter exactly once. A rejected turn restores only the incoming
+  kinematic body's position, angle, collider footprint and pending column, then discards the
+  queued angle. No physics simulation runs at the candidate pose and no neighbour is moved.
+  Sound and the tutorial gesture fire only after a successful turn. Input batching and
+  discrete grid rotations stay unchanged; there is no angular sweep or wall kick.
+  September 2026 symptom: a vertical I inside a one-column gap could turn horizontally into
+  both tower walls because steering previously applied angles without validation. Review
+  also removed an input-time preview: rebuilding/restoring colliders could shift half-cell
+  bounds rounding and change a later legal turn's pivot. Clear turns must not be previewed
+  by mutating the live body.
 - `ResolveIncomingOverlaps()` moves **only the incoming kinematic piece**, never a resting
   neighbour, before handoff.
 - The landing restore value `_originalCenterOfMass` is **computed from the cell layout**
@@ -335,6 +350,7 @@ These are the *designer* dials — safe to vary per level. Current defaults:
 | Tower collapses by itself late game | Escalating load came back (gravity scaling per block) or landing impact got coupled to fall speed again. |
 | Falls through sky platforms | Platform spawned overlapping the piece (clearance check), or spawn-ahead vs spawn-line relation broke (§5). |
 | Landings detected at wrong column edge | A `SyncTransforms()` call before a cast was removed (AutoSyncTransforms is off). |
+| A vertical I rotates horizontally through the walls of a narrow gap | `ApplyPendingControlRotation` was bypassed. Check the actual rotated colliders at the existing pivot; never resolve the invalid turn by moving landed neighbours. |
 | Can't nudge/steer into a pocket between islands, or a sidestep wedges the piece inside an island | The snapped-row forgiveness or `TuckIntoStaticPocket()` was removed/weakened (§2 code details). |
 | Stutter under load | Per-frame allocations returned, or CCD re-enabled on landed bodies. |
 
@@ -355,6 +371,18 @@ setup and exact J/S, J/T/Z/L coordinates in its companion README). The September
 also reproduced a separate pre-existing off-row tuck refusal at ±0.4 cell: the same entry poses
 were refused before and after restoring the brace. This is a limitation of the documented
 entry window, not a reason to broaden the bracing fix into steering or overlap changes.
+
+Rotation regression: `Tools/PhysicsChecks/rotation.cs.txt` runs 46 assertions with real
+prefabs and colliders, including both turn directions in a narrow slot, actual grid-stable
+tower walls, continued descent/landing after rejection, all seven normal shapes, moving
+debris, floor/ceiling clearance, contact skins, trigger/layer filtering and stale queued
+turns at steering/landing. The reproduced overlap changed from true to false, with the I
+remaining at 90 degrees. These 46 checks and the 38 terrain/support checks passed together
+without runtime errors after the collision guard was added. `rotation-parity.cs.txt` also
+compares the old setter with the guarded input/apply path across 2,016 clear cases: all seven
+shapes, four starting angles, three columns, four descent heights, and six single/rapid tap
+sequences. Positions, cell bounds centres, target columns, angles, collider sizes and velocities
+match within 0.00001, with zero differences. This comparison caught the preview side effect.
 
 ---
 

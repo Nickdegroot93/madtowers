@@ -306,7 +306,6 @@ public partial class BlockController : MonoBehaviour
     /// <summary>True while the given run-local block feature is enabled.</summary>
     public static bool HasFeature(BlockFeature feature) => (_features & feature) != 0;
 
-    // Rotation nudges the target angle by a quarter turn. Active pieces snap to that target while
     // The piece currently under player control (null between lock and next spawn).
     // Touch gestures use this to address their commands.
     public static BlockController ActiveControlled { get; private set; }

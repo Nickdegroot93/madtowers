@@ -15,7 +15,7 @@ public partial class BlockController
         // Neither path is corrected later.
         _hasTouchedDown = true;
         SnapToColumnGrid();
-        SetRotationZPreservingGridPivot(_targetAngleZ);
+        ApplyPendingControlRotation();
         SettleOntoContact();
         ResolveIncomingOverlaps();
 

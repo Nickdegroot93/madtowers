@@ -1,0 +1,69 @@
+// Unity MCP execute_code method body. Run in the prepared empty scene in README.md.
+if (!Application.isPlaying || UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "__PocketPhysicsReview"
+    || GameManager.Instance != null || BlockController.AllBlocks.Count != 0)
+    throw new Exception("Use an empty __PocketPhysicsReview play-mode scene with no game or blocks.");
+var f = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public;
+object Get(object o, string name) => o.GetType().GetField(name, f).GetValue(o);
+void Set(object o, string name, object value) => o.GetType().GetField(name, f).SetValue(o, value);
+object Call(object o, string name, params object[] args) => o.GetType().GetMethod(name, f).Invoke(o, args);
+var active = BlockController.ActiveControlled;
+var tracked = BlockController.AllBlocks.ToArray();
+var activeProperty = typeof(BlockController).GetProperty("ActiveControlled", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+var scene = UnityEngine.SceneManagement.SceneManager.CreateScene("__RotationParityReview", new UnityEngine.SceneManagement.CreateSceneParameters(UnityEngine.SceneManagement.LocalPhysicsMode.Physics2D));
+var errors = new List<string>();
+Application.LogCallback capture = (message, stack, type) => { if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert) errors.Add(message); };
+Application.logMessageReceived += capture;
+GameObject root = null;
+int comparisons = 0;
+var differences = new List<object>();
+object Snapshot(BlockController b) {
+    var body = b.GetComponent<Rigidbody2D>();
+    return new { position = new[] {b.transform.position.x,b.transform.position.y}, angle = Mathf.Repeat(body.rotation,360f), column=(float)Get(b,"_targetColumnX"), sizes=b.GetComponentsInChildren<BoxCollider2D>().Select(c => new[]{c.size.x,c.size.y}).ToArray(), cells=b.SolidColliders.Select(c=>new[]{c.bounds.center.x,c.bounds.center.y}).ToArray(), velocity=new[]{body.linearVelocity.x,body.linearVelocity.y,body.angularVelocity} };
+}
+BlockController Piece(string shape, Vector2 position, float angle) {
+    if (root != null) UnityEngine.Object.DestroyImmediate(root);
+    root = new GameObject("Fixture"); root.SetActive(false);
+    UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root, scene);
+    var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Blocks/Block_" + shape + ".prefab");
+    var go=UnityEngine.Object.Instantiate(prefab,position,Quaternion.Euler(0,0,angle),root.transform);
+    var b=go.GetComponent<BlockController>(); b.enabled=false; Set(b,"showPlacementBeam",false);
+    root.SetActive(true); Call(b,"InitDynamicControlBody"); Physics2D.SyncTransforms();
+    Set(b,"_targetColumnX",.123f); activeProperty.SetValue(null,active);
+    return b;
+}
+try {
+    foreach(string shape in new[]{"I","J","L","O","S","T","Z"})
+    foreach(float x in new[]{-1f,0f,1f})
+    foreach(float y in new[]{4f,4.25f,4.5f,4.75f})
+    foreach(float angle in new[]{0f,90f,180f,270f})
+    foreach(var sequence in new[]{new[]{1},new[]{-1},new[]{1,1},new[]{-1,-1},new[]{1,-1},new[]{1,1,1,1}}) {
+        var original=Piece(shape,new Vector2(x,y),angle);
+        float target=(float)Get(original,"_targetAngleZ");
+        foreach(int direction in sequence)target+=direction*90;
+        Set(original,"_targetAngleZ",target);
+        Call(original,"SetRotationZPreservingGridPivot",target);
+        var expected=Newtonsoft.Json.Linq.JToken.FromObject(Snapshot(original));
+        var guarded=Piece(shape,new Vector2(x,y),angle);
+        foreach(int direction in sequence) {
+            if (direction < 0) guarded.RotateLeft(); else guarded.RotateRight();
+        }
+        Call(guarded,"ApplyPendingControlRotation");
+        var actual=Newtonsoft.Json.Linq.JToken.FromObject(Snapshot(guarded));
+        comparisons++;
+        // Accept float noise only, never a changed cell/pivot or steering target.
+        var av=((Newtonsoft.Json.Linq.JContainer)actual).Descendants().OfType<Newtonsoft.Json.Linq.JValue>().Select(v=>Convert.ToDouble(v.Value)).ToArray();
+        var ev=((Newtonsoft.Json.Linq.JContainer)expected).Descendants().OfType<Newtonsoft.Json.Linq.JValue>().Select(v=>Convert.ToDouble(v.Value)).ToArray();
+        if(av.Length!=ev.Length || av.Where((v,i)=>Math.Abs(v-ev[i])>.00001).Any()) differences.Add(new{shape,x,y,angle,sequence,expected,actual});
+    }
+} finally {
+    if(root!=null)UnityEngine.Object.DestroyImmediate(root);
+    activeProperty.SetValue(null,active);
+    Physics2D.SyncTransforms();
+    UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(scene);
+    Application.logMessageReceived-=capture;
+}
+if(!BlockController.AllBlocks.SequenceEqual(tracked) || BlockController.ActiveControlled!=active)throw new Exception("Fixture changed live block tracking");
+string report="Library/rotation-parity-checks.json";
+System.IO.File.WriteAllText(report,Newtonsoft.Json.JsonConvert.SerializeObject(new{comparisons,differences,errors},Newtonsoft.Json.Formatting.Indented));
+if(differences.Count > 0 || errors.Count > 0) throw new Exception("Legal rotation parity failed: " + differences.Count + " differences, " + errors.Count + " errors; " + report);
+return new{comparisons,differences=differences.Count,errors,report};

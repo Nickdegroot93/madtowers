@@ -109,7 +109,7 @@ public partial class BlockController
 
         // Rotation is also grid-first while active. Letting active pieces sit at small in-between
         // angles made contact classification unpredictable.
-        SetRotationZPreservingGridPivot(_targetAngleZ);
+        ApplyPendingControlRotation();
         _rb.angularVelocity = 0f;
 
         Vector3 preStepPosition = transform.position;
@@ -384,6 +384,49 @@ public partial class BlockController
         transform.rotation = Quaternion.Euler(0f, 0f, snappedAngle);
         if (_rb != null) _rb.rotation = snappedAngle;
         ApplyColliderForgivenessForCurrentRotation();
+    }
+
+    private void ApplyPendingControlRotation()
+    {
+        // Validate at the physics pose where the queued turn actually happens. Clear turns
+        // use the original setter exactly once; probing/restoring them at input time can
+        // rebuild collider bounds with different float rounding and shift the grid pivot.
+        if (_rb == null || _rb.bodyType != RigidbodyType2D.Kinematic) return;
+        float previousAngle = _rb.rotation;
+        if (Mathf.Abs(Mathf.DeltaAngle(previousAngle, _targetAngleZ)) <= 0.001f) return;
+
+        Vector3 previousPosition = transform.position;
+        Quaternion previousRotation = transform.rotation;
+        float previousColumn = _targetColumnX;
+        bool fits = false;
+        try
+        {
+            SetRotationZPreservingGridPivot(_targetAngleZ);
+            Physics2D.SyncTransforms();
+            // Use the actual solid shapes and the existing landing contact-skin tolerance.
+            // No simulation runs at the candidate pose, so no neighbour receives an impulse.
+            fits = !HasMeaningfulGridPoseOverlap();
+        }
+        finally
+        {
+            if (!fits)
+            {
+                SetPosition(previousPosition);
+                _rb.rotation = previousAngle;
+                transform.rotation = previousRotation;
+                ApplyColliderForgivenessForCurrentRotation();
+                Physics2D.SyncTransforms();
+                _rb.rotation = previousAngle;
+                Physics2D.SyncTransforms();
+                _targetColumnX = previousColumn;
+                // Discard the rejected turn; it must never fire later when space clears.
+                _targetAngleZ = previousAngle;
+            }
+        }
+
+        if (!fits) return;
+        SfxPlayer.Play("rotate-swoosh", 0.5f, 0.06f);
+        GameEvents.RaisePieceGesturePerformed(this, PieceGestures.Rotate);
     }
 
     private void SetRotationZPreservingGridPivot(float angle)

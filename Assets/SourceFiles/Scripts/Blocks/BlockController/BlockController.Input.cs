@@ -144,23 +144,20 @@ public partial class BlockController
         }
     }
 
-    // falling, so they stay on the same grid rules as horizontal movement.
-    public void RotateLeft()
-    {
-        if (!_isControlEnabled || !GestureAllowed(PieceGestures.Rotate)) return;
-        if (!CanRotateVariant) { _appliedData?.OnRotationDenied(this, -1); return; }
-        _targetAngleZ -= RotationStep;
-        SfxPlayer.Play("rotate-swoosh", 0.5f, 0.06f);
-        GameEvents.RaisePieceGesturePerformed(this, PieceGestures.Rotate);
-    }
+    public void RotateLeft() => TryRotate(-1);
 
-    public void RotateRight()
+    public void RotateRight() => TryRotate(1);
+
+    private void TryRotate(int direction)
     {
-        if (!_isControlEnabled || !GestureAllowed(PieceGestures.Rotate)) return;
-        if (!CanRotateVariant) { _appliedData?.OnRotationDenied(this, 1); return; }
-        _targetAngleZ += RotationStep;
-        SfxPlayer.Play("rotate-swoosh", 0.5f, 0.06f);
-        GameEvents.RaisePieceGesturePerformed(this, PieceGestures.Rotate);
+        if (!_isControlEnabled || HasLanded || !GestureAllowed(PieceGestures.Rotate)) return;
+        if (GameManager.Instance != null &&
+            (GameManager.Instance.IsGamePaused || GameManager.Instance.isGameOver)) return;
+        if (!CanRotateVariant) { _appliedData?.OnRotationDenied(this, direction); return; }
+
+        // Keep input queued as before. The physics step validates the final pose and
+        // reports the gesture only if it actually rotates without entering an obstacle.
+        _targetAngleZ += direction * RotationStep;
     }
 
     /// <summary>Whether the applied variant permits rotation at all (Locked-style bricks

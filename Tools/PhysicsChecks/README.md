@@ -1,4 +1,4 @@
-# Static terrain pocket regression
+# Physics regression checks
 
 `terrain-pocket.cs.txt` is a Unity MCP `execute_code` method body, not a shipping script.
 It runs 38 assertions using real block prefabs, `FloorTerrain`'s collider construction,
@@ -23,6 +23,39 @@ Failures throw after writing `Library/terrain-pocket-checks.json` (ignored local
 
 The test runner explicitly steps the default 2D world because BlockController's overlap/cast
 queries use that world. The empty-scene guard prevents stepping a live player's tower.
+
+## Controlled rotation regression
+
+Run `rotation.cs.txt` in the same prepared empty scene, before or after the terrain checks.
+It restores its simulation mode, time scale, gesture gate and fixture objects in `finally`,
+and writes `Library/rotation-checks.json`. No player run or progress is involved.
+
+The 46 assertions cover rejected I turns in a one-column slot (both directions), exact
+restoration of the rejected pose/collider sizes/pending column, repeated taps, continued
+descent and landing between real grid-stable towers, and unchanged blocker poses/velocities.
+They also cover all seven standard shapes in open air, solid bodies of each type, tilted
+debris, floors/ceilings, contact-skin tolerance, triggers/layers, stale queued rotations,
+and refusal of control commands on landed or frozen pieces.
+
+The pre-fix reproduction rotated a clear vertical I to -180 degrees with real overlap.
+The same setup after the fix keeps it at 90 degrees with no overlap. All 46 rotation
+assertions and the existing 38 terrain/support assertions pass with no runtime errors.
+Rotation uses the existing discrete quarter-turn pivot and collision footprint; the
+support, collider, tuck and Dynamic-settling rules are unchanged.
+
+`rotation-parity.cs.txt` compares the original rotation setter against the public queued-input
+and guarded-apply path in 2,016 clear layouts: seven shapes, four starting angles, three X
+columns, four Y offsets, and six single/rapid tap sequences. It checks positions, angles,
+cell centres, pending columns, collider sizes and velocities within 0.00001. All comparisons
+pass with zero differences or runtime errors. Its temporary local physics scene never steps
+simulation, and it restores fixture tracking in `finally`; results go to
+`Library/rotation-parity-checks.json`. Use the same empty-scene preparation above.
+
+The review caught an input-preview side effect: rebuilding collider shapes could perturb
+half-cell bounds rounding and shift a legal turn by a cell. The final implementation checks
+clearance only when applying the queued angle. Clear turns take the original rotation path
+once; rollback and rejection happen only for an occupied destination. Successful rotation
+sound/tutorial events now fire at application, so refused turns do not report success.
 
 ## Coverage and reproducible layouts
 
