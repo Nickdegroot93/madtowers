@@ -28,6 +28,9 @@ public static class SplashOverlay
     /// SEEN appearing (the out-of-attempts refill offer) hold their entrance on this.</summary>
     public static bool IsVisible => _live != null;
 
+    /// <summary>A direct gameplay launch must not show a belated launch splash on its return.</summary>
+    public static void SkipForThisProcess() => _shownThisProcess = true;
+
     public static void ShowIfFirstBoot()
     {
         if (_shownThisProcess) return;

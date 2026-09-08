@@ -19,14 +19,11 @@ public static partial class MainMenuRuntime
         PlayerProfileStore.Snapshot profile = PlayerProfileStore.Current;
         Sprite statBackground = chapter != null ? chapter.MenuBackgroundImage : null;
 
-        var atmosphere = CreateImage(parent, "StatusAtmosphere", MenuSprites.VerticalFade(
-            new Color(.025f,.025f,.035f,.82f), new Color(.025f,.025f,.035f,0)), Color.white);
-        var atmosphereRect = atmosphere.rectTransform;
-        atmosphereRect.anchorMin = new Vector2(0,1); atmosphereRect.anchorMax = Vector2.one;
-        atmosphereRect.pivot = new Vector2(.5f,1); atmosphereRect.sizeDelta = new Vector2(0,210);
+        // The parent already follows the device safe area. Keep only a small breathing
+        // gap below the cutout; the chapter artwork continues behind the bar and notch.
         RectTransform bar = CreateRect(parent, "TopStatusBar",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0f, -34f), new Vector2(-48f, 122f));
+            new Vector2(0f, -8f), new Vector2(-48f, 122f));
         Image barImage = bar.gameObject.AddComponent<Image>();
         barImage.sprite = RuntimeSprites.RoundedPanel();
         barImage.type = Image.Type.Sliced;

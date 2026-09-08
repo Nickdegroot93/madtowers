@@ -23,8 +23,8 @@ public class HudLayoutEditor : MonoBehaviour
     private const float ContextAlpha = 0.4f;    // the non-targeted group dims to this
 
     private static readonly Color BubbleColor = new Color(0.92f, 0.97f, 1f, 0.9f);
-    private static readonly Color NudgePillColor = new Color(1f, 1f, 1f, 0.09f);
-    private static readonly Color NudgeChevronColor = new Color(0.95f, 0.98f, 1f, 0.32f);
+    private static Color NudgePillColor => HudVisualStyle.NudgeFill;
+    private static Color NudgeChevronColor => HudVisualStyle.NudgeChevron;
     private static readonly Color PanelFill = new Color(0.05f, 0.06f, 0.07f, 0.94f);
     private static readonly Color TextColor = new Color(0.96f, 0.97f, 1f, 1f);
     private static readonly Color MutedText = new Color(0.7f, 0.74f, 0.8f, 1f);
@@ -429,7 +429,7 @@ public class HudLayoutEditor : MonoBehaviour
         {
             Label("GUIDE VISIBILITY", 0f);
             AddSlider(_draft.nudgeGuideOpacity, -30f, v => { _draft.nudgeGuideOpacity = Mathf.Clamp01(v); RetintNudge(); });
-            Hint("The corner buttons steer the falling piece. Set how visible their guides are — they still work at 0%.", -104f);
+            Hint("Corner taps shove bricks with force. Guides flash at the start and on taps, even at 0%.", -104f);
         }
         else
         {
@@ -458,7 +458,10 @@ public class HudLayoutEditor : MonoBehaviour
     private void Hint(string text, float y)
     {
         TextMeshProUGUI hint = CreateTmp(_control, "Hint", text, 20, MutedText, TextAnchor.UpperLeft,
-            FontStyle.Normal, TitleFont, new Vector2(0f, y), new Vector2(620f, 54f), new Vector2(0f, 1f));
+            FontStyle.Normal, TitleFont, new Vector2(0f, y), new Vector2(620f, 76f), new Vector2(0f, 1f));
+        hint.rectTransform.anchorMax = new Vector2(1f, 1f);
+        hint.rectTransform.offsetMin = new Vector2(0f, hint.rectTransform.offsetMin.y);
+        hint.rectTransform.offsetMax = new Vector2(0f, hint.rectTransform.offsetMax.y);
         hint.textWrappingMode = TMPro.TextWrappingModes.Normal;
     }
 

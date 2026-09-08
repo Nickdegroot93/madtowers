@@ -189,6 +189,22 @@ public static partial class MainMenuRuntime
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void PrepareSelection()
     {
+        bool firstLaunch = ProgressStore.ClaimFirstLaunchIntroduction();
+        if (firstLaunch && LevelSelectionState.SelectedLevel == null)
+        {
+            ChapterDefinition[] chapters = Campaign.LoadChaptersInOrder();
+            LevelDefinition first = chapters.Length > 0 && chapters[0].Levels != null &&
+                chapters[0].Levels.Count > 0 ? chapters[0].Levels[0] : null;
+            if (first != null && first.IsIntroduction)
+            {
+                // This local, unranked introduction needs no account or network handshake.
+                // Selection is ready before scene Awake, so no menu or paused build frame appears.
+                RunSuppliesState.ClearRun();
+                RunGate.ClearActiveRun();
+                LevelSelectionState.SelectLevel(first);
+                SplashOverlay.SkipForThisProcess();
+            }
+        }
         LevelSelectionState.BeginSelectionIfNeeded();
     }
 

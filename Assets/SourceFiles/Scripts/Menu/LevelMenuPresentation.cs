@@ -45,6 +45,7 @@ public static class LevelMenuPresentation
 
     private static string ChallengeLabel(LevelDefinition level, ILevelMenuProgressProvider progressProvider)
     {
+        if (level != null && level.IsIntroduction) return "TUTORIAL";
         if (level != null && !string.IsNullOrWhiteSpace(level.MenuChallengeLabelOverride))
         {
             return level.MenuChallengeLabelOverride.ToUpperInvariant();
@@ -63,6 +64,7 @@ public static class LevelMenuPresentation
         ILevelMenuProgressProvider progressProvider)
     {
         if (level == null) return new ProgressParts(completed ? "Completed" : "Free", completed ? "" : "Play");
+        if (level.IsIntroduction && completed) return new ProgressParts("Completed", "");
 
         // A provider may claim only the TYPE label and leave progress to the goal (Airtight,
         // Void Zones): null/empty falls through to the win condition's default.

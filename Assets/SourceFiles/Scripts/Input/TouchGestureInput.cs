@@ -39,7 +39,7 @@ public class TouchGestureInput : MonoBehaviour
     // Bottom-corner nudge zones. Public: UIManager draws its ghost buttons from these
     // same fractions, so the on-screen hint always matches the real hitbox.
     public const float NudgeZoneWidthFraction = 0.22f;
-    public const float NudgeZoneHeightFraction = 0.144f;
+    public const float NudgeZoneHeightFraction = 0.09f; // 37.5% shorter: deliberate bottom-corner taps
     private const float FallbackDpi = 160f;
     private const int MouseId = -1;
 
@@ -226,7 +226,13 @@ public class TouchGestureInput : MonoBehaviour
     private static void Nudge(int direction)
     {
         BlockController active = BlockController.ActiveControlled;
-        if (active != null) active.Nudge(direction); // pause/control checks live in Nudge
+        if (active == null || Time.timeScale <= 0f ||
+            (GameManager.Instance != null && GameManager.Instance.IsGamePaused)) return;
+        // A corner press is visible even while a previous shove is rebounding. This is
+        // touch feedback, independent of whether physics accepts another nudge yet.
+        if ((BlockController.AllowedGestures & PieceGestures.Nudge) != 0)
+            UIManager.Instance?.FlashNudgeButton(direction);
+        active.Nudge(direction);
     }
 
     // One place owns "throw away all touch state": the drag-owner claim and the held fast-drop

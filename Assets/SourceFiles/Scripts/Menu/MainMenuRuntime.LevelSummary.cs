@@ -51,7 +51,7 @@ public static partial class MainMenuRuntime
         const float contentW = W - pad * 2f;
         // Supplies exist for campaign levels only (runtime levels have no save identity) and
         // stay invisible until Chapter 1 is done - the soft-landing rule.
-        bool suppliesOn = AttemptsService.MetaEnabled && ProgressStore.LevelId(level) != null;
+        bool suppliesOn = !level.IsIntroduction && AttemptsService.MetaEnabled && ProgressStore.LevelId(level) != null;
         // 768 not 840: the description is one line, so the supplies section moves up into the
         // slack instead of floating below dead space (Nick's whitespace note).
         // ModalHeightWithSupplies is shared with the boost picker, which must match exactly.
@@ -167,7 +167,7 @@ public static partial class MainMenuRuntime
 
         // Play (gradient gold) + Ranks (dark) buttons, pinned to the bottom.
         LevelDefinition selected = level;
-        float playW = 524f;
+        float playW = level.IsIntroduction ? contentW : 524f;
         Image playBg = CreateImage(panel, "Play", MenuSprites.RoundedGradient(
             Color.Lerp(chapter.PlayButtonTopColor, Color.white, 0.06f), chapter.PlayButtonBottomColor), Color.white);
         playBg.type = Image.Type.Sliced;
@@ -258,25 +258,28 @@ public static partial class MainMenuRuntime
             RefreshPlayButton(suppliesUi);
         }
 
-        float ranksX = pad + playW + 18f;
-        float ranksW = contentW - playW - 18f;
-        Image ranksBg = CreateImage(panel, "Ranks", RuntimeSprites.RoundedPanel(), new Color(0.13f, 0.13f, 0.15f, 1f));
-        ranksBg.type = Image.Type.Sliced;
-        SetRect(ranksBg.rectTransform, new Vector2(ranksX, 44f), new Vector2(ranksW, 128f), new Vector2(0f, 0f));
-        ranksBg.raycastTarget = true;
-        MenuRule(ranksBg.transform, WithAlpha(lightChapter, 0.4f));
-        Image trophy = CreateImage(ranksBg.transform, "RanksIcon", MenuSprites.Trophy(lightChapter), Color.white);
-        trophy.preserveAspect = true;
-        SetCenteredAt(trophy.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(-58f, 0f), new Vector2(36f, 36f));
-        CreateTmp(ranksBg.transform, "RanksLabel", "RANKS", 28, lightChapter, TextAnchor.MiddleCenter,
-            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(16f, 0f), new Vector2(150f, 40f), new Vector2(0.5f, 0.5f));
-        Button ranksButton = ranksBg.gameObject.AddComponent<Button>();
-        ranksButton.targetGraphic = ranksBg;
-        ranksButton.onClick.AddListener(() =>
+        if (!level.IsIntroduction)
         {
-            SfxPlayer.Play("ui-button-click");
-            OpenLeaderboard(level, chapter);
-        });
+            float ranksX = pad + playW + 18f;
+            float ranksW = contentW - playW - 18f;
+            Image ranksBg = CreateImage(panel, "Ranks", RuntimeSprites.RoundedPanel(), new Color(0.13f, 0.13f, 0.15f, 1f));
+            ranksBg.type = Image.Type.Sliced;
+            SetRect(ranksBg.rectTransform, new Vector2(ranksX, 44f), new Vector2(ranksW, 128f), new Vector2(0f, 0f));
+            ranksBg.raycastTarget = true;
+            MenuRule(ranksBg.transform, WithAlpha(lightChapter, 0.4f));
+            Image trophy = CreateImage(ranksBg.transform, "RanksIcon", MenuSprites.Trophy(lightChapter), Color.white);
+            trophy.preserveAspect = true;
+            SetCenteredAt(trophy.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(-58f, 0f), new Vector2(36f, 36f));
+            CreateTmp(ranksBg.transform, "RanksLabel", "RANKS", 28, lightChapter, TextAnchor.MiddleCenter,
+                FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(16f, 0f), new Vector2(150f, 40f), new Vector2(0.5f, 0.5f));
+            Button ranksButton = ranksBg.gameObject.AddComponent<Button>();
+            ranksButton.targetGraphic = ranksBg;
+            ranksButton.onClick.AddListener(() =>
+            {
+                SfxPlayer.Play("ui-button-click");
+                OpenLeaderboard(level, chapter);
+            });
+        }
 
         // Close (X), top-right - a solid translucent dark circle (not a ring), over the thumbnail.
         Color closeFill = new Color(0.03f, 0.03f, 0.04f, 0.55f);

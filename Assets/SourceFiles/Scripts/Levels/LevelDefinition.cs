@@ -16,6 +16,9 @@ public class LevelDefinition : ScriptableObject
     [Header("Rules")]
     [SerializeField] private GameModeConfig gameModeConfig;
 
+    [Tooltip("One introductory goal: hold the target, celebrate completion in gold, then return to the menu. No medal ladder or ranked run.")]
+    [SerializeField] private bool isIntroduction;
+
     [Header("Goal")]
     [SerializeField] private LevelTargetType targetType = LevelTargetType.Endless;
     [Tooltip("Blocks to place or height in meters, depending on the target type.")]
@@ -47,6 +50,7 @@ public class LevelDefinition : ScriptableObject
     public Sprite MenuThumbnail => menuThumbnail;
     public string MenuChallengeLabelOverride => menuChallengeLabelOverride;
     public GameModeConfig GameModeConfig => gameModeConfig;
+    public bool IsIntroduction => isIntroduction;
     public LevelTargetType TargetType => targetType;
     public float TargetValue => Mathf.Max(1f, targetValue);
     public float TimeLimitSeconds => Mathf.Max(1f, timeLimitSeconds);

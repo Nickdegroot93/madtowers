@@ -28,9 +28,9 @@ public static class LevelTiers
     // lowers a threshold meaningfully.
     private const float Epsilon = 0.0001f;
 
-    /// <summary>False = the level has no goal (Endless free play) and the whole ladder is dormant.</summary>
+    /// <summary>False for Endless and the introduction's single goal: the ladder is dormant.</summary>
     public static bool HasTiers(LevelDefinition level)
-        => level != null && level.TargetType != LevelTargetType.Endless;
+        => level != null && !level.IsIntroduction && level.TargetType != LevelTargetType.Endless;
 
     /// <summary>The tier's goal in target units (blocks / meters / waves). Bronze is exactly the
     /// authored target - completion semantics are untouched by the medal system. MONOTONE by
@@ -42,6 +42,7 @@ public static class LevelTiers
         if (level == null) return float.MaxValue;
 
         float bronze = level.TargetValue;
+        if (level.IsIntroduction) return bronze; // one goal, with a gold completion celebration
         if (tier == MedalTier.Bronze) return bronze;
 
         // Waves step in whole waves (monotone by construction); the wave engine freezes its

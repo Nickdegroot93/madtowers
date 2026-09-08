@@ -24,17 +24,31 @@ It has no bounded card edge and accepts no input. Ordinary text never borrows me
 
 ## Readouts
 
-- Blocks: remaining standing blocks to the next unearned rung, caption BLOCKS LEFT.
-- Height: ceil(exact tier threshold − live height), clamped at zero, caption REMAINING.
+- Blocks: remaining standing blocks to the next unearned rung, caption BLOCKS · {TIER}.
+- Height: ceil(exact tier threshold − live height), clamped at zero, caption HEIGHT · {TIER}.
 - Puzzle: current wave; NEXT WAVE keeps the actual standing-block debt beneath lives.
+  The objective caption reads WAVE · {TIER}.
 - After gold, or Endless: live total, caption HEIGHT or BLOCKS. No stale zero countdown.
-- A small tier cube beside the objective caption identifies the rung being chased.
-  The larger leading glyph identifies the challenge, with one matching family for
-  block count, height, Flood, Puzzle, Airtight and Void.
+- The objective caption names the rung being chased: BRONZE, SILVER or GOLD, in the
+  same chapter ink as the objective name, separated by a middle dot. No separate tier
+  cube. The tier suffix disappears after gold and in Endless. The leading glyph
+  identifies the challenge, with one matching family for block count, height, Flood,
+  Puzzle, Airtight and Void.
 - Coins stay hidden until earned. Banked medals show only tiers earned this run.
+  The introduction has one 30-block remaining goal with an unsuffixed BLOCKS caption;
+  its gold celebration appears only after the final hold, without intermediate medals.
   Wave/timer occupies the first right-side row; the medal moves below it.
 - Hearts retain all three sockets; missing lives are outlined silhouettes. Existing
   gain/loss/shatter events and pause action remain attached to the same owners.
+
+## Nudge corners
+
+The bottom-corner hit areas and guides share 22%-wide, 9%-high screen fractions, also
+used by the tutorial hand and Controls editor. Idle guides use pale chapter-tinted ink and the
+saved opacity (hidden by default). Both corners smoothly reveal for 1 second on the first
+playable brick; each corner tap reveals only that side for 0.5 seconds, even during rebound
+cooldown. Pause freezes the reveal clocks. These cues never change the saved setting.
+The tutorial temporarily spotlights the corners; see TUTORIAL.md for the continuous flow.
 
 ## Preview and motion
 

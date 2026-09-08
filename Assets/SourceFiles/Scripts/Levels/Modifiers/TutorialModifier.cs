@@ -10,25 +10,21 @@ using UnityEngine.UI;
 /// already done it is a complete no-op, so the level plays normally - which is what makes it
 /// "attachable to any level".
 ///
-/// Per teaching piece the flow is: spawn -> descend briskly to a working height with ALL input
-/// gated (so the lesson never plays behind the HUD strip and the player can't fiddle early) ->
-/// hover the piece + show the step -> wait for the real gesture -> success beat -> next step.
+/// One continuous practice sequence: rotate -> move -> soft drop and release -> slam -> nudge.
+/// Instructions and controls are live immediately. Bricks arrive quickly below the HUD;
+/// the main controls share one brick, then its replacement introduces optional nudge.
 /// Gating is FORCED-ORDER but CUMULATIVE: each step allows every gesture already taught plus the
 /// one being taught (research: disabling a gesture you just rewarded breaks the learning
 /// contract). A learned drop used "early" just lands the piece - the current step re-arms on the
 /// next spawn, so nothing can soft-lock.
 ///
-/// Curriculum (two pieces, both forced to visibly-rotatable shapes from the level's own bag):
-///   Piece 1: Rotate (tap) -> Move (drag) -> Soft drop (drag down + hold; rides to the floor)
-///   Piece 2: Nudge (corner pills lit) -> Hard drop (flick; instant - completes the tutorial)
-/// Then a short "You're ready" coda shows the level goal and fades; the rest of the level is the
-/// free-play quick win. Skipping plays a shorter coda that still shows the goal (the runtime's
-/// own banner is suppressed while the tutorial owns the intro messaging).
+/// A brief goal reminder hands straight into normal play after nudge. No arrival captions,
+/// readiness countdowns or blocking recap. Skip uses the same handoff and restores control.
 /// </summary>
 [CreateAssetMenu(fileName = "Tutorial", menuName = "Stacking/Levels/Modifiers/Tutorial")]
 public class TutorialModifier : LevelModifier
 {
-    private enum Phase { Inactive, PreRoll, Armed, Beat, AwaitPiece, Coda, Recap }
+    private enum Phase { Inactive, PreRoll, Armed, Beat, AwaitPiece, Coda }
 
     private struct Step
     {
@@ -36,7 +32,7 @@ public class TutorialModifier : LevelModifier
         public string Caption;   // <= 8 words (research: text is a caption, the demo teaches)
         public string Sub;       // optional second line - the WHY, when the gesture needs one
         public int RequiredReps;
-        public bool EndsPiece;   // a drop: it releases the hover and rides the piece down
+        public bool EndsPiece;   // the committed hard drop ends practice on this piece
     }
 
     // The curriculum. Data here (not serialized) so the asset can never go stale against the
@@ -46,12 +42,16 @@ public class TutorialModifier : LevelModifier
     // move, when its point is FORCE - a physics shove that darts into gaps and knocks bricks.
     private static readonly Step[] Steps =
     {
-        new Step { Gesture = PieceGestures.Rotate,   Caption = "Tap to rotate",              RequiredReps = 1, EndsPiece = false },
-        new Step { Gesture = PieceGestures.Move,     Caption = "Drag left or right to move", RequiredReps = 3, EndsPiece = false },
-        new Step { Gesture = PieceGestures.SoftDrop, Caption = "Drag down and hold",         RequiredReps = 1, EndsPiece = true },
-        new Step { Gesture = PieceGestures.Nudge,    Caption = "Tap a corner to nudge",
-                   Sub = "A hard shove - dart into gaps or knock bricks aside!", RequiredReps = 1, EndsPiece = false },
-        new Step { Gesture = PieceGestures.HardDrop, Caption = "Flick down to slam!",        RequiredReps = 1, EndsPiece = true },
+        new Step { Gesture = PieceGestures.Rotate,   Caption = "Tap to rotate",
+                   Sub = "Tap the play area to turn your brick.", RequiredReps = 1, EndsPiece = false },
+        new Step { Gesture = PieceGestures.Move,     Caption = "Drag left or right",
+                   Sub = "Slide your brick into position.", RequiredReps = 2, EndsPiece = false },
+        new Step { Gesture = PieceGestures.SoftDrop, Caption = "Drag down and hold",
+                   Sub = "Hold to fall faster.\nRelease to slow down.", RequiredReps = 1, EndsPiece = false },
+        new Step { Gesture = PieceGestures.HardDrop, Caption = "Flick down to slam",
+                   Sub = "A quick swipe drops your brick\nstraight down, all the way.", RequiredReps = 1, EndsPiece = true },
+        new Step { Gesture = PieceGestures.Nudge,    Caption = "Tap a bottom corner",
+                   Sub = "Nudge adds a sideways shove.\nUnlike dragging, it can push other bricks.", RequiredReps = 1, EndsPiece = false },
     };
 
     private static readonly int NudgeStepIndex =
@@ -61,21 +61,20 @@ public class TutorialModifier : LevelModifier
     // visible-rotation test, and unknown names fall back to any shape that passes it.
     private static readonly string[] TeachingShapePreference = { "L", "J", "T", "S", "Z", "I", "Domino" };
 
-    // Pre-roll: the fresh piece descends at this factor of normal speed to the working height,
-    // so the lesson starts promptly without reading as a drop. The generous time cap only
-    // catches a piece that genuinely cannot reach the line (should never happen in practice).
-    private const float PreRollSpeedFactor = 2.2f;
-    private const float PreRollTimeoutSeconds = 8f;
+    // Brief positioning motion, with the prompt and its controls already live. Derive speed
+    // from the camera distance so a tall phone doesn't add seconds of empty falling time.
+    private const float ArrivalSeconds = 0.45f;
+    private const float PreRollTimeoutSeconds = 0.8f;
     // Once a pre-rolling piece has LANDED before reaching the settle line (a tall tower after
     // many early drops), stop insisting on the low hover: arm at a relaxed line just under the
     // strip, with a short cap so the input lock can never loop.
-    private const float ArmWithoutSettleSeconds = 1.2f;
+    private const float ArmWithoutSettleSeconds = 0.45f;
 
-    private const float BeatSeconds = 0.7f;            // success registers before the next ask
+    private const float BeatSeconds = 0.28f;          // feedback overlaps the next live prompt
     private const float HandIdleReshowSeconds = 2.8f;  // re-show the demo after this much idle
-    private const float CodaHoldSeconds = 2.6f;
-    private const float SkipCodaHoldSeconds = 1.3f;    // skipped: just long enough to read the goal
-    private const float CodaFadeSeconds = 0.9f;
+    private const float CodaHoldSeconds = 3f;
+    private const float SkipCodaHoldSeconds = 2f;
+    private const float CodaFadeSeconds = 0.45f;
     private const float GroupFadePerSecond = 4f;
 
     // Nudge-pill spotlight: fully lit while the nudge step teaches, kept faintly lit for the
@@ -83,13 +82,10 @@ public class TutorialModifier : LevelModifier
     private const float NudgeBoostTeaching = 1f;
     private const float NudgeBoostAfter = 0.45f;
 
-    // The ACTIVE chapter's menu accent (GameMenuStyle resolves it with a neutral fallback),
-    // cached once per run at OnLevelStart - never a hardcoded hue (Nick 2026-08-30): the
-    // tutorial ships on chapter 1 today, but its strip, dots and recap card must match
-    // whatever chapter it ever renders on, like every other in-game menu surface.
-    private Color Accent = new Color(0.42f, 0.78f, 1f, 1f);
-    private static readonly Color DotIdle = new Color(1f, 1f, 1f, 0.22f);
-    private static readonly Color DimColor = new Color(0f, 0f, 0f, 0.24f);
+    // Instructions always sit on a dark card, independent of the chapter's HUD ink.
+    private Color Accent = new Color(1f, 0.98f, 0.94f, 1f);
+    private Color Secondary = new Color(0.88f, 0.91f, 0.9f, 1f);
+    private Color DotIdle => GameMenuStyle.WithAlpha(Secondary, .32f);
 
     private Phase _phase = Phase.Inactive;
     private bool _subscribed;
@@ -101,19 +97,22 @@ public class TutorialModifier : LevelModifier
     private float _preRollTime;
     private bool _armWithoutSettle;
     private bool _beatArmsSamePiece;
+    private bool _softDropPracticing;
+    private bool _pieceCommitted;
     private float _animTime;
     private float _beatTime;
     private float _codaTime;
     private float _idleTime; // seconds since the last touch; the demo shows at/after the reshow threshold
     private Vector2 _beatBurstAt;
 
-    // Overlay. Everything except Skip lives under _group so pre-roll/steps can crossfade as one.
+    // Overlay. Everything except Skip lives under _group for the entrance and goal handoff.
     private GameObject _overlayRoot;
     private Canvas _canvas;
     private CanvasGroup _group;
     private RectTransform _stripRect;
     private TextMeshProUGUI _caption;
     private TextMeshProUGUI _subline;
+    private TextMeshProUGUI _tag;
     private GameObject _skipRoot;
     private Image[] _dots;
     private RectTransform _hand;
@@ -130,12 +129,13 @@ public class TutorialModifier : LevelModifier
     private float _stripBottomVp; // viewport Y of its bottom edge (the relaxed arm line hangs off it)
     private float _settleVp;      // viewport Y a teaching piece descends to before its lesson
     private float _skipBaseX;     // skip pill offset, incl. the safe-area right inset
-    private const float StripHeight = 210f; // canvas units
+    private const float StripHeight = 280f;
+    private const float StripSideMargin = 40f;
+    private const float StripPadding = 28f;
 
     // Micro-animation state (the "juice"): pop timers rest above their window when idle.
-    private const float PopSettleSeconds = 0.8f;
-    private const float DotPopSeconds = 0.45f;
-    private float _liveTime;
+    private const float PopSettleSeconds = 0.22f;
+    private const float DotPopSeconds = 0.28f;
     private float _captionPop = 10f;
     private float _sublinePop = 10f;
     private float _dotPopTime = 10f;
@@ -150,22 +150,28 @@ public class TutorialModifier : LevelModifier
         // Standalone gate: a completed tutorial makes this modifier inert, so the level is normal.
         if (ProgressStore.IsTutorialCompleted()) return;
 
-        _phase = Phase.AwaitPiece; // the camera-intro gate holds the first spawn; we wait for it
+        _phase = Phase.AwaitPiece;
         _stepIndex = 0;
         _reps = 0;
         _armWithoutSettle = false;
-        Accent = GameMenuStyle.Accent; // the run's chapter accent, resolved once (see the field)
         _goalText = context != null && context.Level != null ? context.Level.Instruction : null;
-        BlockController.AllowedGestures = PieceGestures.None;
+        SetInputGate(AllowedThrough(_stepIndex));
         ForceTeachingShapes(context);
         Subscribe();
 
-        // Built now, invisible (alpha 0): the intro camera pan hides the construction cost -
-        // including the ghost hand's procedural texture - instead of a gameplay frame paying it.
         BuildOverlay();
+        _groupVisible = true;
+        _group.alpha = 1f;
+        _skipRoot.SetActive(true);
+        ApplyStepVisuals();
+        UpdateGroupFade(0f);
 
-        // Handle the (unexpected) case of a piece existing before we started.
-        if (BlockController.ActiveControlled != null) BeginPreRoll(BlockController.ActiveControlled);
+        // The tutorial starts with doing. Its first brick must not wait behind a scenery pan.
+        TowerCameraController.FinishIntroForTutorial();
+
+        // Releasing the camera gate can already have delivered HandleBlockSpawned synchronously.
+        if (_piece == null && BlockController.ActiveControlled != null)
+            BeginPreRoll(BlockController.ActiveControlled);
     }
 
     public override void OnUpdate(LevelModifierContext context, float deltaTime)
@@ -176,13 +182,25 @@ public class TutorialModifier : LevelModifier
         UpdateGroupFade(deltaTime);
         UpdateStripAnimation(deltaTime);
 
+        if (_softDropPracticing)
+        {
+            // Observe the real combined touch/keyboard release. The player sees the
+            // speed change before the brick pauses for the final flick on this same piece.
+            if (_piece == null || _piece.HasLanded || !_piece.IsFastDropping)
+                CompleteStep();
+            else
+            {
+                HideDemo();
+                return;
+            }
+        }
+
         switch (_phase)
         {
             case Phase.PreRoll: UpdatePreRoll(deltaTime); break;
             case Phase.Armed:   UpdateArmed(deltaTime); break;
             case Phase.Beat:    UpdateBeat(deltaTime); break;
             case Phase.Coda:    UpdateCoda(deltaTime); break;
-            case Phase.Recap:   UpdateRecap(deltaTime); break;
         }
     }
 
@@ -292,30 +310,24 @@ public class TutorialModifier : LevelModifier
         _preRollTime = 0f;
         _phase = Phase.PreRoll;
         _animTime = 0f;
+        _idleTime = HandIdleReshowSeconds;
+        _pieceCommitted = false;
 
-        // Full lock while the piece rides in: touch is swallowed, and the gesture gate covers
-        // the keyboard. It descends briskly (not a drop) so the lesson starts promptly.
-        TouchGestureInput.Suspended = true;
-        BlockController.AllowedGestures = PieceGestures.None;
+        SetInputGate(AllowedThrough(_stepIndex));
         if (piece != null)
         {
             piece.SetDescentSuspended(false);
-            // Pinned, not just stamped: the lesson owns this piece's descent, so a live ability
-            // re-stamp (GameManager.SetAbilityFallSpeedMultiplier) must not yank the ride-in speed.
-            // RestoreNormalSpeed's plain stamp releases the pin again.
-            piece.PinNormalFallSpeedFactor(PreRollSpeedFactor);
+            RefreshScreenGeometry();
+            Camera cam = TowerCameraController.Camera;
+            float distance = cam != null
+                ? Mathf.Max(0f, piece.transform.position.y - cam.ViewportToWorldPoint(
+                    new Vector3(0.5f, SettleLine, cam.nearClipPlane)).y)
+                : piece.fallSpeed * ArrivalSeconds;
+            piece.PinNormalFallSpeedFactor(distance / (Mathf.Max(0.05f, piece.fallSpeed) * ArrivalSeconds));
         }
 
-        // The strip (caption + dots + SKIP) is visible from the first pre-roll frame, so the
-        // lesson announces itself while the piece rides in - but NOT the ghost hand: the hand
-        // is a "you can act NOW" signal, and anchored to the live piece it slid down the
-        // screen beside an untappable brick (Nick 2026-08-30). It appears at ArmStep, the
-        // moment the piece hovers and input actually unlocks.
+        // Keep one action caption. Never insert arrival/readiness text between gestures.
         ApplyStepVisuals();
-        _groupVisible = true;
-        // SKIP does not show yet: it appears with the ghost hand at ArmStep (Nick
-        // 2026-08-30) - the player should see WHAT they'd be skipping before the exit
-        // offers itself. Once shown it stays for the rest of the tutorial.
     }
 
     private void UpdatePreRoll(float deltaTime)
@@ -323,24 +335,20 @@ public class TutorialModifier : LevelModifier
         if (_piece == null) { EnterAwaitPiece(); return; } // piece lost; wait for the next
         if (_piece.HasLanded)
         {
-            // The tower outgrew the settle line (many early drops): hovering failed. Release
-            // the lock and arm the NEXT piece promptly wherever it is - never loop the lock.
+            // The tower outgrew the settle line: use a higher practice position next time.
             _armWithoutSettle = true;
             EnterAwaitPiece();
             return;
         }
 
         _preRollTime += deltaTime;
-        // No ghost hand during the ride-in - input is locked, so demonstrating the gesture
-        // here would be an invitation the game refuses (see BeginPreRoll).
-        HideDemo();
+        UpdateArmed(deltaTime); // the demonstrated action already works during arrival
 
         // Degraded mode (a previous pre-roll landed before settling: the tower is tall) uses a
         // relaxed line - just below the strip - so the lesson is still fully visible, plus a
-        // short cap so the input lock can never loop. Reaching EITHER line restores normal
+        // short cap so positioning cannot stall. Reaching either line restores normal
         // mode, so the strict settle height comes back once the tower allows it again.
-        float settleLine = _armWithoutSettle ? _stripBottomVp - 0.04f : _settleVp;
-        if (HasReached(_piece, settleLine))
+        if (HasReached(_piece, SettleLine))
         {
             _armWithoutSettle = false;
             ArmStep();
@@ -351,10 +359,12 @@ public class TutorialModifier : LevelModifier
         }
     }
 
+    private float SettleLine => _armWithoutSettle ? _stripBottomVp - 0.04f : _settleVp;
+
     private bool HasReached(BlockController piece, float viewportY)
     {
         Camera cam = TowerCameraController.Camera;
-        if (cam == null) return _preRollTime >= 1.5f; // no camera to measure with - just start
+        if (cam == null) return _preRollTime >= ArrivalSeconds;
         return cam.WorldToViewportPoint(piece.transform.position).y <= viewportY;
     }
 
@@ -379,14 +389,13 @@ public class TutorialModifier : LevelModifier
     private void ArmStep()
     {
         if (_stepIndex >= Steps.Length) return;
-        if (_piece == null) { EnterAwaitPiece(); return; }
+        if (_piece == null || _piece.HasLanded || _pieceCommitted) { EnterAwaitPiece(); return; }
 
         _piece.SetDescentSuspended(true); // hover for the lesson
         RestoreNormalSpeed(_piece);
         SetInputGate(AllowedThrough(_stepIndex));
+        _groupVisible = true;
 
-        // SKIP earns its place HERE, with the hand and the live controls (built hidden;
-        // idempotent on later arms) - never over the "quick tour" announcement.
         if (_skipRoot != null) _skipRoot.SetActive(true);
 
         // A piece that cannot rotate (a Locked-style variant on an unpinned level) could never
@@ -398,9 +407,7 @@ public class TutorialModifier : LevelModifier
             return;
         }
 
-        // The demo starts HERE, not in the pre-roll (the hand means "you can act now"):
-        // restart the loop so its first beat plays whole. Seeding _idleTime at the threshold
-        // keeps it visible from the first armed frame without registering as a reshow crossing.
+        // Continue the same prompt at the working height, with the brick held for practice.
         _animTime = 0f;
         _phase = Phase.Armed;
         _idleTime = HandIdleReshowSeconds;
@@ -434,12 +441,45 @@ public class TutorialModifier : LevelModifier
     // credit), and on the still-falling previous piece between lessons.
     private void HandlePieceGesture(BlockController block, PieceGestures gesture)
     {
-        if (block == null || block != _piece) return;
-        if (_phase != Phase.Armed && _phase != Phase.Beat && _phase != Phase.AwaitPiece) return;
+        if (block == null || block != _piece || _pieceCommitted) return;
+        if (_phase != Phase.Armed && _phase != Phase.Beat && _phase != Phase.AwaitPiece &&
+            !(_phase == Phase.PreRoll && _groupVisible)) return;
         if (_stepIndex >= Steps.Length) return;
 
         Step step = Steps[_stepIndex];
+        if (gesture == PieceGestures.HardDrop)
+        {
+            _pieceCommitted = true;
+            _piece.SetDescentSuspended(false);
+            RestoreNormalSpeed(_piece);
+            if (step.Gesture != gesture)
+            {
+                EnterAwaitPiece(); // a learned slam during nudge resumes on the next brick
+                return;
+            }
+        }
+        if (gesture == PieceGestures.SoftDrop && step.Gesture != gesture)
+        {
+            // A learned held drop also takes ownership from the scripted arrival. Releasing
+            // it must restore normal descent, not unexpectedly resume the fast ride-in.
+            _piece.SetDescentSuspended(false);
+            RestoreNormalSpeed(_piece);
+            _phase = Phase.Armed;
+            HideDemo();
+            return;
+        }
         if (step.Gesture != gesture) return;
+
+        if (gesture == PieceGestures.SoftDrop)
+        {
+            _softDropPracticing = true;
+            _phase = Phase.Armed;
+            _piece.SetDescentSuspended(false);
+            RestoreNormalSpeed(_piece);
+            if (_subline != null) _subline.text = "Release to slow down again.";
+            HideDemo();
+            return;
+        }
 
         _reps++;
         if (_reps < step.RequiredReps)
@@ -457,6 +497,9 @@ public class TutorialModifier : LevelModifier
 
     private void CompleteStep()
     {
+        bool arriving = _phase == Phase.PreRoll;
+        bool endsPiece = Steps[_stepIndex].EndsPiece;
+        _softDropPracticing = false;
         SfxPlayer.Play("pop_01", 0.75f, 0.04f);
         _beatBurstAt = _piece != null ? OverlayPointFromWorld(_piece.transform.position) : Vector2.zero;
         _dotPopTime = 0f; // the just-earned dot (index _stepIndex - 1 after the increment) pops
@@ -464,7 +507,8 @@ public class TutorialModifier : LevelModifier
         // The beat may only hand back to the SAME piece when it is actually still hovering
         // for a lesson (Armed, or a chained completion during a beat). A step credited on the
         // still-falling previous piece (AwaitPiece) must never re-suspend a committed descent.
-        _beatArmsSamePiece = !Steps[_stepIndex].EndsPiece &&
+        _beatArmsSamePiece = !endsPiece && !_pieceCommitted &&
+                             _piece != null && !_piece.HasLanded &&
                              (_phase == Phase.Armed || _phase == Phase.Beat);
 
         _reps = 0;
@@ -477,10 +521,18 @@ public class TutorialModifier : LevelModifier
             return;
         }
 
+        if (endsPiece)
+        {
+            // Let the visible slam finish. Introduce nudge when its new, controllable brick
+            // arrives, without asking for a corner tap on an already committed drop.
+            _phase = Phase.AwaitPiece;
+            return;
+        }
+
         // Success beat: the win registers before the next ask. The dots/caption/gesture gate
         // already flip to the next step so a fast player is never held back by the pause -
         // the gate is cumulative, so opening it early can't un-teach anything.
-        _phase = Phase.Beat;
+        _phase = arriving ? Phase.PreRoll : Phase.Beat;
         _beatTime = 0f;
         BlockController.AllowedGestures = AllowedThrough(_stepIndex);
         ApplyStepVisuals();
@@ -500,7 +552,8 @@ public class TutorialModifier : LevelModifier
         // A non-drop step completed on a still-hovering piece arms the next lesson right here;
         // anything else (a drop, a credit earned on a falling piece, a piece that ended in the
         // meantime) waits for the next spawn.
-        if (_beatArmsSamePiece && _piece != null && _piece == BlockController.ActiveControlled)
+        if (_beatArmsSamePiece && !_pieceCommitted && _piece != null && !_piece.HasLanded &&
+            _piece == BlockController.ActiveControlled)
         {
             ArmStep();
         }
@@ -512,7 +565,7 @@ public class TutorialModifier : LevelModifier
 
     // ---- Completion ----------------------------------------------------------------------------
 
-    // Shared exit into the coda. Earned: the last gesture just fired (the piece is mid-plunge),
+    // Shared exit into the coda. Earned: the optional nudge was just tried,
     // celebrate and show the goal. Skipped: hand control back and still show the goal briefly -
     // the runtime's own banner was suppressed, and even a player who knows the controls needs
     // the objective. Marked done IMMEDIATELY either way: quitting during the coda or the free
@@ -521,19 +574,14 @@ public class TutorialModifier : LevelModifier
     {
         ProgressStore.MarkTutorialCompleted();
         SetInputGate(PieceGestures.Everything);
-        if (!earned && _piece != null)
+        if (_piece != null)
         {
             _piece.SetDescentSuspended(false);
             RestoreNormalSpeed(_piece);
         }
 
         _phase = Phase.Coda;
-        _earnedCompletion = earned;
-        // Earned: the recap card follows this coda, so hold the next spawn NOW - the slammed
-        // piece locks mid-coda and the spawner would otherwise drop a fresh brick for the
-        // player to babysit while the card is up (Nick 2026-08-11: "pause the brick dropping
-        // and show the modal directly"). Skips keep playing normally.
-        if (earned && GameManager.Instance != null) GameManager.Instance.SetSpawnSuspended(this, true);
+        _softDropPracticing = false;
         _codaTime = earned ? 0f : CodaHoldSeconds - SkipCodaHoldSeconds;
         HideDemo();
         if (_skipRoot != null) _skipRoot.SetActive(false);
@@ -541,16 +589,17 @@ public class TutorialModifier : LevelModifier
 
         if (_caption != null)
         {
-            _caption.text = earned ? "You're ready!"
-                : string.IsNullOrWhiteSpace(_goalText) ? "Good luck!" : _goalText;
-            _caption.color = earned ? Accent : RuntimeUiKit.TitleColor;
+            _caption.text = "Keep stacking";
+            _caption.color = Accent;
             _captionPop = 0f;
         }
         if (_subline != null)
         {
-            _subline.text = earned && !string.IsNullOrWhiteSpace(_goalText) ? _goalText : "";
+            _subline.text = !string.IsNullOrWhiteSpace(_goalText)
+                ? _goalText : "Bottom corners nudge even when hidden.";
             _sublinePop = 0f;
         }
+        if (_tag != null) _tag.text = "YOUR TURN";
         if (_dots != null)
         {
             for (int i = 0; i < _dots.Length; i++)
@@ -573,10 +622,7 @@ public class TutorialModifier : LevelModifier
 
         if (_codaTime >= CodaHoldSeconds + CodaFadeSeconds)
         {
-            // Earned completions get the recap card; a skipper said "I know this" - don't
-            // make them read a control sheet they just declined to be taught.
-            if (_earnedCompletion) EnterRecap();
-            else Teardown();
+            Teardown();
         }
     }
 
@@ -611,7 +657,8 @@ public class TutorialModifier : LevelModifier
     // the player used an already-learned drop mid-step (allowed; the step simply re-arms).
     private void HandleBlockSpawned(BlockController block, BlockData variant)
     {
-        if (_phase == Phase.Inactive || _phase == Phase.Coda || _phase == Phase.Recap) return;
+        if (_phase == Phase.Inactive || _phase == Phase.Coda) return;
+        if (_softDropPracticing) CompleteStep(); // a held soft drop landed before release
         BeginPreRoll(block);
     }
 
@@ -628,7 +675,7 @@ public class TutorialModifier : LevelModifier
         _overlayRoot = RuntimeUiKit.CreateOverlayCanvas("Tutorial", 3400);
         _canvas = _overlayRoot.GetComponent<Canvas>();
 
-        // Everything but Skip fades as one block (pre-roll shows it early, the coda fades it out).
+        // The instruction card and demo fade together. Skip stays independently tappable.
         GameObject content = new GameObject("Content", typeof(RectTransform));
         RectTransform contentRect = (RectTransform)content.transform;
         contentRect.SetParent(_overlayRoot.transform, false);
@@ -637,13 +684,10 @@ public class TutorialModifier : LevelModifier
         _group.blocksRaycasts = false;
         _group.alpha = 0f;
 
-        // A gentle dim to focus attention without hiding the board (gestures pass through -
-        // TouchGestureInput reads devices directly, and the group never blocks raycasts).
-        RuntimeUiKit.CreateBackdrop(content.transform, DimColor);
-
         BuildDemo(content.transform); // under the strip so text always reads over the hand
         BuildStrip(content.transform);
         BuildSkip();
+        Canvas.ForceUpdateCanvases();
         RefreshScreenGeometry();
     }
 
@@ -673,7 +717,12 @@ public class TutorialModifier : LevelModifier
         float stripHeightVp = StripHeight * scale / Mathf.Max(1f, Screen.height);
         _stripBottomVp = _stripTopVp - stripHeightVp;
         _settleVp = Mathf.Clamp(_stripBottomVp - 0.22f, 0.42f, 0.68f);
-        _skipBaseX = -22f - RuntimeUiKit.SafeAreaRightInset(_canvas);
+        _skipBaseX = -StripSideMargin - 12f - RuntimeUiKit.SafeAreaRightInset(_canvas);
+        if (_stripRect != null)
+        {
+            _stripRect.offsetMin = new Vector2(StripSideMargin + RuntimeUiKit.SafeAreaLeftInset(_canvas), _stripRect.offsetMin.y);
+            _stripRect.offsetMax = new Vector2(-StripSideMargin - RuntimeUiKit.SafeAreaRightInset(_canvas), _stripRect.offsetMax.y);
+        }
 
         // Re-anchor only on a real change: the world<->viewport round-trip carries float noise
         // well below half a pixel, which must not re-dirty the anchors every frame.
@@ -701,68 +750,54 @@ public class TutorialModifier : LevelModifier
 
     private void BuildStrip(Transform parent)
     {
-        Image background = RuntimeUiKit.CreateImage(parent, "Instruction", null,
-            new Color(0.02f, 0.05f, 0.09f, 0.8f));
-        _stripRect = background.rectTransform;
-        _stripRect.pivot = new Vector2(0.5f, 1f);
-        _stripRect.sizeDelta = new Vector2(0f, StripHeight);
+        _stripRect = RuntimeUiKit.CreateRect(parent, "Instruction", new Vector2(0f, 1f),
+            Vector2.one, new Vector2(.5f, 1f), Vector2.zero, new Vector2(0f, StripHeight));
 
-        // Accent hairline along the bottom edge: the one-glance signal that this band is a
-        // special mode, not another dialog.
-        Image edge = RuntimeUiKit.CreateImage(_stripRect, "Edge", null,
-            new Color(Accent.r, Accent.g, Accent.b, 0.55f));
-        RectTransform edgeRect = edge.rectTransform;
-        edgeRect.anchorMin = new Vector2(0f, 0f);
-        edgeRect.anchorMax = new Vector2(1f, 0f);
-        edgeRect.pivot = new Vector2(0.5f, 0f);
-        edgeRect.sizeDelta = new Vector2(0f, 3f);
-        edgeRect.anchoredPosition = Vector2.zero;
+        var backing = _stripRect.gameObject.AddComponent<Image>();
+        backing.sprite = RuntimeSprites.RoundedPanel();
+        backing.type = Image.Type.Sliced;
+        backing.color = new Color(0.035f, 0.05f, 0.06f, 0.92f);
+        backing.raycastTarget = false;
 
-        TextMeshProUGUI tag = RuntimeUiKit.CreateTmp(_stripRect, "Tag", "TUTORIAL", 20,
-            new Color(Accent.r, Accent.g, Accent.b, 0.85f), TextAnchor.MiddleCenter, FontStyle.Bold,
-            RuntimeUiKit.TitleFont, new Vector2(0f, -18f), new Vector2(400f, 26f), new Vector2(0.5f, 1f));
-        tag.characterSpacing = 12f;
-
-        // Caption band centred on the strip's TRUE middle (-105 of the 210 band), which is
-        // also where the SKIP pill centres - the old -46..-142 band floated 11px high and
-        // read as misaligned against both (Nick 2026-08-30).
-        _caption = RuntimeUiKit.CreateTmp(_stripRect, "Caption", "", 46, RuntimeUiKit.TitleColor,
-            TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
-        RectTransform captionRect = _caption.rectTransform;
-        captionRect.anchorMin = new Vector2(0f, 1f);
-        captionRect.anchorMax = new Vector2(1f, 1f);
-        captionRect.offsetMin = new Vector2(150f, -153f);
-        captionRect.offsetMax = new Vector2(-150f, -57f);
-        RuntimeUiKit.AutoSize(_caption, 26f, 46f);
-
-        // Second line: rep progress during a step, the level goal during the coda.
-        _subline = RuntimeUiKit.CreateTmp(_stripRect, "Subline", "", 24, RuntimeUiKit.BodyTextColor,
-            TextAnchor.MiddleCenter, FontStyle.Normal, RuntimeUiKit.TitleFont,
-            Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
-        RectTransform sublineRect = _subline.rectTransform;
-        sublineRect.anchorMin = new Vector2(0f, 1f);
-        sublineRect.anchorMax = new Vector2(1f, 1f);
-        sublineRect.offsetMin = new Vector2(60f, -182f);
-        sublineRect.offsetMax = new Vector2(-60f, -152f);
-        RuntimeUiKit.AutoSize(_subline, 17f, 24f);
-
+        _tag = InstructionText("Tag", "TUTORIAL", 24f, Secondary, 16f, 40f, true);
+        _tag.characterSpacing = 3f;
+        _tag.alignment = TextAlignmentOptions.MidlineLeft;
+        _tag.rectTransform.offsetMax = new Vector2(-160f, _tag.rectTransform.offsetMax.y);
+        _caption = InstructionText("Caption", "", 50f, Accent, 66f, 72f, true);
+        RuntimeUiKit.AutoSize(_caption, 46f, 50f);
+        _subline = InstructionText("Subline", "", 36f, Secondary, 144f, 106f, false);
+        _subline.textWrappingMode = TextWrappingModes.Normal;
         BuildStepDots(_stripRect);
+    }
+
+    private TextMeshProUGUI InstructionText(string name, string value, float size, Color color,
+        float top, float height, bool strong)
+    {
+        var rect = RuntimeUiKit.CreateRect(_stripRect, name, new Vector2(0f, 1f), Vector2.one,
+            new Vector2(.5f, 1f), Vector2.zero, Vector2.zero);
+        rect.offsetMin = new Vector2(StripPadding, -top - height);
+        rect.offsetMax = new Vector2(-StripPadding, -top);
+        var text = rect.gameObject.AddComponent<TextMeshProUGUI>();
+        HudVisualStyle.Text(text, strong);
+        text.text = value;
+        text.fontSize = size;
+        text.color = color;
+        text.alignment = TextAlignmentOptions.Midline;
+        return text;
     }
 
     private void BuildStepDots(Transform strip)
     {
         _dots = new Image[Steps.Length];
-        const float spacing = 42f, size = 15f;
-        float startX = -(Steps.Length - 1) * spacing * 0.5f;
-        for (int i = 0; i < Steps.Length; i++)
+        const float spacing = 40f;
+        float startX = -(Steps.Length - 1) * spacing * .5f;
+        for (int i = 0; i < _dots.Length; i++)
         {
-            Image dot = RuntimeUiKit.CreateImage(strip, $"Dot{i}", RuntimeSprites.Bubble(), DotIdle);
-            RectTransform rect = dot.rectTransform;
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = new Vector2(size, size);
-            rect.anchoredPosition = new Vector2(startX + i * spacing, 18f);
+            Image dot = RuntimeUiKit.CreateImage(strip, $"Progress{i}", null, DotIdle);
+            var rect = dot.rectTransform;
+            rect.anchorMin = rect.anchorMax = new Vector2(.5f, 0f);
+            rect.sizeDelta = new Vector2(28f, 3f);
+            rect.anchoredPosition = new Vector2(startX + i * spacing, 16f);
             _dots[i] = dot;
         }
     }
@@ -774,7 +809,7 @@ public class TutorialModifier : LevelModifier
         _ring.anchorMin = _ring.anchorMax = new Vector2(0.5f, 0.5f);
         _ring.sizeDelta = new Vector2(170f, 170f);
 
-        _arrowImage = RuntimeUiKit.CreateImage(parent, "Arrow", RuntimeSprites.Chevron(), Color.white);
+        _arrowImage = RuntimeUiKit.CreateImage(parent, "Arrow", RuntimeSprites.Chevron(), Accent);
         _arrow = _arrowImage.rectTransform;
         _arrow.anchorMin = _arrow.anchorMax = new Vector2(0.5f, 0.5f);
         _arrow.sizeDelta = new Vector2(84f, 84f);
@@ -792,30 +827,29 @@ public class TutorialModifier : LevelModifier
         _hand.pivot = handArt != null
             ? new Vector2(0.248f, 0.906f)   // the art's index fingertip
             : new Vector2(0.469f, 0.875f);  // the procedural fallback's fingertip
-        _hand.sizeDelta = handArt != null ? new Vector2(200f, 200f) : new Vector2(140f, 163f);
+        _hand.sizeDelta = handArt != null ? new Vector2(156f, 156f) : new Vector2(120f, 140f);
         HideDemo();
     }
 
     // Skip lives OUTSIDE the fading group (a player who already knows the game must always be
-    // able to leave, even mid-pre-roll) - a quiet ghost pill riding the strip's right edge,
-    // vertically centred on it, kept clear of the device's safe area.
+    // able to leave on replacement arrivals) - open text beside the TUTORIAL tag,
+    // with a 72-unit hit area kept clear of the device's safe area.
     private void BuildSkip()
     {
         _skipRoot = new GameObject("Skip", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         RectTransform rect = (RectTransform)_skipRoot.transform;
         rect.SetParent(_overlayRoot.transform, false);
         rect.pivot = new Vector2(1f, 0.5f);
-        rect.sizeDelta = new Vector2(148f, 62f);
+        rect.sizeDelta = new Vector2(132f, 72f);
 
         Image hit = _skipRoot.GetComponent<Image>();
-        hit.sprite = RuntimeSprites.RoundedPanel();
-        hit.type = Image.Type.Sliced;
-        hit.color = new Color(1f, 1f, 1f, 0.035f);
-        RuntimeUiKit.AddOutline(rect, new Color(1f, 1f, 1f, 0.16f));
+        hit.color = Color.clear;
 
         TextMeshProUGUI label = RuntimeUiKit.CreateTmp(_skipRoot.transform, "Label", "SKIP", 23,
-            new Color(0.92f, 0.97f, 1f, 0.62f), TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
-        label.characterSpacing = 8f;
+            Secondary, TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        HudVisualStyle.Text(label, true);
+        label.color = Secondary;
+        label.characterSpacing = 3f;
 
         Button button = _skipRoot.AddComponent<Button>();
         button.targetGraphic = hit;
@@ -830,9 +864,7 @@ public class TutorialModifier : LevelModifier
             : default;
         TouchGestureInput.RegisterUiExclusionRect(_skipExclusion);
 
-        // Hidden until the first lesson actually shows (BeginPreRoll): the overlay is built
-        // during the camera intro pan, and a lone SKIP pill floating over the reveal read as
-        // a bug (Nick 2026-08-11) - there is nothing to skip yet.
+        // OnLevelStart reveals the complete card and Skip together, immediately after building.
         _skipRoot.SetActive(false);
     }
 
@@ -848,32 +880,26 @@ public class TutorialModifier : LevelModifier
             CornerBuffer[2].x - CornerBuffer[0].x, CornerBuffer[2].y - CornerBuffer[0].y);
     }
 
-    // While the piece rides in (input locked, no hand yet) the strip must not ask for a
-    // gesture the game refuses (Nick 2026-08-30: "Tap to rotate" over an untappable brick).
-    // The first ride-in introduces the tutorial; later ones just bridge to the next lesson.
-    // The gesture caption lands together with the ghost hand, at ArmStep.
-    private static string PreRollCaption(int stepIndex) =>
-        stepIndex == 0 ? "A quick tour of the controls" : "Get ready...";
-
     private void ApplyStepVisuals()
     {
         if (_stepIndex >= Steps.Length) return;
         UIManager.SetNudgeGuideBoost(NudgeBoostFor(_stepIndex));
+        if (_tag != null)
+            _tag.text = _stepIndex == NudgeStepIndex ? "TUTORIAL · OPTIONAL NUDGE" : "TUTORIAL";
         if (_caption != null)
         {
-            string caption = _phase == Phase.PreRoll ? PreRollCaption(_stepIndex) : Steps[_stepIndex].Caption;
+            string caption = Steps[_stepIndex].Caption;
             if (_caption.text != caption)
             {
                 _caption.text = caption;
                 _captionPop = 0f; // pop only on a real change - re-arms must not re-bounce it
             }
-            _caption.color = RuntimeUiKit.TitleColor;
+            _caption.color = Accent;
         }
         if (_subline != null)
         {
-            // The step's Sub (the "why") until rep progress claims the line; multi-rep steps
-            // have no Sub today, so the two writers never actually fight.
-            string sub = Steps[_stepIndex].Sub ?? "";
+            // Keep the helper until a multi-rep action reports its progress.
+            string sub = _reps > 0 ? $"{_reps} / {Steps[_stepIndex].RequiredReps}" : Steps[_stepIndex].Sub ?? "";
             if (_subline.text != sub)
             {
                 _subline.text = sub;
@@ -918,35 +944,33 @@ public class TutorialModifier : LevelModifier
         if (Mathf.Approximately(_group.alpha, _appliedSlideAlpha)) return;
         _appliedSlideAlpha = _group.alpha;
 
-        float slide = (1f - _group.alpha) * 36f;
+        float slide = (1f - _group.alpha) * 12f;
         if (_stripRect != null)
         {
-            _stripRect.anchoredPosition = new Vector2(0f, slide);
+            _stripRect.anchoredPosition = new Vector2(_stripRect.anchoredPosition.x, slide);
         }
         if (_skipRoot != null)
         {
             ((RectTransform)_skipRoot.transform).anchoredPosition =
-                new Vector2(_skipBaseX, -StripHeight * 0.5f + slide);
+                new Vector2(_skipBaseX, -36f + slide);
         }
     }
 
-    // The micro-animations that keep the band feeling alive: new text pops in on the game's
-    // shared elastic curve (FxKit), the current step dot breathes, and a just-earned dot lands
-    // with a bigger pop. Idle timers rest above their window, so settled elements stop writing.
+    // Quiet text settles and short progress-line pulses match the open gameplay HUD.
     private void UpdateStripAnimation(float deltaTime)
     {
-        _liveTime += deltaTime;
         _captionPop += deltaTime;
         _sublinePop += deltaTime;
         _dotPopTime += deltaTime;
 
         if (_caption != null && _captionPop <= PopSettleSeconds)
         {
-            _caption.rectTransform.localScale = Vector3.one * FxKit.Elastic(_captionPop, -0.16f, 9f, 13f);
+            _caption.rectTransform.localScale = Vector3.one * Mathf.Lerp(.98f, 1f,
+                Mathf.SmoothStep(0f, 1f, _captionPop / PopSettleSeconds));
         }
         if (_subline != null && _sublinePop <= PopSettleSeconds)
         {
-            _subline.rectTransform.localScale = Vector3.one * FxKit.Elastic(_sublinePop, -0.16f, 9f, 13f);
+            _subline.rectTransform.localScale = Vector3.one;
         }
         if (_dots != null && _phase != Phase.Coda)
         {
@@ -955,13 +979,14 @@ public class TutorialModifier : LevelModifier
                 if (_dots[i] == null) continue;
                 if (i == _stepIndex)
                 {
-                    float breathe = 1f + 0.25f * (0.5f + 0.5f * Mathf.Sin(_liveTime * 5f));
-                    _dots[i].rectTransform.localScale = Vector3.one * breathe;
+                    _dots[i].rectTransform.localScale = Vector3.one;
                 }
                 else if (i == _stepIndex - 1 && _dotPopTime <= DotPopSeconds)
                 {
-                    _dots[i].rectTransform.localScale = Vector3.one * FxKit.Elastic(_dotPopTime, 1f, 8f, 9f);
+                    _dots[i].rectTransform.localScale = new Vector3(
+                        Mathf.Lerp(1.2f, 1f, Mathf.Clamp01(_dotPopTime / DotPopSeconds)), 1f, 1f);
                 }
+                else _dots[i].rectTransform.localScale = Vector3.one;
             }
         }
     }
@@ -983,6 +1008,7 @@ public class TutorialModifier : LevelModifier
         if (_hand == null || _stepIndex >= Steps.Length || _piece == null) return;
 
         HideDemo();
+        _hand.localRotation = Quaternion.identity;
         switch (Steps[_stepIndex].Gesture)
         {
             case PieceGestures.Rotate:
@@ -1004,7 +1030,11 @@ public class TutorialModifier : LevelModifier
                 break;
             }
             case PieceGestures.Nudge:
+                // Point down into the corner so the palm stays on screen above the
+                // shorter touch zone, rather than being cut off by the phone edge.
+                _hand.localRotation = Quaternion.Euler(0f, 0f, 180f);
                 AnimateTap(NudgeZoneOverlayCenter(-1), NudgeZoneOverlayCenter(1));
+                _hand.localScale *= .85f;
                 break;
             case PieceGestures.HardDrop:
             {
@@ -1149,175 +1179,6 @@ public class TutorialModifier : LevelModifier
         Color c = image.color; c.a = alpha; image.color = c;
     }
 
-    // ---- Recap ---------------------------------------------------------------------------------
-
-    // The one-time "everything you just learned" card (Nick 2026-08-11), shown ONLY after an
-    // EARNED completion - a skipper declined the lessons and gets no sheet. The spawn hold
-    // goes up at the earned coda's start (see BeginCoda), so the card appears the moment the
-    // coda fades with NO fresh brick falling behind it. Styled with the ability-card chrome
-    // (gradient slab + neon ring + halo - this is a game, not a spreadsheet: Nick 2026-08-11).
-    // It also carries the one fact the lessons can't show: the corner pills the player just
-    // used are invisible from here on (HudLayout defaults their opacity to 0), and
-    // Settings > Controls is where to turn them back on.
-    private const float RecapPopSeconds = 0.4f;
-    private bool _earnedCompletion;
-    private GameObject _recapRoot;
-    private RectTransform _recapPanel;
-    private CanvasGroup _recapGroup;
-    private float _recapPopTime;
-
-    private void EnterRecap()
-    {
-        _phase = Phase.Recap;
-        _groupVisible = false; // the strip stays retired; the recap is its own canvas
-        if (_group != null) _group.alpha = 0f;
-        BuildRecapModal();
-        SfxPlayer.Play("pop_01", 0.8f);
-    }
-
-    // Entrance juice: ease-out-back scale pop + a quick fade, driven like every other
-    // tutorial micro-animation (no coroutines - the modifier already ticks).
-    private void UpdateRecap(float deltaTime)
-    {
-        if (_recapPanel == null) return;
-        _recapPopTime += deltaTime;
-        float t = Mathf.Clamp01(_recapPopTime / RecapPopSeconds);
-        float back = 1f + 2.70158f * Mathf.Pow(t - 1f, 3f) + 1.70158f * Mathf.Pow(t - 1f, 2f);
-        _recapPanel.localScale = Vector3.one * Mathf.LerpUnclamped(0.92f, 1f, back);
-        if (_recapGroup != null) _recapGroup.alpha = Mathf.Clamp01(_recapPopTime / 0.18f);
-    }
-
-    private void BuildRecapModal()
-    {
-        _recapRoot = RuntimeUiKit.CreateModal("TutorialRecap", 3400);
-        _recapPopTime = 0f;
-
-        const float W = 820f, H = 860f, pad = 44f;
-        float contentW = W - 2f * pad;
-        _recapPanel = RuntimeUiKit.CreateRect(_recapRoot.transform, "Panel",
-            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            Vector2.zero, new Vector2(W, H));
-        _recapGroup = _recapPanel.gameObject.AddComponent<CanvasGroup>();
-        _recapGroup.alpha = 0f;
-
-        // The one modal-panel treatment (GameMenuStyle.StylePanel): opaque near-black,
-        // rounded, borderless. The neon chrome this card launched with (halo + gradient
-        // slab + accent ring) is the retired language - Nick 2026-08-30.
-        Image body = _recapPanel.gameObject.AddComponent<Image>();
-        GameMenuStyle.StylePanel(_recapPanel.gameObject);
-        body.raycastTarget = true; // the panel eats taps; only GOT IT closes
-
-        // Hero: the earned checkmark, big - the same accent language as the step dots.
-        Image badge = RuntimeUiKit.CreateImage(_recapPanel, "Badge",
-            MenuSprites.CircleBadge(Accent, Color.Lerp(Accent, Color.white, 0.35f)), Color.white);
-        RectTransform badgeRect = badge.rectTransform;
-        badgeRect.anchorMin = badgeRect.anchorMax = new Vector2(0.5f, 1f);
-        badgeRect.pivot = new Vector2(0.5f, 1f);
-        badgeRect.anchoredPosition = new Vector2(0f, -44f);
-        badgeRect.sizeDelta = new Vector2(92f, 92f);
-        Image check = RuntimeUiKit.CreateImage(badge.transform, "Check",
-            MenuSprites.CheckMark(Color.Lerp(Accent, Color.black, 0.82f)), Color.white);
-        check.preserveAspect = true;
-        RectTransform checkRect = check.rectTransform;
-        checkRect.anchorMin = checkRect.anchorMax = new Vector2(0.5f, 0.5f);
-        checkRect.sizeDelta = new Vector2(48f, 48f);
-
-        TextMeshProUGUI title = RuntimeUiKit.CreateTmp(_recapPanel, "Title", "TUTORIAL COMPLETE", 42,
-            Accent, TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, -152f), new Vector2(contentW, 52f), new Vector2(0.5f, 1f));
-        title.characterSpacing = 3f;
-
-        // The moves, one pill per row: accent tick, gesture left, effect right - stat-row
-        // shape, not a two-column table.
-        (string gesture, string effect)[] rows =
-        {
-            ("DRAG LEFT / RIGHT", "Move the brick"),
-            ("TAP", "Rotate"),
-            ("DRAG DOWN & HOLD", "Fall faster"),
-            ("FLICK DOWN", "Slam it instantly"),
-            ("TAP A BOTTOM CORNER", "Nudge - a hard shove"),
-        };
-        const float rowH = 64f, rowGap = 12f;
-        for (int i = 0; i < rows.Length; i++)
-        {
-            float y = -228f - i * (rowH + rowGap);
-            Image pill = RuntimeUiKit.CreateImage(_recapPanel, $"Row{i}",
-                RuntimeSprites.RoundedPanel(), new Color(0.095f, 0.10f, 0.11f, 1f)); // neutral row slab, no blue cast
-            pill.type = Image.Type.Sliced;
-            RectTransform pillRect = pill.rectTransform;
-            pillRect.anchorMin = pillRect.anchorMax = new Vector2(0.5f, 1f);
-            pillRect.pivot = new Vector2(0.5f, 1f);
-            pillRect.anchoredPosition = new Vector2(0f, y);
-            pillRect.sizeDelta = new Vector2(contentW, rowH);
-            RuntimeUiKit.AddOutline(pillRect, new Color(Accent.r, Accent.g, Accent.b, 0.14f));
-
-            Image tick = RuntimeUiKit.CreateImage(pillRect, "Tick", RuntimeSprites.RoundedPanel(), Accent);
-            tick.type = Image.Type.Sliced;
-            RectTransform tickRect = tick.rectTransform;
-            tickRect.anchorMin = new Vector2(0f, 0.5f);
-            tickRect.anchorMax = new Vector2(0f, 0.5f);
-            tickRect.pivot = new Vector2(0f, 0.5f);
-            tickRect.anchoredPosition = new Vector2(18f, 0f);
-            tickRect.sizeDelta = new Vector2(8f, 30f);
-
-            RuntimeUiKit.CreateTmp(pillRect, "Gesture", rows[i].gesture, 22, RuntimeUiKit.TitleColor,
-                TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-                new Vector2(44f, 0f), new Vector2(380f, rowH), new Vector2(0f, 0.5f));
-            TextMeshProUGUI effect = RuntimeUiKit.CreateTmp(pillRect, "Effect", rows[i].effect, 20,
-                new Color(0.80f, 0.83f, 0.85f, 0.95f), TextAnchor.MiddleRight, FontStyle.Normal,
-                RuntimeUiKit.TitleFont, new Vector2(-24f, 0f), new Vector2(320f, rowH), new Vector2(1f, 0.5f));
-            RuntimeUiKit.AutoSize(effect, 16f, 20f);
-        }
-
-        // Info badge (not small print): the one thing the player must know leaving here.
-        Image note = RuntimeUiKit.CreateImage(_recapPanel, "Note", RuntimeSprites.RoundedPanel(),
-            new Color(0.10f, 0.105f, 0.115f, 1f)); // neutral, no blue cast
-        note.type = Image.Type.Sliced;
-        RectTransform noteRect = note.rectTransform;
-        noteRect.anchorMin = noteRect.anchorMax = new Vector2(0.5f, 1f);
-        noteRect.pivot = new Vector2(0.5f, 1f);
-        noteRect.anchoredPosition = new Vector2(0f, -614f);
-        noteRect.sizeDelta = new Vector2(contentW, 92f);
-        RuntimeUiKit.AddOutline(noteRect, new Color(Accent.r, Accent.g, Accent.b, 0.45f));
-        Image info = RuntimeUiKit.CreateImage(noteRect, "Icon", MenuSprites.Info(Accent), Color.white);
-        info.preserveAspect = true;
-        RectTransform infoRect = info.rectTransform;
-        infoRect.anchorMin = infoRect.anchorMax = new Vector2(0f, 0.5f);
-        infoRect.pivot = new Vector2(0f, 0.5f);
-        infoRect.anchoredPosition = new Vector2(26f, 0f);
-        infoRect.sizeDelta = new Vector2(40f, 40f);
-        TextMeshProUGUI noteText = RuntimeUiKit.CreateTmp(noteRect, "Text",
-            "The nudge buttons are invisible by default.\nTurn them on in Settings > Controls.",
-            22, new Color(0.86f, 0.89f, 0.91f, 0.95f), TextAnchor.MiddleLeft, FontStyle.Normal,
-            RuntimeUiKit.TitleFont, new Vector2(88f, 0f), new Vector2(contentW - 112f, 92f), new Vector2(0f, 0.5f));
-        noteText.lineSpacing = 6f;
-        RuntimeUiKit.AutoSize(noteText, 17f, 22f);
-
-        // GOT IT: flat accent fill, the GameMenuStyle primary-button language (gradients
-        // went out with the neon chrome).
-        Image button = RuntimeUiKit.CreateImage(_recapPanel, "GotIt", RuntimeSprites.RoundedPanel(),
-            Color.Lerp(Accent, Color.white, 0.10f));
-        button.type = Image.Type.Sliced;
-        RectTransform buttonRect = button.rectTransform;
-        buttonRect.anchorMin = new Vector2(0f, 0f);
-        buttonRect.anchorMax = new Vector2(1f, 0f);
-        buttonRect.pivot = new Vector2(0.5f, 0f);
-        buttonRect.offsetMin = new Vector2(pad, 44f);
-        buttonRect.offsetMax = new Vector2(-pad, 44f + 96f);
-        button.raycastTarget = true;
-        TextMeshProUGUI gotItLabel = RuntimeUiKit.CreateTmp(button.transform, "Label", "GOT IT", 30,
-            Color.Lerp(Accent, Color.black, 0.82f), TextAnchor.MiddleCenter, FontStyle.Bold,
-            RuntimeUiKit.TitleFont);
-        gotItLabel.characterSpacing = 4f;
-        Button gotIt = button.gameObject.AddComponent<Button>();
-        gotIt.targetGraphic = button;
-        gotIt.onClick.AddListener(() =>
-        {
-            SfxPlayer.Play("ui-button-click");
-            Teardown(); // releases the spawn hold and destroys the card
-        });
-    }
-
     // ---- Teardown ------------------------------------------------------------------------------
 
     // Shared exit for finish/skip/game-over/scene-unload. Restores every global this modifier
@@ -1328,16 +1189,6 @@ public class TutorialModifier : LevelModifier
         _phase = Phase.Inactive;
         SetInputGate(PieceGestures.Everything);
         UIManager.SetNudgeGuideBoost(0f);
-        // The recap's spawn hold must never outlive the tutorial (game over / level end /
-        // GOT IT all funnel here). Removing an owner that never held is a free no-op.
-        if (GameManager.Instance != null) GameManager.Instance.SetSpawnSuspended(this, false);
-        if (_recapRoot != null)
-        {
-            Destroy(_recapRoot);
-            _recapRoot = null;
-        }
-        _recapPanel = null;
-        _recapGroup = null;
         // Also release the piece itself: a lesson hover left suspended would hang mid-air
         // forever (hover time doesn't count toward the force-lock), e.g. behind a game-over
         // screen. Harmless when the piece is already falling, landed, or being destroyed.
@@ -1362,6 +1213,8 @@ public class TutorialModifier : LevelModifier
         _stripRect = null;
         _caption = null;
         _subline = null;
+        _tag = null;
+        _softDropPracticing = false;
         _skipRoot = null;
         _dots = null;
         _hand = null; _handImage = null;

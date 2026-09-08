@@ -32,6 +32,13 @@ public sealed class RunSuppliesApplier : MonoBehaviour
         }
 
         LevelDefinition level = LevelSelectionState.SelectedLevel;
+        if (level != null && level.IsIntroduction)
+        {
+            // First launch and tutorial replays are free practice, including the local
+            // fallback when the online layer is disabled. Never apply a stale paid loadout.
+            RunSuppliesState.ClearRun();
+            return;
+        }
         _loadout = RunSuppliesState.ConsumePendingForRunStart();
 
         // The attempts meter charges campaign runs only (levels with a save identity);
@@ -81,6 +88,7 @@ public sealed class RunSuppliesApplier : MonoBehaviour
 
     private void OnEnable()
     {
+        if (LevelSelectionState.SelectedLevel != null && LevelSelectionState.SelectedLevel.IsIntroduction) return;
         GameEvents.TierEarned += HandleTierEarned;
         GameEvents.GameOver += HandleGameOver;
     }

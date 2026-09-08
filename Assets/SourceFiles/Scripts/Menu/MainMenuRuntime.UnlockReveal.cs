@@ -161,16 +161,29 @@ public static partial class MainMenuRuntime
     private static void AttachChapterReveal(Transform screenRoot, RectTransform card,
         RectTransform content, ChapterDefinition current, ChapterDefinition next, Button button)
     {
+        int sourceIndex = _chapterIndex;
         MenuUnlockRevealRunner.Play(card.gameObject, new MenuUnlockRevealRunner.Spec
         {
-            InitialDelay = 0.7f,
-            ShakeSeconds = 0.5f,
+            InitialDelay = 0.15f,
+            ShakeSeconds = 0.2f,
             ShakeTarget = content.Find("NextLock") as RectTransform,
             RattleSfx = "unlock_rattle",
             BurstSfx = "unlock_chapter",
             SparkleColor = Color.Lerp(ChapterLight(next), Color.white, 0.55f),
             SparkleCount = 18,
             SparkleLayer = screenRoot as RectTransform,
+            Completed = () =>
+            {
+                // Use the normal page transition, once, and only while the player is still
+                // on the screen that earned this reveal. Never pull them back from another tab.
+                int target = sourceIndex + 1;
+                if (card == null || !card.gameObject.activeInHierarchy || _activeTab != MenuTab.Home ||
+                    _chapterIndex != sourceIndex || _contentRoot == null ||
+                    _contentRoot.transform != screenRoot || !LevelSelectionState.IsSelectionPending ||
+                    target >= _chapters.Length || _chapters[target] != next ||
+                    !Campaign.IsChapterUnlocked(_chapters, target)) return;
+                if (_pager != null) _pager.AnimateToChapter(target, 1);
+            },
             Rebuild = () =>
             {
                 if (content == null) return null;

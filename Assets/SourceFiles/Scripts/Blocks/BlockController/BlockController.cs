@@ -32,7 +32,9 @@ public partial class BlockController : MonoBehaviour
     /// is exactly what the script's restore call does).</summary>
     public void PinNormalFallSpeedFactor(float factor)
     {
-        _normalFallSpeedFactor = Mathf.Clamp(factor, 0.05f, 3f);
+        // Scripted arrivals must clear the HUD promptly even on tall phones. They still use
+        // the normal swept descent/contact path; ability-owned speed retains its 3x cap above.
+        _normalFallSpeedFactor = Mathf.Clamp(factor, 0.05f, 30f);
         _fallSpeedPinned = true;
     }
 

@@ -100,7 +100,8 @@ public class LevelRuntimeController : MonoBehaviour
         _winCondition = _level != null ? _level.WinCondition : null;
         // Arm the lowest unearned tier; earned tiers never re-verify (a replay with bronze
         // banked opens straight onto silver's target, and a fully-golded level stays dormant).
-        _armedTier = LevelTiers.LowestUnearned(_level);
+        _armedTier = _level != null && _level.IsIntroduction
+            ? MedalTier.Gold : LevelTiers.LowestUnearned(_level);
         RebuildArmedCondition();
         _preRunBest = CapturePreRunBest(_level);
         _liveHeightFunc = LiveTowerHeight;
@@ -775,6 +776,7 @@ public class LevelRuntimeController : MonoBehaviour
 
     private void ApplyTierSpeedCap()
     {
+        if (_level != null && _level.IsIntroduction) return;
         if (_armedTier == null || GameManager.Instance == null) return;
         if (_winCondition == null || !_winCondition.SpeedCapChasesTiers) return;
         for (int i = 0; i < _activeModifiers.Count; i++)
@@ -925,7 +927,9 @@ public class LevelRuntimeController : MonoBehaviour
         if (GameManager.Instance == null || GameManager.Instance.isGameOver) return;
 
         MedalTier earnedTier = _armedTier.Value;
-        bool bronzeWasEarned = LevelTiers.IsEarned(_level, MedalTier.Bronze, _sessionVerifiedValue);
+        bool introduction = _level.IsIntroduction;
+        bool bronzeWasEarned = introduction ? ProgressStore.IsLevelCompleted(_level)
+            : LevelTiers.IsEarned(_level, MedalTier.Bronze, _sessionVerifiedValue);
 
         _sessionVerifiedValue = Mathf.Max(_sessionVerifiedValue, LevelTiers.Threshold(_level, earnedTier));
         ProgressStore.ReportVerified(_level, _sessionVerifiedValue); // no-op for Custom Game (no identity)
@@ -980,7 +984,12 @@ public class LevelRuntimeController : MonoBehaviour
         }
 
         // Announce the rung - the HUD's target label rolls to the next threshold on this.
-        GameEvents.RaiseTierEarned(_level, earnedTier);
+        if (introduction)
+        {
+            ProgressStore.MarkTutorialCompleted();
+            EndModifiers(); // no Keep Playing: retire any unfinished optional-control prompt
+        }
+        else GameEvents.RaiseTierEarned(_level, earnedTier);
 
         if (ladderDone)
         {
@@ -1028,6 +1037,7 @@ public class LevelRuntimeController : MonoBehaviour
 
     private RunResultsScreen.Content BuildVictoryContent(RunResult result, bool bronzeCompletesThisRun)
     {
+        bool introduction = _level != null && _level.IsIntroduction;
         RunResultsScreen.Content content = new RunResultsScreen.Content
         {
             Victory = true,
@@ -1038,15 +1048,38 @@ public class LevelRuntimeController : MonoBehaviour
             // never re-banks, so advertising the bonus would promise a payout that never lands.
             Coins = result.CoinsEarned + (bronzeCompletesThisRun ? CoinLedger.WinBonusCoins : 0),
             Boosted = RunSuppliesState.ActiveRunBoosted,
-            PrimaryLabel = "Keep Playing",
-            VictorySentence = "Your tower still stands - keep stacking to push your best score even higher.",
-            OnPrimary = ContinuePlaying,
+            PrimaryLabel = introduction ? "Back to Menu" : "Keep Playing",
+            VictorySentence = introduction ? IntroductionCompletionMessage()
+                : "Your tower still stands - keep stacking to push your best score even higher.",
+            OnPrimary = introduction ? ReturnAfterIntroduction : ContinuePlaying,
+            IntroductionComplete = introduction,
         };
         // PopulateTierContent already carries the top rung: this card only builds when the
         // ladder is done, and the clamped-equal upgrade in OnHoldSteadyComplete lifts
         // _highestTierEarnedThisRun to the highest rung before content is built.
         PopulateTierContent(ref content);
+        if (introduction) content.TierEarnedThisRun = MedalTier.Gold;
         return content;
+    }
+
+    private string IntroductionCompletionMessage()
+    {
+        ChapterDefinition chapter = Campaign.FindChapterOf(_level);
+        if (chapter != null && chapter.Levels != null)
+        {
+            for (int i = 0; i + 1 < chapter.Levels.Count; i++)
+            {
+                if (chapter.Levels[i] == _level && chapter.Levels[i + 1] != null)
+                    return $"{chapter.Levels[i + 1].DisplayName} is ready.\nYour next challenge awaits.";
+            }
+        }
+        return "Your next challenge awaits.";
+    }
+
+    private void ReturnAfterIntroduction()
+    {
+        SfxPlayer.Play("ui-leave-game");
+        MainMenuRuntime.ReturnToMenu();
     }
 
     private void ShowCompletionPanel()

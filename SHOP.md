@@ -205,6 +205,10 @@ Designed here so the shop, ads and IAP land as one coherent system. The model is
 **loss-only lives** (the fail-heavy-skill-game standard: wins never charge the
 meter, so victories feel free and failures create the decision point).
 
+- **The introduction is free practice (September 2026).** The Undergrowth's 30-block
+  tutorial has no attempt charge, supplies or refill prompts, including replays after
+  monetization unlocks. Pause/retry never gate it on the meter. Its completion and normal
+  first-win reward still persist; the run is local and unranked (TUTORIAL.md, BACKEND.md).
 - **Free players hold max 5 attempts.** Starting a run spends 1.
   **Winning the run refunds it** — losses are the only thing the meter charges.
   (Sharpens the supplies pitch: protect your attempt.) A Try-Again retry is a new

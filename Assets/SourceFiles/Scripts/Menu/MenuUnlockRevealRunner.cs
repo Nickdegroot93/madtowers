@@ -29,6 +29,8 @@ public class MenuUnlockRevealRunner : MonoBehaviour
         // within ~70ms of the swap, fast enough that the change reads as revealed-by-the-flash.
         // Returns the elements the settle beat animates.
         public Func<Result> Rebuild;
+        // Called once, after the complete reveal settles. Cancelled when its host goes away.
+        public Action Completed;
         public Color SparkleColor = Color.white;
         public int SparkleCount = 9;
         // Sparkles need a parent OUTSIDE any RectMask2D so they can fly past the card edge.
@@ -164,6 +166,7 @@ public class MenuUnlockRevealRunner : MonoBehaviour
             if (spark != null) Destroy(spark.gameObject); // stragglers from the same frame
         }
         Destroy(this);
+        _spec.Completed?.Invoke();
     }
 
     // ---- beats -------------------------------------------------------------------------------

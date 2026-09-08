@@ -6,6 +6,12 @@ using UnityEngine.UI;
 /// UI-only. Modal panels keep GameMenuStyle's opaque treatment and display typography.</summary>
 public static class HudVisualStyle
 {
+    // Corners sit over the dark lower board, including chapters with a bright sky and
+    // dark header ink. Keep their guides pale, with a little of the chapter's hue.
+    private static Color NudgeInk => Color.Lerp(ForChapter(GameMenuStyle.ActiveChapter).Ink, Color.white, .8f);
+    public static Color NudgeFill => GameMenuStyle.WithAlpha(NudgeInk, .09f);
+    public static Color NudgeChevron => GameMenuStyle.WithAlpha(NudgeInk, .42f);
+
     public readonly struct Palette
     {
         public readonly Color Ink, Secondary, Bracket, Heart, EmptyHeart, Danger;

@@ -42,6 +42,7 @@ public class GoldenBlockDirector : MonoBehaviour
         _golden = null;
         _armed = false;
         _dueIn = Random.Range(MinBricksBetween, MaxBricksBetween + 1);
+        if (LevelSelectionState.SelectedLevel != null && LevelSelectionState.SelectedLevel.IsIntroduction) return;
         GameEvents.BlockLocked += HandleBlockLocked;
         GameEvents.BlockSpawned += HandleBlockSpawned;
     }

@@ -41,11 +41,10 @@ public class UIManager : MonoBehaviour
     private const float HeartGap = 14f;
     private const int MaxHearts = RunState.MaxLives;
     private TextMeshProUGUI _objectiveCaption;
-    private Image _objectiveTierIcon;
     private bool _hasRemainingGoal;
     private MedalTier? _chaseTier;
-    private static readonly Color NudgePillColor = new Color(1f, 1f, 1f, 0.09f);
-    private static readonly Color NudgeChevronColor = new Color(0.95f, 0.98f, 1f, 0.32f);
+    private static Color NudgePillColor => HudVisualStyle.NudgeFill;
+    private static Color NudgeChevronColor => HudVisualStyle.NudgeChevron;
     private const float NudgeChevronSize = 30f;
 
     // Dimmed while a failed nudge's rebound lockout runs. The base opacity (including fully hidden)
@@ -58,9 +57,13 @@ public class UIManager : MonoBehaviour
     private Image[] _hearts = System.Array.Empty<Image>();
     // base color is captured at creation, where it is actually known - the dim must not
     // have to guess an image's identity back from its sprite
-    private readonly System.Collections.Generic.List<(Image image, Color baseColor)> _nudgePillImages =
-        new System.Collections.Generic.List<(Image, Color)>(4);
+    private readonly System.Collections.Generic.List<(Image image, Color baseColor, int side)> _nudgePillImages =
+        new System.Collections.Generic.List<(Image, Color, int)>(4);
     private bool _nudgePillsDimmed;
+    private bool _nudgeIntroShown;
+    private float _nudgeIntroAge = float.PositiveInfinity;
+    private readonly float[] _nudgeTapAges = { float.PositiveInfinity, float.PositiveInfinity };
+    private readonly float[] _nudgeReveal = new float[2];
     private GameObject _nextPanel;
     private Image[] _nextPreviews;
     private int _activeSlotCount = 1;
@@ -185,7 +188,7 @@ public class UIManager : MonoBehaviour
         // Keep height thresholds fractional; rounding the goal can report zero too soon.
         MedalTier? nextTier = LevelTiers.LowestUnearned(level);
         _chaseTier = nextTier;
-        _hasRemainingGoal = nextTier.HasValue;
+        _hasRemainingGoal = level.IsIntroduction || nextTier.HasValue;
         float target = LevelTiers.Threshold(level, nextTier ?? LevelTiers.MaxTier);
         switch (_objectiveType)
         {
@@ -206,7 +209,6 @@ public class UIManager : MonoBehaviour
 
         _hasRemainingGoal = tier < LevelTiers.MaxTier;
         _chaseTier = _hasRemainingGoal ? tier + 1 : (MedalTier?)null;
-        UpdateObjectiveTierIcon(_chaseTier);
         UpdateObjectiveCaption();
         if (!_hasRemainingGoal)
         {
@@ -254,8 +256,10 @@ public class UIManager : MonoBehaviour
     private void UpdateObjectiveCaption()
     {
         if (_objectiveCaption == null) return;
-        _objectiveCaption.text = _waveObjective ? "WAVE" : _hasRemainingGoal
-            ? (IsHeightObjective ? "REMAINING" : "BLOCKS LEFT") : (IsHeightObjective ? "HEIGHT" : "BLOCKS");
+        string objective = _waveObjective ? "WAVE" : IsHeightObjective ? "HEIGHT" : "BLOCKS";
+        _objectiveCaption.text = _chaseTier.HasValue
+            ? $"{objective} · {MedalStyle.DisplayName(_chaseTier.Value)}"
+            : objective;
     }
 
     private int _shownLives = -1;
@@ -588,21 +592,12 @@ public class UIManager : MonoBehaviour
         scoreText.alignment=TextAlignmentOptions.MidlineLeft;
         var caption=Group(parent,"ObjectiveCaption");
         caption.anchorMin=new Vector2(0,.5f);caption.anchorMax=new Vector2(1,.5f);
-        caption.offsetMin=new Vector2(90,-49);caption.offsetMax=new Vector2(-32,-21);
+        caption.offsetMin=new Vector2(90,-49);caption.offsetMax=new Vector2(-8,-21);
         _objectiveCaption=caption.gameObject.AddComponent<TextMeshProUGUI>();
         HudVisualStyle.Text(_objectiveCaption,true);_objectiveCaption.fontSize=20;_objectiveCaption.characterSpacing=3;
         _objectiveCaption.color=HudVisualStyle.Current.Secondary;
         _objectiveCaption.alignment=TextAlignmentOptions.MidlineLeft;
-        _objectiveTierIcon=CreateBarIcon(parent,null,new Vector2(0,-34),24,MedalStyle.IconTint(true));
-        _objectiveTierIcon.rectTransform.anchorMin=_objectiveTierIcon.rectTransform.anchorMax=new Vector2(1,.5f);
-        _objectiveTierIcon.rectTransform.anchoredPosition=new Vector2(-10,-34);
-        UpdateObjectiveTierIcon(_chaseTier); UpdateObjectiveCaption();
-    }
-    private void UpdateObjectiveTierIcon(MedalTier? tier)
-    {
-        if(_objectiveTierIcon==null)return;
-        _objectiveTierIcon.gameObject.SetActive(tier.HasValue);
-        if(tier.HasValue)_objectiveTierIcon.sprite=MedalStyle.Sprite(tier.Value,true);
+        UpdateObjectiveCaption();
     }
     private void BuildLivesCard(RectTransform parent)
     {
@@ -789,9 +784,10 @@ public class UIManager : MonoBehaviour
         Image fill = pill.GetComponent<Image>();
         fill.sprite = RuntimeSprites.RoundedPanel();
         fill.type = Image.Type.Sliced;
-        fill.color = NudgeHintColor(NudgePillColor, dimmed: false);
+        int side = pointsLeft ? 0 : 1;
+        fill.color = NudgeHintColor(NudgePillColor, false, side);
         fill.raycastTarget = false;
-        _nudgePillImages.Add((fill, NudgePillColor));
+        _nudgePillImages.Add((fill, NudgePillColor, side));
 
         GameObject icon = new GameObject("Chevron", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         RectTransform iconRect = (RectTransform)icon.transform;
@@ -803,9 +799,9 @@ public class UIManager : MonoBehaviour
 
         Image chevron = icon.GetComponent<Image>();
         chevron.sprite = RuntimeSprites.Chevron();
-        chevron.color = NudgeHintColor(NudgeChevronColor, dimmed: false);
+        chevron.color = NudgeHintColor(NudgeChevronColor, false, side);
         chevron.raycastTarget = false;
-        _nudgePillImages.Add((chevron, NudgeChevronColor));
+        _nudgePillImages.Add((chevron, NudgeChevronColor, side));
     }
 
     private void Update()
@@ -846,10 +842,49 @@ public class UIManager : MonoBehaviour
 
         SetNextPanelSuppressed(OverdrawSession.SuppressesNextPreview);
 
+        UpdateNudgeHints();
+    }
+
+    public void FlashNudgeButton(int direction)
+    {
+        _nudgeTapAges[direction < 0 ? 0 : 1] = 0f;
+    }
+
+    // One smooth reminder on the first playable brick, then half-second feedback on
+    // the pressed corner. Pause freezes these clocks; neither cue changes saved opacity.
+    private void UpdateNudgeHints()
+    {
+        bool playing = Time.timeScale > 0f &&
+            (GameManager.Instance == null || !GameManager.Instance.IsGamePaused);
+        if (!_nudgeIntroShown && playing && !TouchGestureInput.Suspended &&
+            BlockController.ActiveControlled != null &&
+            (BlockController.AllowedGestures & PieceGestures.Nudge) != 0)
+        {
+            _nudgeIntroShown = true;
+            _nudgeIntroAge = 0f;
+        }
+
+        float dt = playing ? Time.unscaledDeltaTime : 0f;
+        _nudgeIntroAge += dt;
+        float intro = NudgeRevealEnvelope(_nudgeIntroAge, 1f, .16f, .18f);
         bool dim = BlockController.NudgeLockoutRemaining > 0f;
-        if (dim == _nudgePillsDimmed) return;
+        bool changed = dim != _nudgePillsDimmed;
         _nudgePillsDimmed = dim;
-        ApplyNudgeHintColors();
+        for (int side = 0; side < 2; side++)
+        {
+            _nudgeTapAges[side] += dt;
+            float reveal = Mathf.Max(intro, NudgeRevealEnvelope(_nudgeTapAges[side], .5f, .06f, .04f));
+            changed |= !Mathf.Approximately(_nudgeReveal[side], reveal);
+            _nudgeReveal[side] = reveal;
+        }
+        if (changed) ApplyNudgeHintColors();
+    }
+
+    private static float NudgeRevealEnvelope(float age, float duration, float fadeIn, float hold)
+    {
+        if (age < 0f || age >= duration) return 0f;
+        if (age < fadeIn) return Mathf.SmoothStep(0f, 1f, age / fadeIn);
+        return 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(fadeIn + hold, duration, age));
     }
 
     // Re-tint every nudge hint from its base colour, the player's opacity setting, and the current
@@ -858,8 +893,8 @@ public class UIManager : MonoBehaviour
     {
         for (int i = 0; i < _nudgePillImages.Count; i++)
         {
-            (Image image, Color baseColor) = _nudgePillImages[i];
-            if (image != null) image.color = NudgeHintColor(baseColor, _nudgePillsDimmed);
+            (Image image, Color baseColor, int side) = _nudgePillImages[i];
+            if (image != null) image.color = NudgeHintColor(baseColor, _nudgePillsDimmed, side);
         }
     }
 
@@ -881,12 +916,15 @@ public class UIManager : MonoBehaviour
         if (Instance != null) Instance.ApplyNudgeHintColors();
     }
 
-    private static Color NudgeHintColor(Color baseColor, bool dimmed)
+    private Color NudgeHintColor(Color baseColor, bool dimmed, int side)
     {
         float dimFactor = dimmed ? NudgeLockoutDimFactor : 1f;
         float alpha = baseColor.a * SettingsService.NudgeGuideOpacity;
         alpha = Mathf.Lerp(alpha, Mathf.Min(1f, baseColor.a * NudgeGuideBoostAlphaFactor), _nudgeGuideBoost);
-        return new Color(baseColor.r, baseColor.g, baseColor.b, alpha * dimFactor);
+        // Keep presses legible during cooldown, including when the idle guide is hidden.
+        alpha = Mathf.Max(alpha * dimFactor,
+            Mathf.Min(1f, baseColor.a * NudgeGuideBoostAlphaFactor) * _nudgeReveal[side]);
+        return new Color(baseColor.r, baseColor.g, baseColor.b, alpha);
     }
 
     private readonly Vector3[] _hudCornerBuffer = new Vector3[4];

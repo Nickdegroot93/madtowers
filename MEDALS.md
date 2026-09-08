@@ -3,6 +3,15 @@
 Approved 2026-08-28 (design), hardened 2026-08-29 (post-review). This document is the
 contract for medal-ladder work, like PHYSICS.md is for physics.
 
+**Introduction exception (September 2026):** The Undergrowth is an `IsIntroduction`
+level with one 30-block goal and no medal ladder. Its five-second hold ends the run in
+a gold-styled **TUTORIAL COMPLETE** card with **Back to Menu** as the primary action.
+Gold is the celebration treatment, not a persisted medal; its menu row shows a completion
+check. The ordinary completion event awards the first win and unlocks Canopy Trial.
+Introduction replays also end at 30 without repeating the first-completion bonus. They
+are local and unranked, with no attempt or supplies charge. All ladder rules below
+continue to apply to ordinary campaign levels.
+
 ## 1. The model
 
 - **Bronze IS completion.** The bronze threshold is exactly the authored `targetValue`;
@@ -121,9 +130,10 @@ Two persistent surfaces keep the chase distinct from what this run has banked:
   lives group. Same stretched bounds and 52-unit row height as `CoinHud`. It starts
   hidden even on replays and appears only when `TierEarned` fires. A wave countdown or
   timed-goal clock takes the first row; the medal then occupies the second row.
-- **Objective tier cue** (`UIManager`): a small tier cube beside the objective caption
-  names the next unearned rung. The leading icon now identifies the challenge (blocks,
-  height/Flood, Puzzle, Airtight or Void). Block and height goals display **remaining to
+- **Objective tier cue** (`UIManager`): the caption names the next unearned rung as
+  BLOCKS · {TIER}, HEIGHT · {TIER} or WAVE · {TIER}, with no separate cube. The tier
+  suffix disappears after gold and in Endless. The leading icon identifies the challenge
+  (blocks, height/Flood, Puzzle, Airtight or Void). Block and height goals display **remaining to
   the next unearned tier**, clamped at zero, rolling forward only after that rung banks.
   Height remaining is rounded upward from the exact threshold. A collapse increases
   remaining. After gold, and in Endless, the readout shows the live total. Puzzle shows
@@ -134,7 +144,7 @@ Two persistent surfaces keep the chase distinct from what this run has banked:
 **Medal art landed 2026-08-29**: Nick's rendered block icons live at
 `Assets/Resources/Menu/medal_{bronze,silver,gold}.png` (256px, downscaled from the 2048px
 renders — keep PNG, the transparency is load-bearing). `MedalStyle.Sprite` serves them on
-every surface (level cards, summary modal, results card, in-run pill, objective badge);
+medal surfaces (level cards, summary modal, results card, in-run row, hold-steady overlay);
 the procedural circle badge survives only as the fallback for a tier whose render hasn't
 landed. One art per tier: EARNED state is a tint — pair every `Sprite()` call with
 `MedalStyle.IconTint(earned)` on the Image (unearned = dark ghost).

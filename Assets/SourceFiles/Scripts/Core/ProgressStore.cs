@@ -30,6 +30,9 @@ public static class ProgressStore
         // false->true, so merging two devices is just an OR. v1 saves lack the field and default
         // to false - correct, since those players never saw the new tutorial.
         public bool tutorialCompleted;
+        // First-launch routing is separate from learned controls and winning the introduction.
+        // Returning players may leave an unfinished introduction without being auto-launched again.
+        public bool firstLaunchHandled;
         // The Vault's discovery sets (v3, BACKEND.md §7): which brick variants the player has SEEN
         // drop in play, which abilities have ever APPEARED in a 3-card offer (picked or not), and
         // which Vault entries have been opened at least once (clears the "NEW" badge). All three
@@ -93,6 +96,7 @@ public static class ProgressStore
     }
 
     private static PlayerProgress _data;
+    private static bool _loadedExistingSave;
 
     private static string FilePath => Path.Combine(Application.persistentDataPath, "progress.json");
 
@@ -121,6 +125,19 @@ public static class ProgressStore
     /// <summary>Has the player finished the one-time gesture tutorial? Gates the tutorial
     /// overlay only (never the level's own win/completion). See TUTORIAL.md.</summary>
     public static bool IsTutorialCompleted() => Data.tutorialCompleted;
+
+    /// <summary>Claim the automatic introduction once, before the first scene loads. Existing
+    /// saves (including pre-feature installs) always open normally; resetting tips cannot re-arm it.</summary>
+    public static bool ClaimFirstLaunchIntroduction()
+    {
+        PlayerProgress progress = Data;
+        if (progress.firstLaunchHandled) return false;
+        bool fresh = !_loadedExistingSave && !progress.tutorialCompleted &&
+            progress.completedLevelIds.Count == 0 && progress.bests.Count == 0;
+        progress.firstLaunchHandled = true;
+        Save();
+        return fresh;
+    }
 
     /// <summary>Mark the gesture tutorial done, forever. Idempotent.</summary>
     public static void MarkTutorialCompleted()
@@ -449,6 +466,7 @@ public static class ProgressStore
         merged.premiumUnlocked = merged.premiumUnlocked || (_data != null && _data.premiumUnlocked);
         if (_data != null)
         {
+            merged.firstLaunchHandled |= _data.firstLaunchHandled;
             merged.attemptsCount = _data.attemptsCount;
             merged.attemptsUpdatedAtUnixUtc = _data.attemptsUpdatedAtUnixUtc;
         }
@@ -503,9 +521,10 @@ public static class ProgressStore
 
     private static PlayerProgress Load()
     {
+        _loadedExistingSave = File.Exists(FilePath);
         try
         {
-            if (File.Exists(FilePath))
+            if (_loadedExistingSave)
             {
                 PlayerProgress loaded = JsonUtility.FromJson<PlayerProgress>(File.ReadAllText(FilePath));
                 if (loaded != null)

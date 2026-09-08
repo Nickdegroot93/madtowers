@@ -37,8 +37,8 @@ public class HudLayout
         {
             // Invisible by default (Nick 2026-08-11): the tutorial lights the corner pills
             // while it teaches the nudge, then they fade out with the coda - a clean board is
-            // the default, and Settings > Controls is where a player opts back in. The recap
-            // card at the end of the tutorial tells them exactly that.
+            // the default. A brief start reminder and per-tap flash reveal their locations;
+            // Settings > Controls adjusts their idle visibility.
             nudgeGuideOpacity = 0f,
             slotsLinked = true,
             // Calibrated to AbilityHud's prior constants on a no-notch 1080x1920 screen: right

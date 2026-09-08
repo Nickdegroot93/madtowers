@@ -20,6 +20,7 @@ public sealed class RunResultsScreen : MonoBehaviour
     public struct Content
     {
         public bool Victory;            // gold banked: the full victory treatment
+        public bool IntroductionComplete; // gold celebration, one highlighted exit to the menu
         public ResultMetric Metric;     // the goal's one stat: run value + previous best
         public float EndlessHeight;     // > 0 on endless runs only: quiet secondary height line
         public int Coins;               // banked this run (incl. win bonus on victory); 0 hides the line
@@ -285,14 +286,17 @@ public sealed class RunResultsScreen : MonoBehaviour
             AddReveal(primary.gameObject, PrimaryAt, isButton: true);
         }
 
-        Button menu = RuntimeUiKit.CreateButton(panel.transform, "Back to Menu", 120f, () =>
+        if (!_content.IntroductionComplete)
         {
-            SfxPlayer.Play("ui-leave-game");
-            MainMenuRuntime.ReturnToMenu();
-        });
-        GameMenuStyle.StyleButton(menu, primary: false);
-        RoundButton(menu);
-        AddReveal(menu.gameObject, SecondaryAt, isButton: true);
+            Button menu = RuntimeUiKit.CreateButton(panel.transform, "Back to Menu", 120f, () =>
+            {
+                SfxPlayer.Play("ui-leave-game");
+                MainMenuRuntime.ReturnToMenu();
+            });
+            GameMenuStyle.StyleButton(menu, primary: false);
+            RoundButton(menu);
+            AddReveal(menu.gameObject, SecondaryAt, isButton: true);
+        }
 
         _endTime = SecondaryAt + RevealSeconds;
         ApplyTimeline(); // first frame: everything hidden, not one visible frame of raw layout
@@ -365,7 +369,7 @@ public sealed class RunResultsScreen : MonoBehaviour
         chipImage.color = Color.clear;
         chipImage.raycastTarget = false;
         TextMeshProUGUI chipLabel = RuntimeUiKit.CreateTmp(chip, "Label",
-            $"{MedalStyle.DisplayName(tier)} TIER REACHED", 24, GameMenuStyle.BodyText,
+            _content.IntroductionComplete ? "TUTORIAL COMPLETE" : $"{MedalStyle.DisplayName(tier)} TIER REACHED", 24, GameMenuStyle.BodyText,
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
         chipLabel.font = RuntimeUiKit.TmpTitleFont;
         chipLabel.characterSpacing = 5f;

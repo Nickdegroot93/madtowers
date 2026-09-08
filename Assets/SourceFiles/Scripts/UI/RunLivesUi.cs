@@ -15,8 +15,9 @@ using UnityEngine.UI;
 public static class RunLivesUi
 {
     /// <summary>Should any of this render at all? Premium players and meterless states
-    /// (soft landing, offline fallback) see nothing.</summary>
+    /// (soft landing, offline fallback, free introduction) see nothing.</summary>
     public static bool Applies =>
+        !(LevelSelectionState.SelectedLevel != null && LevelSelectionState.SelectedLevel.IsIntroduction) &&
         !PremiumStore.IsPremium && AttemptsService.MeterActive;
 
     public static bool OutOfLives => Applies && AttemptsService.Count <= 0;

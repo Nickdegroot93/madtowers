@@ -1,186 +1,148 @@
-# TUTORIAL.md — first-run gesture tutorial
+# First-run controls tutorial
 
-How the very first level teaches the controls: the step flow, the gesture gating, how each step
-detects that the player did it, where the ghost hand comes from, and how completion is
-remembered so it never repeats. **Built** — code in
-`Scripts/Levels/Modifiers/TutorialModifier.cs`, attached to `Level_JD1_TheUndergrowth`
-(chapter 1's opener — it was orphaned when its original host `Level_TW1_Foundations` was
-deleted with the test levels) via `Assets/Data/Modifiers/Tutorial_GestureBasics.asset`.
+`Assets/SourceFiles/Scripts/Levels/Modifiers/TutorialModifier.cs` runs once on
+`Level_JD1_TheUndergrowth`, through `Tutorial_GestureBasics.asset`. Completion stays in
+`ProgressStore`; Settings → Account → Reset tutorial allows a replay.
 
-Built from what already exists: the tutorial is a **`LevelModifier`** (LEVELS.md §1) attached to
-one level, remembered in **`ProgressStore`** (DATA.md), drawn on a **`RuntimeUiKit` overlay
-canvas** (RESPONSIVE.md). Engine additions: five gesture events on `GameEvents`, a run-local
-**gesture gate** on `BlockController`, and small hooks on `Spawner`/`UIManager`.
+## First launch and the introduction level
 
----
+A fresh installation selects The Undergrowth before the first scene loads and enters
+the controls tutorial directly. It skips the menu and launch splash. This is a local,
+unranked introduction: no account/network wait, attempt charge, supplies, random special
+bricks or ability-choice interruptions. Normal bricks fall at a constant gentle speed.
 
-## 1. Principles (from mobile-onboarding research)
+The level is marked `IsIntroduction`, with one goal: **30 standing blocks**. The HUD shows
+blocks remaining without a medal suffix. At 30, the existing **5-second HOLD STEADY**
+verification runs; falling below the goal cancels it. Success stops the run and shows
+the gold celebration with **TUTORIAL COMPLETE**, the next level's name and one highlighted
+**Back to Menu** button. There is no bronze/silver ladder or Keep Playing action.
+The normal first-completion award unlocks **Canopy Trial**, whose puzzle waves are unchanged.
+Replaying the introduction still ends at 30; the first-completion bonus cannot repeat.
 
-- **Teach by doing, never by reading.** One caption per step, ≤ 8 words ("Tap to rotate");
-  the looping ghost-hand demo is the real instruction, the text is a caption.
-- **One mechanic at a time, forced-order but cumulative.** During each step only the gestures
-  already taught (plus the one being taught) work — a stray flick can't dump the piece
-  mid-lesson — but a gesture, once rewarded, is never taken away again.
-- **The demo plays where the gesture happens — and from the first frame.** Hand positions
-  derive live from the actual piece / the real corner nudge zones, not fixed screen spots, and
-  the demo (plus the lit nudge pills) starts with the pre-roll itself, tracking the descending
-  piece — the caption is never on screen without its demonstration. The demo hides the instant
-  a finger goes down and returns after ~2.8 s of idling.
-- **Success must register.** Each step ends with a sound (`pop_01`), a ring burst at the piece,
-  the step dot filling, and a ~0.7 s beat before the next ask.
-- **Make the invisible visible.** The corner nudge pills light up fully while nudge is taught,
-  stay faintly lit for the rest of the tutorial, and fade with the coda (hidden controls decay,
-  never cut).
-- **Never trap the player.** Steps wait indefinitely; an always-tappable **Skip** rides the
-  strip's right edge (with a gesture-exclusion rect so tapping it can't also rotate the piece,
-  and the safe-area right inset so it never hides under a curved edge). Settings → Account has
-  "Reset tutorial" for replays. Self-healing backstops: a piece whose variant refuses rotation
-  auto-passes the rotate lesson; a pre-roll that *lands* (tower outgrew the settle line) releases
-  the input lock and arms the next piece promptly; a game over mid-lesson tears the tutorial
-  down instantly (modifier updates stop on game over); `GameManager.Awake` re-clears the input
-  lock / gesture gate / nudge spotlight per run as a final safety net; and `EndModifiers`
-  isolates each modifier's teardown so one exception can't rob the tutorial of its restore.
-- **End on a quick win.** After the last gesture a short coda ("You're ready!" + the level's own
-  goal line) fades out and the level plays on as a normal, easy Place-N free build. **Skip plays
-  a shorter coda that still shows the goal** — the runtime's banner was suppressed
-  (`LevelModifier.SuppressesGoalBanner`), so the objective must still be handed over.
+The monotonic `firstLaunchHandled` flag is separate from both learned controls and level
+completion. It is saved before direct entry. Existing saves open normally, and leaving an
+unfinished first run does not force another automatic launch. Reset tutorial resets the
+control tips only. The original level asset ID is preserved for existing progress.
 
-*(Sources at the bottom.)*
+## Continuous practice
 
----
+The TUTORIAL card, first action and Skip appear immediately in `OnLevelStart`. Tutorial
+runs finish the scenery pan immediately and update the camera/spawn point before releasing
+its spawn gate. The first brick takes about 0.45 seconds to reach its practice position,
+with rotation already available during that arrival. Ordinary runs retain their camera pan.
+There are no “Get ready”, “Next lesson”, arrival captions or intermediate screens.
 
-## 2. The flow
+| Order | Prompt | Completion |
+|---|---|---|
+| 1 | Tap to rotate | One real rotation |
+| 2 | Drag left or right | Two successful column steps |
+| 3 | Drag down and hold | Engage soft drop, then release it or land |
+| 4 | Flick down to slam | One committed hard drop |
+| 5 | Tap a bottom corner | One real nudge attempt; tagged TUTORIAL · OPTIONAL NUDGE |
 
-**Opening.** Nothing shows during the opening camera pan (the pan holds spawning; the overlay is
-built lazily on the first spawn). Each teaching piece then **pre-rolls**: it descends briskly
-(normal-speed factor ×2.2, so it reads as arriving, not dropping) to a working height with all
-input locked (`TouchGestureInput.Suspended` + gesture gate `None`), then hovers
-(`SetDescentSuspended`) and the step arms. There is **no short time cap** — arming waits for the
-piece to actually clear the instruction strip (a generous 8 s safety cap remains), so the strip
-can never cover the piece.
+The same brick carries the main controls where possible. Soft drop demonstrates the speed
+change, then the brick pauses again on release so the flick can use that same brick.
+If a player holds until landing, the next brick continues the current prompt. Replacement
+arrivals accept the current cumulative gesture gate. Gestures also count during the short
+0.28-second success feedback.
 
-**Layout & juice.** The instruction strip is anchored directly under the *real* HUD bottom
-(`UIManager.TryGetTopHudBottomWorldY`, so notches and the NEXT card are accounted for), and the
-piece settles ~a quarter-screen below the strip's bottom edge. Strip anatomy: a letterspaced
-**TUTORIAL** tag, the caption at the optical centre, a subline (rep counter / coda goal), step
-dots at the bottom, an accent hairline along the bottom edge, and a ghost-pill **Skip** riding
-the right edge (outside the fading group, always tappable). Motion: the strip slides down out
-of the HUD as it fades in (and retreats with the coda), new text pops in with an ease-out-back
-overshoot, the current step dot breathes, an earned dot lands with a 2×→1× pop, and a ring
-burst fires at the piece on every step completion. A gentle full-screen dim (α 0.24) focuses
-attention; everything except Skip sits in one `CanvasGroup` that fades as a block.
+Nudge comes last as an optional extra for normal play. Its helper says: “Nudge adds a
+sideways shove. Unlike dragging, it can push other bricks.” The existing physical impulse,
+collision rules and rebound cooldown own the effect; the tutorial does not manufacture a shove.
+The slam caption stays while its brick falls. The nudge prompt, gesture gate and corner reveal
+arrive together on the next controllable brick, without an intermediate instruction screen.
+A learned slam used during nudge resumes that prompt on another brick and never re-freezes
+the committed one.
 
-Two pieces, five gestures, cumulative gate per step:
+Trying nudge hands straight into normal play: “Keep stacking” and the level goal fade while
+play continues. There is no blocking recap modal or tutorial-owned spawn hold. Skip uses a
+shorter goal handoff. Both mark tutorial completion immediately, rather than waiting for a win.
 
-| # | Teaches | Caption | Waits for (`PieceGesturePerformed`) | Reps | Gate while armed (cumulative) |
-|---|---|---|---|---|---|
-| 1 | **Rotate** | "Tap to rotate" | `Rotate` | 1 | Rotate |
-| 2 | **Move** | "Drag left or right to move" | `Move` | 3 | + Move |
-| 3 | **Soft drop** | "Drag down and hold" | `SoftDrop` (engage edge) | 1 | + SoftDrop → *ends piece 1* |
-| 4 | **Nudge** | "Tap a corner to nudge" | `Nudge` | 1 | + Nudge (pills lit) |
-| 5 | **Hard drop** | "Flick down to slam!" | `HardDrop` | 1 | + HardDrop = Everything → *ends piece 2* |
-| ✓ | **Coda** | "You're ready!" + level goal | — | — | Everything (free build) |
+## Presentation
 
-Gestures are credited while a step is armed, during the previous step's 0.7 s success beat (its
-gate is already open), and on the still-falling previous piece between lessons — a fast player
-is never asked to redo something the game just accepted.
+The tutorial keeps the HUD's Manrope typography, with consistently pale text on a dark
+rounded card at 92% opacity. The backing is local to the instructions and does not intercept
+gameplay gestures. The action line uses 46–50-unit type; helper text is 36 units, with room
+for two lines. The 280-unit card has side padding, a TUTORIAL label, five thin progress marks
+and a Skip link with a 72-unit hit area and published gesture-exclusion rectangle.
 
-- **Teaching shapes are forced** from the level's own bag (`Spawner.RequeueDefinition` +
-  `QueueVariantOverride` with the shape's default data). Candidates must pass
-  `IsVisiblyRotatable` — the default variant allows rotation AND the cell layout is not
-  4-fold symmetric (a 2×2 square or single Pip rotates invisibly), read from the prefab's
-  colliders so renamed/themed content still qualifies; the L → J → T → S → Z → I → Domino name
-  list is only a preference order. The NEXT preview follows automatically — the queue *is* the
-  preview, and `AnnounceUpcoming` caps the preview at the visible depth so the transiently
-  longer queue never reads as a Foresight-style double preview.
-- **Drops end pieces on purpose:** soft drop is taught by riding piece 1 to the floor, hard drop
-  by piece 2's instant plunge. Because the gate is cumulative, a learned drop used "early"
-  (e.g. soft-dropping during the nudge step) just lands the piece — the current step re-arms on
-  the next spawn, so nothing can soft-lock.
-- **The goal banner is suppressed on tutorial runs** (`LevelRuntimeController` checks
-  `LevelModifier.SuppressesGoalBanner` after `StartModifiers`); the coda shows the goal itself.
+The composition follows the actual top-HUD bottom, canvas scale and device safe area.
+The piece settles below the composition. Its arrival speed is derived from the distance
+and uses the existing collision-checked descent path, capped at 30x for this scripted
+arrival. Normal ability-owned descent retains its 3x cap, and the scripted pin is released
+on practice, any player-initiated drop, completion or teardown.
 
----
+The existing hand artwork follows the actual piece/corner targets; it hides while the player
+is touching and returns after 2.8 seconds of inactivity. During nudge it points downward into
+the corner so its palm stays on screen.
 
-## 3. The step machine
+## Corner guides
 
-One phase enum drives everything (`Inactive / PreRoll / Armed / Beat / AwaitPiece / Coda`):
+The input zones, gameplay guides, tutorial targets and layout-editor previews all use
+`TouchGestureInput.NudgeZoneWidthFraction` and `NudgeZoneHeightFraction`: 22% of screen width
+and 9% of height. Height was reduced from 14.4%, making the zones 37.5% shorter while keeping
+them attached to the bottom corners.
 
-```
-BlockSpawned            -> BeginPreRoll: lock input, boost descent, caption shows upcoming step
-piece clears the strip  -> ArmStep: hover piece, open the step's cumulative gesture gate,
-                           demo loops at the live target (hides on touch, returns after idle)
-matching gesture event  -> reps++; done -> CompleteStep: pop_01 + ring burst + dot fill,
-                           NEXT step's gate opens immediately (no dead window), 0.7s beat
-beat over               -> same piece: arm next step   |   piece dropped: AwaitPiece
-last step done          -> BeginCoda: MarkTutorialCompleted() IMMEDIATELY, gate = Everything,
-                           "You're ready!" + goal line, fade out, Teardown
-Skip (any time)         -> MarkTutorialCompleted() + Teardown (no coda)
-OnLevelEnd              -> Teardown (restores Suspended / gesture gate / nudge boost)
-```
+Idle opacity remains the player's setting, defaulting to zero. `UIManager` adds:
 
-## 4. Engine pieces (all run-local, all restored on teardown)
+- One smooth 1-second reveal of both corners on the first controllable brick. The camera
+  intro, menus and pause do not consume it; a tutorial introduces it with the nudge control.
+- A 0.5-second reveal of only the pressed corner, including taps during the rebound cooldown.
+- The existing tutorial spotlight while nudge is taught, followed by a quieter guide until
+  the final goal reminder fades.
 
-- **`PieceGestures` gate** (`BlockController.AllowedGestures`, default `Everything`): every
-  input path funnels through the gated `BlockController` entry points — touch and mouse via
-  `TouchGestureInput` → `StepColumn`/`RotateLeft`/`RotateRight`/`SetFastDrop`/`StartAutoDrop`/
-  `Nudge`, keyboard via the gated `_moveInput` axes + FastDrop read in `Update`. Narrowing the
-  gate truly disables a control, not just its touch gesture. `SetFastDrop(false)` always passes
-  (releasing is never blocked). Reset in `ResetRuntimeState` (per run via `GameManager.Awake`)
-  and on tutorial teardown. **System-initiated moves bypass the gate**: the magma melt's
-  committed plunge uses `ForceAutoDrop`, which neither checks the gate nor reads as a gesture.
-- **One gesture event on `GameEvents`**: `PieceGesturePerformed(BlockController, PieceGestures)`,
-  raised once per performed gesture from the gated entry points — including the keyboard/DAS
-  move step and the keyboard soft-drop (the soft-drop edge is detected on the *combined*
-  keyboard+touch value in `BlockController.Update`, so both report identically). Every real
-  corner tap counts as a Nudge, even an out-of-bounds dash that stays silent in gameplay terms.
-  The tutorial only credits gestures raised by the piece it is teaching.
-- **Control-timer pause while hovering:** `_controlElapsed` (the `maxControlTime` 12 s safety
-  lock) does **not** accrue while `_descentSuspended` — a player thinking 30 s on a lesson (or a
-  Fission hover) must not have the piece force-lock mid-air. Noted in PHYSICS.md §2.
-- **`Spawner.ConfiguredBlockBag`** exposes the level's shape set for the teaching-shape pick.
-- **`UIManager.SetNudgeGuideBoost(0..1)`** blends the corner pills toward a clearly visible
-  version of themselves regardless of the player's Nudge Guides opacity setting.
-- **Skip's gesture-exclusion rect** via `TouchGestureInput.RegisterUiExclusionRect` — the same
-  publish-your-rect contract the ability slots use.
+The reveals never write the visibility setting. Pause freezes their clocks. A new run
+creates new reveal state, and a saved nonzero opacity remains after each transient ends.
+Settings → Controls adjusts idle visibility and explains that corner taps apply force.
 
-## 5. The ghost hand
+## State and recovery
 
-Procedural, in `RuntimeSprites.Hand()` (fist + index finger + thumb, fingertip at the top),
-animated in code per gesture: alternating **tap** with a fingertip ripple (rotate: either side of
-the piece; nudge: both real corner zones), a horizontal **swipe** with a leading chevron (move),
-a **press-drag-hold** with a throb (soft drop), and a fast ease-in **down-swipe** (hard drop).
-The chevron sprite points left: 180° = right, +90° = down. A real hand sprite can swap in behind
-the same animation driver.
+The phases remain `Inactive / PreRoll / Armed / Beat / AwaitPiece / Coda`. `PreRoll` is an
+internal positioning phase, never an interstitial screen. Input is live from the first
+prompt, including during arrival. Gestures are cumulative: a control already taught stays
+available. A real soft-drop release is read from `BlockController.IsFastDropping`, the same
+combined touch/keyboard flag the physics movement uses.
 
-## 6. Persistence
+The first two queued shapes are chosen from the level's bag with visibly different quarter
+turns, using existing variant overrides. NEXT follows the actual queue. A non-rotatable
+variant auto-passes rotation. Missing/landed pieces re-arm on replacements; a tall tower
+uses the existing relaxed settle line and timeout. There is no timer on player practice.
 
-`ProgressStore.tutorialCompleted` (schema v2): monotonic false→true, so cloud-merging devices is
-an OR. Marked the instant the last gesture completes (or on Skip) — never at level win — so
-quitting during the coda/free build still never re-shows it. `ResetTutorial()` (Settings →
-Account) clears just this flag. Because the flag is checked in `OnLevelStart`, the modifier is
-standalone: attach it to any level and it teaches exactly once.
+Skip, completion, game over and level end all restore the input lock, gesture gate,
+piece descent/fall-speed ownership and nudge spotlight. The shared run reset remains the
+final safety net. The tutorial suppresses the normal goal banner while it owns messaging.
 
-## 7. Open / deferred
+## Research used for this revision
 
-- Level goal is Place **100**; the tutorial brief suggested ~50 for a faster first win —
-  one-line change on `Level_JD1_TheUndergrowth` (the tutorial's host since the chapter
-  reorder) when tuning.
-- Haptics on step success (no haptics helper exists in the project yet).
-- A scripted "tight spot" obstacle to *motivate* the nudge, and an adaptive re-hint in early
-  levels if the player never nudges (research: one exposure is not enough for hidden controls).
+- [Game Accessibility Guidelines: interactive tutorials](https://gameaccessibilityguidelines.com/include-interactive-tutorials/): practise controls in the context where they are used.
+- [NN/g: onboarding tutorials and contextual help](https://www.nngroup.com/articles/onboarding-tutorials/): show help alongside the current action, avoid relying on memorised instruction screens, and make help dismissible.
+- [Apple: onboarding for games](https://developer.apple.com/app-store/onboarding-for-games/): game-specific onboarding guidance.
 
----
+These inform the design choices; pacing and touch comfort still benefit from physical-device
+playtesting. An authored obstacle demonstrating a nudge collision remains a possible future
+exercise, rather than adding another stage to this short control sequence.
 
-## Sources
-- [Best practices for mobile game onboarding — Adrian Crook](https://adriancrook.com/best-practices-for-mobile-game-onboarding/)
-- [Mobile-app onboarding — Nielsen Norman Group](https://www.nngroup.com/articles/mobile-app-onboarding/)
-- [Instructional overlays and coach marks — NN/g](https://www.nngroup.com/articles/mobile-instructional-overlay/)
-- [Onboarding for games — Apple Developer](https://developer.apple.com/app-store/onboarding-for-games/)
-- [10 tutorial tips from Plants vs Zombies' George Fan — GDC 2012](https://www.gamedeveloper.com/design/gdc-2012-10-tutorial-tips-from-i-plants-vs-zombies-i-creator-george-fan)
-- [Clash Royale's sticky FTUE — Matt Le](https://medium.com/@Matthewwspencerr/clash-royale-creating-a-sticky-first-time-user-experience-113e17b18f36)
-- [Misused mobile UX patterns (invisible gestures) — Zoltan Kollin](https://medium.com/@kollinz/misused-mobile-ux-patterns-84d2b6930570)
-- [Video-game onboarding takeaways — UserGuiding](https://userguiding.com/blog/video-game-onboarding)
+## Validation for this revision
 
-*Update when the control scheme changes. Control detection lives in `TouchGestureInput` +
-`BlockController`; the flow lives in `TutorialModifier`.*
+Unity compiled the changes. 151 isolated runtime/layout assertions passed, covering
+immediate tutorial visibility and input, the reordered controls, soft-drop release and
+landing recovery, committed-slam recovery, skip/teardown, nudge feedback, and text bounds.
+All five prompts and the actual first level's goal fit at layout sizes corresponding to
+320×568, 360×800, 390×844, 521×973 and 768×1024, without shrinking action text below 46 units.
+
+A separate check used a real L-brick prefab, the scene camera and the real fixed-step
+collision/descent path: arrival settled in 0.46 seconds, with the tutorial visible and
+rotation enabled throughout. A rendered portrait preview was inspected over a flat bright
+green review background to check contrast; this is a UI fixture, not recorded gameplay.
+Evidence is in ignored `ArtReviews/SurfaceRestyle/Tutorial/`. Temporary fixtures were removed,
+Play Mode was stopped, and the saved tutorial-completion flag was preserved. Physical-device
+touch comfort and a full first-run playthrough remain manual review items.
+
+Introduction follow-up: Unity compiled, and 48 isolated checks passed for first-launch
+routing, old saves, 29/30-block verification and aborts, completion/unlocks, replays,
+the gold modal and automatic chapter navigation. The 151 tutorial/layout checks also
+passed with the new goal text. Six additional checks cover free retries with an empty
+attempt meter and ignoring stale paid supplies. The gold card was rendered for portrait review. These
+checks used temporary progress snapshots restored immediately, with cloud-save events
+suppressed and the editor's unlock-all override temporarily disabled. Evidence is in
+ignored `ArtReviews/SurfaceRestyle/Onboarding/`; the editor override was restored.

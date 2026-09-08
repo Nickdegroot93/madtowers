@@ -49,7 +49,19 @@ Research informed the hierarchy and checks, rather than a claim of proven conver
 
 Home keeps the swipeable chapter and level list, with a compact framed status bar,
 plain level numbers, restrained current markers, and darker previous/next previews.
+The status bar sits 8 reference units below the device safe area, with no full-width
+dark gradient; chapter artwork continues uninterrupted behind the camera cutout.
 Locked chapters stay mysterious and unlock through the existing reveal sequence.
+On the first return after completing a chapter, its next-chapter card reveals for about
+one second, then the normal pager slide opens that newly unlocked chapter automatically.
+Navigating away cancels the automatic advance. Level unlocks within a chapter keep the
+current page, so finishing the introduction reveals Canopy Trial in Chapter 1.
+
+Fresh installations start the introduction directly, before any menu or splash. Its
+30-block hold-steady win shows a gold **TUTORIAL COMPLETE** card with one highlighted
+**Back to Menu** action. Existing saves retain normal menu entry. Introduction cards say
+**TUTORIAL** and use a single goal/completion check; their level sheet has a full-width
+Play action without supplies or Ranks. See TUTORIAL.md for first-launch state handling.
 
 Profile keeps identity, earned trophies, Unlimited, and the online-play message. The
 Unlimited symbol describes the purchase without a decorative coin pile. Chapters

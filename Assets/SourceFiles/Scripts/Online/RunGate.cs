@@ -113,14 +113,14 @@ public static class RunGate
     private static string QueuePath => Path.Combine(Application.persistentDataPath, "pending_finish.json");
 
     /// <summary>Ask to start a run. Campaign online → start_run RPC; Custom Game or online
-    /// layer disabled → immediate local allow. done always fires exactly once, main thread.</summary>
+    /// layer disabled, or the introduction → local allow. done always fires exactly once,
+    /// main thread.</summary>
     public static void BeginRun(LevelDefinition level, bool boosted, string loadoutJson,
                                 Action<GateResult> done)
     {
         string levelId = ProgressStore.LevelId(level);
         if (levelId == null || !OnlineService.Enabled)
         {
-            // No identity = Custom Game (never server-gated); disabled = old local behaviour.
             ClearActiveRun();
             done?.Invoke(new GateResult { Allowed = true });
             return;
@@ -134,6 +134,15 @@ public static class RunGate
         if (_grantPending)
         {
             done?.Invoke(new GateResult { DeniedReason = "busy" });
+            return;
+        }
+        if (level.IsIntroduction)
+        {
+            // The introduction is local and unranked on first launch and replay.
+            // Honor an in-flight grant before allowing it to avoid a second scene launch.
+            // Its campaign completion still persists/syncs through ProgressStore.
+            ClearActiveRun();
+            done?.Invoke(new GateResult { Allowed = true });
             return;
         }
         if (!OnlineService.IsReady)

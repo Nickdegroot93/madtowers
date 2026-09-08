@@ -19,6 +19,7 @@ written by **`ProgressStore`** (`Scripts/Core/ProgressStore.cs`) to
       "achievedAtUnixUtc": 1781290000 }
   ],
   "tutorialCompleted": true,                       // v2: one-shot, monotonic false->true
+  "firstLaunchHandled": true,                      // direct introduction entry claimed; independent of tips/completion
   "discoveredBlocks": ["Maw", "Vine"],             // v3: variant asset names seen in play (Vault + debut gating)
   "abilitiesSeen": ["Zap", "DragChute"],           // v3: every ability ever SHOWN in an offer
   "vaultInspected": ["Maw"]                        // v3: Vault entries opened (clears the NEW badge)
@@ -28,6 +29,12 @@ written by **`ProgressStore`** (`Scripts/Core/ProgressStore.cs`) to
 For a web developer: think *local-first app with a typed single-document store*. The C#
 classes (`PlayerProgress`, `LevelBest`) are the schema; `schemaVersion` is the migration
 key; the file is the row.
+
+`firstLaunchHandled` is additive and monotonic. `ClaimFirstLaunchIntroduction` checks
+whether a save already existed when loaded, claims the flag and saves before routing.
+Only a fresh player with no saved progress gets automatic introduction entry; existing
+saves migrate to handled without redirecting. Resetting control tips leaves it set.
+Applying a merged payload preserves the local true value, including older server replies.
 
 ## The five rules (these are what keep the cloud path open)
 

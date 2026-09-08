@@ -251,6 +251,26 @@ public class TowerCameraController : MonoBehaviour
         CameraIntroGate.End();
     }
 
+    /// <summary>Begin interactive teaching immediately, with the camera and spawn point already
+    /// in their gameplay positions. Ordinary runs keep the opening scenery pan.</summary>
+    public static void FinishIntroForTutorial()
+    {
+        if (_instance == null || !_instance._introActive) return;
+        var controller = _instance;
+        if (controller.GetTargetFraming(out float targetX, out float targetSize))
+        {
+            controller._hasInitializedFraming = true;
+            controller._baseX = _framingCenterX = targetX;
+            if (controller._camera.orthographic) controller._camera.orthographicSize = targetSize;
+        }
+        controller._baseY = controller.GetTargetCameraY();
+        controller.SetCameraPosition(controller._baseX, controller._baseY);
+        controller.UpdateSpawnPoint();
+        controller.UpdateVerticalFollowers();
+        // Releasing this gate may synchronously spawn the first brick: position everything first.
+        controller.EndIntroPan();
+    }
+
     private void UpdateZoom(float targetSize)
     {
         if (_camera == null || !_camera.orthographic) return;

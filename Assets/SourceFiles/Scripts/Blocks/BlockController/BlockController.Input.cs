@@ -78,8 +78,8 @@ public partial class BlockController
     public static float NudgeLockoutRemaining => Mathf.Max(0f, _nudgeLockedUntilTime - Time.time);
 
     // The corner-zone nudge: a one-tap precision dash of EXACTLY one column - same grid
-    // rules as StepColumn (so it can never do anything a drag couldn't). A dash that
-    // moves gets sold with wind + a swoosh; a dash into bricks or rock is a failed
+    // movement rules as StepColumn. Unlike dragging, a collision also applies force to
+    // blocking bricks. A dash that moves gets wind + a swoosh; a dash into bricks or rock is a failed
     // nudge: thud, shoved bricks, and a rebound lockout. Steps refused for non-physical
     // reasons (no control, paused, off the play area) stay silent - there is nothing
     // there to hit.
@@ -172,6 +172,8 @@ public partial class BlockController
     // External (touch) fast-drop request; OR-ed with the keyboard each frame in Update, which
     // owns the SoftDrop gesture-event edge (so touch and keyboard report identically).
     private bool _externalFastDrop;
+    /// <summary>Live combined touch/keyboard soft drop, including its release edge.</summary>
+    public bool IsFastDropping => _isFastDrop;
     public void SetFastDrop(bool active)
     {
         if (active && !GestureAllowed(PieceGestures.SoftDrop)) return; // releasing always allowed

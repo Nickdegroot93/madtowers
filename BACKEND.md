@@ -263,6 +263,12 @@ tunnel — the run was already paid for. No heartbeat, no per-frame checks.
   offline-started runs reopens every cheat this design closes. Don't re-add without Nick.
 - **Custom Game / practice modes stay attempts-free and offline-fine** (SHOP.md §7) — the
   app is never a brick on a plane.
+- **Introduction exception (September 2026):** The Undergrowth (`IsIntroduction`) starts
+  locally on first launch and replay, with no `start_run`, attempt or supplies charge.
+  It is unranked, so `ReportFinish` has no server run to report. Its 30-block completion,
+  bests and Canopy Trial unlock still persist/sync through the normal progress payload.
+  Background anonymous authentication continues without delaying the first playable brick.
+  Replaying the introduction respects an already pending run grant to avoid double launch.
 - This formally retires the old "fully playable offline" principle **for campaign runs**.
   DATA.md's local-first contract still governs the progress payload (below) — its five rules
   are unchanged; only their *scope* shrank.

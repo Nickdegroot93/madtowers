@@ -14,10 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   startingLives: 0
   initialFallSpeed: 2.5
-  maxFallSpeed: 5
+  maxFallSpeed: 2.5
   difficultyScalingMode: 1
   difficultyAdjustmentMode: 0
-  speedIncreasePerBlock: 0.028
+  speedIncreasePerBlock: 0
   speedIncreaseIntervalSeconds: 60
   speedIncreasePerInterval: 0.1
   blockBag:
@@ -30,13 +30,11 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 3be6106228ed4acea64c37519f7bb64e, type: 2}
   fallbackBlockDataVariants:
   - {fileID: 11400000, guid: d47f69c0549f64a78b7a3dde80d0f06a, type: 2}
-  ambientBlockVariantChances:
-  - variant: {fileID: 11400000, guid: 1f06221198e4489db356e674ea2e6438, type: 2}
-    chancePerBlock: 0.05
+  ambientBlockVariantChances: []
   spawnDelay: 0
   gridSpacing: 1
   horizontalPlacementBufferColumns: 2
-  powerUpChoiceEveryBlocks: 20
+  powerUpChoiceEveryBlocks: 0
   powerUpChoicePool:
   - {fileID: 11400000, guid: 0dca35f837a34a25996ebab97183f7aa, type: 2}
   - {fileID: 11400000, guid: 7b487e5f478044db94d833da9f8ab16d, type: 2}
