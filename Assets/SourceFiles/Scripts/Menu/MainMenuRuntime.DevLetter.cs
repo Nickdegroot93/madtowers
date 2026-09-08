@@ -166,27 +166,25 @@ public static partial class MainMenuRuntime
 
         var rule=CreateImage(panel,"LetterMark",RuntimeSprites.Square(),MenuAccent);
         SetRect(rule.rectTransform,new Vector2(pad,-52),new Vector2(48,3),new Vector2(0,1));
-        TextMeshProUGUI title = CreateTmp(panel, "Title", "A note from Nick", 48, TextPrimary,
+        TextMeshProUGUI title = CreateTmp(panel, "Title", "A quick note", 48, TextPrimary,
             TextAnchor.UpperLeft, FontStyle.Normal, RuntimeUiKit.TitleFont,
             new Vector2(pad,-78),new Vector2(contentW,74),new Vector2(0,1));
         CreateTmp(panel,"Eyebrow","THE DEVELOPER OF HAZARD HEIGHTS",19,MenuAccent,
             TextAnchor.UpperLeft,FontStyle.Normal,RuntimeUiKit.TitleFont,
             new Vector2(pad,-158),new Vector2(contentW,34),new Vector2(0,1));
 
-        // Copy is Nick's, verbatim (DEVLETTER.md §2, rewritten 2026-08-22) - including
-        // "If you can be bothered.", deliberate personality, not sloppiness. The rules
-        // that still bind: every claim literally true in-game, the price is the LIVE
+        // Copy is Nick's, verbatim (DEVLETTER.md §2). Keep his name only in the signature.
+        // Every claim must be literally true in-game, the price is the LIVE
         // store price (localized tiers make a hardcoded number a lie somewhere), and the
         // review line is a standalone mention, never traded against the purchase.
         string letter =
-            "Hey - I'm Nick, the developer of Hazard Heights.\n\n" +
+            "Hey, I'm the developer of Hazard Heights.\n\n" +
             "The whole game is free and nothing is pay-to-win. When you run out of " +
             "lives, they refill on their own, you just wait a little.\n\n" +
             $"If you'd rather never wait, you can purchase the full game for " +
             $"{PremiumStore.PriceText} on the Profile page. It gets you unlimited " +
             "lives, offline play and no ads. One purchase, forever.\n\n" +
-            "If you're enjoying the game, a quick review in the store helps me out " +
-            "a lot too. If you can be bothered.\n\n" +
+            "If you can be bothered, a review on the store would help me out a lot too.\n\n" +
             "Thanks for playing.\n\n- Nick";
         TextMeshProUGUI body = CreateTmp(panel, "Body", letter, 28, WithAlpha(TextPrimary, 0.92f),
             TextAnchor.UpperLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont,

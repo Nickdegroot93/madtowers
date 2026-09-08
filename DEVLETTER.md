@@ -51,7 +51,10 @@ emotional peak, per platform best practice.
   ornament). Signed "— Nick". Single button: **KEEP PLAYING**. No price, no BUY
   button, no review button. Android back / tap-outside dismisses too — never trap.
 - **Copy REWRITTEN by Nick 2026-08-22** (supersedes the draft below; as-built in
-  `MainMenuRuntime.DevLetter.cs`): personal intro ("I'm Nick, the developer of…"),
+  `MainMenuRuntime.DevLetter.cs`), with copy updated 2026-09-09: title "A quick note",
+  intro "Hey, I'm the developer of Hazard Heights.", and Nick named only in the
+  "- Nick" signature. The review line is "If you can be bothered, a review on the
+  store would help me out a lot too." The letter keeps
   free + no pay-to-win, the premium pitch WITH the live store price
   (`PremiumStore.PriceText`, never a hardcoded number - localized tiers), and a soft
   standalone review mention. Two of the original rules were consciously relaxed: the
