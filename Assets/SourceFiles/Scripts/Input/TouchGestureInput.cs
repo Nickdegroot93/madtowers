@@ -130,17 +130,18 @@ public class TouchGestureInput : MonoBehaviour
     private void Update()
     {
         BlockController active = BlockController.ActiveControlled;
+        bool paused = Time.timeScale <= 0f ||
+            (GameManager.Instance != null && GameManager.Instance.IsGamePaused);
 
-        // Hard lock (tutorial pre-roll): swallow everything and drop any leftover drag/fast-drop
-        // so a held finger from before the lock can't carry into the piece once it releases.
-        if (Suspended)
+        // Paused UI owns the entire gesture, including its release. Tracking touches behind
+        // a modal lets a Resume click become a rotation if the UI unpauses before this Update.
+        // Drop existing drags too: a finger held across the pause must start a fresh gesture.
+        if (Suspended || paused)
         {
             CancelAllTouches(active);
             _lastActive = active;
             return;
         }
-
-        bool paused = GameManager.Instance != null && GameManager.Instance.IsGamePaused;
 
         // A new piece spawned mid-gesture: rebase the drag so leftover pointer offset from
         // the previous piece doesn't teleport this one, and require fast drop to re-engage.

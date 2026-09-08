@@ -13,6 +13,8 @@ public class PauseMenuController : MonoBehaviour
 {
     private GameObject _menuCanvas;
     private RenderTexture _blurTexture;
+    private const float ResumeDelaySeconds = 0.5f;
+    private Coroutine _resumeRoutine;
 
     /// <summary>True while live play should show a pause affordance - the HUD's pause
     /// button (UIManager top bar) drives its visibility from this.</summary>
@@ -63,6 +65,14 @@ public class PauseMenuController : MonoBehaviour
         // Editor focus flips constantly (clicking any other window, MCP-driven test runs
         // with runInBackground) - this is a device behavior, not an editor one.
         if (Application.isEditor) return;
+        if (_resumeRoutine != null)
+        {
+            // Losing focus during the brief, unobscured resume delay still counts as an
+            // interruption. Keep our pause ownership and require Resume again on return.
+            CancelPendingResume();
+            StartCoroutine(CaptureBlurThenShowMenu());
+            return;
+        }
         if (!PauseAvailable) return;
         ShowPauseMenu();
     }
@@ -311,9 +321,19 @@ public class PauseMenuController : MonoBehaviour
 
     private void Resume()
     {
+        if (_resumeRoutine != null || _menuCanvas == null) return;
         SfxPlayer.Play("ui-resume", 0.9f);
         DestroyMenu();
         ReleaseBlur();
+        _resumeRoutine = StartCoroutine(ResumeAfterDelay());
+    }
+
+    private System.Collections.IEnumerator ResumeAfterDelay()
+    {
+        // Show the tower immediately, keeping physics, timers and input frozen for a
+        // short refocus beat. The Resume tap is consumed while the pause still owns time.
+        yield return new WaitForSecondsRealtime(ResumeDelaySeconds);
+        _resumeRoutine = null;
         if (GameManager.Instance != null)
         {
             GameManager.Instance.PopPause(this);
@@ -321,8 +341,16 @@ public class PauseMenuController : MonoBehaviour
         }
     }
 
+    private void CancelPendingResume()
+    {
+        if (_resumeRoutine == null) return;
+        StopCoroutine(_resumeRoutine);
+        _resumeRoutine = null;
+    }
+
     private void OnDestroy()
     {
+        CancelPendingResume();
         if (GameManager.Instance != null)
         {
             GameManager.Instance.PopPause(this);

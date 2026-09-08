@@ -82,9 +82,20 @@ heading, small chapter mark, measured body, and one Keep playing action form a p
 letter. It still dismisses outside, via its button, and on Android Back.
 
 Pause is an open composition over the existing frozen blurred shroud. Confirmations
-and the out-of-attempts explanation use a sheet. Results retain the medal landing,
+and the out-of-attempts explanation use a sheet. Resume removes the shroud immediately,
+then keeps physics, timers and controls paused for 0.5 seconds before releasing its pause
+ownership. Touch/mouse gestures are discarded while paused, so Resume cannot rotate the
+brick or carry a held drag into play. An app interruption during that gap cancels the
+resume and reopens the pause menu. Other pause owners remain respected.
+Results retain the medal landing,
 light sweep, count-up, new-best rule, tier-only celebration, and fast-forward. The tier
 caption is open type rather than a gradient capsule. See JUICE.md §2c.
+
+Resume follow-up validation: Unity compiled and 17 focused runtime assertions passed,
+including paused mouse input, held-touch cleanup, fresh taps after resuming, duplicate
+Resume clicks, cancellation and overlapping pause owners. The measured delay was 0.519 s in the integrated rotation-fix rerun.
+Temporary fixtures were removed and Edit Mode restored; evidence is in ignored
+`ArtReviews/SurfaceRestyle/PauseResume/`.
 
 ## Implementation and review
 
