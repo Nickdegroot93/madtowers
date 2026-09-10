@@ -206,6 +206,16 @@ public partial class BlockController
         _descentSuspended = suspended;
     }
 
+    // A tutorial hold is player-paced and must not expire via the general hover watchdog.
+    // Its owner releases it on drop, skip, completion and teardown; other hover users retain
+    // their existing timeout. Horizontal movement and rotation are unaffected.
+    private bool _tutorialDescentHeld;
+    public void SetTutorialDescentHeld(bool held)
+    {
+        _tutorialDescentHeld = held;
+        SetDescentSuspended(held);
+    }
+
     // Shared left/right auto-repeat (DAS) timing. `step` is invoked once on initial press, then
     // repeatedly at `dasRate` after the initial `dasDelay` while the direction is held.
     private void ProcessHorizontalDas(System.Action<int> step)

@@ -42,6 +42,28 @@ public class UIManager : MonoBehaviour
     private const int MaxHearts = RunState.MaxLives;
     private TextMeshProUGUI _objectiveCaption;
     private bool _hasRemainingGoal;
+    private bool _introductionObjective;
+    private bool _tutorialTeaching;
+    private bool _welcomeHidden;
+    private CanvasGroup _tutorialHudGroup;
+
+    public void SetTutorialPresentation(bool welcoming, bool teaching)
+    {
+        _welcomeHidden = welcoming;
+        _tutorialTeaching = teaching;
+        var root = HudRoot();
+        if (root != null && _tutorialHudGroup == null)
+            _tutorialHudGroup = root.GetComponent<CanvasGroup>() ?? root.gameObject.AddComponent<CanvasGroup>();
+        if (_tutorialHudGroup != null)
+        {
+            if (welcoming) _tutorialHudGroup.alpha = 0f;
+            _tutorialHudGroup.blocksRaycasts = !welcoming;
+            _tutorialHudGroup.interactable = !welcoming;
+        }
+        UpdateObjectiveCaption();
+        ApplyNudgeHintColors();
+    }
+
     private MedalTier? _chaseTier;
     private static Color NudgePillColor => HudVisualStyle.NudgeFill;
     private static Color NudgeChevronColor => HudVisualStyle.NudgeChevron;
@@ -172,6 +194,7 @@ public class UIManager : MonoBehaviour
     {
         LevelDefinition level = LevelSelectionState.SelectedLevel;
         _objectiveType = level != null ? level.TargetType : LevelTargetType.Endless;
+        _introductionObjective = level != null && level.IsIntroduction;
         if (level == null) return;
 
         // Endless levels running the wave modifier still get the wave counter - just unsuffixed.
@@ -245,7 +268,9 @@ public class UIManager : MonoBehaviour
     private void HandleStandingBlocksChanged(int placedBlocks)
     {
         if (scoreText == null || _waveObjective || IsHeightObjective) return;
-        scoreText.text = (_hasRemainingGoal ? BlocksRemaining(_targetBlocks, placedBlocks) : placedBlocks).ToString();
+        scoreText.text = _introductionObjective
+            ? $"{Mathf.Max(0, placedBlocks)}<size=50%> / {_targetBlocks}</size>"
+            : (_hasRemainingGoal ? BlocksRemaining(_targetBlocks, placedBlocks) : placedBlocks).ToString();
     }
     private void HandleHeightChanged(float height)
     {
@@ -256,6 +281,11 @@ public class UIManager : MonoBehaviour
     private void UpdateObjectiveCaption()
     {
         if (_objectiveCaption == null) return;
+        if (_introductionObjective)
+        {
+            _objectiveCaption.text = _tutorialTeaching ? "TUTORIAL" : "PRACTICE";
+            return;
+        }
         string objective = _waveObjective ? "WAVE" : IsHeightObjective ? "HEIGHT" : "BLOCKS";
         _objectiveCaption.text = _chaseTier.HasValue
             ? $"{objective} · {MedalStyle.DisplayName(_chaseTier.Value)}"
@@ -806,6 +836,9 @@ public class UIManager : MonoBehaviour
 
     private void Update()
     {
+        if (_tutorialHudGroup != null)
+            _tutorialHudGroup.alpha = Mathf.MoveTowards(_tutorialHudGroup.alpha,
+                _welcomeHidden ? 0f : 1f, Time.unscaledDeltaTime * 2.5f);
         // Safe area + canvas scale are only trustworthy once the first frame runs, and
         // both can change later (rotation, window resize, multitasking) - re-apply the
         // bar position whenever the screen geometry differs from the last applied one.
@@ -924,7 +957,7 @@ public class UIManager : MonoBehaviour
         // Keep presses legible during cooldown, including when the idle guide is hidden.
         alpha = Mathf.Max(alpha * dimFactor,
             Mathf.Min(1f, baseColor.a * NudgeGuideBoostAlphaFactor) * _nudgeReveal[side]);
-        return new Color(baseColor.r, baseColor.g, baseColor.b, alpha);
+        return new Color(baseColor.r, baseColor.g, baseColor.b, _welcomeHidden ? 0f : alpha);
     }
 
     private readonly Vector3[] _hudCornerBuffer = new Vector3[4];

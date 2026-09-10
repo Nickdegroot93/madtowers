@@ -7,8 +7,8 @@ using System.Collections.Generic;
 public partial class BlockController
 {
     // Watchdog for descent suspension (see HandleDynamicControl): generous enough that no
-    // real Fission aim or tutorial read ever meets it, small enough that a stranded hover
-    // can't hold the run hostage forever.
+    // ordinary Fission aim reaches it. Explicit tutorial holds are player-paced and exempt;
+    // the tutorial owner releases them on drop, skip, completion and teardown.
     private const float SuspendedResumeSeconds = 90f;
     private float _suspendedElapsed;
 
@@ -33,7 +33,7 @@ public partial class BlockController
         else
         {
             _suspendedElapsed += Time.fixedDeltaTime;
-            if (_suspendedElapsed >= SuspendedResumeSeconds) SetDescentSuspended(false);
+            if (!_tutorialDescentHeld && _suspendedElapsed >= SuspendedResumeSeconds) SetDescentSuspended(false);
         }
 
         if (!_hasTouchedDown)

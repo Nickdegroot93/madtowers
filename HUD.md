@@ -35,7 +35,8 @@ It has no bounded card edge and accepts no input. Ordinary text never borrows me
   identifies the challenge, with one matching family for block count, height, Flood,
   Puzzle, Airtight and Void.
 - Coins stay hidden until earned. Banked medals show only tiers earned this run.
-  The introduction has one 30-block remaining goal with an unsuffixed BLOCKS caption;
+  The introduction shows live standing blocks out of 25, captioned TUTORIAL during
+  guidance and PRACTICE afterward;
   its gold celebration appears only after the final hold, without intermediate medals.
   Wave/timer occupies the first right-side row; the medal moves below it.
 - Hearts retain all three sockets; missing lives are outlined silhouettes. Existing

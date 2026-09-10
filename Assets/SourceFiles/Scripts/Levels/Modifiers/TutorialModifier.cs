@@ -10,21 +10,14 @@ using UnityEngine.UI;
 /// already done it is a complete no-op, so the level plays normally - which is what makes it
 /// "attachable to any level".
 ///
-/// One continuous practice sequence: rotate -> move -> soft drop and release -> slam -> nudge.
-/// Instructions and controls are live immediately. Bricks arrive quickly below the HUD;
-/// the main controls share one brick, then its replacement introduces optional nudge.
-/// Gating is FORCED-ORDER but CUMULATIVE: each step allows every gesture already taught plus the
-/// one being taught (research: disabling a gesture you just rewarded breaks the learning
-/// contract). A learned drop used "early" just lands the piece - the current step re-arms on the
-/// next spawn, so nothing can soft-lock.
-///
-/// A brief goal reminder hands straight into normal play after nudge. No arrival captions,
-/// readiness countdowns or blocking recap. Skip uses the same handoff and restores control.
+/// A player-paced welcome accompanies the scenery pan. Movement and rotation are live as
+/// gentle arrivals approach an assisted hover; learned controls stay available throughout.
+/// The main controls lead into an optional nudge, then a clear handoff into free practice.
 /// </summary>
 [CreateAssetMenu(fileName = "Tutorial", menuName = "Stacking/Levels/Modifiers/Tutorial")]
-public class TutorialModifier : LevelModifier
+public partial class TutorialModifier : LevelModifier
 {
-    private enum Phase { Inactive, PreRoll, Armed, Beat, AwaitPiece, Coda }
+    private enum Phase { Inactive, Welcome, WelcomeExit, PreRoll, Armed, Beat, AwaitPiece, Coda }
 
     private struct Step
     {
@@ -42,10 +35,10 @@ public class TutorialModifier : LevelModifier
     // move, when its point is FORCE - a physics shove that darts into gaps and knocks bricks.
     private static readonly Step[] Steps =
     {
-        new Step { Gesture = PieceGestures.Rotate,   Caption = "Tap to rotate",
-                   Sub = "Tap the play area to turn your brick.", RequiredReps = 1, EndsPiece = false },
         new Step { Gesture = PieceGestures.Move,     Caption = "Drag left or right",
                    Sub = "Slide your brick into position.", RequiredReps = 2, EndsPiece = false },
+        new Step { Gesture = PieceGestures.Rotate,   Caption = "Tap to rotate",
+                   Sub = "Tap the play area to turn your brick.", RequiredReps = 1, EndsPiece = false },
         new Step { Gesture = PieceGestures.SoftDrop, Caption = "Drag down and hold",
                    Sub = "Hold to fall faster.\nRelease to slow down.", RequiredReps = 1, EndsPiece = false },
         new Step { Gesture = PieceGestures.HardDrop, Caption = "Flick down to slam",
@@ -61,19 +54,13 @@ public class TutorialModifier : LevelModifier
     // visible-rotation test, and unknown names fall back to any shape that passes it.
     private static readonly string[] TeachingShapePreference = { "L", "J", "T", "S", "Z", "I", "Domino" };
 
-    // Brief positioning motion, with the prompt and its controls already live. Derive speed
-    // from the camera distance so a tall phone doesn't add seconds of empty falling time.
-    private const float ArrivalSeconds = 0.45f;
-    private const float PreRollTimeoutSeconds = 0.8f;
-    // Once a pre-rolling piece has LANDED before reaching the settle line (a tall tower after
-    // many early drops), stop insisting on the low hover: arm at a relaxed line just under the
-    // strip, with a short cap so the input lock can never loop.
-    private const float ArmWithoutSettleSeconds = 0.45f;
-
-    private const float BeatSeconds = 0.28f;          // feedback overlaps the next live prompt
+    // Descent never speeds up to reach a lesson. Ease over the last 1.5 world units,
+    // then hold above the live tower. No elapsed-time arrival shortcut on tall screens.
+    private const float HoverEaseDistance = 1.5f;
+    private const float BeatSeconds = 0.55f;
     private const float HandIdleReshowSeconds = 2.8f;  // re-show the demo after this much idle
-    private const float CodaHoldSeconds = 3f;
-    private const float SkipCodaHoldSeconds = 2f;
+    private const float CodaHoldSeconds = 4.5f;
+    private const float SkipCodaHoldSeconds = 4f;
     private const float CodaFadeSeconds = 0.45f;
     private const float GroupFadePerSecond = 4f;
 
@@ -95,13 +82,17 @@ public class TutorialModifier : LevelModifier
 
     private BlockController _piece;
     private float _preRollTime;
-    private bool _armWithoutSettle;
+    private float _feedbackTime;
+    private bool _explainedHover;
     private bool _beatArmsSamePiece;
     private bool _softDropPracticing;
+    private bool _learnedSoftDropActive;
     private bool _pieceCommitted;
     private float _animTime;
     private float _beatTime;
     private float _codaTime;
+    private float _codaEntranceTime;
+    private float _codaStartAlpha;
     private float _idleTime; // seconds since the last touch; the demo shows at/after the reshow threshold
     private Vector2 _beatBurstAt;
 
@@ -113,6 +104,8 @@ public class TutorialModifier : LevelModifier
     private TextMeshProUGUI _caption;
     private TextMeshProUGUI _subline;
     private TextMeshProUGUI _tag;
+    private TextMeshProUGUI _skipLabel;
+    private TextMeshProUGUI _hoverHint;
     private GameObject _skipRoot;
     private Image[] _dots;
     private RectTransform _hand;
@@ -129,7 +122,7 @@ public class TutorialModifier : LevelModifier
     private float _stripBottomVp; // viewport Y of its bottom edge (the relaxed arm line hangs off it)
     private float _settleVp;      // viewport Y a teaching piece descends to before its lesson
     private float _skipBaseX;     // skip pill offset, incl. the safe-area right inset
-    private const float StripHeight = 280f;
+    private const float StripHeight = 248f;
     private const float StripSideMargin = 40f;
     private const float StripPadding = 28f;
 
@@ -150,28 +143,32 @@ public class TutorialModifier : LevelModifier
         // Standalone gate: a completed tutorial makes this modifier inert, so the level is normal.
         if (ProgressStore.IsTutorialCompleted()) return;
 
-        _phase = Phase.AwaitPiece;
+        _phase = Phase.Welcome;
         _stepIndex = 0;
         _reps = 0;
-        _armWithoutSettle = false;
-        _goalText = context != null && context.Level != null ? context.Level.Instruction : null;
-        SetInputGate(AllowedThrough(_stepIndex));
+        _feedbackTime = 0f;
+        _explainedHover = false;
+        _goalText = context != null && context.Level != null && context.Level.IsIntroduction
+            ? $"Build a tower of {Mathf.CeilToInt(context.Level.TargetValue)} standing bricks\nto get the hang of things."
+            : context?.Level?.Instruction;
+        _welcomeGameManager = context?.GameManager ?? GameManager.Instance;
+        _welcomeGameManager?.SetSpawnSuspended(this, true);
+        SetInputGate(PieceGestures.None);
+        TouchGestureInput.Suspended = true;
         ForceTeachingShapes(context);
         Subscribe();
 
         BuildOverlay();
-        _groupVisible = true;
-        _group.alpha = 1f;
-        _skipRoot.SetActive(true);
-        ApplyStepVisuals();
-        UpdateGroupFade(0f);
+        BuildWelcome();
+        UIManager.Instance?.SetTutorialPresentation(welcoming: true, teaching: true);
 
-        // The tutorial starts with doing. Its first brick must not wait behind a scenery pan.
-        TowerCameraController.FinishIntroForTutorial();
-
-        // Releasing the camera gate can already have delivered HandleBlockSpawned synchronously.
-        if (_piece == null && BlockController.ActiveControlled != null)
-            BeginPreRoll(BlockController.ActiveControlled);
+        // A no-pan scene may already have delivered its first piece before modifiers start.
+        // Retain it under our welcome hold without repositioning it or finishing the camera.
+        if (BlockController.ActiveControlled != null)
+        {
+            _piece = BlockController.ActiveControlled;
+            _piece.SetTutorialDescentHeld(true);
+        }
     }
 
     public override void OnUpdate(LevelModifierContext context, float deltaTime)
@@ -179,6 +176,16 @@ public class TutorialModifier : LevelModifier
         if (_phase == Phase.Inactive) return;
 
         RefreshScreenGeometry();
+        if (_phase == Phase.Welcome || _phase == Phase.WelcomeExit)
+        {
+            UpdateWelcome(deltaTime);
+            return;
+        }
+        if (_feedbackTime > 0f)
+        {
+            _feedbackTime = Mathf.Max(0f, _feedbackTime - deltaTime);
+            if (_feedbackTime == 0f && _phase != Phase.Coda && _phase != Phase.AwaitPiece) ApplyStepVisuals();
+        }
         UpdateGroupFade(deltaTime);
         UpdateStripAnimation(deltaTime);
 
@@ -193,6 +200,13 @@ public class TutorialModifier : LevelModifier
                 HideDemo();
                 return;
             }
+        }
+
+        if (_learnedSoftDropActive && (_piece == null || _piece.HasLanded || !_piece.IsFastDropping))
+        {
+            _learnedSoftDropActive = false;
+            if (_piece != null && !_piece.HasLanded && !_pieceCommitted)
+                _phase = Phase.PreRoll; // regain the assisted hold after a learned soft drop
         }
 
         switch (_phase)
@@ -297,7 +311,7 @@ public class TutorialModifier : LevelModifier
     // The cumulative gesture gate: everything taught so far plus the step being taught.
     private static PieceGestures AllowedThrough(int stepIndex)
     {
-        PieceGestures mask = PieceGestures.None;
+        PieceGestures mask = PieceGestures.Move | PieceGestures.Rotate;
         for (int i = 0; i <= stepIndex && i < Steps.Length; i++) mask |= Steps[i].Gesture;
         return mask;
     }
@@ -312,60 +326,50 @@ public class TutorialModifier : LevelModifier
         _animTime = 0f;
         _idleTime = HandIdleReshowSeconds;
         _pieceCommitted = false;
+        _learnedSoftDropActive = false;
 
         SetInputGate(AllowedThrough(_stepIndex));
         if (piece != null)
         {
-            piece.SetDescentSuspended(false);
+            piece.SetTutorialDescentHeld(false);
+            RestoreNormalSpeed(piece);
             RefreshScreenGeometry();
-            Camera cam = TowerCameraController.Camera;
-            float distance = cam != null
-                ? Mathf.Max(0f, piece.transform.position.y - cam.ViewportToWorldPoint(
-                    new Vector3(0.5f, SettleLine, cam.nearClipPlane)).y)
-                : piece.fallSpeed * ArrivalSeconds;
-            piece.PinNormalFallSpeedFactor(distance / (Mathf.Max(0.05f, piece.fallSpeed) * ArrivalSeconds));
         }
-
-        // Keep one action caption. Never insert arrival/readiness text between gestures.
+        _groupVisible = true;
+        _skipRoot.SetActive(true);
         ApplyStepVisuals();
     }
 
     private void UpdatePreRoll(float deltaTime)
     {
-        if (_piece == null) { EnterAwaitPiece(); return; } // piece lost; wait for the next
-        if (_piece.HasLanded)
-        {
-            // The tower outgrew the settle line: use a higher practice position next time.
-            _armWithoutSettle = true;
-            EnterAwaitPiece();
-            return;
-        }
-
+        if (_piece == null || _piece.HasLanded) { EnterAwaitPiece(); return; }
         _preRollTime += deltaTime;
-        UpdateArmed(deltaTime); // the demonstrated action already works during arrival
-
-        // Degraded mode (a previous pre-roll landed before settling: the tower is tall) uses a
-        // relaxed line - just below the strip - so the lesson is still fully visible, plus a
-        // short cap so positioning cannot stall. Reaching either line restores normal
-        // mode, so the strict settle height comes back once the tower allows it again.
-        if (HasReached(_piece, SettleLine))
-        {
-            _armWithoutSettle = false;
-            ArmStep();
-        }
-        else if (_preRollTime >= (_armWithoutSettle ? ArmWithoutSettleSeconds : PreRollTimeoutSeconds))
-        {
-            ArmStep();
-        }
+        UpdateArmed(deltaTime);
+        EaseIntoPracticeHover();
     }
 
-    private float SettleLine => _armWithoutSettle ? _stripBottomVp - 0.04f : _settleVp;
-
-    private bool HasReached(BlockController piece, float viewportY)
+    private void EaseIntoPracticeHover()
     {
+        if (_piece == null || _piece.HasLanded || _pieceCommitted || _softDropPracticing) return;
         Camera cam = TowerCameraController.Camera;
-        if (cam == null) return _preRollTime >= ArrivalSeconds;
-        return cam.WorldToViewportPoint(piece.transform.position).y <= viewportY;
+        if (cam == null)
+        {
+            if (_preRollTime >= 2f) ArmStep();
+            return;
+        }
+        float hoverY = cam.ViewportToWorldPoint(new Vector3(.5f, _settleVp, cam.nearClipPlane)).y;
+        // Use the piece's real lower edge, including its rotation, to preserve clearance.
+        if (GameManager.Instance != null)
+        {
+            float lowerExtent = _piece.TryGetWorldBounds(out Bounds bounds)
+                ? Mathf.Max(0f, _piece.transform.position.y - bounds.min.y) : 2f;
+            hoverY = Mathf.Max(hoverY, GameManager.Instance.LiveTowerTopWorldY + lowerExtent + 2f);
+        }
+        float remaining = _piece.transform.position.y - hoverY;
+        if (remaining <= .08f) { ArmStep(); return; }
+        float normalFactor = GameManager.Instance != null ? GameManager.Instance.AbilityFallSpeedFactor : 1f;
+        float ease = Mathf.SmoothStep(.18f, 1f, Mathf.Clamp01(remaining / HoverEaseDistance));
+        _piece.PinNormalFallSpeedFactor(Mathf.Min(1f, normalFactor) * ease);
     }
 
     // The between-pieces idle: input unlocked at the current lesson's gate, demo hidden.
@@ -391,7 +395,12 @@ public class TutorialModifier : LevelModifier
         if (_stepIndex >= Steps.Length) return;
         if (_piece == null || _piece.HasLanded || _pieceCommitted) { EnterAwaitPiece(); return; }
 
-        _piece.SetDescentSuspended(true); // hover for the lesson
+        _piece.SetTutorialDescentHeld(true);
+        if (!_explainedHover && _hoverHint != null)
+        {
+            _explainedHover = true;
+            _hoverHint.text = "Take your time — we’ll hold your brick.";
+        }
         RestoreNormalSpeed(_piece);
         SetInputGate(AllowedThrough(_stepIndex));
         _groupVisible = true;
@@ -416,7 +425,8 @@ public class TutorialModifier : LevelModifier
 
     private void UpdateArmed(float deltaTime)
     {
-        if (_piece == null) { EnterAwaitPiece(); return; } // piece lost; re-arm on the next spawn
+        if (_piece == null || _piece.HasLanded) { EnterAwaitPiece(); return; }
+        if (_feedbackTime > 0f) { HideDemo(); return; }
 
         // The demo hides the instant a finger is down (the player is trying - don't talk over
         // them) and returns after a beat of inactivity if the step still isn't done.
@@ -436,9 +446,8 @@ public class TutorialModifier : LevelModifier
         UpdateHandAnimation();
     }
 
-    // A gesture counts while its step is armed, during the previous step's success beat (the
-    // gate is already open and the caption already asks for it - a fast player must get
-    // credit), and on the still-falling previous piece between lessons.
+    // A gesture counts during arrival, hover and the previous step's success beat.
+    // Learned inputs stay live while the next instruction waits for the feedback to settle.
     private void HandlePieceGesture(BlockController block, PieceGestures gesture)
     {
         if (block == null || block != _piece || _pieceCommitted) return;
@@ -450,7 +459,7 @@ public class TutorialModifier : LevelModifier
         if (gesture == PieceGestures.HardDrop)
         {
             _pieceCommitted = true;
-            _piece.SetDescentSuspended(false);
+            _piece.SetTutorialDescentHeld(false);
             RestoreNormalSpeed(_piece);
             if (step.Gesture != gesture)
             {
@@ -460,11 +469,12 @@ public class TutorialModifier : LevelModifier
         }
         if (gesture == PieceGestures.SoftDrop && step.Gesture != gesture)
         {
-            // A learned held drop also takes ownership from the scripted arrival. Releasing
-            // it must restore normal descent, not unexpectedly resume the fast ride-in.
-            _piece.SetDescentSuspended(false);
+            // Learned held drops take ownership from assisted arrival. On release, regain
+            // the safety hover without resuming any scripted speed multiplier.
+            _piece.SetTutorialDescentHeld(false);
             RestoreNormalSpeed(_piece);
             _phase = Phase.Armed;
+            _learnedSoftDropActive = true;
             HideDemo();
             return;
         }
@@ -472,15 +482,17 @@ public class TutorialModifier : LevelModifier
 
         if (gesture == PieceGestures.SoftDrop)
         {
+            _feedbackTime = 0f;
             _softDropPracticing = true;
             _phase = Phase.Armed;
-            _piece.SetDescentSuspended(false);
+            _piece.SetTutorialDescentHeld(false);
             RestoreNormalSpeed(_piece);
             if (_subline != null) _subline.text = "Release to slow down again.";
             HideDemo();
             return;
         }
 
+        if (_hoverHint != null) _hoverHint.text = "";
         _reps++;
         if (_reps < step.RequiredReps)
         {
@@ -500,7 +512,11 @@ public class TutorialModifier : LevelModifier
         bool arriving = _phase == Phase.PreRoll;
         bool endsPiece = Steps[_stepIndex].EndsPiece;
         _softDropPracticing = false;
-        SfxPlayer.Play("pop_01", 0.75f, 0.04f);
+        SfxPlayer.Play("pop_01", 0.6f, 0.04f);
+        Haptics.Light();
+        _feedbackTime = BeatSeconds;
+        if (_subline != null) _subline.text = "Nicely done.";
+        if (_hoverHint != null) _hoverHint.text = "";
         _beatBurstAt = _piece != null ? OverlayPointFromWorld(_piece.transform.position) : Vector2.zero;
         _dotPopTime = 0f; // the just-earned dot (index _stepIndex - 1 after the increment) pops
 
@@ -529,9 +545,8 @@ public class TutorialModifier : LevelModifier
             return;
         }
 
-        // Success beat: the win registers before the next ask. The dots/caption/gesture gate
-        // already flip to the next step so a fast player is never held back by the pause -
-        // the gate is cumulative, so opening it early can't un-teach anything.
+        // Input advances immediately; the caption waits for the brief success beat.
+        // A fast player can already earn the next action without waiting on animation.
         _phase = arriving ? Phase.PreRoll : Phase.Beat;
         _beatTime = 0f;
         BlockController.AllowedGestures = AllowedThrough(_stepIndex);
@@ -573,23 +588,29 @@ public class TutorialModifier : LevelModifier
     private void BeginCoda(bool earned)
     {
         ProgressStore.MarkTutorialCompleted();
+        _feedbackTime = 0f;
+        UIManager.Instance?.SetTutorialPresentation(welcoming: false, teaching: false);
         SetInputGate(PieceGestures.Everything);
         if (_piece != null)
         {
-            _piece.SetDescentSuspended(false);
+            _piece.SetTutorialDescentHeld(false);
             RestoreNormalSpeed(_piece);
         }
 
         _phase = Phase.Coda;
         _softDropPracticing = false;
+        _learnedSoftDropActive = false;
+        if (_hoverHint != null) _hoverHint.text = "";
         _codaTime = earned ? 0f : CodaHoldSeconds - SkipCodaHoldSeconds;
+        _codaEntranceTime = 0f;
+        _codaStartAlpha = _group != null ? _group.alpha : 1f;
         HideDemo();
         if (_skipRoot != null) _skipRoot.SetActive(false);
         if (earned) SfxPlayer.Play("ui-star-earned", 0.75f);
 
         if (_caption != null)
         {
-            _caption.text = "Keep stacking";
+            _caption.text = earned ? "You’ve got the basics!" : "Let’s get stacking";
             _caption.color = Accent;
             _captionPop = 0f;
         }
@@ -599,7 +620,7 @@ public class TutorialModifier : LevelModifier
                 ? _goalText : "Bottom corners nudge even when hidden.";
             _sublinePop = 0f;
         }
-        if (_tag != null) _tag.text = "YOUR TURN";
+        if (_tag != null) _tag.text = "PRACTICE";
         if (_dots != null)
         {
             for (int i = 0; i < _dots.Length; i++)
@@ -614,9 +635,11 @@ public class TutorialModifier : LevelModifier
     private void UpdateCoda(float deltaTime)
     {
         _codaTime += deltaTime;
+        _codaEntranceTime += deltaTime;
 
         float fade = Mathf.Clamp01((_codaTime - CodaHoldSeconds) / CodaFadeSeconds);
-        if (_group != null) _group.alpha = 1f - fade; // direct: the fade IS the animation
+        if (_group != null) _group.alpha = Mathf.Lerp(_codaStartAlpha, 1f,
+            Mathf.Clamp01(_codaEntranceTime * GroupFadePerSecond)) * (1f - fade);
         // _stepIndex is frozen throughout the coda, so the boost tier is derivable live.
         UIManager.SetNudgeGuideBoost(NudgeBoostFor(_stepIndex) * (1f - fade));
 
@@ -658,6 +681,12 @@ public class TutorialModifier : LevelModifier
     private void HandleBlockSpawned(BlockController block, BlockData variant)
     {
         if (_phase == Phase.Inactive || _phase == Phase.Coda) return;
+        if (_phase == Phase.Welcome || _phase == Phase.WelcomeExit)
+        {
+            _piece = block;
+            block.SetTutorialDescentHeld(true);
+            return;
+        }
         if (_softDropPracticing) CompleteStep(); // a held soft drop landed before release
         BeginPreRoll(block);
     }
@@ -762,12 +791,16 @@ public class TutorialModifier : LevelModifier
         _tag = InstructionText("Tag", "TUTORIAL", 24f, Secondary, 16f, 40f, true);
         _tag.characterSpacing = 3f;
         _tag.alignment = TextAlignmentOptions.MidlineLeft;
-        _tag.rectTransform.offsetMax = new Vector2(-160f, _tag.rectTransform.offsetMax.y);
-        _caption = InstructionText("Caption", "", 50f, Accent, 66f, 72f, true);
+        _tag.rectTransform.offsetMax = new Vector2(-216f, _tag.rectTransform.offsetMax.y);
+        _caption = InstructionText("Caption", "", 50f, Accent, 57f, 72f, true);
         RuntimeUiKit.AutoSize(_caption, 46f, 50f);
-        _subline = InstructionText("Subline", "", 36f, Secondary, 144f, 106f, false);
+        _subline = InstructionText("Subline", "", 32f, Secondary, 132f, 88f, false);
         _subline.textWrappingMode = TextWrappingModes.Normal;
         BuildStepDots(_stripRect);
+        _hoverHint = InstructionText("HoverHint", "", 26f, Accent, StripHeight + 12f, 44f, false);
+        var hintBacking = _hoverHint.gameObject.AddComponent<Shadow>();
+        hintBacking.effectColor = new Color(0f, 0f, 0f, .85f);
+        hintBacking.effectDistance = new Vector2(0f, -2f);
     }
 
     private TextMeshProUGUI InstructionText(string name, string value, float size, Color color,
@@ -788,9 +821,9 @@ public class TutorialModifier : LevelModifier
 
     private void BuildStepDots(Transform strip)
     {
-        _dots = new Image[Steps.Length];
+        _dots = new Image[NudgeStepIndex];
         const float spacing = 40f;
-        float startX = -(Steps.Length - 1) * spacing * .5f;
+        float startX = -(_dots.Length - 1) * spacing * .5f;
         for (int i = 0; i < _dots.Length; i++)
         {
             Image dot = RuntimeUiKit.CreateImage(strip, $"Progress{i}", null, DotIdle);
@@ -840,13 +873,14 @@ public class TutorialModifier : LevelModifier
         RectTransform rect = (RectTransform)_skipRoot.transform;
         rect.SetParent(_overlayRoot.transform, false);
         rect.pivot = new Vector2(1f, 0.5f);
-        rect.sizeDelta = new Vector2(132f, 72f);
+        rect.sizeDelta = new Vector2(184f, 72f);
 
         Image hit = _skipRoot.GetComponent<Image>();
         hit.color = Color.clear;
 
         TextMeshProUGUI label = RuntimeUiKit.CreateTmp(_skipRoot.transform, "Label", "SKIP", 23,
             Secondary, TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        _skipLabel = label;
         HudVisualStyle.Text(label, true);
         label.color = Secondary;
         label.characterSpacing = 3f;
@@ -854,7 +888,7 @@ public class TutorialModifier : LevelModifier
         Button button = _skipRoot.AddComponent<Button>();
         button.targetGraphic = hit;
         button.transition = Selectable.Transition.None;
-        button.onClick.AddListener(() => BeginCoda(earned: false));
+        button.onClick.AddListener(() => BeginCoda(earned: _stepIndex == NudgeStepIndex));
 
         // Touches must not double as gameplay taps (Skip sits inside the tap-to-rotate zone) -
         // the same publish-your-rect contract the ability slots use.
@@ -864,7 +898,7 @@ public class TutorialModifier : LevelModifier
             : default;
         TouchGestureInput.RegisterUiExclusionRect(_skipExclusion);
 
-        // OnLevelStart reveals the complete card and Skip together, immediately after building.
+        // Reveal together with the first instruction after the welcome has closed.
         _skipRoot.SetActive(false);
     }
 
@@ -883,9 +917,11 @@ public class TutorialModifier : LevelModifier
     private void ApplyStepVisuals()
     {
         if (_stepIndex >= Steps.Length) return;
+        if (_skipLabel != null) _skipLabel.text = _stepIndex == NudgeStepIndex ? "TRY LATER" : "SKIP";
+        if (_feedbackTime > 0f) return; // let success register before replacing the instruction
         UIManager.SetNudgeGuideBoost(NudgeBoostFor(_stepIndex));
         if (_tag != null)
-            _tag.text = _stepIndex == NudgeStepIndex ? "TUTORIAL · OPTIONAL NUDGE" : "TUTORIAL";
+            _tag.text = _stepIndex == NudgeStepIndex ? "TUTORIAL · OPTIONAL" : $"TUTORIAL · {_stepIndex + 1} / {NudgeStepIndex}";
         if (_caption != null)
         {
             string caption = Steps[_stepIndex].Caption;
@@ -993,7 +1029,8 @@ public class TutorialModifier : LevelModifier
 
     private static bool IsPointerDown()
     {
-        if (UnityEngine.InputSystem.EnhancedTouch.Touch.activeTouches.Count > 0) return true;
+        if (UnityEngine.InputSystem.EnhancedTouch.EnhancedTouchSupport.enabled &&
+            UnityEngine.InputSystem.EnhancedTouch.Touch.activeTouches.Count > 0) return true;
         return Mouse.current != null && Mouse.current.leftButton.isPressed;
     }
 
@@ -1187,6 +1224,10 @@ public class TutorialModifier : LevelModifier
     private void Teardown()
     {
         _phase = Phase.Inactive;
+        // Close event ownership before releasing a hold, which can spawn synchronously.
+        Unsubscribe();
+        ReleaseWelcomeHold();
+        UIManager.Instance?.SetTutorialPresentation(welcoming: false, teaching: false);
         SetInputGate(PieceGestures.Everything);
         UIManager.SetNudgeGuideBoost(0f);
         // Also release the piece itself: a lesson hover left suspended would hang mid-air
@@ -1194,7 +1235,7 @@ public class TutorialModifier : LevelModifier
         // screen. Harmless when the piece is already falling, landed, or being destroyed.
         if (_piece != null)
         {
-            _piece.SetDescentSuspended(false);
+            _piece.SetTutorialDescentHeld(false);
             RestoreNormalSpeed(_piece);
         }
         Unsubscribe();
@@ -1214,6 +1255,10 @@ public class TutorialModifier : LevelModifier
         _caption = null;
         _subline = null;
         _tag = null;
+        _skipLabel = null;
+        _hoverHint = null;
+        _welcome = null;
+        _welcomePanel = null;
         _softDropPracticing = false;
         _skipRoot = null;
         _dots = null;

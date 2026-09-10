@@ -1,0 +1,360 @@
+// Copy to Assets/SourceFiles/Scripts/Editor/TutorialChecks.cs, refresh, then call Run().
+// Editor-only fixtures: no real save reset, cloud calls, or scene saves.
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+using TMPro;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.UI;
+using Object = UnityEngine.Object;
+
+public static class TutorialChecks
+{
+    const BindingFlags Flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+    static readonly List<Object> created = new List<Object>();
+    static int passed;
+    static FieldInfo F(Type t, string n) => t.GetField(n, Flags);
+    static T Get<T>(object o, string n) => (T)F(o.GetType(), n).GetValue(o);
+    static void Set(object o, string n, object v) => F(o.GetType(), n).SetValue(o, v);
+    static object Call(object o, string n, params object[] args) => o.GetType().GetMethod(n, Flags).Invoke(o, args);
+    static void Check(bool value, string message)
+    {
+        if (!value) throw new Exception("TUTORIAL FAIL: " + message);
+        passed++;
+    }
+    static GameObject Host(string name)
+    {
+        var o = new GameObject(name, typeof(RectTransform));
+        o.SetActive(false);
+        o.hideFlags = HideFlags.DontSave;
+        created.Add(o);
+        return o;
+    }
+    static string Phase(TutorialModifier t) => Get<object>(t, "_phase").ToString();
+    static void DisposeTutorial(TutorialModifier t)
+    {
+        var root = Get<GameObject>(t, "_overlayRoot");
+        if (root != null) Object.DestroyImmediate(root);
+        Set(t, "_overlayRoot", null);
+        t.OnLevelEnd(null);
+    }
+    static TutorialModifier Tutorial(GameManager gm, LevelDefinition level, ProgressStore.PlayerProgress data)
+    {
+        data.tutorialCompleted = false;
+        var t = ScriptableObject.CreateInstance<TutorialModifier>();
+        created.Add(t);
+        t.OnLevelStart(new LevelModifierContext { GameManager = gm, Level = level });
+        return t;
+    }
+    static BlockController Piece(float y)
+    {
+        var host = Host("Tutorial piece");
+        host.transform.position = new Vector3(0, y, 0);
+        var piece = host.AddComponent<BlockController>();
+        piece.fallSpeed = 2.5f;
+        F(typeof(BlockController), "<ActiveControlled>k__BackingField").SetValue(null, piece);
+        return piece;
+    }
+    static void Gesture(TutorialModifier t, BlockController p, PieceGestures g) => Call(t, "HandlePieceGesture", p, g);
+    static void DoneWithoutSaving(ProgressStore.PlayerProgress data) => data.tutorialCompleted = true;
+
+    public static string Run()
+    {
+        if (EditorApplication.isPlaying) throw new Exception("Run outside Play Mode.");
+        passed = 0;
+        var progressField = F(typeof(ProgressStore), "_data");
+        var gmField = F(typeof(GameManager), "<Instance>k__BackingField");
+        var uiField = F(typeof(UIManager), "<Instance>k__BackingField");
+        var pieceField = F(typeof(BlockController), "<ActiveControlled>k__BackingField");
+        var cameraField = F(typeof(TowerCameraController), "_instance");
+        object oldData = progressField.GetValue(null), oldGm = gmField.GetValue(null), oldUi = uiField.GetValue(null),
+            oldPiece = pieceField.GetValue(null), oldCamera = cameraField.GetValue(null);
+        var oldSelection = LevelSelectionState.SelectedLevel;
+        bool selectionPending = LevelSelectionState.IsSelectionPending;
+        bool oldOnline = SupabaseConfig.Enabled, oldGate = CameraIntroGate.IsPlaying;
+        bool oldSuspended = TouchGestureInput.Suspended;
+        var oldGestures = BlockController.AllowedGestures;
+        var random = UnityEngine.Random.state;
+        var clips = (Dictionary<string, AudioClip>)F(typeof(SfxPlayer), "_clips").GetValue(null);
+        var clipSnapshot = new Dictionary<string, AudioClip>(clips);
+        // Prevent Editor audio-pool creation and side effects; production calls remain exercised.
+        clips["pop_01"] = null; clips["ui-star-earned"] = null;
+        TutorialModifier tutorial = null;
+        try
+        {
+            SupabaseConfig.Enabled = false;
+            var data = new ProgressStore.PlayerProgress { firstLaunchHandled = true };
+            progressField.SetValue(null, data);
+            var gm = Host("Tutorial game manager").AddComponent<GameManager>();
+            gmField.SetValue(null, gm); uiField.SetValue(null, null); pieceField.SetValue(null, null);
+            var state = Get<RunState>(gm, "_runState");
+            state.SetFloorOrigin(-12f);
+            Set(gm, "_liveTopCache", -12f);
+            var level = Resources.Load<LevelDefinition>("Levels/Level_JD1_TheUndergrowth");
+            Check(level.IsIntroduction && level.TargetValue == 25f, "Authored introduction targets 25 standing blocks");
+            state.AdjustStandingBlocks(24);
+            var win = new WinContext(gm, null);
+            Check(!level.WinCondition.IsMet(win), "24 standing does not complete introduction");
+            state.AdjustStandingBlocks(1);
+            Check(level.WinCondition.IsMet(win), "25 standing meets introduction goal");
+            state.AdjustStandingBlocks(-1);
+            Check(!level.WinCondition.IsMet(win), "Collapse below 25 cancels qualification");
+            state.AdjustStandingBlocks(-24);
+
+            CameraIntroGate.Begin();
+            tutorial = Tutorial(gm, level, data);
+            Check(Phase(tutorial) == "Welcome" && !gm.CanSpawnBlocks, "Welcome owns spawn hold");
+            Check(CameraIntroGate.IsPlaying, "Welcome preserves camera pan");
+            Check(BlockController.AllowedGestures == PieceGestures.None && TouchGestureInput.Suspended,
+                "Welcome consumes gameplay input");
+            tutorial.OnUpdate(null, 120f);
+            Check(Phase(tutorial) == "Welcome", "Welcome waits indefinitely for explicit choice");
+            CameraIntroGate.End();
+            Check(!gm.CanSpawnBlocks, "Camera completion cannot bypass welcome");
+            CameraIntroGate.Begin();
+            Call(tutorial, "ChooseWelcome", false);
+            tutorial.OnUpdate(null, 1f);
+            Check(Phase(tutorial) == "WelcomeExit" && CameraIntroGate.IsPlaying, "Early Let's build waits for pan");
+            CameraIntroGate.End();
+            tutorial.OnUpdate(null, 1f);
+            Check(Phase(tutorial) == "AwaitPiece" && gm.CanSpawnBlocks, "Let's build releases only its own spawn hold");
+            Check(BlockController.AllowedGestures == (PieceGestures.Move | PieceGestures.Rotate),
+                "Move and rotation available immediately; drops gated");
+            Check(!TouchGestureInput.Suspended, "Welcome input lock released");
+            var piece = Piece(10f);
+            Call(tutorial, "BeginPreRoll", piece);
+            Check(Get<TextMeshProUGUI>(tutorial, "_caption").text == "Drag left or right", "Movement taught first");
+            Check(!piece.NormalFallSpeedPinned && !Get<bool>(piece, "_descentSuspended"), "Arrival begins at normal speed");
+            Gesture(tutorial, piece, PieceGestures.Move); Gesture(tutorial, piece, PieceGestures.Move);
+            Check(Get<int>(tutorial, "_stepIndex") == 1, "Movement credited during arrival");
+            Check(Get<TextMeshProUGUI>(tutorial, "_caption").text == "Drag left or right", "Success leaves old caption readable");
+            tutorial.OnUpdate(null, .6f);
+            Check(Get<TextMeshProUGUI>(tutorial, "_caption").text == "Tap to rotate", "Next prompt appears after feedback");
+            Gesture(tutorial, piece, PieceGestures.Rotate);
+            tutorial.OnUpdate(null, .6f);
+            Check(Get<int>(tutorial, "_stepIndex") == 2, "Rotation advances to held drop");
+            Call(tutorial, "ArmStep");
+            Check(Get<bool>(piece, "_tutorialDescentHeld"), "Assisted hover remains player paced");
+            Set(piece, "_isFastDrop", true);
+            Gesture(tutorial, piece, PieceGestures.SoftDrop);
+            Check(!Get<bool>(piece, "_descentSuspended"), "Soft drop releases hover");
+            tutorial.OnUpdate(null, .1f);
+            Check(Get<int>(tutorial, "_stepIndex") == 2, "Holding alone does not complete soft drop");
+            Set(piece, "_isFastDrop", false);
+            tutorial.OnUpdate(null, .1f);
+            Check(Get<int>(tutorial, "_stepIndex") == 3, "Real release completes soft drop");
+            tutorial.OnUpdate(null, .6f);
+            Check(Get<bool>(piece, "_descentSuspended"), "Release gives next lesson a safe hover");
+            Set(piece, "_dynamicControlReady", true);
+            Set(piece, "_hasTouchedDown", true); // isolate the real watchdog from landing physics
+            Set(piece, "_suspendedElapsed", 91f);
+            Call(piece, "HandleDynamicControl");
+            Check(Get<bool>(piece, "_descentSuspended"), "Tutorial hold survives the 90-second watchdog");
+            piece.SetTutorialDescentHeld(false); piece.SetDescentSuspended(true);
+            Set(piece, "_suspendedElapsed", 91f);
+            Call(piece, "HandleDynamicControl");
+            Check(!Get<bool>(piece, "_descentSuspended"), "Non-tutorial hover retains its watchdog");
+            Set(piece, "_hasTouchedDown", false);
+            Call(tutorial, "ArmStep");
+            Set(piece, "_isFastDrop", true);
+            Gesture(tutorial, piece, PieceGestures.SoftDrop);
+            Set(piece, "_isFastDrop", false);
+            tutorial.OnUpdate(null, .1f);
+            Check(Phase(tutorial) == "PreRoll" || Phase(tutorial) == "Armed", "Learned soft-drop release regains assisted descent");
+            Gesture(tutorial, piece, PieceGestures.HardDrop);
+            Check(Phase(tutorial) == "AwaitPiece" && !Get<bool>(piece, "_tutorialDescentHeld"), "Committed slam never re-freezes");
+            tutorial.OnUpdate(null, 1f);
+            Check(Get<TextMeshProUGUI>(tutorial, "_caption").text == "Flick down to slam", "Nudge waits for controllable replacement");
+            var replacement = Piece(10f);
+            Call(tutorial, "HandleBlockSpawned", replacement, null);
+            Check(Get<TextMeshProUGUI>(tutorial, "_skipLabel").text == "TRY LATER", "Nudge has explicit opt-out");
+            Check(BlockController.AllowedGestures == PieceGestures.Everything, "All learned controls remain available");
+            DoneWithoutSaving(data);
+            Get<GameObject>(tutorial, "_skipRoot").GetComponent<Button>().onClick.Invoke();
+            Check(Phase(tutorial) == "Coda" && !Get<bool>(replacement, "_descentSuspended"), "Try later enters practice");
+            Check(Get<TextMeshProUGUI>(tutorial, "_subline").text.Contains("25 standing"), "Handoff carries authored goal");
+            DisposeTutorial(tutorial); tutorial = null;
+            Check(gm.CanSpawnBlocks && BlockController.AllowedGestures == PieceGestures.Everything, "Teardown restores controls and spawning");
+
+            pieceField.SetValue(null, null);
+            tutorial = Tutorial(gm, level, data);
+            DoneWithoutSaving(data);
+            Call(tutorial, "ChooseWelcome", true);
+            tutorial.OnUpdate(null, 1f);
+            Check(Phase(tutorial) == "Coda" && gm.CanSpawnBlocks, "Welcome skip hands directly into practice");
+            Check(BlockController.AllowedGestures == PieceGestures.Everything, "Skip enables all controls");
+            Call(tutorial, "UpdateCoda", .125f);
+            Check(Get<CanvasGroup>(tutorial, "_group").alpha > .4f && Get<CanvasGroup>(tutorial, "_group").alpha < .6f,
+                "Welcome skip fades practice message in smoothly");
+            DisposeTutorial(tutorial); tutorial = null;
+
+            tutorial = Tutorial(gm, level, data);
+            var otherHold = new object(); gm.SetSpawnSuspended(otherHold, true);
+            DisposeTutorial(tutorial); tutorial = null;
+            Check(!gm.CanSpawnBlocks, "Teardown preserves other owners' holds");
+            gm.SetSpawnSuspended(otherHold, false);
+            Check(gm.CanSpawnBlocks && !TouchGestureInput.Suspended, "Welcome abandonment releases own hold and input");
+
+            data.tutorialCompleted = true;
+            tutorial = ScriptableObject.CreateInstance<TutorialModifier>(); created.Add(tutorial);
+            tutorial.OnLevelStart(new LevelModifierContext { GameManager = gm, Level = level });
+            Check(Phase(tutorial) == "Inactive" && Get<GameObject>(tutorial, "_overlayRoot") == null,
+                "Completed saves bypass welcome and tutorial");
+            DisposeTutorial(tutorial); tutorial = null;
+
+            // A no-pan scene can already contain a piece when the modifier starts.
+            var preexisting = Piece(8f);
+            tutorial = Tutorial(gm, level, data);
+            Check(Get<bool>(preexisting, "_tutorialDescentHeld"), "Welcome safely holds a pre-existing piece");
+            Call(tutorial, "ChooseWelcome", false); tutorial.OnUpdate(null, 1f);
+            Check(Get<BlockController>(tutorial, "_piece") == preexisting && Phase(tutorial) == "PreRoll",
+                "Let's build reuses the existing piece");
+            var cameraHost = Host("Tutorial geometry camera");
+            var camera = cameraHost.AddComponent<Camera>(); camera.orthographic = true;
+            camera.orthographicSize = 15f; camera.transform.position = new Vector3(0f, 0f, -10f);
+            var controller = cameraHost.AddComponent<TowerCameraController>();
+            Set(controller, "_camera", camera); cameraField.SetValue(null, controller);
+            Set(tutorial, "_settleVp", .5f);
+            Call(tutorial, "EaseIntoPracticeHover");
+            Check(Get<float>(preexisting, "_normalFallSpeedFactor") <= 1f, "Arrival never accelerates normal descent");
+            preexisting.transform.position = new Vector3(0f, .75f, 0f);
+            Call(tutorial, "EaseIntoPracticeHover");
+            Check(Get<float>(preexisting, "_normalFallSpeedFactor") < 1f, "Arrival eases approaching its practice height");
+            preexisting.transform.position = new Vector3(0f, .04f, 0f);
+            Call(tutorial, "EaseIntoPracticeHover");
+            Check(Get<bool>(preexisting, "_tutorialDescentHeld") && !preexisting.NormalFallSpeedPinned,
+                "Arrival reaches an input-active hold and releases its speed pin");
+            DisposeTutorial(tutorial); tutorial = null;
+            cameraField.SetValue(null, oldCamera); pieceField.SetValue(null, null);
+
+            // Build actual TMP instructions at responsive canvas sizes, including a notch inset.
+            tutorial = Tutorial(gm, level, data);
+            Layouts(tutorial);
+            DisposeTutorial(tutorial); tutorial = null;
+
+            LevelSelectionState.SelectLevel(level);
+            var hud = Host("Tutorial HUD").AddComponent<UIManager>();
+            Call(hud, "ResolveObjective");
+            var group = (RectTransform)hud.transform; group.sizeDelta = new Vector2(348, 120);
+            Call(hud, "BuildObjectiveCard", group);
+            hud.SetTutorialPresentation(false, true);
+            Call(hud, "HandleStandingBlocksChanged", 2);
+            Check(Get<TextMeshProUGUI>(hud, "scoreText").text == "2<size=50%> / 25</size>", "Practice counts existing standing pieces");
+            Check(Get<TextMeshProUGUI>(hud, "_objectiveCaption").text == "TUTORIAL", "HUD labels guided controls");
+            hud.SetTutorialPresentation(false, false);
+            Check(Get<TextMeshProUGUI>(hud, "_objectiveCaption").text == "PRACTICE", "HUD labels free practice");
+            Call(hud, "HandleStandingBlocksChanged", 1);
+            Check(Get<TextMeshProUGUI>(hud, "scoreText").text.StartsWith("1<"), "Practice counter follows collapse");
+            string result = $"Tutorial checks: {passed} assertions passed.";
+            Debug.Log(result);
+            return result;
+        }
+        finally
+        {
+            if (tutorial != null) DisposeTutorial(tutorial);
+            for (int i = created.Count - 1; i >= 0; i--) if (created[i] != null) Object.DestroyImmediate(created[i]);
+            created.Clear();
+            gmField.SetValue(null, oldGm); uiField.SetValue(null, oldUi); pieceField.SetValue(null, oldPiece);
+            cameraField.SetValue(null, oldCamera); progressField.SetValue(null, oldData);
+            SupabaseConfig.Enabled = oldOnline;
+            if (oldGate) CameraIntroGate.Begin(); else CameraIntroGate.Reset();
+            TouchGestureInput.Suspended = oldSuspended; BlockController.AllowedGestures = oldGestures;
+            UnityEngine.Random.state = random;
+            clips.Clear(); foreach (var kv in clipSnapshot) clips.Add(kv.Key, kv.Value);
+            if (selectionPending) LevelSelectionState.ClearSelection(); else LevelSelectionState.SelectLevel(oldSelection);
+        }
+    }
+
+    public static string RenderReview()
+    {
+        if (EditorApplication.isPlaying) throw new Exception("Run outside Play Mode.");
+        var t = ScriptableObject.CreateInstance<TutorialModifier>();
+        GameObject camHost = null, root = null;
+        RenderTexture rt = null;
+        Texture2D png = null;
+        var previous = RenderTexture.active;
+        try
+        {
+            Call(t, "BuildOverlay"); Call(t, "BuildWelcome");
+            root = Get<GameObject>(t, "_overlayRoot");
+            var canvas = root.GetComponent<Canvas>();
+            camHost = new GameObject("Tutorial render camera", typeof(Camera));
+            var cam = camHost.GetComponent<Camera>();
+            cam.enabled = false; cam.orthographic = true; cam.orthographicSize = 5f;
+            cam.transform.position = new Vector3(0f, 0f, -10f);
+            cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = new Color(.08f, .16f, .12f);
+            cam.cullingMask = 1 << 31;
+            rt = new RenderTexture(780, 1688, 24); rt.Create(); cam.targetTexture = rt;
+            canvas.renderMode = RenderMode.ScreenSpaceCamera; canvas.worldCamera = cam; canvas.planeDistance = 2f;
+            var background = RuntimeUiKit.CreateImage(root.transform, "ReviewScenery",
+                Resources.Load<ChapterDefinition>("Chapters/Chapter_JungleDepths").MenuBackgroundImage, Color.white);
+            background.transform.SetAsFirstSibling(); RuntimeUiKit.Stretch(background.rectTransform);
+            RuntimeUiKit.FitToCover(background, RuntimeUiKit.SpriteAspect(background.sprite));
+            var welcome = Get<CanvasGroup>(t, "_welcome"); welcome.alpha = 1f;
+            string folder = "ArtReviews/SurfaceRestyle/TutorialWelcome";
+            System.IO.Directory.CreateDirectory(folder);
+            foreach (Transform child in root.GetComponentsInChildren<Transform>(true)) child.gameObject.layer = 31;
+            Canvas.ForceUpdateCanvases();
+            cam.Render(); RenderTexture.active = rt;
+            png = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+            png.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0); png.Apply();
+            System.IO.File.WriteAllBytes(folder + "/welcome.png", png.EncodeToPNG());
+            welcome.gameObject.SetActive(false);
+            Set(t, "_stepIndex", 0); Call(t, "ApplyStepVisuals");
+            Get<CanvasGroup>(t, "_group").alpha = 1f;
+            Get<GameObject>(t, "_skipRoot").SetActive(true);
+            Call(t, "UpdateGroupFade", 0f);
+            Canvas.ForceUpdateCanvases(); cam.Render(); RenderTexture.active = rt;
+            png.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0); png.Apply();
+            System.IO.File.WriteAllBytes(folder + "/controls.png", png.EncodeToPNG());
+            return folder;
+        }
+        finally
+        {
+            RenderTexture.active = previous;
+            if (root != null) Object.DestroyImmediate(root);
+            Set(t, "_overlayRoot", null); t.OnLevelEnd(null);
+            Object.DestroyImmediate(t);
+            if (camHost != null) Object.DestroyImmediate(camHost);
+            if (rt != null) { rt.Release(); Object.DestroyImmediate(rt); }
+            if (png != null) Object.DestroyImmediate(png);
+        }
+    }
+
+    static void Layouts(TutorialModifier t)
+    {
+        var root = Get<GameObject>(t, "_overlayRoot");
+        var canvas = root.GetComponent<Canvas>();
+        canvas.enabled = false; root.GetComponent<CanvasScaler>().enabled = false;
+        var rect = (RectTransform)root.transform;
+        var welcome = Get<CanvasGroup>(t, "_welcome");
+        var safe = welcome.GetComponentInChildren<SafeAreaFitter>();
+        safe.enabled = false;
+        var safeRect = (RectTransform)safe.transform;
+        safeRect.anchorMin = new Vector2(.03f, .035f); safeRect.anchorMax = new Vector2(.97f, .94f);
+        int[,] sizes = { {320,568}, {360,800}, {390,844}, {521,973}, {768,1024}, {844,390} };
+        for (int i = 0; i < sizes.GetLength(0); i++)
+        {
+            float scale = Mathf.Sqrt(sizes[i,0] / 1080f * sizes[i,1] / 1920f);
+            rect.sizeDelta = new Vector2(sizes[i,0] / scale, sizes[i,1] / scale);
+            Canvas.ForceUpdateCanvases();
+            foreach (var label in welcome.GetComponentsInChildren<TextMeshProUGUI>(true)) Fits(label, $"welcome {sizes[i,0]}x{sizes[i,1]}");
+            for (int step = 0; step < 5; step++)
+            {
+                Set(t, "_stepIndex", step); Set(t, "_feedbackTime", 0f); Call(t, "ApplyStepVisuals");
+                Fits(Get<TextMeshProUGUI>(t, "_caption"), "caption " + step);
+                Fits(Get<TextMeshProUGUI>(t, "_subline"), "helper " + step);
+                Fits(Get<TextMeshProUGUI>(t, "_tag"), "tag " + step);
+                Fits(Get<TextMeshProUGUI>(t, "_skipLabel"), "skip " + step);
+            }
+        }
+    }
+    static void Fits(TextMeshProUGUI text, string context)
+    {
+        text.ForceMeshUpdate(true, true);
+        var wanted = text.GetPreferredValues(text.text, text.rectTransform.rect.width, 0f);
+        Check(wanted.y <= text.rectTransform.rect.height + 1f && wanted.x <= text.rectTransform.rect.width + 1f,
+            $"{context}: {text.text} fits {text.rectTransform.rect.size}, wants {wanted}");
+    }
+}

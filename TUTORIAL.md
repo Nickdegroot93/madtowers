@@ -1,148 +1,126 @@
-# First-run controls tutorial
+# First-launch welcome, controls and practice
 
-`Assets/SourceFiles/Scripts/Levels/Modifiers/TutorialModifier.cs` runs once on
-`Level_JD1_TheUndergrowth`, through `Tutorial_GestureBasics.asset`. Completion stays in
-`ProgressStore`; Settings → Account → Reset tutorial allows a replay.
+`TutorialModifier.cs` and `TutorialModifier.Welcome.cs` run once through
+`Tutorial_GestureBasics.asset` on `Level_JD1_TheUndergrowth`. Completed controls make
+this modifier inert. Development builds expose Settings → Account → Reset tutorial;
+this is a development replay control, not a shipping onboarding requirement.
 
-## First launch and the introduction level
+## Arrival
 
-A fresh installation selects The Undergrowth before the first scene loads and enters
-the controls tutorial directly. It skips the menu and launch splash. This is a local,
-unranked introduction: no account/network wait, attempt charge, supplies, random special
-bricks or ability-choice interruptions. Normal bricks fall at a constant gentle speed.
+A fresh installation enters the local, unranked introduction directly, skipping the
+menu and launch splash. No account/network wait, attempt charge, supplies, special
+bricks or ability choices interrupt it. The scenery's existing camera pan plays in full.
 
-The level is marked `IsIntroduction`, with one goal: **30 standing blocks**. The HUD shows
-blocks remaining without a medal suffix. At 30, the existing **5-second HOLD STEADY**
-verification runs; falling below the goal cancels it. Success stops the run and shows
-the gold celebration with **TUTORIAL COMPLETE**, the next level's name and one highlighted
-**Back to Menu** button. There is no bronze/silver ladder or Keep Playing action.
-The normal first-completion award unlocks **Canopy Trial**, whose puzzle waves are unchanged.
-Replaying the introduction still ends at 30; the first-completion bonus cannot repeat.
+A welcome composition fades over the scenery while the gameplay HUD is hidden:
 
-The monotonic `firstLaunchHandled` flag is separate from both learned controls and level
-completion. It is saved before direct entry. Existing saves open normally, and leaving an
-unfinished first run does not force another automatic launch. Reset tutorial resets the
-control tips only. The original level asset ID is preserved for existing progress.
+> YOUR FIRST TOWER
+>
+> Welcome to Hazard Heights
+>
+> Every great tower starts with one brick. Let’s learn the controls.
+>
+> **Let’s build** · Skip tutorial
 
-## Continuous practice
+The welcome waits indefinitely for a choice. It owns a spawn hold independently of
+the camera gate, so finishing the pan cannot start gameplay before the player is ready.
+An early button press waits for the pan, then the welcome fades out. Gameplay remains
+suspended through the button's release so the same touch cannot rotate a brick. A
+piece that was already present in a no-pan scene is retained under an explicit hold.
+Let’s build starts the controls; Skip tutorial hands directly into practice.
 
-The TUTORIAL card, first action and Skip appear immediately in `OnLevelStart`. Tutorial
-runs finish the scenery pan immediately and update the camera/spawn point before releasing
-its spawn gate. The first brick takes about 0.45 seconds to reach its practice position,
-with rotation already available during that arrival. Ordinary runs retain their camera pan.
-There are no “Get ready”, “Next lesson”, arrival captions or intermediate screens.
+## Guided controls
 
 | Order | Prompt | Completion |
 |---|---|---|
-| 1 | Tap to rotate | One real rotation |
-| 2 | Drag left or right | Two successful column steps |
-| 3 | Drag down and hold | Engage soft drop, then release it or land |
+| 1 | Drag left or right | Two successful column steps |
+| 2 | Tap to rotate | One real rotation |
+| 3 | Drag down and hold | Engage soft drop, then release or land |
 | 4 | Flick down to slam | One committed hard drop |
-| 5 | Tap a bottom corner | One real nudge attempt; tagged TUTORIAL · OPTIONAL NUDGE |
+| Optional | Tap a bottom corner | One nudge attempt, or **Try later** |
 
-The same brick carries the main controls where possible. Soft drop demonstrates the speed
-change, then the brick pauses again on release so the flick can use that same brick.
-If a player holds until landing, the next brick continues the current prompt. Replacement
-arrivals accept the current cumulative gesture gate. Gestures also count during the short
-0.28-second success feedback.
+Movement and rotation are available from the first controllable frame. Gates are
+cumulative; learned controls stay available. The first two queued shapes visibly
+change when rotated, using the existing bag/variant override mechanism so NEXT
+matches the actual queue. A non-rotatable replacement auto-passes rotation.
 
-Nudge comes last as an optional extra for normal play. Its helper says: “Nudge adds a
-sideways shove. Unlike dragging, it can push other bricks.” The existing physical impulse,
-collision rules and rebound cooldown own the effect; the tutorial does not manufacture a shove.
-The slam caption stays while its brick falls. The nudge prompt, gesture gate and corner reveal
-arrive together on the next controllable brick, without an intermediate instruction screen.
-A learned slam used during nudge resumes that prompt on another brick and never re-freezes
-the committed one.
+Bricks descend at their gentle normal speed. There is no accelerated arrival and no
+short timeout that teleports or rushes a brick into its lesson. As a brick approaches
+the practice height, normal descent eases down over 1.5 world units, then pauses.
+That height also respects the real tower top and the rotated brick's lower bounds.
+The first assisted hold explains: “Take your time — we’ll hold your brick.” Steering
+and rotation remain live. Completing a lesson during arrival advances the prompt
+without forcing a stop.
 
-Trying nudge hands straight into normal play: “Keep stacking” and the level goal fade while
-play continues. There is no blocking recap modal or tutorial-owned spawn hold. Skip uses a
-shorter goal handoff. Both mark tutorial completion immediately, rather than waiting for a win.
+Tutorial holds explicitly bypass the general 90-second hover watchdog. Skip,
+completion, game over and teardown release them. Other gameplay hover users retain
+their existing watchdog. Tutorial descent uses the same swept collision path and
+normal speed cap as other controlled descent.
 
-## Presentation
+The same brick carries several lessons when possible. Holding down releases the
+hover and shows actual fast descent; releasing demonstrates the slowdown before
+the next safe hover. Landing early continues on a replacement. A learned soft drop
+used during a later lesson regains assisted arrival on release. A committed slam is
+never frozen again. Its caption remains until the next controllable brick introduces
+nudge and reveals the corner guides. Nudge is explicitly optional via Try later.
 
-The tutorial keeps the HUD's Manrope typography, with consistently pale text on a dark
-rounded card at 92% opacity. The backing is local to the instructions and does not intercept
-gameplay gestures. The action line uses 46–50-unit type; helper text is 36 units, with room
-for two lines. The 280-unit card has side padding, a TUTORIAL label, five thin progress marks
-and a Skip link with a 72-unit hit area and published gesture-exclusion rectangle.
+Success gets a quiet sound, a light haptic through the existing settings-aware wrapper,
+and a 0.55-second beat before the next caption appears. Input remains live during
+feedback. A fast player can earn the next action during that beat.
 
-The composition follows the actual top-HUD bottom, canvas scale and device safe area.
-The piece settles below the composition. Its arrival speed is derived from the distance
-and uses the existing collision-checked descent path, capped at 30x for this scripted
-arrival. Normal ability-owned descent retains its 3x cap, and the scripted pin is released
-on practice, any player-initiated drop, completion or teardown.
+## Practice and completion
 
-The existing hand artwork follows the actual piece/corner targets; it hides while the player
-is touching and returns after 2.8 seconds of inactivity. During nudge it points downward into
-the corner so its palm stays on screen.
+The introduction has one goal: **25 standing blocks**. Tutorial placements already
+count. The HUD shows the live standing count out of 25 with a TUTORIAL caption while
+learning, then PRACTICE when guidance ends. A collapse reduces the numerator.
 
-## Corner guides
+Learning the controls or choosing Try later shows:
 
-The input zones, gameplay guides, tutorial targets and layout-editor previews all use
-`TouchGestureInput.NudgeZoneWidthFraction` and `NudgeZoneHeightFraction`: 22% of screen width
-and 9% of height. Height was reduced from 14.4%, making the zones 37.5% shorter while keeping
-them attached to the bottom corners.
+> You’ve got the basics!
+>
+> Build a tower of 25 standing bricks to get the hang of things.
 
-Idle opacity remains the player's setting, defaulting to zero. `UIManager` adds:
+Skipping uses “Let’s get stacking” with the same goal. The message holds briefly and
+fades while play continues; the HUD keeps the practice objective visible. The learned
+controls flag is saved at this handoff, independently of finishing the level.
 
-- One smooth 1-second reveal of both corners on the first controllable brick. The camera
-  intro, menus and pause do not consume it; a tutorial introduces it with the nudge control.
-- A 0.5-second reveal of only the pressed corner, including taps during the rebound cooldown.
-- The existing tutorial spotlight while nudge is taught, followed by a quieter guide until
-  the final goal reminder fades.
+At 25, the existing five-second HOLD STEADY verification runs; dropping below 25
+cancels it. Success ends the run, shows the gold TUTORIAL COMPLETE celebration,
+names the next challenge and offers the highlighted Back to Main Menu action.
+The first completion unlocks Canopy Trial. Replays still finish at 25 and cannot
+repeat the first-completion bonus.
 
-The reveals never write the visibility setting. Pause freezes their clocks. A new run
-creates new reveal state, and a saved nonzero opacity remains after each transient ends.
-Settings → Controls adjusts idle visibility and explains that corner taps apply force.
+The separate `firstLaunchHandled` flag prevents an abandoned opening from forcing
+automatic tutorial entry on every launch. Existing saves and the level's asset ID
+remain compatible.
 
-## State and recovery
+## Presentation and layout
 
-The phases remain `Inactive / PreRoll / Armed / Beat / AwaitPiece / Coda`. `PreRoll` is an
-internal positioning phase, never an interstitial screen. Input is live from the first
-prompt, including during arrival. Gestures are cumulative: a control already taught stays
-available. A real soft-drop release is read from `BlockController.IsFastDropping`, the same
-combined touch/keyboard flag the physics movement uses.
+The welcome uses the existing Manrope fonts, warm pale ink, a dark rounded panel,
+a primary pale button and a quieter skip action. Its width stretches inside the
+safe area and its height fits shorter screens. The scenery stays visible beneath
+a light full-screen wash. There is no video dependency.
 
-The first two queued shapes are chosen from the level's bag with visibly different quarter
-turns, using existing variant overrides. NEXT follows the actual queue. A non-rotatable
-variant auto-passes rotation. Missing/landed pieces re-arm on replacements; a tall tower
-uses the existing relaxed settle line and timeout. There is no timer on player practice.
+The gameplay tutorial is a compact 248-unit panel under the actual HUD bounds:
+46–50-unit action text, 32-unit helper text, four core progress marks, TUTORIAL step
+labels and an explicit OPTIONAL label for nudge. Skip/Try later has a 72-unit hit
+area and publishes its live gesture-exclusion rectangle. Layout follows canvas
+scale, device safe areas and screen changes.
 
-Skip, completion, game over and level end all restore the input lock, gesture gate,
-piece descent/fall-speed ownership and nudge spotlight. The shared run reset remains the
-final safety net. The tutorial suppresses the normal goal banner while it owns messaging.
+The existing hand artwork follows the brick and real nudge zones. It hides while
+the player touches or a success beat runs and returns after 2.8 seconds of inactivity.
+Corner zones remain 22% of screen width and 9% of height. Tutorial reveals never
+write the user's saved guide-opacity setting.
 
-## Research used for this revision
+## Verification
 
-- [Game Accessibility Guidelines: interactive tutorials](https://gameaccessibilityguidelines.com/include-interactive-tutorials/): practise controls in the context where they are used.
-- [NN/g: onboarding tutorials and contextual help](https://www.nngroup.com/articles/onboarding-tutorials/): show help alongside the current action, avoid relying on memorised instruction screens, and make help dismissible.
-- [Apple: onboarding for games](https://developer.apple.com/app-store/onboarding-for-games/): game-specific onboarding guidance.
+`Tools/TutorialChecks/` holds the repeatable Editor fixture for welcome/spawn ownership,
+control progression, soft-drop release, committed-slam recovery, skip/optional exits,
+25-block qualification, live practice counters and responsive TMP layout. It swaps
+in-memory state and restores it without resetting or writing the player's save.
 
-These inform the design choices; pacing and touch comfort still benefit from physical-device
-playtesting. An authored obstacle demonstrating a nudge collision remains a possible future
-exercise, rather than adding another stage to this short control sequence.
+Unity 6000.4.10f1 passed 199 tutorial assertions, 143 progression assertions and
+69 HUD objective assertions on 2026-09-10. Welcome and controls composition previews
+were rendered and inspected under `ArtReviews/SurfaceRestyle/TutorialWelcome/`.
 
-## Validation for this revision
-
-Unity compiled the changes. 151 isolated runtime/layout assertions passed, covering
-immediate tutorial visibility and input, the reordered controls, soft-drop release and
-landing recovery, committed-slam recovery, skip/teardown, nudge feedback, and text bounds.
-All five prompts and the actual first level's goal fit at layout sizes corresponding to
-320×568, 360×800, 390×844, 521×973 and 768×1024, without shrinking action text below 46 units.
-
-A separate check used a real L-brick prefab, the scene camera and the real fixed-step
-collision/descent path: arrival settled in 0.46 seconds, with the tutorial visible and
-rotation enabled throughout. A rendered portrait preview was inspected over a flat bright
-green review background to check contrast; this is a UI fixture, not recorded gameplay.
-Evidence is in ignored `ArtReviews/SurfaceRestyle/Tutorial/`. Temporary fixtures were removed,
-Play Mode was stopped, and the saved tutorial-completion flag was preserved. Physical-device
-touch comfort and a full first-run playthrough remain manual review items.
-
-Introduction follow-up: Unity compiled, and 48 isolated checks passed for first-launch
-routing, old saves, 29/30-block verification and aborts, completion/unlocks, replays,
-the gold modal and automatic chapter navigation. The 151 tutorial/layout checks also
-passed with the new goal text. Six additional checks cover free retries with an empty
-attempt meter and ignoring stale paid supplies. The gold card was rendered for portrait review. These
-checks used temporary progress snapshots restored immediately, with cloud-save events
-suppressed and the editor's unlock-all override temporarily disabled. Evidence is in
-ignored `ArtReviews/SurfaceRestyle/Onboarding/`; the editor override was restored.
+Physical-device touch comfort, perceived pacing and first-time comprehension still
+need a playthrough with people who have not learned the controls.

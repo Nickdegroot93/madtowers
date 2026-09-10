@@ -26,15 +26,14 @@ public partial class BlockController : MonoBehaviour
         _normalFallSpeedFactor = Mathf.Clamp(factor, 0.05f, 3f);
     }
 
-    /// <summary>Pin this piece's normal descent to a scripted factor (the tutorial's pre-roll
-    /// ride-in). Live ability re-stamps skip a pinned piece, so a recompute mid-lesson can't yank
+    /// <summary>Pin this piece's normal descent to a scripted factor (the tutorial's gentle
+    /// approach to its practice hover). Live ability re-stamps skip a pinned piece, so a recompute mid-lesson can't yank
     /// the speed of a piece a script is driving; SetNormalFallSpeedFactor releases the pin (which
     /// is exactly what the script's restore call does).</summary>
     public void PinNormalFallSpeedFactor(float factor)
     {
-        // Scripted arrivals must clear the HUD promptly even on tall phones. They still use
-        // the normal swept descent/contact path; ability-owned speed retains its 3x cap above.
-        _normalFallSpeedFactor = Mathf.Clamp(factor, 0.05f, 30f);
+        // Scripted descent uses the same cap and collision-checked path as normal descent.
+        _normalFallSpeedFactor = Mathf.Clamp(factor, 0.05f, 3f);
         _fallSpeedPinned = true;
     }
 
