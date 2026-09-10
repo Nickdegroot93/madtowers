@@ -131,8 +131,12 @@ public static class MenuSprites
 
                 float v = Mathf.Clamp01((p.y / hy + 1f) * 0.5f);
                 Color face = Color.Lerp(bottom, top, v);
-                // Subtle sheen just inside the face's upper edge, so the front plate reads convex.
-                face = Color.Lerp(face, Color.white, Mathf.Clamp01(1f - Mathf.Abs(dIn + 2f) / 3f) * 0.10f * v);
+                // A broad top light and a narrow bevel make the face read as polished glass.
+                // Both are baked once per palette; no per-frame blur or extra material needed.
+                float topLight = Mathf.Exp(-Mathf.Pow((p.x + wx * .28f) / (wx * .95f), 2f)
+                    - Mathf.Pow((p.y - hy * .70f) / (hy * .38f), 2f));
+                face = Color.Lerp(face, Color.white, topLight * .30f);
+                face = Color.Lerp(face, Color.white, Mathf.Clamp01(1f - Mathf.Abs(dIn + 2f) / 2.5f) * .40f * v);
                 Color c = Color.Lerp(rim, face, aIn);
 
                 // Fine light outline hugging the outer edge.
@@ -439,7 +443,7 @@ public static class MenuSprites
         if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
 
         const int S = 144;
-        const float radius = 26f;
+        const float radius = 14f; // matches RuntimeSprites.RoundedPanel at the same pixel density
         Texture2D tex = NewTexture(S, S);
         Vector2 center = new Vector2(S * 0.5f, S * 0.5f);
         // The rect edge sits well inside the texture so the outward falloff has room to breathe.
@@ -454,7 +458,7 @@ public static class MenuSprites
                 // zero before the texture edge - an exponential alone still holds ~6% alpha at
                 // the sprite rect, which renders as a hard cut-off rectangle around the halo.
                 float a = d >= 0f
-                    ? Mathf.Exp(-d / 5f) * Mathf.Clamp01((24f - d) / 10f)
+                    ? Mathf.Exp(-d / 3.5f) * Mathf.Clamp01((24f - d) / 10f)
                     : Mathf.Exp(d / 2.5f);        // hugs the edge inward, never floods the card
                 tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
             }
@@ -464,6 +468,21 @@ public static class MenuSprites
             SpriteMeshType.FullRect, new Vector4(60f, 60f, 60f, 60f));
         sprite.hideFlags = HideFlags.HideAndDontSave;
         return Cache[key] = sprite;
+    }
+
+    public static Sprite RailBloom()
+    {
+        const string key = "rail-bloom";
+        if (Cache.TryGetValue(key, out Sprite cached) && cached != null) return cached;
+        const int width = 32;
+        Texture2D tex = NewTexture(width, 2);
+        for (int x = 0; x < width; x++)
+        {
+            float distance = Mathf.Abs((x + .5f) / width * 2f - 1f);
+            float alpha = Mathf.Exp(-distance * 4f) * Mathf.Clamp01((1f - distance) * 5f);
+            for (int y = 0; y < 2; y++) tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+        }
+        return Cache[key] = Finish(tex, 100f);
     }
 
     public static Sprite CheckMark(Color color)

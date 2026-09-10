@@ -11,10 +11,8 @@ using UnityEngine;
 /// </summary>
 public static class Campaign
 {
-    // DEV ONLY: add MADTOWERS_UNLOCK_ALL to scripting define symbols when a local build
-    // needs every chapter/level open. Keep off by default so editor testing exercises
-    // the same progression rules as release.
-#if MADTOWERS_UNLOCK_ALL
+    // Editor-only opt-in. Device builds, including closed tests, always use progression.
+#if UNITY_EDITOR && MADTOWERS_UNLOCK_ALL
     public static readonly bool UnlockAllForTesting = true;
 #else
     public static readonly bool UnlockAllForTesting = false;
@@ -90,6 +88,18 @@ public static class Campaign
             if (levels[i] == null || !ProgressStore.IsLevelCompleted(levels[i])) return false;
         }
         return true;
+    }
+
+    /// <summary>Reaching Neon Nightfall unlocks the meta systems and developer letter.
+    /// Read earned progress directly so testing overrides cannot skip onboarding.</summary>
+    public static bool HasReachedChapterThree
+    {
+        get
+        {
+            ChapterDefinition[] chapters = LoadChapters();
+            return chapters.Length > 2 && IsChapterCompleted(chapters[0])
+                && IsChapterCompleted(chapters[1]);
+        }
     }
 
     /// <summary>chaptersInOrder must come from LoadChaptersInOrder (or be sorted the same way).</summary>

@@ -1,0 +1,122 @@
+[
+  {
+    "id": "Chapter_JungleDepths",
+    "name": "Jungle Depths",
+    "number": 1,
+    "skin": "Skins/Jungle",
+    "background_guid": "346158104a4049d89bc31977ef1418e3",
+    "background": "Assets/Art/Chapters/JungleDepths/jungle-depths.jpg"
+  },
+  {
+    "id": "Chapter_SakuraRidge",
+    "name": "Sakura Ridge",
+    "number": 2,
+    "skin": "Skins/Japan",
+    "background_guid": "b710baadac034e809a52f429bffc854b",
+    "background": "Assets/Art/Chapters/SakuraRidge/sakura-ridge.png"
+  },
+  {
+    "id": "Chapter_NeonNightfall",
+    "name": "Neon Nightfall",
+    "number": 3,
+    "skin": "Skins/Neon",
+    "background_guid": "512ff4fe1713c45b9ae17c2b151de409",
+    "background": "Assets/Art/Chapters/NeonNightfall/neon-nightfall.jpg"
+  },
+  {
+    "id": "Chapter_FrozenPeaks",
+    "name": "Frozen Peaks",
+    "number": 4,
+    "skin": "Skins/Winter",
+    "background_guid": "d1e5ce6b42c844c2abc9939503b76073",
+    "background": "Assets/Art/Chapters/FrozenPeaks/frozen-peaks.jpg"
+  },
+  {
+    "id": "Chapter_Kvartal4",
+    "name": "Kvartal 4",
+    "number": 5,
+    "skin": "Skins/Kvartal",
+    "background_guid": "1c2a79cd66f7f4a2d8f57be0529b83c1",
+    "background": "Assets/Art/Chapters/Kvartal4/kvartal-4.jpg"
+  },
+  {
+    "id": "Chapter_BarrenLands",
+    "name": "Barren Lands",
+    "number": 6,
+    "skin": "Skins/Desert",
+    "background_guid": "b32f045e60c54bd98e7204d76f423999",
+    "background": "Assets/Art/Chapters/BarrenLands/barren-lands.jpg"
+  },
+  {
+    "id": "Chapter_SectorIsla",
+    "name": "Sector Isla",
+    "number": 7,
+    "skin": "Skins/Island",
+    "background_guid": "a3f5872321ebe4340aed651d449b1390",
+    "background": "Assets/Art/Chapters/SectorIsla/sector-isla.jpg"
+  },
+  {
+    "id": "Chapter_FangkuaiDistrict",
+    "name": "Fangkuai District",
+    "number": 8,
+    "skin": "Skins/Fangkuai",
+    "background_guid": "0ccb0607e64a74efca19d8ff54b238bf",
+    "background": "Assets/Art/Chapters/FangkuaiDistrict/fangkuai-district.jpg"
+  },
+  {
+    "id": "Chapter_LostCity",
+    "name": "Lost City",
+    "number": 9,
+    "skin": "Skins/LostCity",
+    "background_guid": "31f8f4d05401c4f799e6cac5272df86b",
+    "background": "Assets/Art/Chapters/LostCity/lost-city.jpg"
+  },
+  {
+    "id": "Chapter_BurningSteppes",
+    "name": "Burning Steppes",
+    "number": 10,
+    "skin": "Skins/Volcano",
+    "background_guid": "8623b242f99f54bc2b2ee4a899f8cf56",
+    "background": "Assets/Art/Chapters/BurningSteppes/burning-steppes.jpg"
+  },
+  {
+    "id": "Chapter_GizaDusk",
+    "name": "Giza Dusk",
+    "number": 11,
+    "skin": "Skins/Egypt",
+    "background_guid": "8d70d1107c4a64a74a66272e745e858e",
+    "background": "Assets/Art/Chapters/GizaDusk/giza-dusk.jpg"
+  },
+  {
+    "id": "Chapter_AmberTide",
+    "name": "Amber Tide",
+    "number": 12,
+    "skin": "Skins/Tide",
+    "background_guid": "1cc67ace4235f4951b411fe39f9c51b2",
+    "background": "Assets/Art/Chapters/AmberTide/amber-tide.jpg"
+  },
+  {
+    "id": "Chapter_MonsoonSector",
+    "name": "Monsoon Sector",
+    "number": 13,
+    "skin": "Skins/Techno",
+    "background_guid": "6d7e1f7352bc04c8aa7e10df7f5210ab",
+    "background": "Assets/Art/Chapters/MonsoonSector/monsoon-sector.jpg"
+  },
+  {
+    "id": "Chapter_HallowsEnd",
+    "name": "Hallow's End",
+    "number": 14,
+    "skin": "Skins/Hallow",
+    "background_guid": "edaa7f2f1477f4957a94528fe612bf71",
+    "background": "Assets/Art/Chapters/HallowsEnd/hallows-end.jpg"
+  },
+  {
+    "id": "Chapter_CrimsonCore",
+    "name": "Crimson Core",
+    "number": 15,
+    "skin": "Skins/Crimson",
+    "background_guid": "538c0d6f7d99e4df0a7967e956b6b1c0",
+    "background": "Assets/Art/Chapters/CrimsonCore/crimson-core.jpg"
+  }
+]

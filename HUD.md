@@ -26,9 +26,13 @@ It has no bounded card edge and accepts no input. Ordinary text never borrows me
 
 - Blocks: remaining standing blocks to the next unearned rung, caption BLOCKS · {TIER}.
 - Height: ceil(exact tier threshold − live height), clamped at zero, caption HEIGHT · {TIER}.
-- Puzzle: current wave; NEXT WAVE keeps the actual standing-block debt beneath lives.
-  The objective caption reads WAVE · {TIER}.
-- After gold, or Endless: live total, caption HEIGHT or BLOCKS. No stale zero countdown.
+- Puzzle: waves left to the next unearned medal, based on confirmed waves cleared.
+  The value reads "5 left" or "1 left", with WAVES · {TIER} / WAVE · {TIER} beneath.
+  Bronze and silver immediately roll the countdown to the next medal's target.
+  NEXT WAVE keeps the actual standing-block debt beneath lives.
+- After gold, or Endless: standing blocks or current tower height, caption BLOCKS or
+  HEIGHT. Puzzles show the current wave number (cleared waves + 1), caption WAVE.
+  No stale zero countdown or medal suffix. These are live run values, not lifetime totals.
 - The objective caption names the rung being chased: BRONZE, SILVER or GOLD, in the
   same chapter ink as the objective name, separated by a middle dot. No separate tier
   cube. The tier suffix disappears after gold and in Endless. The leading glyph

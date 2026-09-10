@@ -53,7 +53,10 @@ public class UIManager : MonoBehaviour
         _tutorialTeaching = teaching;
         var root = HudRoot();
         if (root != null && _tutorialHudGroup == null)
-            _tutorialHudGroup = root.GetComponent<CanvasGroup>() ?? root.gameObject.AddComponent<CanvasGroup>();
+        {
+            _tutorialHudGroup = root.GetComponent<CanvasGroup>();
+            if (_tutorialHudGroup == null) _tutorialHudGroup = root.gameObject.AddComponent<CanvasGroup>();
+        }
         if (_tutorialHudGroup != null)
         {
             if (welcoming) _tutorialHudGroup.alpha = 0f;
@@ -178,14 +181,16 @@ public class UIManager : MonoBehaviour
     // What this run is chasing and how far along it is, in the win condition's OWN metric:
     // PlaceBlocks counts STANDING blocks (BLOCKS.md - the live count IS the goal's numerator),
     // waves come from the live modifier, height from the same signal the HUD always showed.
-    // Resolved once from the selected level; the captions are baked into the bar at build time.
+    // Resolved from the selected level, then refreshed as medals are earned.
 
     private LevelTargetType _objectiveType = LevelTargetType.Endless;
     private bool _waveObjective;
     private int _targetBlocks;
     private int _targetWaves;
     private float _targetHeightMeters;
-    private int _shownWaveNumber = -1;
+    private int _shownWaveValue = -1;
+
+    private bool HasRemainingWaves => _objectiveType == LevelTargetType.ClearWaves && _hasRemainingGoal;
 
     private bool IsHeightObjective =>
         _objectiveType == LevelTargetType.ReachHeight || _objectiveType == LevelTargetType.TimedReachHeight;
@@ -197,7 +202,7 @@ public class UIManager : MonoBehaviour
         _introductionObjective = level != null && level.IsIntroduction;
         if (level == null) return;
 
-        // Endless levels running the wave modifier still get the wave counter - just unsuffixed.
+        // Endless puzzles show their current wave number without a medal suffix.
         _waveObjective = _objectiveType == LevelTargetType.ClearWaves;
         if (!_waveObjective && level.Modifiers != null)
         {
@@ -232,6 +237,7 @@ public class UIManager : MonoBehaviour
 
         _hasRemainingGoal = tier < LevelTiers.MaxTier;
         _chaseTier = _hasRemainingGoal ? tier + 1 : (MedalTier?)null;
+        _shownWaveValue = -1; // the same number can mean a new target or the post-gold wave
         UpdateObjectiveCaption();
         if (!_hasRemainingGoal)
         {
@@ -240,6 +246,7 @@ public class UIManager : MonoBehaviour
                 HandleStandingBlocksChanged(GameManager.Instance.placedBlocks);
                 HandleHeightChanged(GameManager.Instance.liveTowerHeight);
             }
+            UpdateWaveObjective();
             return;
         }
         float next = LevelTiers.Threshold(level, tier + 1);
@@ -257,7 +264,7 @@ public class UIManager : MonoBehaviour
                 break;
             case LevelTargetType.ClearWaves:
                 _targetWaves = Mathf.CeilToInt(next);
-                _shownWaveNumber = -1; // redraw the polled wave readout
+                UpdateWaveObjective();
                 break;
         }
     }
@@ -265,6 +272,20 @@ public class UIManager : MonoBehaviour
     // Presentation only: read the live counters and the armed tier's existing threshold.
     public static int BlocksRemaining(int target, int standing) => Mathf.Max(0, target - standing);
     public static int MetersRemaining(float target, float height) => Mathf.CeilToInt(Mathf.Max(0f, target - height));
+    public static int WavesRemaining(int target, int cleared) => Mathf.Max(0, target - cleared);
+
+    private void UpdateWaveObjective()
+    {
+        if (!_waveObjective || scoreText == null) return;
+        HeightLimitWavesModifier run = HeightLimitWavesModifier.ActiveRun;
+        int cleared = run != null ? run.WavesCleared : 0;
+        int value = HasRemainingWaves ? WavesRemaining(_targetWaves, cleared) : cleared + 1;
+        if (value == _shownWaveValue) return;
+
+        _shownWaveValue = value;
+        scoreText.text = HasRemainingWaves ? value + "<size=40%> left</size>" : value.ToString();
+        UpdateObjectiveCaption();
+    }
     private void HandleStandingBlocksChanged(int placedBlocks)
     {
         if (scoreText == null || _waveObjective || IsHeightObjective) return;
@@ -286,7 +307,9 @@ public class UIManager : MonoBehaviour
             _objectiveCaption.text = _tutorialTeaching ? "TUTORIAL" : "PRACTICE";
             return;
         }
-        string objective = _waveObjective ? "WAVE" : IsHeightObjective ? "HEIGHT" : "BLOCKS";
+        string objective = _waveObjective
+            ? (HasRemainingWaves && _shownWaveValue != 1 ? "WAVES" : "WAVE")
+            : IsHeightObjective ? "HEIGHT" : "BLOCKS";
         _objectiveCaption.text = _chaseTier.HasValue
             ? $"{objective} · {MedalStyle.DisplayName(_chaseTier.Value)}"
             : objective;
@@ -852,18 +875,9 @@ public class UIManager : MonoBehaviour
             ApplyTopBarPosition(); // the hearts ride the bar card, no separate reposition
         }
 
-        // Wave objective: the wave number advances from a timed confirm (no HUD event fires
-        // at that moment), so the readout polls the live modifier - a comparison per frame.
-        if (_waveObjective && scoreText != null)
-        {
-            HeightLimitWavesModifier run = HeightLimitWavesModifier.ActiveRun;
-            int wave = (run != null ? run.WavesCleared : 0) + 1;
-            if (wave != _shownWaveNumber)
-            {
-                _shownWaveNumber = wave;
-                scoreText.text = wave.ToString();
-            }
-        }
+        // Confirmed clears have no HUD event. Poll for waves left toward the next medal,
+        // or the current wave number after gold / in an endless puzzle.
+        UpdateWaveObjective();
 
         // The bar's pause button only shows during live play (same predicate the old
         // floating button used; the logic moved here with the button).

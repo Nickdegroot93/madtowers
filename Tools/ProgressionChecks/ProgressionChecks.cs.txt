@@ -1,0 +1,234 @@
+// Copy to Assets/SourceFiles/Scripts/Editor/ProgressionChecks.cs, run with
+// -batchmode -executeMethod ProgressionChecks.Run -quit, then remove the temporary script.
+// Uses in-memory progress only; does not start runs or contact the backend.
+using System;
+using System.Linq;
+using System.Reflection;
+using UnityEngine;
+using UnityEngine.UI;
+using Object = UnityEngine.Object;
+
+public static class ProgressionChecks
+{
+    const BindingFlags Private = BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance;
+    static int passed;
+    static ProgressStore.PlayerProgress progress;
+    static ChapterDefinition[] chapters;
+
+    static void Check(bool value, string message)
+    {
+        if (!value) throw new Exception("FAIL: " + message);
+        passed++;
+        Debug.Log("PROGRESSION PASS: " + message);
+    }
+
+    static void Complete(ChapterDefinition chapter)
+    {
+        foreach (var level in chapter.Levels) progress.completedLevelIds.Add(level.name);
+    }
+
+    static RunResultsScreen.Content Card(LevelDefinition level, bool firstClear, MedalTier? tier, bool victory = false)
+    {
+        var host = new GameObject("Progression test controller");
+        host.SetActive(false);
+        var controller = host.AddComponent<LevelRuntimeController>();
+        typeof(LevelRuntimeController).GetField("_level", Private).SetValue(controller, level);
+        typeof(LevelRuntimeController).GetField("_winCondition", Private).SetValue(controller, level.WinCondition);
+        typeof(LevelRuntimeController).GetField("_bronzeCompletedThisRun", Private).SetValue(controller, firstClear);
+        typeof(LevelRuntimeController).GetField("_highestTierEarnedThisRun", Private).SetValue(controller, tier);
+        try
+        {
+            return (RunResultsScreen.Content)typeof(LevelRuntimeController)
+                .GetMethod(victory ? "BuildVictoryContent" : "BuildGameOverContent", Private)
+                .Invoke(controller, victory ? new object[] { default(RunResult), firstClear } : null);
+        }
+        finally { Object.DestroyImmediate(host); }
+    }
+
+    static void CheckButtons(RunResultsScreen.Content content, string[] expected, bool attempts)
+    {
+        var host = new GameObject("Progression test results", typeof(RectTransform), typeof(Canvas));
+        host.SetActive(false);
+        var screen = host.AddComponent<RunResultsScreen>();
+        typeof(RunResultsScreen).GetField("_content", Private).SetValue(screen, content);
+        try
+        {
+            typeof(RunResultsScreen).GetMethod("Build", Private).Invoke(screen, null);
+            var buttons = host.GetComponentsInChildren<Button>(true)
+                .Where(b => b.GetComponentInChildren<Text>(true) != null).ToArray();
+            Check(buttons.Select(b => b.name).SequenceEqual(expected),
+                "Buttons: " + string.Join(", ", expected));
+            Check(host.GetComponentsInChildren<Transform>(true).Any(t => t.name == "AttemptsRow") == attempts,
+                "Attempt row matches action cost");
+            if (buttons.Length == 2)
+                Check(buttons[0].colors.normalColor != buttons[1].colors.normalColor,
+                    "Primary and secondary buttons are visually distinct");
+            if (content.PrimaryReturnsToMenu)
+            {
+                Check(buttons[0].interactable, "Menu primary is always available");
+                Check(buttons[1].interactable == !RunLivesUi.OutOfLives,
+                    "Secondary retry respects available attempts");
+                Check(content.OnSecondary != null, "Secondary retry callback supplied");
+            }
+            if (content.IntroductionComplete)
+                Check(host.GetComponentsInChildren<TMPro.TMP_Text>(true).Any(t => t.text == "TUTORIAL COMPLETE"),
+                    "Tutorial completion is explicitly announced");
+        }
+        finally { Object.DestroyImmediate(host); }
+    }
+
+    static void CheckRetiredActions(RunResultsScreen.Content content)
+    {
+        var host = new GameObject("Results retirement fixture");
+        host.SetActive(false);
+        var screen = host.AddComponent<RunResultsScreen>();
+        var activeField = typeof(RunResultsScreen).GetField("_active", Private);
+        object previous = activeField.GetValue(null);
+        int calls = 0;
+        content.OnPrimary = () => calls++;
+        content.OnSecondary = () => calls++;
+        typeof(RunResultsScreen).GetField("_content", Private).SetValue(screen, content);
+        activeField.SetValue(null, screen);
+        host.SetActive(true);
+        try
+        {
+            // An enabled retry may become unavailable when a late server response arrives.
+            typeof(RunResultsScreen).GetMethod("OnSecondaryClicked", Private).Invoke(screen, null);
+            Check(calls == 0, "Empty-attempt retry does not dispatch its callback");
+            Check(!(bool)typeof(RunResultsScreen).GetField("_closing", Private).GetValue(screen),
+                "Unavailable retry leaves the menu exit alive");
+            var watcherType = typeof(RunResultsScreen).GetNestedType("AttemptsWatcher", BindingFlags.NonPublic);
+            var watcher = host.AddComponent(watcherType);
+            watcherType.GetField("Screen").SetValue(watcher, screen);
+            var retryHost = new GameObject("Retry", typeof(RectTransform));
+            retryHost.transform.SetParent(host.transform, false);
+            var retryButton = retryHost.AddComponent<Button>();
+            watcherType.GetField("RetryButton").SetValue(watcher, retryButton);
+            var update = watcherType.GetMethod("Update", Private);
+            progress.attemptsCount = 1;
+            update.Invoke(watcher, null);
+            Check(retryButton.interactable && activeField.GetValue(null) == screen,
+                "Refill enables secondary retry without rebuilding the card");
+            progress.attemptsCount = 0;
+            watcherType.GetField("_next", Private).SetValue(watcher, 0f);
+            update.Invoke(watcher, null);
+            Check(!retryButton.interactable && activeField.GetValue(null) == screen,
+                "Late empty-meter update disables only secondary retry");
+            var retire = typeof(RunResultsScreen).GetMethod("TryRetire", Private);
+            Check((bool)retire.Invoke(screen, null), "First retirement succeeds");
+            Check(activeField.GetValue(null) == null && !host.activeSelf, "Retirement immediately removes the active card");
+            Check(!(bool)retire.Invoke(screen, null), "Second retirement is ignored");
+            progress.attemptsCount = 1;
+            typeof(RunResultsScreen).GetMethod("OnPrimaryClicked", Private).Invoke(screen, null);
+            typeof(RunResultsScreen).GetMethod("OnSecondaryClicked", Private).Invoke(screen, null);
+            Check(calls == 0, "Neither button dispatches from a retired card");
+            watcherType.GetField("_next", Private).SetValue(watcher, 0f);
+            update.Invoke(watcher, null);
+            Check(activeField.GetValue(null) == null, "Late refill does not resurrect a retired card");
+        }
+        finally
+        {
+            activeField.SetValue(null, previous);
+            Object.DestroyImmediate(host);
+        }
+    }
+
+    public static void Run()
+    {
+        var dataField = typeof(ProgressStore).GetField("_data", Private);
+        object original = dataField.GetValue(null);
+        bool online = SupabaseConfig.Enabled;
+        var letterField = typeof(MainMenuRuntime).GetField("_devLetterShownThisEditorSession", Private);
+        object letterShown = letterField.GetValue(null);
+        var selection = LevelSelectionState.SelectedLevel;
+        bool selectionPending = LevelSelectionState.IsSelectionPending;
+        try
+        {
+            SupabaseConfig.Enabled = false;
+            progress = new ProgressStore.PlayerProgress();
+            dataField.SetValue(null, progress);
+            letterField.SetValue(null, false);
+            chapters = Campaign.LoadChaptersInOrder();
+            Check(chapters.Length == 15, "All authored chapters loaded");
+            Check(!Campaign.UnlockAllForTesting, "Unlock-all absent in normal editor configuration");
+            for (int c = 0; c < chapters.Length; c++)
+            {
+                Check(!chapters[c].AlwaysUnlocked, "No sandbox bypass: " + chapters[c].DisplayName);
+                Check(Campaign.IsChapterUnlocked(chapters, c) == (c == 0), "Fresh-save chapter lock " + c);
+                for (int l = 0; l < chapters[c].Levels.Count; l++)
+                    Check(Campaign.IsLevelUnlocked(chapters[c], l) == (l == 0), "Sequential level lock " + c + ":" + l);
+            }
+            Func<bool> letterOwed = () => (bool)typeof(MainMenuRuntime).GetMethod("DevLetterOwnsAVisit", Private).Invoke(null, null);
+            Check(!letterOwed() && !AttemptsService.MetaEnabled, "Fresh save has no letter/meta");
+            Complete(chapters[1]);
+            Check(!letterOwed(), "Out-of-order Chapter 2 clear cannot trigger letter");
+            progress.completedLevelIds.Clear();
+            Complete(chapters[0]);
+            Check(!letterOwed() && !AttemptsService.MetaEnabled, "Chapter 1 clear has no letter/meta");
+            Complete(chapters[1]);
+            Check(letterOwed() && AttemptsService.MetaEnabled, "Reaching Neon Nightfall enables letter/meta");
+            letterField.SetValue(null, true);
+            Check(!letterOwed(), "Letter remains one-shot");
+
+            progress.completedLevelIds.Clear();
+            var tutorial = Card(chapters[0].Levels[0], true, MedalTier.Gold, victory: true);
+            Check(tutorial.IntroductionComplete && tutorial.PrimaryLabel == "Back to Main Menu",
+                "Tutorial retains its dedicated menu exit");
+            CheckButtons(tutorial, new[] { "Back to Main Menu" }, false);
+            var level = chapters[1].Levels[0]; // non-final scored level
+            Check(Card(level, false, null).PrimaryLabel == "Try Again", "Below bronze retries");
+            CheckButtons(Card(level, false, null), new[] { "Try Again", "Back to Main Menu" }, false);
+            Complete(chapters[0]);
+            progress.completedLevelIds.Add(level.name);
+            Check(Card(level, false, MedalTier.Silver).PrimaryLabel == "Try Again", "Replay newly earning silver retries");
+            Check(Card(level, false, MedalTier.Gold).PrimaryLabel == "Try Again", "Replay newly earning gold retries");
+            foreach (var tier in new[] { MedalTier.Bronze, MedalTier.Silver, MedalTier.Gold })
+            {
+                var first = Card(level, true, tier);
+                Check(first.PrimaryLabel == "Back to Main Menu" && first.UnlockMessage.Contains(chapters[1].Levels[1].DisplayName),
+                    "First clear recommends menu even if it earns " + tier);
+            }
+            var next = Card(level, true, MedalTier.Bronze);
+            LevelSelectionState.SelectLevel(level);
+            CheckButtons(next, new[] { "Back to Main Menu", "Try Again" }, false);
+            var last = chapters[0].Levels.Last();
+            var boundary = Card(last, true, MedalTier.Bronze);
+            Check(boundary.PrimaryLabel == "Back to Main Menu" && boundary.PrimaryReturnsToMenu,
+                "Chapter boundary routes to menu");
+            Check(boundary.UnlockMessage.Contains(chapters[1].DisplayName), "Chapter unlock names destination");
+            CheckButtons(boundary, new[] { "Back to Main Menu", "Try Again" }, false);
+
+            Complete(chapters[1]);
+            progress.attemptsCount = 0;
+            progress.attemptsUpdatedAtUnixUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            Check(RunLivesUi.OutOfLives, "Empty-attempt fixture active");
+            CheckButtons(boundary, new[] { "Back to Main Menu", "Try Again" }, true);
+            CheckButtons(next, new[] { "Back to Main Menu", "Try Again" }, true);
+            for (int c = 2; c < chapters.Length; c++) Complete(chapters[c]);
+            var finale = Card(chapters.Last().Levels.Last(), true, MedalTier.Bronze);
+            Check(finale.PrimaryLabel == "Back to Main Menu" && finale.PrimaryReturnsToMenu &&
+                finale.UnlockMessage.StartsWith("Campaign complete"), "Finale celebrates campaign completion");
+            CheckButtons(finale, new[] { "Back to Main Menu", "Try Again" }, true);
+            // The closed-test override allowed out-of-order completions. Do not advertise
+            // already-cleared content as newly unlocked or incomplete campaigns as finished.
+            Check(Card(level, true, MedalTier.Bronze).UnlockMessage == null,
+                "Already-cleared next level is not advertised as newly unlocked");
+            Check(Card(last, true, MedalTier.Bronze).UnlockMessage == null,
+                "Already-cleared next chapter is not advertised as newly unlocked");
+            progress.completedLevelIds.RemoveAll(id => id == chapters[0].Levels[0].name);
+            var partial = Card(chapters.Last().Levels.Last(), true, MedalTier.Bronze);
+            Check(partial.UnlockMessage == "Chapter complete!", "Final chapter alone is not campaign completion");
+            Complete(chapters[0]);
+            CheckRetiredActions(next);
+            Debug.Log("PROGRESSION CHECKS PASSED: " + passed);
+        }
+        finally
+        {
+            dataField.SetValue(null, original);
+            SupabaseConfig.Enabled = online;
+            letterField.SetValue(null, letterShown);
+            LevelSelectionState.SelectLevel(selection);
+            if (selectionPending) LevelSelectionState.BeginSelectionIfNeeded();
+        }
+    }
+}

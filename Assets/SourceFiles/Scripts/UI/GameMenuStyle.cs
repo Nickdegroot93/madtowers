@@ -34,7 +34,7 @@ public static class GameMenuStyle
     public static Color BodyText => new Color(0.82f, 0.86f, 0.88f, 1f);
 
     /// <summary>The one modal-panel treatment: rounded, opaque near-black, borderless.</summary>
-    public static void StylePanel(GameObject panel)
+    public static void StylePanel(GameObject panel, ChapterDefinition chapter = null)
     {
         if (panel == null) return;
         Image image = panel.GetComponent<Image>();
@@ -45,6 +45,9 @@ public static class GameMenuStyle
             image.pixelsPerUnitMultiplier = 3f;
             image.color = PanelColor;
         }
+        // Open compositions (the pause landing) have no panel surface to decorate.
+        if (image != null && image.enabled && image.color.a > 0f)
+            ChapterOrnaments.Dress(panel.transform, chapter != null ? chapter : ActiveChapter);
         // Deliberately NO outline (modal redesign): borders on modal panels read old-school.
     }
 

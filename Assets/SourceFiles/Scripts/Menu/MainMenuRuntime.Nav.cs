@@ -25,7 +25,7 @@ public static partial class MainMenuRuntime
             new Vector2(0f, -132f), new Vector2(740f, 54f), new Vector2(0.5f, 1f));
     }
 
-    // Home remains the primary destination: a raised chapter-coloured medallion.
+    // Play opens the level-selection screen, so players still choose boosts before a run.
     // The bar and its overhang both live inside the existing safe-area parent.
     private const float NavLabelY = -34f;
     private const float NavIconY = 22f;
@@ -39,6 +39,9 @@ public static partial class MainMenuRuntime
 
     private static Color HomeHexBottomColor(ChapterDefinition chapter) => Color.Lerp(
         chapter != null ? chapter.MenuAccentColor : MenuAccent, Color.black, .45f);
+
+    private static Color PlayGlowColor(ChapterDefinition chapter) => WithAlpha(
+        chapter != null ? chapter.MenuAccentColor : MenuAccent, .22f);
 
     private static void BuildBottomNav(Transform parent)
     {
@@ -55,6 +58,7 @@ public static partial class MainMenuRuntime
         _navOutline = RuntimeUiKit.AddOutline(nav, WithAlpha(accent, .32f));
         _navDividers.Clear();
         _navHexImage = null;
+        _navPlayGlow = null;
         MenuTab[] tabs = { MenuTab.Profile, MenuTab.Chapters, MenuTab.Home, MenuTab.Vault, MenuTab.Settings };
         for (int i = 0; i < tabs.Length; i++)
         {
@@ -78,6 +82,9 @@ public static partial class MainMenuRuntime
             _activeTab = MenuTab.Home;
             BuildMenu();
         });
+        _navPlayGlow = CreateImage(slot, "PlayGlow", RuntimeSprites.SoftBlob(), PlayGlowColor(chapter));
+        _navPlayGlow.raycastTarget = false;
+        SetCenteredAt(_navPlayGlow.rectTransform, new Vector2(.5f, .5f), new Vector2(0f, 8f), new Vector2(290f, 300f));
         Image face = CreateImage(slot, "HomeMedallion",
             MenuSprites.HexButton(HomeHexTopColor(chapter), HomeHexBottomColor(chapter)), Color.white);
         SetCenteredAt(face.rectTransform, new Vector2(.5f, .5f), new Vector2(0f, 8f), new Vector2(208f, 224f));
@@ -92,12 +99,13 @@ public static partial class MainMenuRuntime
         colors.pressedColor = new Color(.66f, .66f, .66f, 1f);
         button.colors = colors;
         face.CrossFadeColor(colors.normalColor, 0f, true, true);
-        var glyph = CreateImage(face.transform, "HomeIcon", MenuSprites.NavHouse(TextPrimary), Color.white);
-        SetCenteredAt(glyph.rectTransform, new Vector2(.5f, .5f), new Vector2(0f, 25f), new Vector2(66f, 66f));
+        var glyph = CreateImage(face.transform, "PlayIcon", MenuSprites.TrianglePlay(), TextPrimary);
+        glyph.raycastTarget = false;
+        SetCenteredAt(glyph.rectTransform, new Vector2(.5f, .5f), new Vector2(3f, 25f), new Vector2(76f, 76f));
         glyph.preserveAspect = true;
-        var label = CreateTmp(face.transform, "Label", "HOME", 22, TextPrimary, TextAnchor.MiddleCenter,
+        var label = CreateTmp(face.transform, "Label", "PLAY", 22, TextPrimary, TextAnchor.MiddleCenter,
             FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(0f, -38f), new Vector2(140f, 34f), new Vector2(.5f, .5f));
-        label.characterSpacing = 4f;
+        label.characterSpacing = 14f;
     }
 
     // One tab = a slot stretched to a fraction (1/count) of the bar, so widths track the screen.

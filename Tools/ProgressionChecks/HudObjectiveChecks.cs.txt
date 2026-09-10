@@ -1,0 +1,141 @@
+// Temporary Editor fixture: copy to Assets/SourceFiles/Scripts/Editor/HudObjectiveChecks.cs.
+// Run Unity -batchmode -nographics -executeMethod HudObjectiveChecks.Run -quit.
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+using TMPro;
+using UnityEngine;
+using Object = UnityEngine.Object;
+
+public static class HudObjectiveChecks
+{
+    const BindingFlags Private = BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+    static readonly List<Object> created = new List<Object>();
+    static int passed;
+    static HeightLimitWavesModifier waves;
+
+    static void Check(bool condition, string description)
+    {
+        if (!condition) throw new Exception("FAIL: " + description);
+        passed++;
+        Debug.Log("HUD PASS: " + description);
+    }
+    static void Call(UIManager ui, string name, params object[] args) =>
+        typeof(UIManager).GetMethod(name, Private).Invoke(ui, args);
+    static T Field<T>(UIManager ui, string name) => (T)typeof(UIManager).GetField(name, Private).GetValue(ui);
+    static LevelDefinition Level(LevelTargetType type, float target)
+    {
+        var level = LevelDefinition.CreateRuntime("HUD fixture", null, type, target, null);
+        created.Add(level);
+        return level;
+    }
+    static UIManager Hud(LevelDefinition level)
+    {
+        LevelSelectionState.SelectLevel(level);
+        var host = new GameObject("HUD fixture", typeof(RectTransform));
+        created.Add(host);
+        host.SetActive(false);
+        var rect = (RectTransform)host.transform;
+        rect.sizeDelta = new Vector2(348, 120); // actual objective group at 1080 reference width
+        var ui = host.AddComponent<UIManager>();
+        Call(ui, "ResolveObjective");
+        Call(ui, "BuildObjectiveCard", rect);
+        Call(ui, "UpdateWaveObjective");
+        return ui;
+    }
+    static void Cleared(UIManager ui, int count)
+    {
+        typeof(HeightLimitWavesModifier).GetField("_wavesCleared", Private).SetValue(waves, count);
+        Call(ui, "UpdateWaveObjective");
+    }
+    static void Readout(UIManager ui, string value, string caption)
+    {
+        var number = Field<TextMeshProUGUI>(ui, "scoreText");
+        var label = Field<TextMeshProUGUI>(ui, "_objectiveCaption");
+        Check(number.text == value, "Value " + value + " (got " + number.text + ")");
+        Check(label.text == caption, "Caption " + caption);
+        Check(label.GetPreferredValues().x <= label.rectTransform.rect.width, "Caption fits HUD width");
+        Check(number.GetPreferredValues().x <= number.rectTransform.rect.width, "Value fits HUD width");
+    }
+    public static void Run()
+    {
+        var data = typeof(ProgressStore).GetField("_data", Private);
+        object originalData = data.GetValue(null);
+        var active = typeof(HeightLimitWavesModifier).GetField("<ActiveRun>k__BackingField", Private);
+        object originalWaves = active.GetValue(null);
+        var selected = LevelSelectionState.SelectedLevel;
+        bool selectionPending = LevelSelectionState.IsSelectionPending;
+        try
+        {
+            var progress = new ProgressStore.PlayerProgress();
+            data.SetValue(null, progress);
+            waves = ScriptableObject.CreateInstance<HeightLimitWavesModifier>();
+            created.Add(waves);
+            active.SetValue(null, waves);
+            var level = Level(LevelTargetType.ClearWaves, 5);
+            var ui = Hud(level);
+            Readout(ui, "5<size=40%> left</size>", "WAVES · BRONZE");
+            Cleared(ui, 4);
+            Readout(ui, "1<size=40%> left</size>", "WAVE · BRONZE");
+            Cleared(ui, 5);
+            Readout(ui, "0<size=40%> left</size>", "WAVES · BRONZE");
+            Call(ui, "HandleTierEarned", level, MedalTier.Bronze);
+            Readout(ui, "1<size=40%> left</size>", "WAVE · SILVER");
+            Cleared(ui, 6);
+            Call(ui, "HandleTierEarned", level, MedalTier.Silver);
+            Readout(ui, "1<size=40%> left</size>", "WAVE · GOLD");
+            Cleared(ui, 7);
+            Readout(ui, "0<size=40%> left</size>", "WAVES · GOLD");
+            Call(ui, "HandleTierEarned", level, MedalTier.Gold);
+            Readout(ui, "8", "WAVE"); // updates immediately, without a new clear
+            Cleared(ui, 9);
+            Readout(ui, "10", "WAVE");
+            Check(UIManager.WavesRemaining(5, 8) == 0, "Overshoot never goes negative");
+
+            // Saved medals choose the next target at run start; all-gold replay shows wave 1.
+            level.name = "HUD_saved_wave_fixture";
+            progress.completedLevelIds.Add(level.name);
+            Cleared(ui, 0);
+            var replay = Hud(level);
+            Readout(replay, "6<size=40%> left</size>", "WAVES · SILVER");
+            progress.bests.Add(new ProgressStore.LevelBest { levelId = level.name, bestVerifiedValue = 7 });
+            replay = Hud(level);
+            Readout(replay, "1", "WAVE");
+
+            var endless = Level(LevelTargetType.Endless, 1);
+            typeof(LevelDefinition).GetField("modifiers", Private).SetValue(endless, new LevelModifier[] { waves });
+            replay = Hud(endless);
+            Readout(replay, "1", "WAVE");
+            Cleared(replay, 4);
+            Readout(replay, "5", "WAVE");
+
+            var blocks = Level(LevelTargetType.PlaceBlocks, 100);
+            ui = Hud(blocks);
+            Call(ui, "HandleStandingBlocksChanged", 20);
+            Readout(ui, "80", "BLOCKS · BRONZE");
+            Call(ui, "HandleTierEarned", blocks, MedalTier.Gold);
+            Call(ui, "HandleStandingBlocksChanged", 165);
+            Readout(ui, "165", "BLOCKS");
+            Call(ui, "HandleStandingBlocksChanged", 150);
+            Readout(ui, "150", "BLOCKS"); // current standing blocks, not cumulative placements
+
+            var height = Level(LevelTargetType.ReachHeight, 25.5f);
+            ui = Hud(height);
+            Call(ui, "HandleHeightChanged", 25.1f);
+            Readout(ui, "1<size=55%>m</size>", "HEIGHT · BRONZE");
+            Call(ui, "HandleTierEarned", height, MedalTier.Gold);
+            Call(ui, "HandleHeightChanged", 42.9f);
+            Readout(ui, "42<size=55%>m</size>", "HEIGHT");
+            Debug.Log("HUD OBJECTIVE CHECKS PASSED: " + passed);
+        }
+        finally
+        {
+            data.SetValue(null, originalData);
+            active.SetValue(null, originalWaves);
+            LevelSelectionState.SelectLevel(selected);
+            if (selectionPending) LevelSelectionState.BeginSelectionIfNeeded();
+            for (int i = created.Count - 1; i >= 0; i--) Object.DestroyImmediate(created[i]);
+            created.Clear();
+        }
+    }
+}

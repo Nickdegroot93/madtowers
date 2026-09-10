@@ -62,14 +62,14 @@ public static class AttemptsService
     /// explains them) live for this player? Gated on completing the first TWO chapters
     /// (§7.1; moved from chapter 1 on 2026-08-23 when the early chapters were compressed
     /// to ~5 min each - the gate follows the "first session monetization-silent" intent,
-    /// not a chapter index). The dev unlock-all define also opens it for testing.</summary>
+    /// not a chapter index). Editor unlock-all opens the shop for testing, but the letter
+    /// independently requires earned progression.</summary>
     public static bool MetaEnabled
     {
         get
         {
             if (Campaign.UnlockAllForTesting) return true;
-            ChapterDefinition[] chapters = Campaign.LoadChaptersInOrder();
-            return chapters.Length > 1 && Campaign.IsChapterCompleted(chapters[1]);
+            return Campaign.HasReachedChapterThree;
         }
     }
 

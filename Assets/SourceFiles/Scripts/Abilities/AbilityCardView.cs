@@ -4,8 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Runtime UGUI renderer for ability cards: the offer picker's three cards, the Vault's
-/// collection cards, and the shared detail panel. Cards are FLAT near-black slabs with a
+/// Runtime UGUI renderer for the offer picker's three cards and detail panel. Cards are FLAT near-black slabs with a
 /// plain hairline border (the neon ring / halo / gradient chrome was retired 2026-08-30 -
 /// Nick: no neon anywhere): heavy Archivo Black display type, a solid type chip, the icon
 /// on a dark tile, and a ghost DETAILS pill. AbilityChoiceController owns scheduling, pick
@@ -322,62 +321,6 @@ public static class AbilityCardView
         AddDetailsButton(cardObject.transform, accent, () => onDetails?.Invoke(detailDef));
 
         if (tier.Shine) AbilityCardShine.Attach(cardObject.transform, ShineColor(definition.Rarity, accent), tier.ShinePause);
-    }
-
-    // ---- collection card (Vault) ------------------------------------------------------------------
-
-    /// <summary>
-    /// The Vault's collection card: the same neon glass dressing as an offer card, minus the
-    /// offer-only chrome (no pick handler, no DETAILS sub-button, no Owned tag). Grid cards drop
-    /// the description (unreadable at grid size - the whole card opens the detail view);
-    /// <paramref name="large"/> re-adds it for the detail modal. An undiscovered ability renders
-    /// as a SILHOUETTE tease: darkened glass, near-black icon shadow, "???" - the name and rarity
-    /// colour stay part of the reward. Fills its parent rect; returns the card root.
-    /// </summary>
-    public static GameObject CreateCollectionCard(Transform parent, AbilityDefinition definition,
-        bool discovered, bool large)
-    {
-        Color accent = AbilityRarityInfo.GetColor(definition.Rarity);
-        TierStyle tier = GetTier(definition.Rarity);
-
-        GameObject cardObject = new GameObject(definition.name, typeof(RectTransform));
-        cardObject.transform.SetParent(parent, false);
-        RuntimeUiKit.Stretch((RectTransform)cardObject.transform);
-
-        BuildCardChrome(cardObject.transform, accent, tier, discovered);
-
-        if (large)
-        {
-            AddTitle(cardObject.transform, discovered ? definition.DisplayName : "???",
-                -36f, 80f, 38f, discovered ? RuntimeUiKit.TitleColor : LockedColor);
-            if (discovered) AddTypeChip(cardObject.transform, definition.Type, -132f, 1.15f);
-            AddIconTile(cardObject.transform, definition.Icon, accent, -190f, 240f, discovered);
-            if (discovered)
-                AddDescription(cardObject.transform, definition.ShortDescriptionFor(0), -450f, -602f, 24f);
-        }
-        else
-        {
-            AddTitle(cardObject.transform, discovered ? definition.DisplayName : "???",
-                -26f, 66f, 26f, discovered ? RuntimeUiKit.TitleColor : LockedColor);
-            if (discovered)
-            {
-                AddTypeChip(cardObject.transform, definition.Type, -102f, 0.92f);
-            }
-            else
-            {
-                Image lockIcon = RuntimeUiKit.CreateImage(cardObject.transform, "Lock",
-                    MenuSprites.Lock(LockedColor), Color.white);
-                lockIcon.preserveAspect = true;
-                RuntimeUiKit.SetRect(lockIcon.rectTransform, new Vector2(0f, -102f),
-                    new Vector2(34f, 34f), new Vector2(0.5f, 1f));
-            }
-            AddIconTile(cardObject.transform, definition.Icon, accent, -152f, 194f, discovered);
-        }
-
-        if (discovered && tier.Shine)
-            AbilityCardShine.Attach(cardObject.transform, ShineColor(definition.Rarity, accent), tier.ShinePause);
-
-        return cardObject;
     }
 
     // ---- detail panel (offer's DETAILS view) -------------------------------------------------------

@@ -52,10 +52,10 @@ public static partial class MainMenuRuntime
     /// <summary>Does the letter still owe this player its one showing? The link prompt
     /// defers its visit while this is true - one-shots never stack (the reveal-defer
     /// precedent), and the letter outranks the prompt because it explains the systems
-    /// that just switched on. Flag first: MetaEnabled walks the chapter list.</summary>
+    /// that just switched on. Requires earned progression even with editor unlock-all.</summary>
     private static bool DevLetterOwnsAVisit()
         => (Application.isEditor ? !_devLetterShownThisEditorSession : !ProgressStore.WasDevLetterShown())
-           && AttemptsService.MetaEnabled;
+           && Campaign.HasReachedChapterThree;
 
     /// <summary>Is the one-lifetime review ask still owed? (StoreReview.Asked carries the
     /// editor-session vs. real-save distinction.) Flag first: the chapter walk is O(levels)
@@ -99,6 +99,7 @@ public static partial class MainMenuRuntime
             // rather than stacking two full-screen modals (review 2026-08-22).
             while (UnlockRevealPending.PeekLevelId() != null
                    || Object.FindFirstObjectByType<MenuUnlockRevealRunner>() != null
+                   || (_pager != null && _pager.Busy)
                    || GameObject.Find("Refill Offer") != null)
             {
                 yield return null;
@@ -160,7 +161,7 @@ public static partial class MainMenuRuntime
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(W, 840f));
         Image panelImage = panel.gameObject.AddComponent<Image>();
-        GameMenuStyle.StylePanel(panel.gameObject);
+        GameMenuStyle.StylePanel(panel.gameObject, MenuPresentationChapter);
         ModalSafeFrame.Attach(panel); // the one modal-panel treatment
         panelImage.raycastTarget = true;
 

@@ -44,8 +44,9 @@ emotional peak, per platform best practice.
 
 ## 2. The letter (beat 1)
 
-- **Trigger**: first Chapter 1 completion, after the win flow settles, before the
-  player is back in the level list. Shown once ever (save flag, e.g.
+- **Trigger**: reaching Chapter 3, Neon Nightfall, by completing Chapters 1 and 2.
+  On the menu return, wait for the chapter unlock reveal and automatic slide to settle.
+  The editor unlock-all override cannot trigger the letter early. Shown once ever (save flag, e.g.
   `devLetterShownAtUnixUtc` next to `metaSystemsUnlockedAtUnixUtc`, DATA.md rules).
 - **Form**: modal in the standard taste contract (near-black body, neon edge, no
   ornament). Signed "— Nick". Single button: **KEEP PLAYING**. No price, no BUY

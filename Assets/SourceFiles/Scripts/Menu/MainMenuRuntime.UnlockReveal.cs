@@ -92,6 +92,7 @@ public static partial class MainMenuRuntime
         int nextChapterIndex = chapterIndex + 1;
         if (nextChapterIndex >= _chapters.Length) return;          // campaign end
         if (_chapters[nextChapterIndex].AlwaysUnlocked) return;    // never was locked
+        if (Campaign.IsChapterCompleted(_chapters[nextChapterIndex])) return; // old unlock-all save
         if (!Campaign.IsChapterCompleted(chapter)) return;         // stray completion (unlock-all testing)
         // Guards odd states (an earlier chapter still incomplete): never animate open a card
         // that will stay locked.

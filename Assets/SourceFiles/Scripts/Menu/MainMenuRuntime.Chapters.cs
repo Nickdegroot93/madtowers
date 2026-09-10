@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using static RuntimeUiKit;
 
-// The Chapters page: the campaign atlas. Every UNLOCKED chapter is a full-width poster card
+// The Chapters page: the campaign atlas. Every UNLOCKED chapter is a landmark on a vertical journey
 // built from the live ChapterDefinition list (Campaign.LoadChaptersInOrder via _chapters), so
 // reordering sortOrder or adding chapters reflows this page with zero UI changes. Locked
 // chapters are NOT rendered at all - the campaign's size is a secret (Nick 2026-08-30): no
@@ -15,15 +15,15 @@ using static RuntimeUiKit;
 public static partial class MainMenuRuntime
 {
     private const float ChapterCardSideInset = 60f;
-    private const float ChapterListTopInset = 300f;
+    private const float ChapterListTopInset = 342f;
     private const float ChapterListBottomInset = 220f;
-    private const float ChapterRowHeight = 400f;
-    // Text block's left edge and the action badge's centre-inset from the card's right edge.
-    private const float ChapterCardTextLeft = 36f;
-    private const float ChapterCardActionInsetRight = 70f;
+    private const float ChapterRowHeight = 360f;
 
     private static void BuildChaptersScreen(Transform parent, ChapterDefinition chapter)
     {
+        // The atlas has its own quiet ground so each landmark carries its world's identity.
+        Image atlasWash = CreateImage(parent, "AtlasWash", null, new Color(.025f, .04f, .055f, .97f));
+        Stretch(atlasWash.rectTransform); atlasWash.raycastTarget = false;
         BuildChaptersHeader(parent, chapter);
         BuildChaptersList(parent, chapter);
     }
@@ -53,14 +53,7 @@ public static partial class MainMenuRuntime
     // falling back to the last unlocked one when everything shipped is beaten.
     private static int CurrentCampaignChapterIndex()
     {
-        int lastUnlocked = 0;
-        for (int i = 0; i < _chapters.Length; i++)
-        {
-            if (!Campaign.IsChapterUnlocked(_chapters, i)) continue;
-            lastUnlocked = i;
-            if (!IsChapterFullyCompleted(_chapters[i])) return i;
-        }
-        return lastUnlocked;
+        return DefaultChapterIndex(_chapters);
     }
 
     private static void BuildChaptersHeader(Transform parent, ChapterDefinition chapter)
@@ -69,6 +62,9 @@ public static partial class MainMenuRuntime
             TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(76f, -196f), new Vector2(520f, 76f), new Vector2(0f, 1f));
         title.characterSpacing = 4f;
+        CreateTmp(parent, "JourneySubtitle", "One world at a time.", 25, TextMuted,
+            TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont,
+            new Vector2(78f, -282f), new Vector2(600f, 38f), new Vector2(0f, 1f));
 
         // No "/ total" and no header progress bar: both would bound the campaign, and its
         // size is a secret (see the file header). Cleared count only, once there is one.
@@ -87,232 +83,116 @@ public static partial class MainMenuRuntime
 
     private static void BuildChaptersList(Transform parent, ChapterDefinition chapter)
     {
-        // The Vault grid's exact scroll stack: masked viewport + layout content + clamped
-        // DirectionalScrollRect + a thin auto-hiding scrollbar in the right gutter.
-        RectTransform viewport = CreateRect(parent, "ChaptersViewport",
-            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-        viewport.offsetMin = new Vector2(0f, ChapterListBottomInset);
-        viewport.offsetMax = new Vector2(0f, -ChapterListTopInset);
-        Image viewportHit = viewport.gameObject.AddComponent<Image>();
-        viewportHit.color = Color.clear;
-        viewportHit.raycastTarget = true;
-        viewport.gameObject.AddComponent<RectMask2D>().padding = new Vector4(0f, -12f, 0f, -12f);
-
-        RectTransform content = CreateRect(viewport, "ChaptersContent",
-            new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-            Vector2.zero, Vector2.zero);
-        VerticalLayoutGroup layout = content.gameObject.AddComponent<VerticalLayoutGroup>();
-        layout.spacing = 0f;
-        layout.childAlignment = TextAnchor.UpperLeft;
-        layout.childControlWidth = true;
-        layout.childControlHeight = false;
-        layout.childForceExpandWidth = true;
-        layout.childForceExpandHeight = false;
-        content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-        ScrollRect scroll = viewport.gameObject.AddComponent<DirectionalScrollRect>();
-        scroll.content = content;
-        scroll.viewport = viewport;
-        scroll.horizontal = false;
-        scroll.vertical = true;
-        scroll.movementType = ScrollRect.MovementType.Clamped;
-        scroll.scrollSensitivity = 34f;
-
-        RectTransform sbar = CreateRect(parent, "ChaptersScrollbar",
-            new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
-        sbar.offsetMin = new Vector2(-42f, ChapterListBottomInset + 12f);
-        sbar.offsetMax = new Vector2(-34f, -(ChapterListTopInset + 12f));
-        Image track = sbar.gameObject.AddComponent<Image>();
-        track.sprite = RuntimeSprites.RoundedPanel();
-        track.type = Image.Type.Sliced;
-        track.pixelsPerUnitMultiplier = 6f;
-        track.color = WithAlpha(TextPrimary, 0.10f);
-        track.raycastTarget = false;
-        Scrollbar scrollbar = sbar.gameObject.AddComponent<Scrollbar>();
-        scrollbar.direction = Scrollbar.Direction.BottomToTop;
-        RectTransform handle = CreateRect(sbar, "Handle",
-            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-        Image handleImage = handle.gameObject.AddComponent<Image>();
-        handleImage.sprite = RuntimeSprites.RoundedPanel();
-        handleImage.type = Image.Type.Sliced;
-        handleImage.pixelsPerUnitMultiplier = 6f;
-        handleImage.color = WithAlpha(ChapterLight(chapter), 0.55f);
-        handleImage.raycastTarget = false;
-        scrollbar.handleRect = handle;
-        scrollbar.targetGraphic = handleImage;
-        scroll.verticalScrollbar = scrollbar;
-        scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+        ScrollRect scroll = BuildGalleryScroll(parent, "Chapters", chapter,
+            ChapterListTopInset, ChapterListBottomInset);
+        RectTransform viewport = scroll.viewport;
+        RectTransform content = scroll.content;
 
         int currentIndex = CurrentCampaignChapterIndex();
+        int currentRow = 0, visibleRows = 0;
         for (int i = 0; i < _chapters.Length; i++)
         {
             // The ambiguity rule: locked chapters simply don't exist on this page.
             if (!Campaign.IsChapterUnlocked(_chapters, i)) continue;
+            if (i == currentIndex) currentRow = visibleRows;
+            visibleRows++;
             RectTransform row = NewGridRow(content, ChapterRowHeight);
             BuildChapterCard(row, i, i == currentIndex);
         }
 
-        BuildLockedTeaserCard(content, 300f, "LOCKED",
-            "Finish the chapter above to continue your journey.");
+        BuildJourneyTeaser(content);
+        var focus = viewport.gameObject.AddComponent<ChapterJourneyFocus>();
+        focus.Scroll = scroll;
+        focus.RowIndex = currentRow;
+        focus.RowHeight = ChapterRowHeight;
     }
 
-    // The ambiguity teaser closing the Chapters list and the Vault's brick list: a sealed
-    // near-black slab promising MORE without ever counting it. Deliberately unconditional -
-    // it stays even when everything shipped is unlocked, so the current content edge never
-    // reads as "the end" (Nick 2026-08-30).
-    private static void BuildLockedTeaserCard(Transform content, float rowHeight, string title, string body)
-    {
-        RectTransform row = NewGridRow(content, rowHeight);
-        RectTransform card = CreateRect(row, "LockedTeaser",
-            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-        card.offsetMin = new Vector2(ChapterCardSideInset, CellGap);
-        card.offsetMax = new Vector2(-ChapterCardSideInset, -CellGap);
-        Image cardImage = card.gameObject.AddComponent<Image>();
-        cardImage.sprite = RuntimeSprites.RoundedPanel();
-        cardImage.type = Image.Type.Sliced;
-        cardImage.color = new Color(0.022f, 0.022f, 0.028f, 0.97f);
-        cardImage.raycastTarget = false;
-        MenuRule(card, WithAlpha(TextPrimary, 0.12f));
-
-        Image badge = CreateImage(card, "Badge",
-            MenuSprites.CircleBadge(WithAlpha(Color.black, 0.5f), WithAlpha(LockedColor, 0.65f)),
-            Color.white);
-        badge.raycastTarget = false;
-        SetCenteredAt(badge.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, 58f), new Vector2(70f, 70f));
-        Image lockIcon = CreateImage(badge.transform, "Lock", MenuSprites.Lock(LockedColor), Color.white);
-        lockIcon.preserveAspect = true;
-        lockIcon.raycastTarget = false;
-        SetCenteredAt(lockIcon.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(34f, 34f));
-
-        TextMeshProUGUI titleText = CreateTmp(card, "Title", title, 28,
-            Color.Lerp(LockedColor, TextPrimary, 0.55f), TextAnchor.MiddleCenter, FontStyle.Bold,
-            RuntimeUiKit.TitleFont, new Vector2(0f, -12f), new Vector2(640f, 38f), new Vector2(0.5f, 0.5f));
-        titleText.characterSpacing = 4f;
-
-        TextMeshProUGUI bodyText = CreateTmp(card, "Body", body, 20,
-            WithAlpha(TextMuted, 0.85f), TextAnchor.MiddleCenter, FontStyle.Normal,
-            RuntimeUiKit.DefaultFont, new Vector2(0f, -58f), new Vector2(660f, 40f), new Vector2(0.5f, 0.5f));
-        bodyText.textWrappingMode = TextWrappingModes.Normal;
-    }
-
-    // Only ever called for UNLOCKED chapters - locked ones aren't rendered (the ambiguity
-    // rule); the teaser card at the list's end is the sole locked-state surface.
+    // The entire landmark row is tappable; art, route and labels are decorative children.
     private static void BuildChapterCard(RectTransform row, int index, bool current)
     {
         ChapterDefinition chapter = _chapters[index];
         (int done, int total) = ChapterLevelCounts(chapter);
         bool completed = total > 0 && done == total;
-        Color chapterLight = ChapterLight(chapter);
-        Color green = new Color(0.56f, 0.74f, 0.5f, 1f);
+        Color ink = ChapterLight(chapter);
+        Color green = new Color(.56f, .74f, .5f);
+        JourneyRail(row, index == 0, current ? ink : WithAlpha(ink, .4f));
 
-        RectTransform card = CreateRect(row, "Card",
-            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-        card.offsetMin = new Vector2(ChapterCardSideInset, CellGap);
-        card.offsetMax = new Vector2(-ChapterCardSideInset, -CellGap);
-        Image cardImage = card.gameObject.AddComponent<Image>();
-        cardImage.sprite = RuntimeSprites.RoundedPanel();
-        cardImage.type = Image.Type.Sliced;
-        cardImage.color = new Color(0.05f, 0.06f, 0.065f, 1f);
+        RectTransform card = CreateRect(row, "Card", Vector2.zero, Vector2.one,
+            new Vector2(.5f, .5f), Vector2.zero, Vector2.zero);
+        card.SetAsFirstSibling();
+        card.offsetMin = new Vector2(52f, 12f); card.offsetMax = new Vector2(-60f, -12f);
+        var hit = card.gameObject.AddComponent<Image>();
+        hit.sprite = RuntimeSprites.RoundedPanel(); hit.type = Image.Type.Sliced;
+        hit.color = current ? new Color(.10f, .15f, .17f, .48f) : Color.clear;
+        // Place on the full row for stable responsive columns, inside the row-wide hit area.
+        ChapterArtwork.Place(row, chapter, "ChapterLandmark", new Vector2(.275f, .5f),
+            new Vector2(.5f, .5f), Vector2.zero, 280f);
+        RectTransform text = CreateRect(row, "ChapterDetails", new Vector2(.47f, 0f),
+            new Vector2(.94f, 1f), new Vector2(.5f, .5f), Vector2.zero, Vector2.zero);
+        var eyebrow = CreateTmp(text, "Eyebrow", $"CHAPTER {chapter.ChapterNumber:00}", 21,
+            ink, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        JourneyTextRect(eyebrow.rectTransform, 46f, 30f); eyebrow.characterSpacing = 5f;
+        var title = CreateTmp(text, "Title", chapter.DisplayName, 46, TextPrimary,
+            TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        JourneyTextRect(title.rectTransform, 82f, 100f);
+        title.textWrappingMode = TextWrappingModes.Normal; AutoSize(title, 30f, 46f);
+        var progress = CreateTmp(text, "Progress", $"{done} / {total} LEVELS", 23,
+            completed ? green : TextMuted, TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont);
+        JourneyTextRect(progress.rectTransform, 196f, 32f);
+        BuildChapterMedalStrip(text, chapter, new Vector2(0f, 84f), 310f, green);
+        var action = CreateTmp(text, "Action", current ? "CONTINUE  ›" : completed ? "REVISIT  ›" : "EXPLORE  ›", 23,
+            ink, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        JourneyTextRect(action.rectTransform, 300f, 36f); action.characterSpacing = 3f;
 
-        BuildChapterCardArt(card, chapter);
-
-        Color border = current
-            ? WithAlpha(Color.Lerp(chapterLight, Color.white, 0.25f), 1f)
-            : WithAlpha(TextPrimary, 0.34f);
-        MenuRule(card, border);
-
-        // Text block, bottom-left over the scrim: eyebrow / name / levels progress + capsule bar.
-        TextMeshProUGUI eyebrow = CreateTmp(card, "Eyebrow",
-            $"{TrackedUpper("Chapter", " ", "   ")}  {chapter.ChapterNumber}", 20,
-            Color.Lerp(chapterLight, TextPrimary, 0.45f),
-            TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(ChapterCardTextLeft, 158f), new Vector2(420f, 30f), new Vector2(0f, 0f));
-        eyebrow.characterSpacing = 6f;
-
-        TextMeshProUGUI title = CreateTmp(card, "Title", chapter.DisplayName.ToUpperInvariant(), 48,
-            TextPrimary, TextAnchor.MiddleLeft, FontStyle.Bold,
-            RuntimeUiKit.TitleFont, new Vector2(ChapterCardTextLeft - 2f, 94f),
-            new Vector2(640f, 62f), new Vector2(0f, 0f));
-        title.characterSpacing = 2f;
-        AutoSize(title, 30, 48);
-
-        Color progressColor = completed ? green : chapterLight;
-        string progressHex = ColorUtility.ToHtmlStringRGBA(completed ? green : TextPrimary);
-        string suffixHex = ColorUtility.ToHtmlStringRGBA(WithAlpha(progressColor, 0.9f));
-        CreateTmp(card, "Progress",
-            $"<color=#{progressHex}>{done} / {total}</color> <size=20><color=#{suffixHex}>LEVELS</color></size>", 28,
-            TextPrimary, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.DefaultFont,
-            new Vector2(ChapterCardTextLeft, 58f), new Vector2(420f, 36f), new Vector2(0f, 0f));
-
-        // One cube per level, tinted by that level's highest medal (ghost = not cleared, a
-        // green check = cleared with no ladder) - Mario-map style: which levels still owe you
-        // a rung reads at a glance. Replaced the capsule bar 2026-09-04. Totals INSIDE an
-        // unlocked chapter are fine (its levels are listed); it is chapter totals that are secret.
-        BuildChapterMedalStrip(card, chapter, new Vector2(ChapterCardTextLeft, 26f), 330f, green);
-
-        BuildChapterCardBadge(card, completed, chapterLight, green);
-
-        // Tapping a chapter jumps Home to it - the page doubles as long-range navigation
-        // (the same route the pager's commit callback takes, minus the slide).
-        Button button = card.gameObject.AddComponent<Button>();
-        button.targetGraphic = cardImage;
-        int selected = index;
-        button.onClick.AddListener(() =>
+        Image node = CreateImage(row, "JourneyNode",
+            MenuSprites.CircleBadge(new Color(.025f, .04f, .055f), completed ? green : ink), Color.white);
+        node.raycastTarget = false;
+        SetCenteredAt(node.rectTransform, new Vector2(0f, .5f), new Vector2(80f, 0f), Vector2.one * (current ? 44f : 32f));
+        if (completed)
         {
-            SfxPlayer.Play("ui-button-click");
-            _chapterIndex = selected;
-            _activeTab = MenuTab.Home;
-            BuildMenu();
-        });
-
-        ColorBlock colors = button.colors;
-        colors.normalColor = Color.white;
-        colors.highlightedColor = new Color(1.08f, 1.08f, 1.08f, 1f);
-        colors.pressedColor = new Color(0.88f, 0.88f, 0.88f, 1f);
-        colors.selectedColor = colors.highlightedColor;
-        button.colors = colors;
-    }
-
-    // The chapter's 9:16 background art, cover-cropped to the wide card (EnvelopeParent keeps
-    // the sprite's aspect and clips the overflow - never squashed), with a bottom scrim so the
-    // text block reads on any art.
-    private static void BuildChapterCardArt(RectTransform card, ChapterDefinition chapter)
-    {
-        RectTransform artFrame = CreateRect(card, "Art",
-            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-        artFrame.offsetMin = Vector2.zero;
-        artFrame.offsetMax = Vector2.zero;
-        MakeRoundedMask(artFrame);
-
-        Sprite sprite = chapter.MenuBackgroundImage;
-        if (sprite == null)
-        {
-            Color top = Color.Lerp(chapter.MenuAccentSecondaryColor, Color.black, 0.35f);
-            Color bottom = Color.Lerp(chapter.MenuAccentColor, Color.black, 0.68f);
-            sprite = MenuSprites.Background(top, bottom, chapter.MenuAccentColor);
+            var check = CreateImage(node.transform, "Cleared", MenuSprites.CheckMark(green), Color.white);
+            check.raycastTarget = false;
+            SetCenteredAt(check.rectTransform, new Vector2(.5f, .5f), Vector2.zero, Vector2.one * 18f);
         }
-
-        Image art = CreateImage(artFrame, "Image", sprite, Color.white);
-        Stretch(art.rectTransform);
-        FitToCover(art, SpriteAspect(sprite));
-
-        // Two stacked bottom-up fades: a tall soft veil plus a denser lower band, so the text
-        // block reads on the brightest art (Sakura's pink sky) without flattening the card's
-        // upper half. Both live inside the rounded mask.
-        AddChapterCardScrim(artFrame, 0.8f, 0.82f);
-        AddChapterCardScrim(artFrame, 0.58f, 0.95f);
+        var button = card.gameObject.AddComponent<Button>(); button.targetGraphic = hit;
+        var colors = button.colors; colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(1.15f, 1.15f, 1.15f); colors.pressedColor = new Color(.7f, .7f, .7f);
+        button.colors = colors;
+        button.onClick.AddListener(() => { SfxPlayer.Play("ui-button-click"); _chapterIndex = index;
+            _activeTab = MenuTab.Home; BuildMenu(); });
     }
 
-    private static void AddChapterCardScrim(RectTransform artFrame, float heightFraction, float bottomAlpha)
+    private static void JourneyTextRect(RectTransform rect, float top, float height)
     {
-        Image scrim = CreateImage(artFrame, "Scrim",
-            MenuSprites.VerticalFade(new Color(0f, 0f, 0f, 0f), new Color(0.02f, 0.02f, 0.03f, bottomAlpha)),
-            Color.white);
-        RectTransform scrimRect = scrim.rectTransform;
-        scrimRect.anchorMin = new Vector2(0f, 0f);
-        scrimRect.anchorMax = new Vector2(1f, heightFraction);
-        scrimRect.offsetMin = Vector2.zero;
-        scrimRect.offsetMax = Vector2.zero;
+        rect.anchorMin = new Vector2(0f, 1f); rect.anchorMax = Vector2.one;
+        rect.pivot = new Vector2(0f, 1f); rect.offsetMin = new Vector2(0f, -top-height);
+        rect.offsetMax = new Vector2(0f, -top);
+    }
+
+    private static void JourneyRail(RectTransform row, bool first, Color color)
+    {
+        Image rail = CreateImage(row, "JourneyRail", null, WithAlpha(color, .32f));
+        rail.raycastTarget = false;
+        var rect = rail.rectTransform; rect.anchorMin = Vector2.zero;
+        rect.anchorMax = new Vector2(0f, first ? .5f : 1f);
+        rect.offsetMin = new Vector2(79f, 0f); rect.offsetMax = new Vector2(81f, 0f);
+    }
+
+    private static void BuildJourneyTeaser(Transform content)
+    {
+        var row = NewGridRow(content, 224f);
+        JourneyRail(row, false, TextMuted);
+        var lockImage = CreateImage(row, "JourneyContinues", MenuSprites.Lock(TextMuted), Color.white);
+        lockImage.raycastTarget = false;
+        SetCenteredAt(lockImage.rectTransform, new Vector2(0f, .5f), new Vector2(80f, 0f), Vector2.one * 28f);
+        var text = CreateRect(row, "Beyond", new Vector2(.17f, 0f), new Vector2(.94f, 1f),
+            new Vector2(.5f, .5f), Vector2.zero, Vector2.zero);
+        var title = CreateTmp(text, "Title", "The journey continues", 30, TextPrimary,
+            TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont);
+        JourneyTextRect(title.rectTransform, 62f, 44f);
+        var body = CreateTmp(text, "Body", "Finish the chapter above to discover what’s next.", 23, TextMuted,
+            TextAnchor.MiddleLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont);
+        JourneyTextRect(body.rectTransform, 118f, 68f); body.textWrappingMode = TextWrappingModes.Normal;
     }
 
     private static void BuildChapterMedalStrip(RectTransform card, ChapterDefinition chapter,
@@ -360,43 +240,4 @@ public static partial class MainMenuRuntime
         }
     }
 
-    // Right-edge state badge: green check = cleared, chevron = enter. (No lock state - locked
-    // chapters aren't rendered on this page.)
-    private static void BuildChapterCardBadge(RectTransform card, bool completed,
-        Color chapterLight, Color green)
-    {
-        Vector2 anchor = new Vector2(1f, 0.5f);
-        Vector2 center = new Vector2(-ChapterCardActionInsetRight, 0f);
-
-        if (completed)
-        {
-            Image glow = CreateImage(card, "BadgeGlow",
-                MenuSprites.CircleBadge(WithAlpha(green, 0.10f), WithAlpha(green, 0.20f)), Color.white);
-            SetCenteredAt(glow.rectTransform, anchor, center, new Vector2(86f, 86f));
-        }
-
-        // Dark fill in every state (bright art would wash a tinted one out); the border and
-        // glyph carry the colour.
-        Color fill = completed
-            ? WithAlpha(Color.Lerp(Color.black, green, 0.22f), 0.8f)
-            : WithAlpha(Color.black, 0.38f);
-        Color border = completed
-            ? WithAlpha(green, 0.95f)
-            : WithAlpha(ChapterEdge(chapterLight), 1f);
-        Image badge = CreateImage(card, "Badge", MenuSprites.CircleBadge(fill, border), Color.white);
-        SetCenteredAt(badge.rectTransform, anchor, center, new Vector2(74f, 74f));
-
-        if (completed)
-        {
-            Image check = CreateImage(badge.transform, "Check", MenuSprites.CheckMark(green), Color.white);
-            check.preserveAspect = true;
-            SetCenteredAt(check.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(40f, 40f));
-        }
-        else
-        {
-            Image chevron = CreateImage(badge.transform, "Chevron", MenuSprites.Chevron(TextPrimary), Color.white);
-            chevron.preserveAspect = true;
-            SetCenteredAt(chevron.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(40f, 40f));
-        }
-    }
 }

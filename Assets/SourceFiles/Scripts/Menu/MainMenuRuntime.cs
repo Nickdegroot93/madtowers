@@ -19,7 +19,7 @@ public static partial class MainMenuRuntime
     private const float CurrencyCardFrostWash = 0.82f;
     private const float LevelCardFrostWash = 0.95f;
 
-    private const float LevelListTopInset = 414f;
+    private const float LevelListTopInset = 440f;
     // The list's scroll area must end ABOVE the next-chapter card (card bottom 232 + height 160
     // + a small gap): long chapters scroll behind neither the card nor the nav, and a partly
     // visible next row peeks out at this edge as the natural "there's more" cue.
@@ -67,6 +67,10 @@ public static partial class MainMenuRuntime
             return chapter != null ? ChapterLight(chapter) : new Color(0.9f, 0.9f, 0.9f, 1f);
         }
     }
+
+    // Modal ornament identity follows the menu page being viewed, independently of the last run.
+    private static ChapterDefinition MenuPresentationChapter => _chapters.Length > 0
+        ? _chapters[Mathf.Clamp(_chapterIndex, 0, _chapters.Length - 1)] : null;
 
     private enum MenuTab
     {
@@ -214,6 +218,9 @@ public static partial class MainMenuRuntime
     /// </summary>
     public static void ReturnToMenu()
     {
+        // Pin a pending reveal to its source chapter so chapter unlock + auto-slide play
+        // on the correct page when returning from a completed run.
+        if (UnlockRevealPending.PeekLevelId() != null) _chapterIndexInitialized = false;
         LevelSelectionState.ClearSelection();
         RunSuppliesState.ClearRun();
         LevelSelectionState.BeginSelectionIfNeeded();
@@ -251,6 +258,7 @@ public static partial class MainMenuRuntime
 
     private static void BuildMenu()
     {
+        CaptureVaultScrollPosition();
         _chapters = LoadChaptersWithLevels();
 
         if (_chapters.Length == 0)
@@ -331,6 +339,7 @@ public static partial class MainMenuRuntime
 
     private static void TearDownRoot()
     {
+        CaptureVaultScrollPosition();
         if (_root != null) UnityEngine.Object.Destroy(_root);
         _root = null;
         _backgroundLayer = null;

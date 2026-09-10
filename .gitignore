@@ -80,3 +80,9 @@ Tools/bin/
 !/ArtReviews/SurfaceRestyle/README.md
 
 /ArtReviews/MenuRestyle/
+
+# Chapter art masters and generated visual checks (shipping sprites live in Resources).
+Tools/ChapterArt/raw/
+Tools/ChapterArt/review/
+
+Tools/VaultReview/review/

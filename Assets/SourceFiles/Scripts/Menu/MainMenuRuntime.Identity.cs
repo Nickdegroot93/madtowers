@@ -54,7 +54,7 @@ public static partial class MainMenuRuntime
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(W, H));
         Image panelImage = panel.gameObject.AddComponent<Image>();
-        GameMenuStyle.StylePanel(panel.gameObject);
+        GameMenuStyle.StylePanel(panel.gameObject, MenuPresentationChapter);
         ModalSafeFrame.Attach(panel); // the one modal-panel treatment
         panelImage.raycastTarget = true;
 
@@ -305,7 +305,7 @@ public static partial class MainMenuRuntime
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(W, H));
         Image panelImage = panel.gameObject.AddComponent<Image>();
-        GameMenuStyle.StylePanel(panel.gameObject);
+        GameMenuStyle.StylePanel(panel.gameObject, MenuPresentationChapter);
         ModalSafeFrame.Attach(panel); // the one modal-panel treatment
         panelImage.raycastTarget = true;
 

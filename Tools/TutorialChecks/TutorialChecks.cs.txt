@@ -228,7 +228,8 @@ public static class TutorialChecks
             DisposeTutorial(tutorial); tutorial = null;
             cameraField.SetValue(null, oldCamera); pieceField.SetValue(null, null);
 
-            // Build actual TMP instructions at responsive canvas sizes, including a notch inset.
+            // Build actual TMP instructions with chapter art, including a notch inset.
+            LevelSelectionState.SelectLevel(level);
             tutorial = Tutorial(gm, level, data);
             Layouts(tutorial);
             DisposeTutorial(tutorial); tutorial = null;
@@ -246,6 +247,17 @@ public static class TutorialChecks
             Check(Get<TextMeshProUGUI>(hud, "_objectiveCaption").text == "PRACTICE", "HUD labels free practice");
             Call(hud, "HandleStandingBlocksChanged", 1);
             Check(Get<TextMeshProUGUI>(hud, "scoreText").text.StartsWith("1<"), "Practice counter follows collapse");
+            // Scene ordering: the tutorial may start before UIManager.Awake publishes the HUD.
+            uiField.SetValue(null, null);
+            tutorial = Tutorial(gm, level, data);
+            uiField.SetValue(null, hud);
+            tutorial.OnUpdate(null, .1f);
+            Check(Get<CanvasGroup>(hud, "_tutorialHudGroup").alpha == 0f &&
+                !Get<CanvasGroup>(hud, "_tutorialHudGroup").blocksRaycasts, "Late HUD stays hidden during welcome");
+            CameraIntroGate.Reset(); Call(tutorial, "ChooseWelcome", false); tutorial.OnUpdate(null, 1f);
+            Check(Get<CanvasGroup>(hud, "_tutorialHudGroup").blocksRaycasts && !Get<bool>(hud, "_welcomeHidden"),
+                "Late HUD is restored after welcome choice");
+            DisposeTutorial(tutorial); tutorial = null;
             string result = $"Tutorial checks: {passed} assertions passed.";
             Debug.Log(result);
             return result;
@@ -262,7 +274,8 @@ public static class TutorialChecks
             TouchGestureInput.Suspended = oldSuspended; BlockController.AllowedGestures = oldGestures;
             UnityEngine.Random.state = random;
             clips.Clear(); foreach (var kv in clipSnapshot) clips.Add(kv.Key, kv.Value);
-            if (selectionPending) LevelSelectionState.ClearSelection(); else LevelSelectionState.SelectLevel(oldSelection);
+            LevelSelectionState.SelectLevel(oldSelection);
+            if (selectionPending) LevelSelectionState.BeginSelectionIfNeeded();
         }
     }
 
@@ -339,6 +352,10 @@ public static class TutorialChecks
             float scale = Mathf.Sqrt(sizes[i,0] / 1080f * sizes[i,1] / 1920f);
             rect.sizeDelta = new Vector2(sizes[i,0] / scale, sizes[i,1] / scale);
             Canvas.ForceUpdateCanvases();
+            Call(t, "UpdateWelcome", 0f);
+            var panel = Get<RectTransform>(t, "_welcomePanel");
+            Check(panel.Find("ChapterOrnaments") != null && panel.rect.height * panel.localScale.y <= safeRect.rect.height - 60f,
+                "Decorated welcome fits safe height " + sizes[i,0] + "x" + sizes[i,1]);
             foreach (var label in welcome.GetComponentsInChildren<TextMeshProUGUI>(true)) Fits(label, $"welcome {sizes[i,0]}x{sizes[i,1]}");
             for (int step = 0; step < 5; step++)
             {

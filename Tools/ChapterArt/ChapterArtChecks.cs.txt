@@ -1,0 +1,154 @@
+// Copy into Assets/SourceFiles/Scripts/Editor for an isolated editor-only art/layout review.
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.UI;
+using Object = UnityEngine.Object;
+
+public static class ChapterArtChecks
+{
+    const BindingFlags Flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+    static FieldInfo Field(Type type, string name) => type.GetField(name, Flags);
+    static object Call(Type type, object target, string name, params object[] args) => type.GetMethod(name, Flags).Invoke(target, args);
+    static int checks;
+    static void Check(bool condition, string message) { if (!condition) throw new Exception(message); checks++; }
+
+    public static string Run()
+    {
+        if (EditorApplication.isPlaying) throw new Exception("Run outside Play Mode");
+        checks = 0;
+        var chapters = Campaign.LoadChaptersInOrder();
+        foreach (var chapter in chapters.Where(c => !c.AlwaysUnlocked))
+        {
+            foreach (var sprite in new[] { ChapterArtwork.Load(chapter), ChapterOrnaments.Load(chapter) })
+            {
+            Check(sprite != null, chapter.name + " has artwork");
+            var importer = (TextureImporter)AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(sprite));
+            Check(importer.textureType == TextureImporterType.Sprite && importer.spriteImportMode == SpriteImportMode.Single,
+                chapter.name + " is a sprite");
+            Check(!importer.isReadable && !importer.mipmapEnabled && importer.maxTextureSize == 512,
+                chapter.name + " has bounded texture storage");
+            Check(importer.alphaIsTransparency, chapter.name + " preserves alpha");
+            foreach (string platform in new[] { "Android", "iPhone" })
+            {
+                var settings = importer.GetPlatformTextureSettings(platform);
+                Check(settings.overridden && settings.format == TextureImporterFormat.ASTC_6x6,
+                    chapter.name + " compressed on " + platform);
+            }
+        }
+        }
+        var host = new GameObject("Art interaction check", typeof(RectTransform));
+        try
+        {
+            var image = ChapterArtwork.Place(host.transform, chapters[0], "Art", Vector2.one, Vector2.one, Vector2.zero, 172f);
+            Check(!image.raycastTarget && image.GetComponent<LayoutElement>().ignoreLayout, "Decorations cannot steal input or layout");
+            var trim = ChapterOrnaments.Dress(host.transform, chapters[0]);
+            Check(trim != null && !trim.GetComponent<CanvasGroup>().blocksRaycasts, "Trim never blocks modal input");
+            Check(ChapterOrnaments.Dress(host.transform, chapters[1]) == trim &&
+                trim.GetComponentInChildren<Image>().sprite == ChapterOrnaments.Load(chapters[1]), "Restyling reuses the trim and switches chapter art");
+            Check(ChapterArtwork.Place(host.transform, null, "Missing", Vector2.one, Vector2.one, Vector2.zero, 172f) == null,
+                "Unknown/custom chapters fall back without a blank image");
+        }
+        finally { Object.DestroyImmediate(host); }
+        return checks + " chapter-art checks passed";
+    }
+
+    public static string Render()
+    {
+        if (EditorApplication.isPlaying) throw new Exception("Run outside Play Mode");
+        var type = typeof(MainMenuRuntime);
+        var oldChapters = Field(type,"_chapters").GetValue(null);
+        var oldIndex = Field(type,"_chapterIndex").GetValue(null);
+        var oldData = Field(typeof(ProgressStore),"_data").GetValue(null);
+        bool online = SupabaseConfig.Enabled;
+        var oldLevel = LevelSelectionState.SelectedLevel;
+        bool oldPending = LevelSelectionState.IsSelectionPending;
+        var random = UnityEngine.Random.state;
+        GameObject root = null;
+        try
+        {
+            SupabaseConfig.Enabled = false;
+            var chapters = Campaign.LoadChaptersInOrder();
+            var data = new ProgressStore.PlayerProgress { firstLaunchHandled = true, tutorialCompleted = true };
+            foreach (var c in chapters) foreach (var l in c.Levels) data.completedLevelIds.Add(l.name);
+            Field(typeof(ProgressStore),"_data").SetValue(null,data);
+            Field(type,"_chapters").SetValue(null,chapters);
+            data.completedLevelIds.Clear();
+            foreach (var c in chapters.Take(2)) foreach(var level in c.Levels) data.completedLevelIds.Add(level.name);
+            Field(type,"_chapterIndex").SetValue(null,2);
+            root=RuntimeUiKit.CreateOverlayCanvas("Chapter journey review",2000);
+            Call(type,null,"BuildChaptersScreen",root.transform,chapters[2]);
+            Capture(root,"chapter-journey");
+            var landmarks=root.GetComponentsInChildren<Image>(true).Where(i=>i.name=="ChapterLandmark").ToArray();
+            Check(landmarks.Length==(Campaign.UnlockAllForTesting ? chapters.Length : 3),
+                "Atlas follows earned unlocks or the explicit Editor test override");
+            Check(root.GetComponentsInChildren<TMPro.TextMeshProUGUI>().Count(t=>t.name=="Action"&&t.text.StartsWith("CONTINUE"))==1,
+                "Atlas has one current destination");
+            var viewport=root.transform.Find("ChaptersViewport");
+            Check(viewport.GetComponent<ScrollRect>()!=null && root.transform.Find("ChaptersViewport/ChaptersContent")!=null,"Journey remains scrollable");
+            Object.DestroyImmediate(root);root=null;
+            // The level-summary keeps its authored challenge thumbnail and uses chapter trim.
+            var clips=(Dictionary<string,AudioClip>)Field(typeof(SfxPlayer),"_clips").GetValue(null);
+            bool hadClip=clips.TryGetValue("ui-button-click",out var clickClip);clips["ui-button-click"]=null;
+            try
+            {
+                foreach(int index in new[]{0,1,2,3,9})
+                {
+                    Field(type,"_chapterIndex").SetValue(null,index);
+                    Call(type,null,"OpenLevelSummary",chapters[index],chapters[index].Levels[0],0,true);
+                    root=GameObject.Find("Level Summary");Capture(root,"modal-"+chapters[index].ChapterNumber);
+                    Check(root.GetComponentsInChildren<Image>().Count(i=>i.name=="ChapterVignette")==0,"Modals contain no chapter stamp");
+                    Object.DestroyImmediate(root);root=null;
+                }
+            }
+            finally { if(hadClip)clips["ui-button-click"]=clickClip;else clips.Remove("ui-button-click"); }
+            var jungle=chapters[0]; LevelSelectionState.SelectLevel(jungle.Levels[0]);
+            root=RuntimeUiKit.CreateOverlayCanvas("Results art review",6500);
+            var scenery=RuntimeUiKit.CreateImage(root.transform,"Background",jungle.MenuBackgroundImage,Color.white);
+            RuntimeUiKit.Stretch(scenery.rectTransform);RuntimeUiKit.FitToCover(scenery,RuntimeUiKit.SpriteAspect(scenery.sprite));
+            var screen=root.AddComponent<RunResultsScreen>();
+            Field(typeof(RunResultsScreen),"_content").SetValue(screen,new RunResultsScreen.Content {
+                Victory=true,IntroductionComplete=true,Metric=new ResultMetric("STANDING BRICKS",25,0,false),
+                PrimaryLabel="Explore the chapters", OnPrimary=()=>{}, VictorySentence="Your first tower is standing.",
+                TierEarnedThisRun=MedalTier.Gold });
+            Call(typeof(RunResultsScreen),screen,"Build");Call(typeof(RunResultsScreen),screen,"FastForward");
+            Capture(root,"tutorial-complete");
+            return "Tools/ChapterArt/review";
+        }
+        finally
+        {
+            if(root!=null) Object.DestroyImmediate(root);
+            Field(type,"_chapters").SetValue(null,oldChapters);Field(type,"_chapterIndex").SetValue(null,oldIndex);
+            Field(typeof(ProgressStore),"_data").SetValue(null,oldData);
+            SupabaseConfig.Enabled=online;UnityEngine.Random.state=random;
+            LevelSelectionState.SelectLevel(oldLevel);if(oldPending)LevelSelectionState.BeginSelectionIfNeeded();
+        }
+    }
+
+    static void Capture(GameObject root,string name)
+    {
+        GameObject camHost=null;RenderTexture rt=null;Texture2D png=null;var previous=RenderTexture.active;
+        try
+        {
+            camHost=new GameObject("Chapter review camera",typeof(Camera));var cam=camHost.GetComponent<Camera>();
+            cam.enabled=false;cam.orthographic=true;cam.transform.position=new Vector3(0,0,-10);
+            cam.clearFlags=CameraClearFlags.SolidColor;cam.backgroundColor=new Color(.04f,.05f,.06f);cam.cullingMask=1<<31;
+            rt=new RenderTexture(780,1688,24);rt.Create();cam.targetTexture=rt;
+            var canvas=root.GetComponent<Canvas>();canvas.renderMode=RenderMode.ScreenSpaceCamera;
+            canvas.worldCamera=cam;canvas.planeDistance=2f;
+            foreach(var child in root.GetComponentsInChildren<Transform>(true))child.gameObject.layer=31;
+            Canvas.ForceUpdateCanvases();cam.Render();RenderTexture.active=rt;
+            png=new Texture2D(rt.width,rt.height,TextureFormat.RGB24,false);png.ReadPixels(new Rect(0,0,rt.width,rt.height),0,0);png.Apply();
+            System.IO.Directory.CreateDirectory("Tools/ChapterArt/review");
+            System.IO.File.WriteAllBytes("Tools/ChapterArt/review/"+name+".png",png.EncodeToPNG());
+        }
+        finally
+        {
+            RenderTexture.active=previous;if(camHost!=null)Object.DestroyImmediate(camHost);
+            if(rt!=null){rt.Release();Object.DestroyImmediate(rt);}if(png!=null)Object.DestroyImmediate(png);
+        }
+    }
+}

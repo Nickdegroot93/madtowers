@@ -1,0 +1,93 @@
+// Copy to Assets/SourceFiles/Scripts/Editor temporarily; run outside Play Mode.
+using System;
+using System.Reflection;
+using UnityEngine;
+using UnityEngine.UI;
+using Object = UnityEngine.Object;
+public static class MenuRegressionChecks
+{
+    const BindingFlags F = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance;
+    static readonly Type Menu = typeof(MainMenuRuntime);
+    static FieldInfo Field(string name) => Menu.GetField(name, F);
+    static object Call(string name, params object[] args) => Menu.GetMethod(name, F).Invoke(null, args);
+    static void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
+    public static string Run()
+    {
+        if (Application.isPlaying) throw new Exception("Stop Play Mode first");
+        string[] fields = { "_chapters", "_activeVaultTab", "_vaultScroll", "_vaultScrollTab" };
+        var saved = Array.ConvertAll(fields, name => Field(name).GetValue(null));
+        var positions = (float[])Field("_vaultScrollPositions").GetValue(null);
+        var oldPositions = (float[])positions.Clone();
+        var dataField = typeof(ProgressStore).GetField("_data", F);
+        var oldData = dataField.GetValue(null);
+        GameObject root = null;
+        ChapterDefinition sandbox = null;
+        try
+        {
+            Field("_vaultScroll").SetValue(null, null);
+            positions[0] = positions[1] = 1f;
+            var chapters = Campaign.LoadChaptersInOrder();
+            Field("_chapters").SetValue(null, chapters);
+            var data = new ProgressStore.PlayerProgress();
+            foreach (var variant in ContentCatalog.AllVariants()) data.discoveredBlocks.Add(ProgressStore.BlockId(variant));
+            dataField.SetValue(null, data);
+            void Select(string tab) => Field("_activeVaultTab").SetValue(null, Enum.Parse(Field("_activeVaultTab").FieldType, tab));
+            GalleryScrollRestore Build(bool restore = true)
+            {
+                root = RuntimeUiKit.CreateOverlayCanvas("Scroll regression", 2000);
+                Call("BuildVaultScreen", root.transform, chapters[0]);
+                var state = root.GetComponentInChildren<GalleryScrollRestore>();
+                if (restore) typeof(GalleryScrollRestore).GetMethod("Restore", F).Invoke(state, null);
+                return state;
+            }
+            void Retire()
+            {
+                Call("CaptureVaultScrollPosition");
+                Object.DestroyImmediate(root); root = null;
+            }
+            Select("Bricks");
+            var bricks = Build();
+            bricks.Scroll.verticalNormalizedPosition = .2f;
+            // Tab selection changes before BuildMenu captures the old tree.
+            Select("Abilities"); Retire();
+            Check(Mathf.Abs(positions[0] - .2f) < .001f, "Capture belongs to old tab");
+            var abilities = Build();
+            Check(Mathf.Abs(abilities.Scroll.verticalNormalizedPosition - 1f) < .001f, "New tab starts at top");
+            abilities.Scroll.verticalNormalizedPosition = .65f;
+            Select("Bricks"); Retire();
+            bricks = Build();
+            Check(Mathf.Abs(bricks.Scroll.verticalNormalizedPosition - .2f) < .001f, "Returning restores brick position");
+            Retire();
+            // A second rebuild before Start must not overwrite the saved position with top.
+            Build(false); Retire();
+            bricks = Build();
+            Check(Mathf.Abs(bricks.Scroll.verticalNormalizedPosition - .2f) < .001f, "Rapid rebuild preserves pending position");
+            Retire();
+            Select("Abilities"); abilities = Build();
+            Check(Mathf.Abs(abilities.Scroll.verticalNormalizedPosition - .65f) < .001f, "Abilities retain independent position");
+            Retire();
+            Select("Bricks"); data.discoveredBlocks.Clear();
+            bricks = Build();
+            Check(!float.IsNaN(bricks.Scroll.verticalNormalizedPosition), "Shrinking collection has finite position");
+            Retire();
+
+            sandbox = ScriptableObject.CreateInstance<ChapterDefinition>();
+            typeof(ChapterDefinition).GetField("alwaysUnlocked", F).SetValue(sandbox, true);
+            typeof(ChapterDefinition).GetField("levels", F).SetValue(sandbox, new[] { chapters[14].Levels[0] });
+            foreach (var level in chapters[0].Levels) data.completedLevelIds.Add(level.name);
+            var list = new[] { chapters[0], sandbox, chapters[1] };
+            Field("_chapters").SetValue(null, list);
+            Check((int)Call("DefaultChapterIndex", (object)list) == 2, "Home skips sandbox");
+            Check((int)Call("CurrentCampaignChapterIndex") == 2, "Journey skips sandbox");
+            return "8 menu regression checks passed: scroll restoration, tab isolation, rapid rebuild, shrinking collection, sandbox destination.";
+        }
+        finally
+        {
+            if (root != null) Object.DestroyImmediate(root);
+            if (sandbox != null) Object.DestroyImmediate(sandbox);
+            for (int i = 0; i < fields.Length; i++) Field(fields[i]).SetValue(null, saved[i]);
+            Array.Copy(oldPositions, positions, positions.Length);
+            dataField.SetValue(null, oldData);
+        }
+    }
+}

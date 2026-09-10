@@ -318,11 +318,71 @@ public class LevelRuntimeController : MonoBehaviour
             OnPrimary = () => { if (GameManager.Instance != null) GameManager.Instance.RestartGame(); },
         };
         PopulateTierContent(ref content);
+        PopulateFirstClearAction(ref content);
         // A run that newly earned a rung celebrates it on THIS card too, even when the gold
         // victory card already showed (Nick 2026-08-29: a game over after an achievement must
         // never read as a plain failure screen) - only the coin line stays suppressed above,
         // because those coins were genuinely already advertised and banked.
         return content;
+    }
+
+    private void PopulateFirstClearAction(ref RunResultsScreen.Content content)
+    {
+        // This latch survives silver/gold earned later in the same run. A replay never
+        // sets it, even if that replay earns a higher medal for the first time.
+        if (!_bronzeCompletedThisRun || _level == null || _level.IsIntroduction) return;
+        ChapterDefinition chapter = Campaign.FindChapterOf(_level);
+        if (chapter == null || chapter.AlwaysUnlocked || chapter.Levels == null) return;
+
+        content.OnSecondary = content.OnPrimary;
+        content.PrimaryLabel = "Back to Main Menu";
+        content.PrimaryReturnsToMenu = true;
+        content.OnPrimary = () =>
+        {
+            SfxPlayer.Play("ui-leave-game");
+            MainMenuRuntime.ReturnToMenu();
+        };
+
+        for (int i = 0; i < chapter.Levels.Count; i++)
+        {
+            if (chapter.Levels[i] != _level) continue;
+            if (i + 1 < chapter.Levels.Count)
+            {
+                LevelDefinition next = chapter.Levels[i + 1];
+                // Old unlock-all saves can already have cleared the following content.
+                if (next == null || ProgressStore.IsLevelCompleted(next) ||
+                    !Campaign.IsLevelUnlocked(chapter, i + 1)) return;
+                content.UnlockMessage = $"Next level unlocked: {next.DisplayName}";
+                return;
+            }
+
+            if (!Campaign.IsChapterCompleted(chapter)) return;
+            ChapterDefinition[] chapters = Campaign.LoadChaptersInOrder();
+            int nextChapterIndex = System.Array.IndexOf(chapters, chapter) + 1;
+            if (nextChapterIndex < chapters.Length)
+            {
+                if (chapters[nextChapterIndex].AlwaysUnlocked ||
+                    Campaign.IsChapterCompleted(chapters[nextChapterIndex]) ||
+                    !Campaign.IsChapterUnlocked(chapters, nextChapterIndex)) return;
+                content.UnlockMessage = $"Next chapter unlocked: {chapters[nextChapterIndex].DisplayName}";
+            }
+            else
+            {
+                bool campaignComplete = true;
+                foreach (ChapterDefinition campaignChapter in chapters)
+                {
+                    if (!campaignChapter.AlwaysUnlocked && !Campaign.IsChapterCompleted(campaignChapter))
+                    {
+                        campaignComplete = false;
+                        break;
+                    }
+                }
+                content.UnlockMessage = campaignComplete
+                    ? "Campaign complete! You've cleared every chapter."
+                    : "Chapter complete!";
+            }
+            return;
+        }
     }
 
     // The goal's own idea of "the score that matters" - a presentation-owning modifier wins
@@ -1048,7 +1108,7 @@ public class LevelRuntimeController : MonoBehaviour
             // never re-banks, so advertising the bonus would promise a payout that never lands.
             Coins = result.CoinsEarned + (bronzeCompletesThisRun ? CoinLedger.WinBonusCoins : 0),
             Boosted = RunSuppliesState.ActiveRunBoosted,
-            PrimaryLabel = introduction ? "Back to Menu" : "Keep Playing",
+            PrimaryLabel = introduction ? "Back to Main Menu" : "Keep Playing",
             VictorySentence = introduction ? IntroductionCompletionMessage()
                 : "Your tower still stands - keep stacking to push your best score even higher.",
             OnPrimary = introduction ? ReturnAfterIntroduction : ContinuePlaying,

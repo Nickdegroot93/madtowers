@@ -8,6 +8,7 @@ public partial class TutorialModifier
     private CanvasGroup _welcome;
     private RectTransform _welcomePanel;
     private GameManager _welcomeGameManager;
+    private UIManager _welcomeHud;
     private float _welcomeTime;
     private bool _skipWelcome;
     private const float WelcomeFadeSeconds = .45f;
@@ -31,6 +32,8 @@ public partial class TutorialModifier
         backing.sprite = RuntimeSprites.RoundedPanel();
         backing.type = Image.Type.Sliced;
         backing.color = new Color(.025f, .04f, .045f, .97f);
+
+        ChapterOrnaments.Dress(_welcomePanel, ChapterArtwork.ActiveChapter);
 
         var eyebrow = WelcomeText("Eyebrow", "YOUR FIRST TOWER", 23f, Secondary, 44f, 40f, true);
         eyebrow.characterSpacing = 4f;
@@ -96,6 +99,12 @@ public partial class TutorialModifier
     private void UpdateWelcome(float deltaTime)
     {
         _welcomeTime += deltaTime;
+        // Modifiers can start before the scene HUD has awakened. Bind once it becomes available.
+        if (_welcomeHud != UIManager.Instance && UIManager.Instance != null)
+        {
+            _welcomeHud = UIManager.Instance;
+            _welcomeHud.SetTutorialPresentation(welcoming: true, teaching: true);
+        }
         // Fit the authored height on short/landscape safe areas. Width still stretches.
         if (_welcomePanel != null)
         {

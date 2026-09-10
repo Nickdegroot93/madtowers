@@ -5,32 +5,48 @@ using UnityEngine.UI;
 using static RuntimeUiKit;
 
 // The Vault: the player's collection of discovered bricks and abilities. Discovered bricks
-// get a live-rendered showcase poster and a detail modal with the SAME looping demo the
+// get a baked studio showcase poster and a detail modal with the SAME looping demo the
 // in-game debut shows (BLOCKPREVIEWS.md's codex surface); UNDISCOVERED bricks are not
 // rendered at all - the collection's size is a secret (Nick 2026-08-30, the Chapters-page
 // ambiguity rule): no "7/15", just the finds plus one "undiscovered" teaser at the
 // bottom. Abilities keep the bounded collection game: locked entries are silhouettes +
-// "???" (the name is part of the reward); discovered ones get their real glass-slab card.
+// "???" (the name is part of the reward); discovered ones get a spacious icon-led gallery tile.
 // (partial of MainMenuRuntime, split from the main file for readability - same class, shared statics.)
 public static partial class MainMenuRuntime
 {
     private enum VaultTab { Bricks, Abilities }
     private static VaultTab _activeVaultTab = VaultTab.Bricks;
+    private static readonly float[] _vaultScrollPositions = { 1f, 1f };
+    private static GalleryScrollRestore _vaultScroll;
+    private static VaultTab _vaultScrollTab;
+
+    // Capture before destroying the old tree: Destroy is deferred, and the selected tab
+    // may already have changed. A not-yet-restored tree must not overwrite saved state.
+    private static void CaptureVaultScrollPosition()
+    {
+        if (_vaultScroll != null && _vaultScroll.IsRestored)
+            _vaultScrollPositions[(int)_vaultScrollTab] =
+                Mathf.Clamp01(_vaultScroll.Scroll.verticalNormalizedPosition);
+        _vaultScroll = null;
+    }
 
     private const float VaultSideInset = 60f;
-    private const float VaultSwitcherY = -302f;
-    private const float VaultSwitcherHeight = 92f;
-    private const float VaultGridTopInset = 430f;
+    private const float VaultSwitcherY = -342f;
+    private const float VaultSwitcherHeight = 80f;
+    private const float VaultGridTopInset = 450f;
     private const float VaultGridBottomInset = 220f;
-    private const float BrickRowHeight = 268f;
-    private const float AbilityRowHeight = 470f;
-    private const float SectionRowHeight = 92f;
+    private const float BrickRowHeight = 360f;
+    private const float AbilityRowHeight = 400f;
+    private const float SectionRowHeight = 96f;
     private const float CellGap = 12f;
 
     // ---- screen ------------------------------------------------------------------------------
 
     private static void BuildVaultScreen(Transform parent, ChapterDefinition chapter)
     {
+        Image wash = CreateImage(parent, "GalleryWash", null, new Color(.025f, .04f, .055f, .97f));
+        Stretch(wash.rectTransform);
+        wash.raycastTarget = false;
         BuildVaultHeader(parent, chapter);
         BuildVaultSwitcher(parent, chapter);
         BuildVaultGrid(parent, chapter);
@@ -38,48 +54,43 @@ public static partial class MainMenuRuntime
 
     private static void BuildVaultHeader(Transform parent, ChapterDefinition chapter)
     {
-        TextMeshProUGUI title = CreateTmp(parent, "VaultTitle", "VAULT", 60, TextPrimary,
+        var title = CreateTmp(parent, "VaultTitle", "VAULT", 60, TextPrimary,
             TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(76f, -196f), new Vector2(420f, 76f), new Vector2(0f, 1f));
         title.characterSpacing = 4f;
+        VaultText(parent, "VaultSubtitle", "A collection built along the way.", 25, TextMuted,
+            0f, 1f, 78f, -60f, -268f, 42f);
+        (int found, int total) = _activeVaultTab == VaultTab.Bricks
+            ? BrickCollectionCounts() : AbilityCollectionCounts();
+        VaultText(parent, "VaultProgress", _activeVaultTab == VaultTab.Bricks
+            ? $"{found} DISCOVERED" : $"{found} / {total} DISCOVERED", 22, MenuAccent,
+            .5f, 1f, 0f, -VaultSideInset, -210f, 34f, TextAnchor.MiddleRight);
+    }
 
-        bool bricksTab = _activeVaultTab == VaultTab.Bricks;
-        (int discovered, int total) = bricksTab
-            ? BrickCollectionCounts()
-            : AbilityCollectionCounts();
+    // Width-dependent text always stretches; long names wrap inside their own reserved area.
+    private static TextMeshProUGUI VaultText(Transform parent, string name, string value, int size,
+        Color color, float left, float right, float insetLeft, float insetRight, float top,
+        float height, TextAnchor alignment = TextAnchor.UpperLeft)
+    {
+        var area = CreateRect(parent, name + "Area", new Vector2(left, 1f), new Vector2(right, 1f),
+            new Vector2(.5f, 1f), Vector2.zero, Vector2.zero);
+        area.offsetMin = new Vector2(insetLeft, top - height);
+        area.offsetMax = new Vector2(insetRight, top);
+        var text = CreateTmp(area, name, value, size, color, alignment, FontStyle.Normal,
+            RuntimeUiKit.DefaultFont);
+        text.textWrappingMode = TextWrappingModes.Normal;
+        text.raycastTarget = false;
+        return text;
+    }
 
-        // Bricks keep their total a secret (the ambiguity rule, see the file header):
-        // count only, and no progress bar - a bounded bar would reveal the roster's size.
-        CreateTmp(parent, "VaultProgress",
-            bricksTab ? $"{discovered} DISCOVERED" : $"{discovered} / {total} DISCOVERED", 24,
-            MenuAccent, TextAnchor.MiddleRight, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(-VaultSideInset, -206f), new Vector2(420f, 34f), new Vector2(1f, 1f));
-        if (bricksTab) return;
-
-        // Thin capsule progress bar under the counter.
-        RectTransform track = CreateRect(parent, "ProgressTrack",
-            new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
-            new Vector2(-VaultSideInset, -246f), new Vector2(300f, 8f));
-        Image trackImage = track.gameObject.AddComponent<Image>();
-        trackImage.sprite = RuntimeSprites.RoundedPanel();
-        trackImage.type = Image.Type.Sliced;
-        trackImage.pixelsPerUnitMultiplier = 6f;
-        trackImage.color = WithAlpha(TextPrimary, 0.14f);
-        trackImage.raycastTarget = false;
-
-        float fraction = total > 0 ? (float)discovered / total : 0f;
-        if (fraction > 0f)
-        {
-            RectTransform fill = CreateRect(track, "Fill",
-                new Vector2(0f, 0f), new Vector2(fraction, 1f), new Vector2(0f, 0.5f),
-                Vector2.zero, Vector2.zero);
-            Image fillImage = fill.gameObject.AddComponent<Image>();
-            fillImage.sprite = RuntimeSprites.RoundedPanel();
-            fillImage.type = Image.Type.Sliced;
-            fillImage.pixelsPerUnitMultiplier = 6f;
-            fillImage.color = MenuAccent;
-            fillImage.raycastTarget = false;
-        }
+    private static void VaultLine(Transform parent, string name, Color color, float left, float right,
+        float y, float thickness = 1f)
+    {
+        var line = CreateImage(parent, name, null, color);
+        var rect = line.rectTransform;
+        rect.anchorMin = new Vector2(left, 0f); rect.anchorMax = new Vector2(right, 0f);
+        rect.offsetMin = new Vector2(0f, y); rect.offsetMax = new Vector2(0f, y + thickness);
+        line.raycastTarget = false;
     }
 
     private static void BuildVaultSwitcher(Transform parent, ChapterDefinition chapter)
@@ -89,17 +100,9 @@ public static partial class MainMenuRuntime
             Vector2.zero, Vector2.zero);
         bar.offsetMin = new Vector2(VaultSideInset, VaultSwitcherY - VaultSwitcherHeight);
         bar.offsetMax = new Vector2(-VaultSideInset, VaultSwitcherY);
-        Image barImage = bar.gameObject.AddComponent<Image>();
-        barImage.sprite = RuntimeSprites.RoundedPanel();
-        barImage.type = Image.Type.Sliced;
-        barImage.color = MenuGlassFill(chapter, 0.55f);
-        MenuRule(bar, GlassBorder);
-
-        // Bricks show the found count alone - no denominator (the ambiguity rule).
-        (int bricksFound, _) = BrickCollectionCounts();
-        (int abilitiesFound, int abilitiesTotal) = AbilityCollectionCounts();
-        BuildVaultTabHalf(bar, 0, $"BRICKS  {bricksFound}", VaultTab.Bricks);
-        BuildVaultTabHalf(bar, 1, $"ABILITIES  {abilitiesFound}/{abilitiesTotal}", VaultTab.Abilities);
+        VaultLine(bar, "TabRule", WithAlpha(TextPrimary, .12f), 0f, 1f, 0f);
+        BuildVaultTabHalf(bar, 0, "Bricks", VaultTab.Bricks);
+        BuildVaultTabHalf(bar, 1, "Abilities", VaultTab.Abilities);
     }
 
     private static void BuildVaultTabHalf(RectTransform bar, int index, string label, VaultTab tab)
@@ -107,15 +110,13 @@ public static partial class MainMenuRuntime
         RectTransform half = CreateRect(bar, $"Tab{tab}",
             new Vector2(index * 0.5f, 0f), new Vector2((index + 1) * 0.5f, 1f),
             new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-        half.offsetMin = new Vector2(8f, 8f);
-        half.offsetMax = new Vector2(-8f, -8f);
+        half.offsetMin = Vector2.zero;
+        half.offsetMax = Vector2.zero;
 
         bool selected = _activeVaultTab == tab;
         Image fill = half.gameObject.AddComponent<Image>();
-        fill.sprite = RuntimeSprites.RoundedPanel();
-        fill.type = Image.Type.Sliced;
-        fill.color = selected ? Color.Lerp(MenuAccent, Color.white, .78f) : Color.clear;
-        if (selected) MenuRule(half, WithAlpha(MenuAccent, 0.55f));
+        fill.color = Color.clear;
+        if (selected) VaultLine(half, "Selected", MenuAccent, .12f, .88f, 0f, 3f);
 
         Button button = half.gameObject.AddComponent<Button>();
         button.targetGraphic = fill;
@@ -128,7 +129,7 @@ public static partial class MainMenuRuntime
             BuildMenu();
         });
 
-        CreateTmp(half, "Label", label, 24, selected ? new Color(.13f,.13f,.14f,1) : TextMuted,
+        CreateTmp(half, "Label", label, 30, selected ? TextPrimary : TextMuted,
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
     }
 
@@ -136,73 +137,17 @@ public static partial class MainMenuRuntime
 
     private static void BuildVaultGrid(Transform parent, ChapterDefinition chapter)
     {
-        // The level list's exact scroll stack: masked viewport + layout content + clamped
-        // DirectionalScrollRect + a thin auto-hiding scrollbar in the right gutter.
-        RectTransform viewport = CreateRect(parent, "VaultViewport",
-            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-        viewport.offsetMin = new Vector2(0f, VaultGridBottomInset);
-        viewport.offsetMax = new Vector2(0f, -VaultGridTopInset);
-        Image viewportHit = viewport.gameObject.AddComponent<Image>();
-        viewportHit.color = Color.clear;
-        viewportHit.raycastTarget = true;
-        viewport.gameObject.AddComponent<RectMask2D>().padding = new Vector4(0f, -12f, 0f, -12f);
-
-        RectTransform content = CreateRect(viewport, "VaultContent",
-            new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-            Vector2.zero, Vector2.zero);
-        VerticalLayoutGroup layout = content.gameObject.AddComponent<VerticalLayoutGroup>();
-        layout.spacing = 0f;
-        layout.childAlignment = TextAnchor.UpperLeft;
-        layout.childControlWidth = true;
-        layout.childControlHeight = false;
-        layout.childForceExpandWidth = true;
-        layout.childForceExpandHeight = false;
-        content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-        ScrollRect scroll = viewport.gameObject.AddComponent<DirectionalScrollRect>();
-        scroll.content = content;
-        scroll.viewport = viewport;
-        scroll.horizontal = false;
-        scroll.vertical = true;
-        scroll.movementType = ScrollRect.MovementType.Clamped;
-        scroll.scrollSensitivity = 34f;
-
-        RectTransform sbar = CreateRect(parent, "VaultScrollbar",
-            new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
-        sbar.offsetMin = new Vector2(-42f, VaultGridBottomInset + 12f);
-        sbar.offsetMax = new Vector2(-34f, -(VaultGridTopInset + 12f));
-        Image track = sbar.gameObject.AddComponent<Image>();
-        track.sprite = RuntimeSprites.RoundedPanel();
-        track.type = Image.Type.Sliced;
-        track.pixelsPerUnitMultiplier = 6f;
-        track.color = WithAlpha(TextPrimary, 0.10f);
-        track.raycastTarget = false;
-        Scrollbar scrollbar = sbar.gameObject.AddComponent<Scrollbar>();
-        scrollbar.direction = Scrollbar.Direction.BottomToTop;
-        RectTransform handle = CreateRect(sbar, "Handle",
-            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-        Image handleImage = handle.gameObject.AddComponent<Image>();
-        handleImage.sprite = RuntimeSprites.RoundedPanel();
-        handleImage.type = Image.Type.Sliced;
-        handleImage.pixelsPerUnitMultiplier = 6f;
-        handleImage.color = WithAlpha(ChapterLight(chapter), 0.55f);
-        handleImage.raycastTarget = false;
-        scrollbar.handleRect = handle;
-        scrollbar.targetGraphic = handleImage;
-        scroll.verticalScrollbar = scrollbar;
-        scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
-
+        CaptureVaultScrollPosition();
+        ScrollRect scroll = BuildGalleryScroll(parent, "Vault", chapter,
+            VaultGridTopInset, VaultGridBottomInset);
+        RectTransform content = scroll.content;
         if (_activeVaultTab == VaultTab.Bricks) BuildBrickRows(content, chapter);
         else BuildAbilityRows(content, chapter);
-    }
 
-    private static RectTransform NewGridRow(Transform content, float height)
-    {
-        RectTransform row = CreateRect(content, "Row",
-            new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-            Vector2.zero, new Vector2(0f, height));
-        row.gameObject.AddComponent<LayoutElement>().preferredHeight = height;
-        return row;
+        _vaultScrollTab = _activeVaultTab;
+        _vaultScroll = scroll.gameObject.AddComponent<GalleryScrollRestore>();
+        _vaultScroll.Scroll = scroll;
+        _vaultScroll.Position = _vaultScrollPositions[(int)_activeVaultTab];
     }
 
     /// <summary>A cell anchored to its column fraction inside a stretched row - cell widths track
@@ -221,18 +166,8 @@ public static partial class MainMenuRuntime
 
     private static void AddNewBadge(RectTransform cell)
     {
-        RectTransform badge = CreateRect(cell, "NewBadge",
-            new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
-            new Vector2(6f, 10f), new Vector2(86f, 40f));
-        Image pill = badge.gameObject.AddComponent<Image>();
-        pill.sprite = RuntimeSprites.RoundedPanel();
-        pill.type = Image.Type.Sliced;
-        pill.pixelsPerUnitMultiplier = 3f;
-        pill.color = MenuAccent;
-        pill.raycastTarget = false;
-        TextMeshProUGUI text = CreateTmp(badge, "Text", "NEW", 18,
-            new Color(0.08f, 0.08f, 0.1f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold,
-            RuntimeUiKit.TitleFont);
+        var text = VaultText(cell, "NewBadge", "• NEW", 19, MenuAccent,
+            .5f, 1f, 0f, -18f, -12f, 28f, TextAnchor.MiddleRight);
         text.characterSpacing = 2f;
     }
 
@@ -261,7 +196,7 @@ public static partial class MainMenuRuntime
         List<BlockData> entries = BrickEntries();
 
         (int found, _) = BrickCollectionCounts();
-        if (found <= 1) BuildVaultEmptyBanner(content, "YOUR VAULT AWAITS",
+        if (found <= 1) BuildVaultEmptyBanner(content, "Your collection starts here",
             "Special bricks join your collection the first time they drop in play.");
 
         // One long horizontal card per DISCOVERED brick: thumbnail on the left, name +
@@ -279,7 +214,7 @@ public static partial class MainMenuRuntime
             BuildBrickCell(card, entry, chapter);
         }
 
-        BuildLockedTeaserCard(content, BrickRowHeight, "UNDISCOVERED",
+        BuildVaultEmptyBanner(content, "More to discover",
             "Push deeper into the chapters to find new kinds of bricks.");
     }
 
@@ -288,78 +223,44 @@ public static partial class MainMenuRuntime
     private static void BuildBrickCell(RectTransform cell, BlockData variant, ChapterDefinition chapter)
     {
         string id = ProgressStore.BlockId(variant);
+        Image hit = cell.gameObject.AddComponent<Image>();
+        hit.color = Color.clear;
+        VaultLine(cell, "Divider", WithAlpha(TextPrimary, .09f), 0f, 1f, 0f);
 
-        Image plate = cell.gameObject.AddComponent<Image>();
-        plate.sprite = RuntimeSprites.RoundedPanel();
-        plate.type = Image.Type.Sliced;
-        plate.color = GameMenuStyle.PanelColor;
-        MenuRule(cell, GlassBorder);
-
-        // The square thumbnail zone fills the card's left end (card height minus padding), the
-        // text block takes the rest.
-        float thumb = BrickRowHeight - CellGap * 2f - 28f; // = 216 at reference
-        float textLeft = 14f + thumb + 26f;
-
-        // Left: the square live-rendered showcase (the T brick in its real skin), rounded.
-        var posterHolder = new GameObject("PosterFrame", typeof(RectTransform));
-        RectTransform posterRect = (RectTransform)posterHolder.transform;
-        posterRect.SetParent(cell, false);
-        posterRect.anchorMin = new Vector2(0f, 0.5f);
-        posterRect.anchorMax = new Vector2(0f, 0.5f);
-        posterRect.pivot = new Vector2(0f, 0.5f);
-        posterRect.anchoredPosition = new Vector2(14f, 0f);
-        posterRect.sizeDelta = new Vector2(thumb, thumb);
+        var posterArea = CreateRect(cell, "PosterArea", new Vector2(0f, .5f),
+            new Vector2(.40f, .5f), new Vector2(.5f, .5f), Vector2.zero, new Vector2(-20f, 300f));
+        var posterRect = CreateRect(posterArea, "PosterFrame", Vector2.zero, Vector2.one,
+            new Vector2(.5f, .5f), Vector2.zero, Vector2.zero);
+        var square = posterRect.gameObject.AddComponent<AspectRatioFitter>();
+        square.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+        square.aspectRatio = 1f;
+        // Keep the real studio render; a single soft frame replaces the nested card chrome.
         MakeRoundedMask(posterRect);
-        RawImage poster = CreateRawImage(posterRect, "Poster", null, WithAlpha(Color.black, 0.35f));
-        Stretch(poster.rectTransform);
-        poster.raycastTarget = false;
+        var poster = CreateRawImage(posterRect, "Poster", null, Color.white);
+        Stretch(poster.rectTransform); poster.raycastTarget = false;
         VaultPosterService.Assign(variant, chapter, poster);
 
-        // Right: name, hazard chip beside it when applicable, then the summary line(s).
+        bool hazard = variant != null && variant.IsHazard;
+        VaultText(cell, "Category", hazard ? "HAZARD" : "BRICK", 18,
+            hazard ? new Color(.93f, .62f, .54f) : MenuAccent,
+            .44f, 1f, 0f, -18f, -42f, 26f);
         string display = variant != null ? variant.DisplayName : "Normal";
-        CreateTmp(cell, "Name", display.ToUpperInvariant(), 32, TextPrimary,
-            TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(textLeft, 62f), new Vector2(380f, 42f), new Vector2(0f, 0.5f));
-
-        if (variant != null && variant.IsHazard)
-        {
-            RectTransform chip = CreateRect(cell, "HazardChip",
-                new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-                new Vector2(-22f, 62f), new Vector2(112f, 34f));
-            Image chipImage = chip.gameObject.AddComponent<Image>();
-            chipImage.sprite = RuntimeSprites.RoundedPanel();
-            chipImage.type = Image.Type.Sliced;
-            chipImage.pixelsPerUnitMultiplier = 3f;
-            chipImage.color = new Color(0.5f, 0.14f, 0.12f, 0.9f);
-            chipImage.raycastTarget = false;
-            CreateTmp(chip, "Text", "HAZARD", 18, new Color(1f, 0.82f, 0.78f, 1f),
-                TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont);
-        }
-
+        var title = VaultText(cell, "Name", display, 36, TextPrimary,
+            .44f, 1f, 0f, -18f, -80f, 86f);
+        title.font = RuntimeUiKit.TmpTitleFont;
+        AutoSize(title, 28f, 36f);
         string summary = variant != null && !string.IsNullOrWhiteSpace(variant.BehaviourSummary)
             ? variant.BehaviourSummary
-            : (id == "Normal" ? "The dependable standard brick" : BlockDemoCatalog.Caption(variant));
-        RectTransform summaryRect = CreateRect(cell, "SummaryArea",
-            new Vector2(0f, 0f), new Vector2(1f, 0.5f), new Vector2(0f, 1f),
-            Vector2.zero, Vector2.zero);
-        summaryRect.offsetMin = new Vector2(textLeft, 12f);
-        summaryRect.offsetMax = new Vector2(-22f, 34f);
-        TextMeshProUGUI line = CreateTmp(summaryRect, "Summary", summary, 20, TextMuted,
-            TextAnchor.UpperLeft, FontStyle.Normal, RuntimeUiKit.DefaultFont);
-        line.textWrappingMode = TextWrappingModes.Normal;
-        line.overflowMode = TextOverflowModes.Ellipsis;
+            : (id == "Normal" ? "The dependable standard brick." : BlockDemoCatalog.Caption(variant));
+        var description = VaultText(cell, "Summary", summary, 23, TextMuted,
+            .44f, 1f, 0f, -18f, -171f, 94f);
+        description.overflowMode = TextOverflowModes.Ellipsis;
+        VaultText(cell, "Action", "Take a closer look  ›", 21, MenuAccent,
+            .44f, 1f, 0f, -18f, -284f, 32f);
 
-        Button button = cell.gameObject.AddComponent<Button>();
-        button.targetGraphic = plate;
-        ColorBlock colors = button.colors;
-        colors.normalColor = Color.white;
-        colors.highlightedColor = new Color(1.12f, 1.12f, 1.12f, 1f);
-        colors.pressedColor = new Color(0.86f, 0.86f, 0.86f, 1f);
-        colors.selectedColor = colors.highlightedColor;
-        button.colors = colors;
-        BlockData captured = variant;
-        button.onClick.AddListener(() => OpenBrickDetail(captured, chapter));
-
+        var button = cell.gameObject.AddComponent<Button>();
+        button.targetGraphic = poster;
+        button.onClick.AddListener(() => OpenBrickDetail(variant, chapter));
         if (!ProgressStore.HasInspectedInVault(id)) AddNewBadge(cell);
     }
 
@@ -378,12 +279,12 @@ public static partial class MainMenuRuntime
         List<AbilityDefinition> all = ContentCatalog.AllAbilities();
 
         (int found, _) = AbilityCollectionCounts();
-        if (found == 0) BuildVaultEmptyBanner(content, "NO ABILITIES SEEN YET",
+        if (found == 0) BuildVaultEmptyBanner(content, "A little power goes a long way",
             "Every ability shown in an offer joins your collection - picked or not.");
 
         // Rarity sections, derived from the catalog's rarity-then-name order: emit a header row
-        // whenever the rarity changes, then fill 3-column rows within the section.
-        const int columns = 3;
+        // whenever the rarity changes, then fill 2-column rows within the section.
+        const int columns = 2;
         int i = 0;
         while (i < all.Count)
         {
@@ -412,64 +313,47 @@ public static partial class MainMenuRuntime
 
     private static void BuildAbilitySectionHeader(Transform content, AbilityRarity rarity, int found, int total)
     {
-        RectTransform row = NewGridRow(content, SectionRowHeight);
+        var row = NewGridRow(content, SectionRowHeight);
         Color color = AbilityRarityInfo.GetColor(rarity);
-
-        CreateTmp(row, "Label", $"{rarity.ToString().ToUpperInvariant()}  —  {found} / {total}", 26,
-            Color.Lerp(color, TextPrimary, 0.25f), TextAnchor.MiddleLeft, FontStyle.Bold,
-            RuntimeUiKit.TitleFont, new Vector2(VaultSideInset, 0f), new Vector2(520f, 40f), new Vector2(0f, 0.5f));
-
-        Image bar = CreateImage(row, "Bar", RuntimeSprites.SoftHorizontalBar(0.1f), WithAlpha(color, 0.4f));
-        RectTransform barRect = bar.rectTransform;
-        barRect.anchorMin = new Vector2(0.55f, 0.5f);
-        barRect.anchorMax = new Vector2(1f, 0.5f);
-        barRect.offsetMin = new Vector2(0f, -2f);
-        barRect.offsetMax = new Vector2(-VaultSideInset, 2f);
-        bar.raycastTarget = false;
+        VaultText(row, "Label", rarity.ToString().ToUpperInvariant(), 22,
+            Color.Lerp(color, TextPrimary, .35f), 0f, .7f, VaultSideInset, 0f, -34f, 32f);
+        VaultText(row, "Count", $"{found} / {total}", 21, TextMuted,
+            .7f, 1f, 0f, -VaultSideInset, -34f, 32f, TextAnchor.MiddleRight);
     }
 
     private static void BuildAbilityCell(RectTransform cell, AbilityDefinition ability)
     {
         bool discovered = ProgressStore.HasSeenAbility(ability);
-        GameObject card = AbilityCardView.CreateCollectionCard(cell, ability, discovered, large: false);
-
+        Color accent = discovered ? AbilityRarityInfo.GetColor(ability.Rarity) : TextMuted;
+        Image surface = cell.gameObject.AddComponent<Image>();
+        surface.sprite = RuntimeSprites.RoundedPanel(); surface.type = Image.Type.Sliced;
+        surface.color = discovered ? new Color(.065f, .08f, .095f, 1f) : new Color(.045f, .055f, .065f, 1f);
+        surface.raycastTarget = discovered;
+        VaultLine(cell, "RarityAccent", WithAlpha(accent, discovered ? .65f : .15f), .42f, .58f, 22f, 2f);
+        var icon = CreateImage(cell, "Icon", ability.Icon != null ? ability.Icon : RuntimeSprites.AbilityGlyph(),
+            discovered ? Color.white : new Color(.13f, .15f, .17f, 1f));
+        SetRect(icon.rectTransform, new Vector2(0f, -44f), new Vector2(180f, 180f), new Vector2(.5f, 1f));
+        icon.preserveAspect = true; icon.raycastTarget = false;
+        var title = VaultText(cell, "Name", discovered ? ability.DisplayName : "???", 30,
+            discovered ? TextPrimary : TextMuted, 0f, 1f, 20f, -20f, -234f, 76f, TextAnchor.MiddleCenter);
+        title.font = RuntimeUiKit.TmpTitleFont;
+        AutoSize(title, 23f, 30f);
+        VaultText(cell, "Type", discovered ? AbilityTypeInfo.GetLabel(ability.Type) : "UNDISCOVERED", 18,
+            discovered ? Color.Lerp(AbilityTypeInfo.GetColor(ability.Type), TextPrimary, .55f) : TextMuted,
+            0f, 1f, 20f, -20f, -319f, 28f, TextAnchor.MiddleCenter);
         if (!discovered) return;
-
-        // The whole card opens the detail view (grid cards carry no DETAILS sub-button).
-        Image hit = cell.gameObject.AddComponent<Image>();
-        hit.color = Color.clear;
-        hit.raycastTarget = true;
-        Button button = cell.gameObject.AddComponent<Button>();
-        button.targetGraphic = card.GetComponent<Image>();
-        ColorBlock colors = button.colors;
-        colors.normalColor = Color.white;
-        colors.highlightedColor = new Color(1.12f, 1.12f, 1.12f, 1f);
-        colors.pressedColor = new Color(0.85f, 0.85f, 0.85f, 1f);
-        colors.selectedColor = colors.highlightedColor;
-        button.colors = colors;
-        AbilityDefinition captured = ability;
-        button.onClick.AddListener(() => OpenAbilityDetail(captured));
-
+        var button = cell.gameObject.AddComponent<Button>(); button.targetGraphic = surface;
+        button.onClick.AddListener(() => OpenAbilityDetail(ability));
         if (!ProgressStore.HasInspectedInVault(ability.name)) AddNewBadge(cell);
     }
 
     private static void BuildVaultEmptyBanner(Transform content, string title, string body)
     {
-        RectTransform row = NewGridRow(content, 190f);
-        RectTransform banner = CreateRect(row, "Banner",
-            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-        banner.offsetMin = new Vector2(VaultSideInset, 14f);
-        banner.offsetMax = new Vector2(-VaultSideInset, -14f);
-        Image image = banner.gameObject.AddComponent<Image>();
-        image.sprite = RuntimeSprites.RoundedPanel();
-        image.type = Image.Type.Sliced;
-        image.color = WithAlpha(CardDark, 0.9f);
-        MenuRule(banner, WithAlpha(MenuAccent, 0.4f));
-
-        CreateTmp(banner, "Title", title, 32, MenuAccent, TextAnchor.MiddleCenter, FontStyle.Bold,
-            RuntimeUiKit.TitleFont, new Vector2(0f, -46f), new Vector2(700f, 44f), new Vector2(0.5f, 1f));
-        CreateTmp(banner, "Body", body, 22, TextMuted, TextAnchor.MiddleCenter, FontStyle.Normal,
-            RuntimeUiKit.DefaultFont, new Vector2(0f, -102f), new Vector2(760f, 40f), new Vector2(0.5f, 1f));
+        var row = NewGridRow(content, 200f);
+        VaultText(row, "Title", title, 30, TextPrimary,
+            0f, 1f, VaultSideInset + 16f, -VaultSideInset, -30f, 46f);
+        VaultText(row, "Body", body, 24, TextMuted,
+            0f, 1f, VaultSideInset + 16f, -VaultSideInset, -88f, 90f);
     }
 
     // ---- detail modals ---------------------------------------------------------------------------
@@ -540,9 +424,9 @@ public static partial class MainMenuRuntime
 
         RectTransform panel = CreateRect(overlay.transform, "Panel",
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            Vector2.zero, new Vector2(880f, 1240f));
+            Vector2.zero, new Vector2(880f, 1320f));
         Image panelImage = panel.gameObject.AddComponent<Image>();
-        GameMenuStyle.StylePanel(panel.gameObject);
+        GameMenuStyle.StylePanel(panel.gameObject, MenuPresentationChapter);
         ModalSafeFrame.Attach(panel); // the one modal-panel treatment
         panelImage.raycastTarget = true;
 
@@ -553,42 +437,54 @@ public static partial class MainMenuRuntime
         demoRect.anchorMin = new Vector2(0f, 1f);
         demoRect.anchorMax = new Vector2(1f, 1f);
         demoRect.pivot = new Vector2(0.5f, 1f);
-        demoRect.offsetMin = new Vector2(20f, -646f);
-        demoRect.offsetMax = new Vector2(-20f, -20f);
+        demoRect.offsetMin = new Vector2(32f, -792f);
+        demoRect.offsetMax = new Vector2(-32f, -180f);
         MakeRoundedMask(demoRect);
         RawImage demo = CreateRawImage(demoRect, "Demo", stage.Texture, Color.white);
         Stretch(demo.rectTransform);
         demo.raycastTarget = false;
         if (!hasDemo)
         {
-            // Square pose texture in a wide holder: envelope + crop, never stretch.
+            // Keep the complete square pose visible within the wide demonstration area.
             AspectRatioFitter fit = demo.gameObject.AddComponent<AspectRatioFitter>();
-            fit.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+            fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
             fit.aspectRatio = 1f;
         }
 
+        VaultText(panel, "CollectionLabel", "THE COLLECTION  /  BRICKS", 19, MenuAccent,
+            0f, 1f, 44f, -100f, -40f, 28f);
         string display = variant != null ? variant.DisplayName : "Normal";
-        CreateTmp(panel, "Name", display.ToUpperInvariant(), 52, TextPrimary,
+        var nameText = CreateTmp(panel, "Name", display, 48, TextPrimary,
             TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(44f, -700f), new Vector2(600f, 64f), new Vector2(0f, 1f));
+            new Vector2(44f, -87f), new Vector2(704f, 74f), new Vector2(0f, 1f));
+        AutoSize(nameText, 34f, 48f);
 
         string summary = variant != null && !string.IsNullOrWhiteSpace(variant.BehaviourSummary)
             ? variant.BehaviourSummary : BlockDemoCatalog.Caption(variant);
-        CreateTmp(panel, "Summary", summary, 24, ChapterLight(chapter),
+        var summaryText = CreateTmp(panel, "Summary", summary, 24, ChapterLight(chapter),
             TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(44f, -768f), new Vector2(792f, 34f), new Vector2(0f, 1f));
+            new Vector2(44f, -834f), new Vector2(792f, 74f), new Vector2(0f, 1f));
 
         string body = variant != null && !string.IsNullOrWhiteSpace(variant.VaultDescription)
             ? variant.VaultDescription : BlockDemoCatalog.Caption(variant);
         TextMeshProUGUI bodyText = CreateTmp(panel, "Body", body, 26,
             new Color(0.85f, 0.88f, 0.9f, 1f), TextAnchor.UpperLeft, FontStyle.Normal,
-            RuntimeUiKit.DefaultFont, new Vector2(44f, -820f), new Vector2(792f, 250f), new Vector2(0f, 1f));
+            RuntimeUiKit.DefaultFont, new Vector2(44f, -934f), new Vector2(792f, 194f), new Vector2(0f, 1f));
         bodyText.textWrappingMode = TextWrappingModes.Normal;
+        summaryText.textWrappingMode = TextWrappingModes.Normal;
+        float summaryHeight = Mathf.Max(38f, summaryText.GetPreferredValues(summary, 792f, 0f).y);
+        summaryText.rectTransform.sizeDelta = new Vector2(792f, summaryHeight);
+        float bodyTop = 834f + summaryHeight + 28f;
+        float bodyHeight = Mathf.Max(60f, bodyText.GetPreferredValues(body, 792f, 0f).y);
+        bodyText.rectTransform.anchoredPosition = new Vector2(44f, -bodyTop);
+        bodyText.rectTransform.sizeDelta = new Vector2(792f, bodyHeight);
+        panel.sizeDelta = new Vector2(880f, Mathf.Max(1260f, bodyTop + bodyHeight + 212f));
 
         // Derived stat tiles - read from the real fields, so they can never drift from gameplay.
         BuildBrickStatTiles(panel, variant);
 
         AddDetailClose(panel, Close);
+        UiEntranceFx.Play(panel.gameObject);
     }
 
     private static void BuildBrickStatTiles(RectTransform panel, BlockData variant)
@@ -611,13 +507,9 @@ public static partial class MainMenuRuntime
             RectTransform tile = CreateRect(panel, $"Stat{i}",
                 new Vector2(i / 3f, 0f), new Vector2((i + 1) / 3f, 0f), new Vector2(0.5f, 0f),
                 Vector2.zero, Vector2.zero);
-            tile.offsetMin = new Vector2(i == 0 ? 44f : 10f, 36f);
-            tile.offsetMax = new Vector2(i == 2 ? -44f : -10f, 136f);
-            Image tileImage = tile.gameObject.AddComponent<Image>();
-            tileImage.sprite = RuntimeSprites.RoundedPanel();
-            tileImage.type = Image.Type.Sliced;
-            tileImage.color = new Color(0.11f, 0.1f, 0.09f, 1f);
-            tileImage.raycastTarget = false;
+            tile.offsetMin = new Vector2(i == 0 ? 44f : 10f, 70f);
+            tile.offsetMax = new Vector2(i == 2 ? -44f : -10f, 170f);
+            VaultLine(tile, "Rule", WithAlpha(TextPrimary, .16f), .08f, .92f, 98f);
 
             CreateTmp(tile, "Label", tiles[i].label, 18, TextMuted, TextAnchor.MiddleCenter,
                 FontStyle.Bold, RuntimeUiKit.TitleFont,
@@ -646,40 +538,39 @@ public static partial class MainMenuRuntime
         backdropButton.transition = Selectable.Transition.None;
         backdropButton.onClick.AddListener(Close);
 
-        // Compact spec sheet (redesign, Nick 2026-08-29 - the old embedded offer card
-        // duplicated the short description inside a mostly-empty 1160-tall panel): floating
-        // icon as the hero, title, type chip, ONE description. Height fits the content.
-        // The panel's height FITS the description (Nick 2026-08-29: a fixed height left a
-        // dead band under short texts like Extra Life's one-liner).
+        // A large icon, title, plain type label and one description. Height follows the copy.
         RectTransform panel = CreateRect(overlay.transform, "Panel",
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(680f, 660f)); // height finalized below
         Image panelImage = panel.gameObject.AddComponent<Image>();
-        GameMenuStyle.StylePanel(panel.gameObject);
+        GameMenuStyle.StylePanel(panel.gameObject, MenuPresentationChapter);
         ModalSafeFrame.Attach(panel); // the one modal-panel treatment
         panelImage.raycastTarget = true;
 
-        // The hero: painterly icon over a soft type-colored backlight, house entrance pop.
-        AbilityCardView.AddIconHero(panel, ability, iconTop: -44f, iconSize: 196f);
+        // The hero uses the actual ability icon and the shared entrance motion.
+        AbilityCardView.AddIconHero(panel, ability, iconTop: -42f, iconSize: 228f);
 
-        TextMeshProUGUI title = CreateTmp(panel, "Title", ability.DisplayName.ToUpperInvariant(), 42,
+        TextMeshProUGUI title = CreateTmp(panel, "Title", ability.DisplayName, 42,
             TextPrimary, TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, -258f), new Vector2(600f, 54f), new Vector2(0.5f, 1f));
+            new Vector2(0f, -296f), new Vector2(600f, 54f), new Vector2(0.5f, 1f));
         title.font = RuntimeUiKit.TmpTitleFont;
-        title.characterSpacing = 2f;
+        title.characterSpacing = 0f;
         AutoSize(title, 26f, 42f);
 
-        AbilityCardView.AddTypeChip(panel, ability.Type, -332f, 1.1f);
+        VaultText(panel, "Type", AbilityTypeInfo.GetLabel(ability.Type), 20,
+            Color.Lerp(AbilityTypeInfo.GetColor(ability.Type), TextPrimary, .55f),
+            0f, 1f, 50f, -50f, -370f, 32f, TextAnchor.MiddleCenter);
 
-        const float DescTop = 404f;
+        const float DescTop = 440f;
         TextMeshProUGUI bodyText = CreateTmp(panel, "Body", ability.LongDescription, 25,
             new Color(0.85f, 0.88f, 0.9f, 1f), TextAnchor.UpperCenter, FontStyle.Normal,
             RuntimeUiKit.DefaultFont, new Vector2(0f, -DescTop), new Vector2(580f, 216f), new Vector2(0.5f, 1f));
         bodyText.textWrappingMode = TextWrappingModes.Normal;
         float descH = Mathf.Clamp(bodyText.GetPreferredValues(ability.LongDescription, 580f, 0f).y, 36f, 320f);
         bodyText.rectTransform.sizeDelta = new Vector2(580f, descH);
-        panel.sizeDelta = new Vector2(680f, DescTop + descH + 48f);
+        panel.sizeDelta = new Vector2(680f, DescTop + descH + 90f);
 
         AddDetailClose(panel, Close);
+        UiEntranceFx.Play(panel.gameObject);
     }
 }

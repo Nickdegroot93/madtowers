@@ -10,6 +10,9 @@ using static RuntimeUiKit;
 // (partial of MainMenuRuntime, split from the main file for readability - same class, shared statics.)
 public static partial class MainMenuRuntime
 {
+    // Locked cards stay readable; their dimmed artwork and lock badge carry the disabled state.
+    private static Color LevelCardLockedInk => Color.Lerp(LockedColor, TextPrimary, .42f);
+
     private static void BuildPlayScreen(Transform parent, ChapterDefinition chapter)
     {
         // Full-screen, transparent swipe catcher behind the chapter content. As the parent
@@ -92,23 +95,25 @@ public static partial class MainMenuRuntime
         leftDiamond.rectTransform.sizeDelta = new Vector2(13f, 13f);
 
         TextMeshProUGUI eyebrow = CreateTmp(eyebrowRow, "ChapterEyebrow",
-            $"{TrackedUpper("Chapter", " ", "   ")}  {chapter.ChapterNumber}", 21,
+            $"CHAPTER {chapter.ChapterNumber}", 21,
             eyebrowColor, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont);
-        eyebrow.characterSpacing = 6f;
-        eyebrow.rectTransform.sizeDelta = new Vector2(230f, 42f);
-        // Hug the actual tracked text width so the right diamond sits snug against it.
-        eyebrow.gameObject.AddComponent<ContentSizeFitter>().horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+        eyebrow.characterSpacing = 14f;
+        // Measure once: this text does not change within a page. A fitter on a child whose
+        // width is owned by the row can otherwise leave extra space beside the ornaments.
+        eyebrow.rectTransform.sizeDelta = new Vector2(eyebrow.preferredWidth, 42f);
 
         Image rightDiamond = CreateImage(eyebrowRow, "EyebrowDiamondR",
             MenuSprites.DiamondBadge(eyebrowColor, eyebrowColor), Color.white);
         rightDiamond.raycastTarget = false;
         rightDiamond.rectTransform.sizeDelta = new Vector2(13f, 13f);
 
-        TextMeshProUGUI title = CreateTmp(parent, "ChapterTitle", chapter.DisplayName.ToUpperInvariant(), 62,
+        TextMeshProUGUI title = CreateTmp(parent, "ChapterTitle", chapter.DisplayName.ToUpperInvariant(), 84,
             titleInk, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(76f, -276f), new Vector2(760f, 104f), new Vector2(0f, 1f));
-        title.characterSpacing = 3f;
-        AutoSize(title, 38, 62);
+            new Vector2(76f, -286f), new Vector2(928f, 112f), new Vector2(0f, 1f));
+        title.rectTransform.anchorMax = new Vector2(1f, 1f);
+        title.rectTransform.offsetMax = new Vector2(-76f, -286f);
+        title.characterSpacing = 1f;
+        AutoSize(title, 48, 84);
 
         if (!chapterUnlocked)
         {
@@ -150,9 +155,9 @@ public static partial class MainMenuRuntime
     // Cross-fades the chapter-tinted chrome while a swipe is in flight, so the accent colours
     // travel with the page instead of snapping at commit. Two mechanisms, chosen per element:
     //
-    // - Plain Graphic colours (nav outline, dividers, HOME label, top-bar wash) lerp in place
+    // - Plain Graphic colours (nav outline, dividers, Play glow, top-bar wash) lerp in place
     //   from their as-built colour to the incoming chapter's formula. No layering artifacts.
-    // - Sprite-baked colours (Home hexagon gradient + house glyph, frosted-glass backdrops)
+    // - Sprite-baked colours (Play hexagon gradient, frosted-glass backdrops)
     //   can't be re-tinted, so a ghost TWIN - the same object cloned in place, re-skinned for
     //   the incoming chapter - fades in DIRECTLY above its original. Cloning in place keeps
     //   draw order intact: nothing ever draws over elements it sat under in the real bar
@@ -168,6 +173,7 @@ public static partial class MainMenuRuntime
     private static Image _navOutline;
     private static Image _navFill;
     private static Image _navHexImage;
+    private static Image _navPlayGlow;
     private static Image _statusBadge;
     private static readonly List<Image> _statusEdges = new List<Image>();
     private static readonly List<Image> _navDividers = new List<Image>();
@@ -214,6 +220,7 @@ public static partial class MainMenuRuntime
 
         AddChromeLerp(_navOutline, WithAlpha(gold, .32f));
         AddChromeLerp(_navFill, ChromeFill(target));
+        AddChromeLerp(_navPlayGlow, PlayGlowColor(target));
         foreach (Image divider in _navDividers) AddChromeLerp(divider, WithAlpha(gold, .20f));
         foreach (Image edge in _statusEdges) AddChromeLerp(edge, WithAlpha(gold, .28f));
         if (_navHexImage != null)
@@ -222,9 +229,8 @@ public static partial class MainMenuRuntime
             CreateChromeTwin(_statusBadge).sprite = StatusBadgeSprite(target);
         if (_topBarWashImage != null)
         {
-            AddChromeLerp(_topBarWashImage, ChromeFill(target));
+            AddChromeLerp(_topBarWashImage, StatusBarFill(target));
         }
-
 
         // Frosted-glass backdrops in the top bar show the chapter's backdrop slice.
         Sprite targetBackdrop = target.MenuBackgroundImage;
@@ -383,6 +389,9 @@ public static partial class MainMenuRuntime
     private static void FillNextChapterContent(RectTransform content, ChapterDefinition current,
         ChapterDefinition next, bool unlocked)
     {
+        // These labels sit outside the scroll viewport. Exclude them from UI clipping so a
+        // rebuilt page cannot leave them with a stale list clip rect. The preview image still
+        // uses its own rounded mask; the screen itself clips outgoing pages during a swipe.
         if (unlocked)
         {
             Sprite preview = current.NextChapterPreviewImage != null
@@ -395,20 +404,21 @@ public static partial class MainMenuRuntime
             }
 
             CreateTmp(content, "NextLabel", "NEXT CHAPTER", 18, TextMuted, TextAnchor.MiddleLeft,
-                FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -22f), new Vector2(180f, 26f), new Vector2(0f, 1f));
+                FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -22f), new Vector2(180f, 26f), new Vector2(0f, 1f)).maskable = false;
             CreateTmp(content, "NextTitle", next.DisplayName.ToUpperInvariant(), 21, TextPrimary, TextAnchor.MiddleLeft,
-                FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -50f), new Vector2(206f, 34f), new Vector2(0f, 1f));
+                FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -50f), new Vector2(206f, 34f), new Vector2(0f, 1f)).maskable = false;
             // No chevron on the unlocked face (Nick 2026-08-01): the preview + title carry
             // the invitation; the locked face keeps its padlock (state, not decoration).
             return;
         }
 
         CreateTmp(content, "NextLabel", "NEXT CHAPTER", 18, WithAlpha(TextMuted, 0.75f), TextAnchor.MiddleLeft,
-            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -22f), new Vector2(180f, 26f), new Vector2(0f, 1f));
+            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -22f), new Vector2(180f, 26f), new Vector2(0f, 1f)).maskable = false;
         CreateTmp(content, "NextTitle", "LOCKED", 21, LockedColor, TextAnchor.MiddleLeft,
-            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -50f), new Vector2(206f, 34f), new Vector2(0f, 1f));
+            FontStyle.Bold, RuntimeUiKit.TitleFont, new Vector2(28f, -50f), new Vector2(206f, 34f), new Vector2(0f, 1f)).maskable = false;
 
         Image lockIcon = CreateImage(content, "NextLock", MenuSprites.Lock(LockedColor), Color.white);
+        lockIcon.maskable = false;
         lockIcon.preserveAspect = true;
         SetCentered(lockIcon.rectTransform, new Vector2(258f, -75f), new Vector2(34f, 34f));
     }
@@ -520,7 +530,7 @@ public static partial class MainMenuRuntime
         // below the viewport top - the active card's halo pokes past that and would get sheared
         // into a hard horizontal line. Relax the mask a touch top and bottom; the list content
         // fits the viewport in normal chapters, so nothing meaningful leaks.
-        viewport.gameObject.AddComponent<RectMask2D>().padding = new Vector4(0f, -12f, 0f, -12f);
+        viewport.gameObject.AddComponent<RectMask2D>().padding = new Vector4(0f, -24f, 0f, -24f);
 
         RectTransform content = CreateRect(viewport, "LevelListContent",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
@@ -616,7 +626,7 @@ public static partial class MainMenuRuntime
         float railX = LevelCardSideInset + 16f;
         float nodeY = -(LevelCardTop + LevelCardHeight * 0.5f);
         float nodeHalf = current ? 26f : (completed ? 17f : 11f);
-        Color lineColor = WithAlpha(TextPrimary, 0.30f);
+        Color lineColor = WithAlpha(Color.Lerp(chapterLight, TextPrimary, .55f), .80f);
 
         if (index > 0)
         {
@@ -626,6 +636,7 @@ public static partial class MainMenuRuntime
             Image segImage = seg.gameObject.AddComponent<Image>();
             segImage.color = lineColor;
             segImage.raycastTarget = false;
+            AddRailBloom(seg, chapterLight);
         }
         if (index < count - 1)
         {
@@ -636,13 +647,17 @@ public static partial class MainMenuRuntime
             Image segImage = seg.gameObject.AddComponent<Image>();
             segImage.color = lineColor;
             segImage.raycastTarget = false;
+            AddRailBloom(seg, chapterLight);
         }
 
         if (current)
         {
-            Image glow = CreateImage(row, "RailGlow", RuntimeSprites.SoftBlob(), Color.clear);
+            Image glow = CreateImage(row, "RailGlow", RuntimeSprites.SoftBlob(), WithAlpha(chapter.MenuAccentColor, .48f));
             glow.raycastTarget = false;
-            SetCenteredAt(glow.rectTransform, new Vector2(0f, 1f), new Vector2(railX, nodeY), new Vector2(96f, 96f));
+            SetCenteredAt(glow.rectTransform, new Vector2(0f, 1f), new Vector2(railX, nodeY), new Vector2(92f, 92f));
+            Image ring = CreateImage(row, "RailRing", MenuSprites.DiamondRing(TextPrimary), Color.white);
+            ring.raycastTarget = false;
+            SetCenteredAt(ring.rectTransform, new Vector2(0f, 1f), new Vector2(railX, nodeY), new Vector2(116f, 116f));
             Image node = CreateImage(row, "RailNode",
                 MenuSprites.DiamondBadge(Color.Lerp(chapterLight, Color.white, 0.35f), Color.white), Color.white);
             node.raycastTarget = false;
@@ -664,6 +679,16 @@ public static partial class MainMenuRuntime
         }
     }
 
+    private static void AddRailBloom(RectTransform segment, Color accent)
+    {
+        // A one-dimensional falloff keeps the spine luminous without bright square edges.
+        Image bloom = CreateImage(segment, "Bloom", MenuSprites.RailBloom(), WithAlpha(accent, .38f));
+        bloom.raycastTarget = false;
+        Stretch(bloom.rectTransform);
+        bloom.rectTransform.offsetMin = new Vector2(-10f, 0f);
+        bloom.rectTransform.offsetMax = new Vector2(10f, 0f);
+    }
+
     // Which little glyph sits before the challenge label (the concepts' cube/waves/mountain marks).
     private static string GoalGlyphKind(string challengeLabel)
     {
@@ -681,7 +706,23 @@ public static partial class MainMenuRuntime
         int index, bool unlocked, bool completed, bool current)
     {
         Color chapterLight = ChapterLight(chapter);
-        Color chapterDark = ChapterDark(chapter);
+        Color progressAccent = Color.Lerp(chapter.MenuAccentColor, TextPrimary, .12f);
+
+        // Keep the halo outside the clickable card. The unlock reveal fades this named sibling
+        // in, and the scroll mask leaves enough room for its outward falloff.
+        if (current)
+        {
+            Image halo = CreateImage(parent, "ActiveHalo", MenuSprites.GlowFrame(),
+                WithAlpha(chapter.MenuAccentColor, .80f));
+            halo.type = Image.Type.Sliced;
+            halo.raycastTarget = false;
+            RectTransform haloRect = halo.rectTransform;
+            haloRect.anchorMin = new Vector2(0f, 1f);
+            haloRect.anchorMax = new Vector2(1f, 1f);
+            haloRect.offsetMin = new Vector2(LevelCardSideInset + LevelRailGutter - 26f,
+                -(LevelCardTop + LevelCardHeight) - 26f);
+            haloRect.offsetMax = new Vector2(-LevelCardSideInset + 26f, -LevelCardTop + 26f);
+        }
 
         // Stretch across the row between the side insets so the card width tracks the screen;
         // height stays fixed, hung LevelCardTop below the row's top.
@@ -696,33 +737,33 @@ public static partial class MainMenuRuntime
         // Locked cards are deliberately DARKER and near-opaque (not lighter glass): the contrast
         // against the live cards is what makes "locked" legible at a glance, and what gives the
         // unlock reveal its before/after pop.
-        Color cardFill = new Color(.055f,.055f,.065f, unlocked ? .94f : .98f);
+        Color cardFill = MenuGlassFill(chapter, unlocked ? .84f : .94f);
         cardImage.color = Color.white;
-
-
-
-        // The current row gets a stronger chapter-coloured separator.
+        // A complete rounded frame replaces the old bottom-only rule. A cream core over the
+        // coloured halo stays crisp on both bright scenery and dark neon backgrounds.
         Color cardBorder = current
-            ? WithAlpha(Color.Lerp(chapterLight, Color.white, 0.25f), 1f)
-            : WithAlpha(TextPrimary, unlocked ? 0.34f : 0.10f);
-        MenuRule(card, cardBorder);
+            ? WithAlpha(Color.Lerp(chapterLight, Color.white, 0.65f), 1f)
+            : WithAlpha(chapterLight, unlocked ? 0.42f : 0.20f);
+        RuntimeUiKit.AddOutline(card, cardBorder);
 
         Sprite thumbSprite = level.MenuThumbnail != null
             ? level.MenuThumbnail
             : MenuSprites.LevelThumbnail(index, chapter.MenuAccentColor, chapter.MenuAccentSecondaryColor);
         RectTransform thumb = CreateCoverImage(card, "Thumbnail", thumbSprite,
-            unlocked ? Color.white : new Color(0.30f, 0.30f, 0.34f, 0.45f),
+            unlocked ? Color.white : new Color(0.55f, 0.55f, 0.60f, 0.75f),
             new Vector2(22f, -16f), new Vector2(132f, 152f), new Vector2(0f, 1f));
-        MenuRule(thumb, WithAlpha(TextPrimary, unlocked ? 0.18f : 0.08f));
+        RuntimeUiKit.AddOutline(thumb, WithAlpha(chapterLight, unlocked ? .32f : .12f));
 
-        // Plain level number between the thumbnail and title.
+        // The outlined diamond echoes the active node on the progress rail.
         Color edgeColor = ChapterEdge(chapterLight);
-        Image numberPlate = CreateImage(card, "NumberPlate", null, Color.clear);
+        Image numberPlate = CreateImage(card, "NumberPlate",
+            MenuSprites.DiamondBadge(Color.clear, WithAlpha(edgeColor, unlocked ? .85f : .30f)), Color.white);
+        numberPlate.raycastTarget = false;
         SetCentered(numberPlate.rectTransform, new Vector2(196f, -52f), new Vector2(62f, 62f));
-        CreateTmp(numberPlate.transform, "Number", (index + 1).ToString(), 26, unlocked ? TextPrimary : LockedColor,
+        CreateTmp(numberPlate.transform, "Number", (index + 1).ToString(), 26, unlocked ? TextPrimary : LevelCardLockedInk,
             TextAnchor.MiddleCenter, FontStyle.Bold, RuntimeUiKit.DefaultFont);
 
-        Color titleColor = unlocked ? TextPrimary : LockedColor;
+        Color titleColor = unlocked ? TextPrimary : LevelCardLockedInk;
         LevelMenuPresentation.Snapshot presentation = LevelMenuPresentation.Build(level, completed);
 
         // Text column: title / challenge type / progress, stacked by a VerticalLayoutGroup and
@@ -751,7 +792,7 @@ public static partial class MainMenuRuntime
 
         // Type row: a small goal glyph (cube/waves/mountain/timer) + the label with real TMP
         // letter-spacing - the concepts' "icon in front of the game type".
-        Color challengeColor = unlocked ? chapterLight : LockedColor;
+        Color challengeColor = unlocked ? chapterLight : LevelCardLockedInk;
         RectTransform challengeRow = CreateRect(column, "ChallengeRow",
             Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
         LayoutElement challengeLayout = challengeRow.gameObject.AddComponent<LayoutElement>();
@@ -760,7 +801,7 @@ public static partial class MainMenuRuntime
         HorizontalLayoutGroup challengeGroup = challengeRow.gameObject.AddComponent<HorizontalLayoutGroup>();
         challengeGroup.spacing = 8f;
         challengeGroup.childAlignment = TextAnchor.MiddleLeft;
-        challengeGroup.childControlWidth = false;
+        challengeGroup.childControlWidth = true;
         challengeGroup.childControlHeight = false;
         challengeGroup.childForceExpandWidth = false;
         challengeGroup.childForceExpandHeight = false;
@@ -769,13 +810,21 @@ public static partial class MainMenuRuntime
             HudGlyphs.Get(HudGlyphs.ForLevel(level)), challengeColor);
         goalIcon.raycastTarget = false;
         goalIcon.rectTransform.sizeDelta = new Vector2(28f, 28f);
+        LayoutElement iconLayout = goalIcon.gameObject.AddComponent<LayoutElement>();
+        iconLayout.minWidth = iconLayout.preferredWidth = 28f;
+        iconLayout.flexibleWidth = 0f;
 
         TextMeshProUGUI challenge = CreateTmp(challengeRow, "Challenge", presentation.ChallengeLabel.ToUpperInvariant(), 18,
             challengeColor, TextAnchor.MiddleLeft, FontStyle.Bold, RuntimeUiKit.DefaultFont);
-        challenge.characterSpacing = 5f;
+        challenge.characterSpacing = 10f;
         challenge.rectTransform.sizeDelta = new Vector2(420f, 30f);
+        LayoutElement challengeTextLayout = challenge.gameObject.AddComponent<LayoutElement>();
+        challengeTextLayout.minWidth = 0f;
+        challengeTextLayout.preferredWidth = 0f;
+        challengeTextLayout.flexibleWidth = 1f;
+        AutoSize(challenge, 15, 18);
 
-        BuildProgressLine(column, presentation, unlocked, completed, chapterDark, chapterLight);
+        BuildProgressLine(column, presentation, unlocked, completed, progressAccent, ChapterEdge(chapterLight));
 
         BuildActionBadge(card, level, unlocked, completed, chapterLight);
 
@@ -804,8 +853,8 @@ public static partial class MainMenuRuntime
         bool unlocked, bool completed, Color primaryColor, Color suffixColor)
     {
         Color completeColor = new Color(0.56f, 0.74f, 0.5f, 1f);
-        Color valueColor = !unlocked ? LockedColor : (completed ? completeColor : primaryColor);
-        Color restColor = !unlocked ? LockedColor : (completed ? Color.Lerp(completeColor, TextPrimary, 0.18f) : suffixColor);
+        Color valueColor = !unlocked ? LevelCardLockedInk : (completed ? completeColor : primaryColor);
+        Color restColor = !unlocked ? LevelCardLockedInk : (completed ? Color.Lerp(completeColor, TextPrimary, 0.18f) : suffixColor);
 
         // The value ("20") and suffix ("/ 100 Blocks") are ONE rich-text label, not two boxes:
         // an inline <size> tag shrinks the suffix while it stays on the same text line, so the
@@ -831,31 +880,32 @@ public static partial class MainMenuRuntime
         // every legacy completion (the derive rule), gold when the ladder is done. The green
         // check survives only for completed levels with no ladder (Endless).
         MedalTier? medal = completed ? LevelTiers.HighestEarned(level) : null;
-        Color done = medal.HasValue ? MedalStyle.TierColor(medal.Value) : green;
         // Pinned to the card's top-right corner (anchor (1, 1)) and offset in by the right inset,
         // so the badge stays glued to the edge however wide the stretched card becomes.
         Vector2 anchor = new Vector2(1f, 1f);
         Vector2 center = new Vector2(-LevelCardActionInsetRight, -LevelCardHeight * 0.5f);
 
-        if (completed)
-        {
-            Image completedGlow = CreateImage(card, "ActionGlow",
-                MenuSprites.CircleBadge(WithAlpha(done, 0.10f), WithAlpha(done, 0.20f)), Color.white);
-            SetCenteredAt(completedGlow.rectTransform, anchor, center, new Vector2(86f, 86f));
-        }
+        RectTransform action = CreateRect(card, "Action", anchor, anchor,
+            new Vector2(0.5f, 0.5f), center, new Vector2(74f, 74f));
 
-        Color edgeColor = ChapterEdge(chapterLight);
-        Color fill = completed ? WithAlpha(done, 0.20f) : WithAlpha(Color.black, 0.18f);
-        Color border = completed ? WithAlpha(done, 0.95f) : WithAlpha(edgeColor, unlocked ? 1f : 0.42f);
-        Image action = CreateImage(card, "Action", null, Color.clear);
-        SetCenteredAt(action.rectTransform, anchor, center, new Vector2(74f, 74f));
+        // Earned cubes carry the tier through their own material. A colored disc behind
+        // them competes with the chapter palette; reserve the circle for navigation/locks.
+        if (!completed)
+        {
+            Color edgeColor = ChapterEdge(chapterLight);
+            Image circle = action.gameObject.AddComponent<Image>();
+            circle.sprite = MenuSprites.CircleBadge(WithAlpha(Color.black, 0.18f),
+                WithAlpha(edgeColor, unlocked ? 1f : 0.42f));
+            circle.raycastTarget = false;
+        }
 
         if (medal.HasValue)
         {
             Image mark = CreateImage(action.transform, "ActionMedal",
                 MedalStyle.Sprite(medal.Value, earned: true), Color.white);
+            mark.raycastTarget = false;
             mark.preserveAspect = true;
-            SetCenteredAt(mark.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(38f, 38f));
+            SetCenteredAt(mark.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(54f, 54f));
         }
         else if (completed)
         {

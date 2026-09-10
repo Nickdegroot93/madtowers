@@ -10,8 +10,12 @@ using static RuntimeUiKit;
 // (partial of MainMenuRuntime, split from the main file for readability - same class, shared statics.)
 public static partial class MainMenuRuntime
 {
+    // Let the actual chapter artwork show through. Keep this separate from the bottom
+    // navigation fill, and share it with the pager so a swipe preserves the translucency.
+    private static Color StatusBarFill(ChapterDefinition chapter) => WithAlpha(ChromeFill(chapter), .38f);
+
     private static Sprite StatusBadgeSprite(ChapterDefinition chapter) => MenuSprites.PointHexBadge(
-        ChromeFill(chapter), Color.Lerp(ChromeFill(chapter), Color.black, .3f),
+        StatusBarFill(chapter), WithAlpha(Color.Lerp(ChromeFill(chapter), Color.black, .3f), .55f),
         WithAlpha(chapter != null ? ChapterLight(chapter) : MenuAccent, .55f));
 
     private static void BuildTopStatusBar(Transform parent, ChapterDefinition chapter)
@@ -27,7 +31,7 @@ public static partial class MainMenuRuntime
         Image barImage = bar.gameObject.AddComponent<Image>();
         barImage.sprite = RuntimeSprites.RoundedPanel();
         barImage.type = Image.Type.Sliced;
-        barImage.color = ChromeFill(chapter);
+        barImage.color = StatusBarFill(chapter);
         _statusEdges.Clear();
         _statusEdges.Add(RuntimeUiKit.AddOutline(bar, WithAlpha(chapter != null ? ChapterLight(chapter) : MenuAccent, .28f)));
         // Register the chapter-tinted pieces for the swipe cross-fade (see OnChapterBlend).
@@ -352,7 +356,8 @@ public static partial class MainMenuRuntime
         Image cardImage = card.gameObject.AddComponent<Image>();
         cardImage.sprite = RuntimeSprites.RoundedPanel();
         cardImage.type = Image.Type.Sliced;
-        cardImage.color = new Color(.025f, .03f, .04f, .7f);
+        // A little more shade behind the numbers, while still showing the scenery beneath.
+        cardImage.color = new Color(.025f, .03f, .04f, .48f);
         _statusEdges.Add(RuntimeUiKit.AddOutline(card, WithAlpha(_chapters.Length > 0 ? ChapterLight(_chapters[_chapterIndex]) : MenuAccent, .28f)));
 
         if (!string.IsNullOrEmpty(coinGlyph))

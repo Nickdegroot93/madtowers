@@ -1,0 +1,147 @@
+// Copy to Assets/SourceFiles/Scripts/Editor temporarily; run outside Play Mode.
+using System;
+using System.Linq;
+using System.Reflection;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEditor;
+using Object = UnityEngine.Object;
+public static class VaultReview
+{
+    const BindingFlags F = BindingFlags.Static | BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+    static FieldInfo Field(Type t,string n)=>t.GetField(n,F);
+    static object Call(Type t,object o,string n,params object[] a)=>t.GetMethod(n,F).Invoke(o,a);
+    static void Check(bool b,string m){if(!b)throw new Exception(m);}
+    public static string Run()
+    {
+        if(EditorApplication.isPlaying)throw new Exception("Stop Play Mode first");
+        var t=typeof(MainMenuRuntime); var p=typeof(ProgressStore);
+        var oldData=Field(p,"_data").GetValue(null);
+        var oldChapters=Field(t,"_chapters").GetValue(null);
+        var oldIndex=Field(t,"_chapterIndex").GetValue(null);
+        var oldTab=Field(t,"_activeVaultTab").GetValue(null);
+        var oldScroll=Field(t,"_vaultScroll").GetValue(null);
+        var oldScrollTab=Field(t,"_vaultScrollTab").GetValue(null);
+        var positions=(float[])Field(t,"_vaultScrollPositions").GetValue(null);
+        var oldPositions=(float[])positions.Clone();
+        Field(t,"_vaultScroll").SetValue(null,null);
+        bool online=SupabaseConfig.Enabled; float oldTime=Time.timeScale;
+        var random=UnityEngine.Random.state;
+        var clips=(Dictionary<string,AudioClip>)Field(typeof(SfxPlayer),"_clips").GetValue(null);
+        bool hadClip=clips.TryGetValue("ui-button-click",out var clip); clips["ui-button-click"]=null;
+        GameObject root=null;
+        try
+        {
+            SupabaseConfig.Enabled=false;
+            var chapters=Campaign.LoadChaptersInOrder();
+            Field(t,"_chapters").SetValue(null,chapters);Field(t,"_chapterIndex").SetValue(null,0);
+            var data=new ProgressStore.PlayerProgress{tutorialCompleted=true,firstLaunchHandled=true};
+            Field(p,"_data").SetValue(null,data);
+            var variants=ContentCatalog.AllVariants();var abilities=ContentCatalog.AllAbilities();
+            foreach(var v in variants)data.discoveredBlocks.Add(ProgressStore.BlockId(v));
+            foreach(var a in abilities.Where((a,i)=>i%3!=0))data.abilitiesSeen.Add(a.name);
+            data.vaultInspected.Add("Normal");
+            foreach(string tab in new[]{"Bricks","Abilities"})
+            {
+                Field(t,"_activeVaultTab").SetValue(null,Enum.Parse(oldTab.GetType(),tab));
+                foreach(var size in new[]{new Vector2Int(780,1688),new Vector2Int(1080,1920),new Vector2Int(1536,2048)})
+                {
+                    root=RuntimeUiKit.CreateOverlayCanvas("Vault review",2000);
+                    Call(t,null,"BuildVaultScreen",root.transform,chapters[0]);
+                    Capture(root,tab+"-"+size.x,size.x,size.y);
+                    var content=root.transform.Find("VaultViewport/VaultContent");
+                    Check(content!=null && content.parent.GetComponent<ScrollRect>().vertical,"Collection scrolls");
+                    if(tab=="Bricks")Check(content.GetComponentsInChildren<RawImage>().Length==variants.Count+1,"Only found bricks shown");
+                    else Check(content.GetComponentsInChildren<Button>().Length==data.abilitiesSeen.Count,"Only seen abilities open");
+                    foreach(var image in content.GetComponentsInChildren<RawImage>())
+                    {
+                        Check(image.texture!=null,"Poster must be baked");
+                        Check(image.rectTransform.rect.height <= 301f,"Poster fits row on tablet");
+                    }
+                    if(tab=="Abilities")foreach(var icon in content.GetComponentsInChildren<Image>().Where(x=>x.name=="Icon"))
+                    {
+                        var title=icon.transform.parent.Find("NameArea").GetComponent<RectTransform>();
+                        var corners=new Vector3[4];icon.rectTransform.GetWorldCorners(corners);
+                        var names=new Vector3[4];title.GetWorldCorners(names);
+                        Check(corners[0].y > names[1].y,"Icon must sit above its title");
+                    }
+                    foreach(var name in content.GetComponentsInChildren<TMPro.TextMeshProUGUI>().Where(x=>x.name=="Name"))
+                    {
+                        name.ForceMeshUpdate();Check(!name.isTextOverflowing,"Title fits: "+name.text);
+                    }
+                    Object.DestroyImmediate(root);root=null;
+                }
+            }
+            data.discoveredBlocks.Clear();data.abilitiesSeen.Clear();
+            foreach(string tab in new[]{"Bricks","Abilities"})
+            {
+                Field(t,"_activeVaultTab").SetValue(null,Enum.Parse(oldTab.GetType(),tab));
+                root=RuntimeUiKit.CreateOverlayCanvas("Empty Vault review",2000);
+                Call(t,null,"BuildVaultScreen",root.transform,chapters[0]);
+                Capture(root,"empty-"+tab,780,1688);
+                if(tab=="Bricks")Check(root.GetComponentsInChildren<RawImage>().Length==1,"Empty Vault hides undiscovered bricks");
+                else Check(root.GetComponentsInChildren<Button>().Length==2,"Unseen abilities cannot open");
+                Object.DestroyImmediate(root);root=null;
+            }
+            var ability=abilities.OrderByDescending(a=>a.LongDescription.Length).First();
+            data.vaultInspected.Add(ability.name); // prevents any save write by opening the fixture
+            Call(t,null,"OpenAbilityDetail",ability);root=GameObject.Find("Vault Detail");
+            FinishEntrance(root);Capture(root,"ability-detail",780,1688);
+            Object.DestroyImmediate(root);root=null;
+            Call(t,null,"OpenBrickDetail",ContentCatalog.NormalVariant(),chapters[0]);root=GameObject.Find("Vault Detail");
+            foreach(var stage in Object.FindObjectsByType<BlockDemoStage>(FindObjectsSortMode.None))
+            {
+                var camera=stage.GetComponentInChildren<Camera>();camera.Render();
+            }
+            FinishEntrance(root);Capture(root,"brick-detail",780,1688);
+            return "Vault rendered: both tabs at three aspects, empty states, both details; discovery/input/title checks passed.";
+        }
+        finally
+        {
+            if(root!=null)Object.DestroyImmediate(root);
+            foreach(var stage in Object.FindObjectsByType<BlockDemoStage>(FindObjectsSortMode.None))
+            {
+                var texture=stage.Texture as RenderTexture;
+                foreach(var camera in stage.GetComponentsInChildren<Camera>())camera.targetTexture=null;
+                if(texture!=null){texture.Release();Object.DestroyImmediate(texture);}
+                Object.DestroyImmediate(stage.gameObject);
+            }
+            Field(p,"_data").SetValue(null,oldData);Field(t,"_chapters").SetValue(null,oldChapters);
+            Field(t,"_chapterIndex").SetValue(null,oldIndex);Field(t,"_activeVaultTab").SetValue(null,oldTab);
+            Field(t,"_vaultScroll").SetValue(null,oldScroll);
+            Field(t,"_vaultScrollTab").SetValue(null,oldScrollTab);
+            Array.Copy(oldPositions,positions,positions.Length);
+            SupabaseConfig.Enabled=online;Time.timeScale=oldTime;UnityEngine.Random.state=random;
+            if(hadClip)clips["ui-button-click"]=clip;else clips.Remove("ui-button-click");
+        }
+    }
+    static void FinishEntrance(GameObject root)
+    {
+        foreach(var fx in root.GetComponentsInChildren<UiEntranceFx>())Call(typeof(UiEntranceFx),fx,"Apply",1f);
+    }
+    static void Capture(GameObject root,string name,int width,int height)
+    {
+        GameObject host=null;RenderTexture rt=null;Texture2D png=null;var prev=RenderTexture.active;
+        try
+        {
+            host=new GameObject("Vault camera",typeof(Camera));var cam=host.GetComponent<Camera>();
+            cam.enabled=false;cam.orthographic=true;cam.transform.position=new Vector3(0,0,-10);
+            cam.clearFlags=CameraClearFlags.SolidColor;cam.backgroundColor=new Color(.025f,.04f,.055f);cam.cullingMask=1<<31;
+            rt=new RenderTexture(width,height,24);rt.Create();cam.targetTexture=rt;
+            var canvas=root.GetComponent<Canvas>();canvas.renderMode=RenderMode.ScreenSpaceCamera;canvas.worldCamera=cam;canvas.planeDistance=2f;
+            foreach(var child in root.GetComponentsInChildren<Transform>(true))child.gameObject.layer=31;
+            Canvas.ForceUpdateCanvases();
+            foreach(var fit in root.GetComponentsInChildren<ModalSafeFrame>())Call(typeof(ModalSafeFrame),fit,"LateUpdate");
+            Canvas.ForceUpdateCanvases();cam.Render();RenderTexture.active=rt;
+            png=new Texture2D(width,height,TextureFormat.RGB24,false);png.ReadPixels(new Rect(0,0,width,height),0,0);png.Apply();
+            System.IO.Directory.CreateDirectory("Tools/VaultReview/review");
+            System.IO.File.WriteAllBytes("Tools/VaultReview/review/"+name+".png",png.EncodeToPNG());
+        }
+        finally
+        {
+            RenderTexture.active=prev;if(host!=null)Object.DestroyImmediate(host);
+            if(rt!=null){rt.Release();Object.DestroyImmediate(rt);}if(png!=null)Object.DestroyImmediate(png);
+        }
+    }
+}

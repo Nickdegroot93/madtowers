@@ -239,10 +239,10 @@ Still open, and each one is genuinely account-gated:
       refills — bitten 2026-08-25, see Phase 4 SSV item). Prereq: SSV callback URL
       registered on both rewarded units in the AdMob console (Phase 4). One-liner:
       `Tools/bin/supabase db query --linked "update public.backend_config set value = 'true'::jsonb where key = 'ssv_enabled'"`
-- [ ] **`Assets/csc.rsp` contains NO dev defines — verify per release.** (2026-08-30:
-      `MADTOWERS_SIM_ADS` and `MADTOWERS_UNLOCK_ALL` are both IN csc.rsp — committed —
-      so Nick's Play-track playtest builds have everything open. Strip both here before
-      the real release. This is exactly why the check exists.)
+- [ ] **`Assets/csc.rsp` contains NO dev defines — verify per release.** (2026-09-09:
+      removed `MADTOWERS_UNLOCK_ALL` so closed testers follow genuine progression;
+      the override is now editor-only even if reintroduced. `MADTOWERS_SIM_ADS`
+      remains for closed testing; remove it together with the real-ads/SSV switch above.)
 - [ ] **Size pass — get the base module under ~160 MB** (first closed-test AAB measured
       197 MB max download, 2026-08; Play's hard cap is 200 MB, so every added chapter
       risks a rejected upload). Usual suspects in payoff order: texture compression on

@@ -1,8 +1,9 @@
 # Menu and overlay presentation
 
 September 2026: extend the approved open gameplay HUD across the surrounding UI.
-This supersedes older presentation prescriptions for glass, gradient buttons, glowing
-selection glows and Archivo modal typography. Gameplay,
+The chapter-selection screen follows the original concept artwork: translucent themed
+cards, a glowing current-level frame and rail, and a polished Play medallion. Other
+overlays retain the open HUD styling and Manrope typography. Gameplay,
 progression, economy, purchase/ad delivery, and the in-game HUD layout remain owned by
 the existing systems.
 
@@ -16,7 +17,7 @@ Research informed the hierarchy and checks, rather than a claim of proven conver
 
 - [Apple tab bars](https://developer.apple.com/design/human-interface-guidelines/tab-bars):
   stable destinations with descriptive labels. Keep the familiar five destinations,
-  with a prominent Home destination. The user’s follow-up favours a raised Home
+  with a prominent Play destination. The user’s follow-up favours a raised Play
   medallion and inset side-tab selections over five visually equal tabs.
 - [Android accessibility](https://developer.android.com/guide/topics/ui/accessibility/apps):
   large simple controls, minimum 48 dp targets, 4.5:1 contrast for small text and 3:1 for
@@ -37,8 +38,10 @@ Research informed the hierarchy and checks, rather than a claim of proven conver
 - Opaque neutral near-black modal sheets; pale chapter-tinted primary actions with dark
   type; open secondary actions; hairline separators instead of enclosing borders.
 - Small corner radius. Modal actions stay flat; menu chrome uses restrained material
-  relief, a framed status bar, inset resource compartments and a raised Home medallion.
-  no selection glows on level/chapter rows. Earned medal art retains its tier material.
+  relief, a framed status bar, inset resource compartments and a raised Play medallion.
+  Level cards use full rounded frames; the current unfinished level adds a chapter-colored
+  glow with a crisp light edge. Earned medals are standalone cubes with their tier material,
+  without a colored circular backing or halo; navigation arrows and locks retain their circles.
 - Titles 38–64, primary labels 26–36, captions 18–24 reference units. Body type normally
   23–28. Use real Semibold, not synthetic bold. Reserve sufficient line-box height for
   Manrope's metrics; truncation can hide a whole line when the box is too short.
@@ -47,10 +50,18 @@ Research informed the hierarchy and checks, rather than a claim of proven conver
 
 ## Surfaces
 
-Home keeps the swipeable chapter and level list, with a compact framed status bar,
-plain level numbers, restrained current markers, and darker previous/next previews.
+Play keeps the swipeable chapter and level list, with a compact framed status bar,
+outlined diamond level numbers, a luminous rail, and darker previous/next previews.
+The chapter title uses responsive 48–84-point Semibold with a tracked chapter eyebrow.
+Previous and next chapter cards stay in the bottom left and right corners. The center
+navigation button says **PLAY**, uses a triangle icon, and returns to level selection;
+starting a level still opens its summary and boost choices. Decorative glow sprites
+are cached, ignore raycasts, and the Play glow follows the pager's chapter-color blend.
+The list mask leaves room around the active frame, including when the first row is active.
 The status bar sits 8 reference units below the device safe area, with no full-width
 dark gradient; chapter artwork continues uninterrupted behind the camera cutout.
+Its chapter-tinted fill is 38% opaque, with slightly darker translucent resource chips
+for contrast. The pager uses the same fill formula so swiping never makes the bar opaque.
 Locked chapters stay mysterious and unlock through the existing reveal sequence.
 On the first return after completing a chapter, its next-chapter card reveals for about
 one second, then the normal pager slide opens that newly unlocked chapter automatically.
@@ -58,19 +69,36 @@ Navigating away cancels the automatic advance. Level unlocks within a chapter ke
 current page, so finishing the introduction reveals Canopy Trial in Chapter 1.
 
 Fresh installations start the introduction directly, before any menu or splash. Its
-30-block hold-steady win shows a gold **TUTORIAL COMPLETE** card with one highlighted
+25-standing-block hold-steady win shows a gold **TUTORIAL COMPLETE** card with one highlighted
 **Back to Menu** action. Existing saves retain normal menu entry. Introduction cards say
 **TUTORIAL** and use a single goal/completion check; their level sheet has a full-width
 Play action without supplies or Ranks. See TUTORIAL.md for first-launch state handling.
 
 Profile keeps identity, earned trophies, Unlimited, and the online-play message. The
 Unlimited symbol describes the purchase without a decorative coin pile. Chapters
-retain large environment previews and earned medal strips. Vault retains the real
-brick posters/ability cards, with the shared type and borderless collection rows.
+form a vertical journey on a quiet atlas background: isolated chapter landmarks,
+a connected route, cleared markers, earned medal strips and one highlighted current
+destination. Only unlocked chapters appear; an unnumbered continuation teaser keeps
+future destinations undisclosed. Opening the page scrolls near the current chapter.
+
+Vault shares the quiet gallery background and typography. Underlined Bricks / Abilities tabs
+keep discovery counts in the header. Bricks use open 360-unit rows with studio posters capped
+at 300 units, sentence-case names, summaries, and a full-row detail action. Abilities use two
+columns of 400-unit tiles with larger icons, plain type labels and restrained rarity accents.
+Unseen bricks remain hidden behind one continuation message; unseen abilities retain silhouettes
+and cannot open. New finds have a small text accent until inspected. Detail sheets use the actual
+looping demonstrations or ability icons, a short entrance, content-sized descriptions, and chapter
+corner ornaments; brick statistics sit beneath quiet rules. No extra image downloads or live
+collection cameras are introduced. Preview workflow: Tools/VaultReview/.
 
 Settings replaces the narrow side rail with six categories in a compact three-column,
 two-row selector. The active category has a pale fill and dark label. The full-width
 body scrolls above its footer; every control and persistence callback is retained.
+
+Chapter-specific isolated corner decorations frame modal edges, with no repeated chapter
+image stamped over the Home background or modal headers. The menu passes the chapter
+being viewed; in-game sheets use the active run. Decorations remain behind content,
+ignore layout and cannot intercept taps. Art sources/import settings: Tools/ChapterArt/.
 
 The level sheet keeps artwork, challenge, progress ladder, instructions, supplies,
 and Play/Ranks in reading order. Run-life pips use the HUD heart masks; attempts remain
@@ -98,6 +126,20 @@ Temporary fixtures were removed and Edit Mode restored; evidence is in ignored
 `ArtReviews/SurfaceRestyle/PauseResume/`.
 
 ## Implementation and review
+
+First-clear game-over actions (2026-09-09): a newly earned bronze leads with
+**Back to Main Menu**, with **Try Again** secondary, and names the unlocked level
+or chapter. This also applies if that first clear reaches silver or gold. The player
+chooses boosts and lives in the next level's menu sheet; results never launch the next
+level directly. Chapter boundaries still reveal the next chapter and slide there
+automatically on returning to the menu. Tutorial completion has only **Back to Main
+Menu**, so a new player visits the menu before continuing. A loss before bronze, or a replay of an already-cleared level,
+keeps **Try Again** as primary (with the existing attempt-refill actions when empty).
+First-clear menu exits never require attempts; the secondary retry is disabled while
+attempts are empty and becomes available in place when an attempt arrives. Results
+retire immediately on exit, so another pointer or late refill cannot act on the old
+card. Old unlock-all saves never advertise already-cleared content as newly unlocked,
+and the campaign-complete message requires every campaign chapter to be cleared.
 
 `MainMenuRuntime.Style` supplies menu separators/actions. `RuntimeUiKit` owns the shared
 Manrope text. `ModalSafeFrame` fits authored menu sheets within a live safe-area parent,

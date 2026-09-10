@@ -1,0 +1,64 @@
+{
+  "entries": [
+    {
+      "key": "ornament_Crimson",
+      "inset": 0.34863
+    },
+    {
+      "key": "ornament_Desert",
+      "inset": 0.34473
+    },
+    {
+      "key": "ornament_Egypt",
+      "inset": 0.37012
+    },
+    {
+      "key": "ornament_Fangkuai",
+      "inset": 0.34277
+    },
+    {
+      "key": "ornament_Hallow",
+      "inset": 0.35645
+    },
+    {
+      "key": "ornament_Island",
+      "inset": 0.35449
+    },
+    {
+      "key": "ornament_Japan",
+      "inset": 0.32324
+    },
+    {
+      "key": "ornament_Jungle",
+      "inset": 0.29004
+    },
+    {
+      "key": "ornament_Kvartal",
+      "inset": 0.36817
+    },
+    {
+      "key": "ornament_LostCity",
+      "inset": 0.34863
+    },
+    {
+      "key": "ornament_Neon",
+      "inset": 0.4209
+    },
+    {
+      "key": "ornament_Techno",
+      "inset": 0.35645
+    },
+    {
+      "key": "ornament_Tide",
+      "inset": 0.34082
+    },
+    {
+      "key": "ornament_Volcano",
+      "inset": 0.37988
+    },
+    {
+      "key": "ornament_Winter",
+      "inset": 0.34277
+    }
+  ]
+}

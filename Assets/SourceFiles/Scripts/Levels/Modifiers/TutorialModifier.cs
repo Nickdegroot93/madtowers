@@ -1259,6 +1259,7 @@ public partial class TutorialModifier : LevelModifier
         _hoverHint = null;
         _welcome = null;
         _welcomePanel = null;
+        _welcomeHud = null;
         _softDropPracticing = false;
         _skipRoot = null;
         _dots = null;

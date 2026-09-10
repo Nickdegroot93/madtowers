@@ -98,7 +98,8 @@ remain compatible.
 The welcome uses the existing Manrope fonts, warm pale ink, a dark rounded panel,
 a primary pale button and a quieter skip action. Its width stretches inside the
 safe area and its height fits shorter screens. The scenery stays visible beneath
-a light full-screen wash. There is no video dependency.
+a light full-screen wash. Isolated Jungle foliage straddles the lower corners, half inside and half outside the card and has no repeated chapter-image badge.
+The HUD is bound again if it awakens after the modifier. There is no video dependency.
 
 The gameplay tutorial is a compact 248-unit panel under the actual HUD bounds:
 46–50-unit action text, 32-unit helper text, four core progress marks, TUTORIAL step

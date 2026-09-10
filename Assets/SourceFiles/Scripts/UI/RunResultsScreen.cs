@@ -25,8 +25,11 @@ public sealed class RunResultsScreen : MonoBehaviour
         public float EndlessHeight;     // > 0 on endless runs only: quiet secondary height line
         public int Coins;               // banked this run (incl. win bonus on victory); 0 hides the line
         public bool Boosted;            // run started with purchased supplies (SHOP.md §5) - the honesty tag
-        public string PrimaryLabel;     // "Try Again" / "Keep Playing"
+        public string PrimaryLabel;     // retry, continue, or first-clear progression
         public System.Action OnPrimary;
+        public System.Action OnSecondary; // first-clear retry; otherwise the menu supplies its own exit
+        public string UnlockMessage;    // first clear: the next level/chapter, or campaign complete
+        public bool PrimaryReturnsToMenu; // first clear: menu primary, retry secondary
         public string VictorySentence;  // why keep playing (victory only)
         // ---- Medal ladder (LevelTiers). Null arrays = no medal row (Endless, no level).
         public MedalTier? TierEarnedThisRun; // highest tier NEWLY earned this run - drives the
@@ -87,12 +90,13 @@ public sealed class RunResultsScreen : MonoBehaviour
     private bool _landed;
     private float _punchAge;
     private bool _recordSfxPlayed;
+    private bool _closing;
 
     /// <summary>Build and show the card. Replaces any card already on screen (a game over
     /// arriving over a stale victory card must win).</summary>
     public static void Show(Content content, bool muted = false)
     {
-        if (_active != null) Destroy(_active.gameObject);
+        if (_active != null) _active.CloseAndInvoke(null);
 
         RuntimeUiKit.EnsureEventSystem();
         // Victory sits below the game-over order so a later game over always covers it.
@@ -156,6 +160,9 @@ public sealed class RunResultsScreen : MonoBehaviour
         if (celebrate) layout.padding.top = Mathf.RoundToInt(BadgeSize * 0.5f + 24f);
         ContentSizeFitter fitter = panel.AddComponent<ContentSizeFitter>();
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        var ornaments = panel.transform.Find("ChapterOrnaments");
+        if (ornaments != null) AddReveal(ornaments.gameObject, KickerAt);
 
         bool record = _content.Metric.IsNewRecord;
 
@@ -235,6 +242,14 @@ public sealed class RunResultsScreen : MonoBehaviour
 
         if (_content.Coins > 0) BuildCoinsRow(panel.transform);
 
+        if (!string.IsNullOrEmpty(_content.UnlockMessage))
+        {
+            TextMeshProUGUI unlocked = CreateRow(panel.transform, _content.UnlockMessage, 27,
+                GameMenuStyle.Accent, 76f, display: false);
+            unlocked.textWrappingMode = TextWrappingModes.Normal;
+            AddReveal(unlocked.gameObject, DetailsAt);
+        }
+
         // The lives line: a player weighing "Try Again" must see what it costs and what
         // they hold - the meter is otherwise invisible mid-run (Nick 2026-08-09).
         // Game over only: the victory card's primary is Keep Playing, which is free.
@@ -244,7 +259,9 @@ public sealed class RunResultsScreen : MonoBehaviour
             if (lives != null) AddReveal(lives, DetailsAt);
         }
 
-        bool outOfLives = !_content.Victory && RunLivesUi.OutOfLives;
+        // Returning to the menu is always available; only retries need an attempt.
+        bool outOfLives = !_content.Victory && !_content.PrimaryReturnsToMenu
+            && RunLivesUi.OutOfLives;
         if (outOfLives)
         {
             // Zero lives: "Try Again" would only bounce to the menu after a doomed server
@@ -255,7 +272,7 @@ public sealed class RunResultsScreen : MonoBehaviour
             {
                 // A slow claim can land after the player already left this screen -
                 // never resurrect a game-over card over whatever they moved on to.
-                if (this == null || _active != this) return;
+                if (this == null || _closing || _active != this) return;
                 Show(_content, muted: true);
             });
             for (int i = 0; i < added; i++)
@@ -275,7 +292,7 @@ public sealed class RunResultsScreen : MonoBehaviour
                     24, new Color(1f, 1f, 1f, 0.6f), 44f, display: false).gameObject;
                 AddReveal(hint, PrimaryAt);
             }
-            gameObject.AddComponent<OutOfLivesWatcher>().Screen = this;
+            gameObject.AddComponent<AttemptsWatcher>().Screen = this;
         }
         else
         {
@@ -288,14 +305,19 @@ public sealed class RunResultsScreen : MonoBehaviour
 
         if (!_content.IntroductionComplete)
         {
-            Button menu = RuntimeUiKit.CreateButton(panel.transform, "Back to Menu", 120f, () =>
+            bool retry = _content.PrimaryReturnsToMenu;
+            Button secondary = RuntimeUiKit.CreateButton(panel.transform,
+                retry ? "Try Again" : "Back to Main Menu", 120f, OnSecondaryClicked);
+            GameMenuStyle.StyleButton(secondary, primary: false);
+            if (retry)
             {
-                SfxPlayer.Play("ui-leave-game");
-                MainMenuRuntime.ReturnToMenu();
-            });
-            GameMenuStyle.StyleButton(menu, primary: false);
-            RoundButton(menu);
-            AddReveal(menu.gameObject, SecondaryAt, isButton: true);
+                secondary.interactable = !RunLivesUi.OutOfLives;
+                AttemptsWatcher watcher = gameObject.AddComponent<AttemptsWatcher>();
+                watcher.Screen = this;
+                watcher.RetryButton = secondary;
+            }
+            RoundButton(secondary);
+            AddReveal(secondary.gameObject, SecondaryAt, isButton: true);
         }
 
         _endTime = SecondaryAt + RevealSeconds;
@@ -304,24 +326,61 @@ public sealed class RunResultsScreen : MonoBehaviour
 
     private void OnPrimaryClicked()
     {
-        System.Action action = _content.OnPrimary;
+        CloseAndInvoke(_content.OnPrimary);
+    }
+
+    private void OnSecondaryClicked()
+    {
+        if (_content.PrimaryReturnsToMenu)
+        {
+            // Recheck at the click: a server update may have changed the meter since Build.
+            if (!RunLivesUi.OutOfLives) CloseAndInvoke(_content.OnSecondary);
+            return;
+        }
+        CloseAndInvoke(() =>
+        {
+            SfxPlayer.Play("ui-leave-game");
+            MainMenuRuntime.ReturnToMenu();
+        });
+    }
+
+    // Destroy is deferred until frame end. Retire the card immediately so another pointer
+    // or a late refill cannot invoke a second action or resurrect the screen being left.
+    private void CloseAndInvoke(System.Action action)
+    {
+        if (!TryRetire()) return;
         Destroy(gameObject);
         action?.Invoke();
     }
 
-    /// <summary>While the out-of-lives card is up, a life can arrive on its own (regen
-    /// ticking over, or an SSV grant landing late). Rebuild once so Try Again returns
-    /// without the player having to leave and come back.</summary>
-    private sealed class OutOfLivesWatcher : MonoBehaviour
+    private bool TryRetire()
+    {
+        if (_closing) return false;
+        _closing = true;
+        if (_active == this) _active = null;
+        gameObject.SetActive(false);
+        return true;
+    }
+
+    /// <summary>Follow regen and server updates. A first-clear card only toggles its
+    /// secondary retry, preserving the menu action and entrance. A refill-only loss card
+    /// rebuilds once an attempt arrives so its primary retry can return.</summary>
+    private sealed class AttemptsWatcher : MonoBehaviour
     {
         public RunResultsScreen Screen;
+        public Button RetryButton;
         private float _next;
 
         private void Update()
         {
-            if (Screen == null || Time.unscaledTime < _next) return;
+            if (Screen == null || Screen._closing || _active != Screen || Time.unscaledTime < _next) return;
             _next = Time.unscaledTime + 1f;
-            if (!RunLivesUi.OutOfLives)
+            bool outOfLives = RunLivesUi.OutOfLives;
+            if (RetryButton != null)
+            {
+                RetryButton.interactable = !outOfLives;
+            }
+            else if (!outOfLives)
             {
                 enabled = false;
                 Show(Screen._content, muted: true);
@@ -517,7 +576,8 @@ public sealed class RunResultsScreen : MonoBehaviour
 
     private void AddReveal(GameObject target, float start, bool isButton = false)
     {
-        CanvasGroup group = target.AddComponent<CanvasGroup>();
+        CanvasGroup group = target.GetComponent<CanvasGroup>();
+        if (group == null) group = target.AddComponent<CanvasGroup>();
         group.alpha = 0f;
         group.blocksRaycasts = false;
         group.interactable = false;
