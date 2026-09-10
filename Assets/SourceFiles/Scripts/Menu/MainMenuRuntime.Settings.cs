@@ -418,7 +418,7 @@ public static partial class MainMenuRuntime
             new Vector2(172f, -84f), new Vector2(520f, 26f), new Vector2(0f, 1f));
         StretchIdentityText(status, -84f, 26f);
         TextMeshProUGUI detail = CreateTmp(identity, "Detail",
-            guest ? "UNINSTALLING LOSES YOUR PROGRESS" : "YOUR PROGRESS IS SAFE ON EVERY DEVICE", 20,
+            guest ? "UNINSTALLING LOSES YOUR PROGRESS" : CloudSaveDescription, 20,
             WithAlpha(TextMuted, 0.65f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(172f, -116f), new Vector2(520f, 24f), new Vector2(0f, 1f));
         StretchIdentityText(detail, -116f, 36f);
@@ -437,13 +437,17 @@ public static partial class MainMenuRuntime
             name.text = OnlineService.DisplayName;
             status.text = g ? "GUEST ACCOUNT" : "SIGNED IN";
             status.color = g ? WithAlpha(TextMuted, 0.9f) : WithAlpha(MenuAccent, 0.9f);
-            detail.text = g ? "UNINSTALLING LOSES YOUR PROGRESS" : "YOUR PROGRESS IS SAFE ON EVERY DEVICE";
+            detail.text = g ? "UNINSTALLING LOSES YOUR PROGRESS" : CloudSaveDescription;
             if (nameButtonLabel != null)
                 nameButtonLabel.text = HasClaimedName ? "CHANGE NAME" : "CLAIM YOUR NAME";
         }
         OnlineService.StateChanged += RefreshIdentity;
-        identity.gameObject.AddComponent<UnhookOnDestroy>().Unhook =
-            () => OnlineService.StateChanged -= RefreshIdentity;
+        ProgressSync.Changed += RefreshIdentity;
+        identity.gameObject.AddComponent<UnhookOnDestroy>().Unhook = () =>
+        {
+            OnlineService.StateChanged -= RefreshIdentity;
+            ProgressSync.Changed -= RefreshIdentity;
+        };
 
         // -- the identity actions: CHANGE NAME (dark) + SIGN IN (gold CTA) for guests ----------
         RectTransform buttons = NewSettingsRow(rows, "IdentityButtons", -identityH, buttonsH);

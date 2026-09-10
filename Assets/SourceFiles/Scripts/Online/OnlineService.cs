@@ -9,8 +9,9 @@ using UnityEngine.Networking;
 /// service rides. A hidden DontDestroyOnLoad host owns all coroutines/UnityWebRequests
 /// (MusicPlayer pattern) so the single-scene reload churn never kills a request in flight.
 ///
-/// The game never blocks on this: services observe State/StateChanged and degrade. Campaign
-/// run starts are the one hard gate, and that lives in RunGate (BACKEND.md §5.1).
+/// Startup waits for the first profile, meter and progress exchange behind SplashOverlay.
+/// During play, services observe State/StateChanged and degrade. Campaign run starts
+/// remain gated by RunGate (BACKEND.md §5.1).
 /// </summary>
 public class OnlineService : MonoBehaviour
 {
@@ -138,7 +139,15 @@ public class OnlineService : MonoBehaviour
     /// <summary>Manual retry after Offline (the UI's RETRY buttons land here).</summary>
     public static void RetryConnect()
     {
-        if (!Enabled || _instance == null || _booting) return;
+        if (!Enabled) return;
+        if (_instance == null) { EnsureInstance(); return; }
+        if (_booting) return;
+        if (IsReady)
+        {
+            AttemptsSync.ForceRefresh();
+            ProgressSync.RetryInitialSync();
+            return;
+        }
         _failedBoots = 0;
         _instance.StartCoroutine(_instance.BootCo());
     }
@@ -456,7 +465,8 @@ public class OnlineService : MonoBehaviour
             using (UnityWebRequest req = build())
             {
                 yield return req.SendWebRequest();
-                NoteTransport(req.result != UnityWebRequest.Result.ConnectionError);
+                NoteTransport(req.result != UnityWebRequest.Result.ConnectionError,
+                    req.result == UnityWebRequest.Result.Success);
                 if (req.result == UnityWebRequest.Result.Success)
                 {
                     onOk?.Invoke(req.downloadHandler.text);
@@ -482,17 +492,22 @@ public class OnlineService : MonoBehaviour
 
     // Mid-session reachability: Ready is a claim the UI trusts (OFFLINE chips, gate copy),
     // so losing the network after boot must flip it. Two consecutive connection-level
-    // failures = offline (one can be a blip); any reachable reply recovers. Protocol errors
-    // (4xx/5xx) count as reachable - the server answered.
+    // failures = offline (one can be a blip). An authenticated success recovers; an HTTP
+    // error only proves reachability, and must not release startup before auth succeeds.
     private static int _transportFailStreak;
 
-    private static void NoteTransport(bool reachable)
+    private static void NoteTransport(bool reachable, bool authenticated)
     {
         if (reachable)
         {
             _transportFailStreak = 0;
-            if (State == OnlineState.Offline && !string.IsNullOrEmpty(_displayName))
+            if (authenticated && State == OnlineState.Offline && !_booting && !string.IsNullOrEmpty(_displayName))
+            {
                 SetState(OnlineState.Ready);
+                AttemptsSync.Refresh();
+                RunGate.RetryPendingFinishes();
+                ProgressSync.OnReady();
+            }
             return;
         }
         _transportFailStreak++;

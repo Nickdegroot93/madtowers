@@ -49,8 +49,8 @@ don't ship it in v1.
 
 - **Supabase** (Postgres + Auth + RLS + Edge Functions) is the entire cloud backend — the
   login system and the database in one, home territory (Postgres).
-- **Everyone is logged in from second one**: first launch performs a silent **anonymous
-  sign-in** — a real account, a real `user_id`, no screen shown. Server-checked attempts and
+- **Anonymous sign-in at launch**: the splash performs silent **anonymous
+  sign-in** — a real account and `user_id`, without an account-entry form. Server-checked attempts and
   leaderboard participation work for 100% of players from the first session.
 - **Server-authoritative where fairness or money is involved**: attempts (lives meter),
   score submission, ad-refill grants, premium receipt — all go through server functions the
@@ -89,10 +89,10 @@ player's real email (private relay) — fine, we don't need emails.
   themselves at #23 is hooked; a board they're not on is a shrug).
 - The one real weakness: an anonymous account's only proof of ownership is the device
   session — **uninstall = account gone**. That is exactly what the link prompts sell.
-- No first-launch login wall. Architecturally a wall would be a one-line policy change on
-  this same design; it's rejected because pre-gameplay screens measurably cost installs and
-  buy nothing the anonymous account doesn't already do. (Also keeps us clear of Apple's
-  guideline against demanding accounts before core functionality.)
+- No mandatory Apple/Google account-linking form at first launch. The connection-aware
+  splash waits for anonymous authentication, a complete ownership/lives snapshot and initial
+  progress merge. Free players retry on connection failure; cached Unlimited owners can
+  continue locally after three seconds. This also precedes the first tutorial.
 
 ### 3.3 Linking a real account (Apple/Google) — the upgrade
 
@@ -283,6 +283,16 @@ tunnel — the run was already paid for. No heartbeat, no per-frame checks.
   diverged merge with no conflict UI — this is *why* DATA.md rule 3 is non-negotiable.
 - **Schema migration:** `schema_version` on both sides; migrate on load (client) and in the
   merge function (server).
+
+The client validates cloud documents and rejects replies that would remove local completions,
+discoveries, personal bests, earned/spent currency counters, or monotonic milestones. A local
+save during the request also prevents stale response application. Invalid replies remain queued
+with backoff; successful authenticated recovery restarts the merge even without a new local save.
+Local save files are replaced atomically. `Saved` signals local mutations even when disk writes
+fail, allowing cloud preservation without letting an old reply overwrite newer memory.
+
+Anonymous cloud progress still requires recoverable account linking for reinstall recovery.
+Apple/Google provider configuration and native sign-in are not complete; see GOLIVE.md Phase 2.
 
 Everything hides behind `ProgressStore`'s existing API (DATA.md rule 1) — gameplay calls
 `MarkBlockDiscovered`, `ReportResult`, etc.; sync happens underneath.

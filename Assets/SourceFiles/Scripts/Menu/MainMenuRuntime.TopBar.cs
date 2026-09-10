@@ -151,7 +151,7 @@ public static partial class MainMenuRuntime
         }
         else if (AttemptsService.OnlineBlocked)
         {
-            attemptsCard = BuildCurrencyCard(bar, statBackground, null, "OFFLINE", null, addButton: false);
+            attemptsCard = BuildCurrencyCard(bar, statBackground, null, ConnectionChipText, null, addButton: false);
         }
         else if (AttemptsService.MeterActive)
         {
@@ -229,6 +229,9 @@ public static partial class MainMenuRuntime
 
     // Which attempts chip the bar would build right now (hidden / OFFLINE / meter / ∞). A
     // live bar whose mode drifts from what it built rebuilds the menu section once.
+    private static string ConnectionChipText => OnlineService.State == OnlineService.OnlineState.Connecting
+        ? "CONNECTING" : "OFFLINE";
+
     private static int ChipMode() =>
         PremiumStore.IsPremium && AttemptsService.MetaEnabled ? 3
         : AttemptsService.OnlineBlocked ? 1
@@ -275,6 +278,7 @@ public static partial class MainMenuRuntime
         {
             if (_consumed) return;
             if (PlayerName != null) PlayerName.text = OnlineService.DisplayName;
+            if (BuiltMode == 1 && AttemptsPrimary != null) AttemptsPrimary.text = ConnectionChipText;
             if (LevelText != null) LevelText.text = XpSystem.Level.ToString();
             if (ExpFill != null) ExpFill.anchorMax = new Vector2(Mathf.Clamp01(XpSystem.Fraction01), 1f);
             if (ChipMode() != BuiltMode)

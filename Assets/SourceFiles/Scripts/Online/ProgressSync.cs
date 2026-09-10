@@ -12,6 +12,11 @@ public static class ProgressSync
 {
     private const float DebounceSeconds = 5f;
 
+    /// <summary>A validated cloud merge has completed during this app session.</summary>
+    public static bool HasSyncedThisSession { get; private set; }
+    public static bool HasPendingChanges => _dirty || _inFlight;
+    public static event System.Action Changed;
+
     private static bool _dirty;
     private static bool _inFlight;
     private static bool _loopRunning;
@@ -55,6 +60,7 @@ public static class ProgressSync
     {
         _dirty = true;
         _lastSaveRealtime = Time.realtimeSinceStartup;
+        Changed?.Invoke();
     }
 
     private static IEnumerator PusherLoopCo()
@@ -70,6 +76,13 @@ public static class ProgressSync
         }
     }
 
+    /// <summary>Retry an initial cloud load without waiting for the save debounce.</summary>
+    public static void RetryInitialSync()
+    {
+        if (!OnlineService.IsReady || _inFlight || Time.realtimeSinceStartup < _backoffUntilRealtime) return;
+        Merge();
+    }
+
     private static void Merge()
     {
         if (_inFlight) return;
@@ -80,34 +93,51 @@ public static class ProgressSync
         // missing that write - applying it wholesale would erase the newer local data
         // (review finding). Skip the apply and let the dirty re-push re-merge; the server
         // merge is idempotent so this converges without loss.
+        string payload = ProgressStore.ExportPayloadJson(); // loading can itself migrate/save legacy data
         long sentMutation = ProgressStore.MutationCounter;
 
-        string body = $"{{\"p_payload\":{ProgressStore.ExportPayloadJson()}," +
+        string body = $"{{\"p_payload\":{payload}," +
                       $"\"p_schema_version\":{ProgressStore.SchemaVersion}}}";
         OnlineService.RpcRaw("merge_progress", body,
-            merged =>
-            {
-                _inFlight = false;
-                _failStreak = 0;
-                _backoffUntilRealtime = 0f;
-                if (ProgressStore.MutationCounter == sentMutation)
-                    ProgressStore.ApplyMergedPayload(merged);
-                else
-                    _dirty = true;
-            },
-            err =>
-            {
-                _inFlight = false;
-                _dirty = true; // retried by the pusher loop / next foreground
-                float delay = FailBackoff[Mathf.Min(_failStreak, FailBackoff.Length - 1)];
-                _failStreak++;
-                _backoffUntilRealtime = Time.realtimeSinceStartup + delay;
-            });
+            merged => CompleteMerge(merged, sentMutation),
+            err => FailMerge());
+    }
+
+    private static void CompleteMerge(string merged, long sentMutation)
+    {
+        _inFlight = false;
+        if (ProgressStore.MutationCounter != sentMutation)
+        {
+            _dirty = true; // a newer local save must go through the server before applying
+            Changed?.Invoke();
+            return;
+        }
+        if (!ProgressStore.ApplyMergedPayload(merged))
+        {
+            FailMerge();
+            return;
+        }
+        HasSyncedThisSession = true;
+        _failStreak = 0;
+        _backoffUntilRealtime = 0f;
+        Changed?.Invoke();
+    }
+
+    private static void FailMerge()
+    {
+        _inFlight = false;
+        _dirty = true;
+        float delay = FailBackoff[Mathf.Min(_failStreak, FailBackoff.Length - 1)];
+        _failStreak++;
+        _backoffUntilRealtime = Time.realtimeSinceStartup + delay;
+        Changed?.Invoke();
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetForPlayMode()
     {
+        HasSyncedThisSession = false;
+        Changed = null;
         _dirty = false;
         _inFlight = false;
         _loopRunning = false;

@@ -7,9 +7,11 @@ this is a development replay control, not a shipping onboarding requirement.
 
 ## Arrival
 
-A fresh installation enters the local, unranked introduction directly, skipping the
-menu and launch splash. No account/network wait, attempt charge, supplies, special
-bricks or ability choices interrupt it. The scenery's existing camera pan plays in full.
+The launch splash resolves connection, ownership, lives and initial cloud progress before
+choosing the introduction or menu. A fresh free installation must connect; cached Unlimited
+owners can continue with local progress after three seconds. Once admitted, a fresh player
+enters the local, unranked introduction without a menu detour. No attempt charge, supplies,
+special bricks or ability choices interrupt it. The scenery's camera pan plays in full.
 
 A welcome composition fades over the scenery while the gameplay HUD is hidden:
 
@@ -91,7 +93,9 @@ repeat the first-completion bonus.
 
 The separate `firstLaunchHandled` flag prevents an abandoned opening from forcing
 automatic tutorial entry on every launch. Existing saves and the level's asset ID
-remain compatible.
+remain compatible. New saves carry an `introductionEligible` marker, so an initial
+cloud snapshot written during a failed startup does not consume the first welcome.
+`firstLaunchHandled` remains the authoritative one-time completion of this routing decision.
 
 ## Presentation and layout
 

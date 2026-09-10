@@ -559,3 +559,16 @@ spending supplies (JUICE.md principle 1).
 - **Board naming**: **CLEAN / BOOSTED** — "boosted" is the word casual players
   already know from boosters; "assisted" reads apologetic, "open" reads cryptic.
 - **Soft landing**: everything meta stays hidden until Chapter 1 is completed (§7.1).
+
+## Unlimited confirmation and startup
+
+Successful explicit purchases show “Welcome to Unlimited”, the three benefits, and “Let’s
+build”. Explicit restores (including a purchase of an already-owned entitlement) show the
+shorter restored confirmation. Background server ownership refreshes never open this UI.
+Purchase callbacks complete even if an ownership/UI subscriber throws. Native provider and
+receipt-validation work remains in GOLIVE.md Phase 3; current Editor purchases are simulated.
+
+At startup, cached Unlimited ownership allows local play after a three-second connection
+wait. Free players remain at Retry; Restore is available if the platform store is ready.
+The introduction's local/unranked run itself is unchanged, but its first entry follows this
+startup gate. Offline-started campaign runs remain excluded from leaderboard submissions.

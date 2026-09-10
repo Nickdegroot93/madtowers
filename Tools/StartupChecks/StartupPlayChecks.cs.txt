@@ -1,0 +1,25 @@
+// Temporarily compile under Scripts/Editor. Opt-in fresh-install scene-transition fixture.
+using System;
+using System.IO;
+using System.Reflection;
+using UnityEditor;
+using UnityEngine;
+public static class StartupPlayChecks
+{
+    public const string SessionKey = "HazardHeights.StartupReview.SavePath";
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void Prepare()
+    {
+        string path = SessionState.GetString(SessionKey, "");
+        if (string.IsNullOrEmpty(path)) return;
+        // Fail before touching game state if this is not a dedicated temporary fixture.
+        if (!Path.GetFullPath(path).StartsWith(Path.GetFullPath(Path.GetTempPath()), StringComparison.Ordinal))
+            throw new InvalidOperationException("Startup fixture requires a temporary directory");
+        const BindingFlags flags = BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public;
+        SupabaseConfig.Enabled = false;
+        typeof(ProgressStore).GetField("EditorSavePathOverride", flags).SetValue(null, path);
+        typeof(ProgressStore).GetField("_data", flags).SetValue(null,
+            new ProgressStore.PlayerProgress { introductionEligible = true });
+        typeof(ProgressStore).GetField("_loadedExistingSave", flags).SetValue(null, false);
+    }
+}

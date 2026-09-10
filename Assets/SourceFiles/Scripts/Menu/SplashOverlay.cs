@@ -1,86 +1,166 @@
+using System;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using static RuntimeUiKit;
 
-/// <summary>
-/// First-boot splash: the launch artwork held over the freshly built menu for a beat, then
-/// faded out. The engine-init splash (Player Settings background image) shows the same art,
-/// so the player sees ONE continuous splash from app tap to menu. There is no real work to
-/// wait for — BuildMenu is synchronous — and no loader animation: nothing can animate during
-/// the engine-init stretch, so a late-starting loader only reads as a flicker.
-///
-/// Shown once per process: ReturnToMenu's scene reloads re-run ShowMenuIfNeeded and must not
-/// re-splash. The menu runs at timeScale = 0, so all timing here is unscaled.
-/// </summary>
+/// <summary>Holds launch art over connection, ownership and the first cloud merge.
+/// Uses real time while the menu is paused. Scene reloads never restart the launch gate.</summary>
 public static class SplashOverlay
 {
     private const string SpritePath = "Splash/splash_portrait";
-    private const float HoldSeconds = 0.7f;
-    private const float FadeSeconds = 0.45f;
-
-    // Above every menu surface including the simulated store sheet (9100).
+    private const float HoldSeconds = .7f;
+    private const float FadeSeconds = .45f;
     private const int SortingOrder = 12000;
-
     private static bool _shownThisProcess;
     private static GameObject _live;
-
-    /// <summary>Is the splash still covering the screen? Boot-time surfaces that want to be
-    /// SEEN appearing (the out-of-attempts refill offer) hold their entrance on this.</summary>
     public static bool IsVisible => _live != null;
 
-    /// <summary>A direct gameplay launch must not show a belated launch splash on its return.</summary>
-    public static void SkipForThisProcess() => _shownThisProcess = true;
-
-    public static void ShowIfFirstBoot()
+    /// <summary>Returns true when the callback owns startup; false on subsequent menu visits.</summary>
+    public static bool ShowIfFirstBoot(Action ready = null)
     {
-        if (_shownThisProcess) return;
+        if (_shownThisProcess) return false;
         _shownThisProcess = true;
-
-        Sprite art = Resources.Load<Sprite>(SpritePath);
-        if (art == null) return; // art missing: boot straight to the menu, never block on it
-
         GameObject root = CreateOverlayCanvas("Splash", SortingOrder);
+        UnityEngine.Object.DontDestroyOnLoad(root); // also covers the transition into the introduction
         _live = root;
-
-        // Solid backing behind the cover-fit art so no menu pixel shows through on any aspect.
-        Image backing = CreateImage(root.transform, "Backing", null, new Color(0.05f, 0.035f, 0.03f, 1f));
+        Image backing = CreateImage(root.transform, "Backing", null, new Color(.05f, .035f, .03f, 1f));
         Stretch(backing.rectTransform);
-        // CreateImage disables raycastTarget; re-enable on the backing or the CanvasGroup's
-        // blocksRaycasts has nothing to block with and the hidden menu takes taps.
         backing.raycastTarget = true;
-
-        Image image = CreateImage(root.transform, "Art", art, Color.white);
-        Stretch(image.rectTransform);
-        FitToCover(image, SpriteAspect(art, 9f / 16f));
-
+        Sprite art = Resources.Load<Sprite>(SpritePath);
+        if (art != null)
+        {
+            Image image = CreateImage(root.transform, "Art", art, Color.white);
+            Stretch(image.rectTransform);
+            FitToCover(image, SpriteAspect(art, 9f / 16f));
+        }
+        // Missing artwork must never bypass the connection/ownership gate.
         CanvasGroup group = root.AddComponent<CanvasGroup>();
-        group.blocksRaycasts = true; // swallow taps until the menu is actually visible
+        group.blocksRaycasts = true;
+        root.AddComponent<Runner>().Init(group, ready);
+        OnlineService.RetryConnect(); // also starts the service if runtime hook order has not done so
+        return true;
+    }
 
-        root.AddComponent<Runner>().Init(group);
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetForPlayMode()
+    {
+        _shownThisProcess = false;
+        _live = null;
     }
 
     private sealed class Runner : MonoBehaviour
     {
         private CanvasGroup _group;
+        private Action _ready;
         private float _elapsed;
+        private float _fadeElapsed;
+        private bool _revealing;
+        private GameObject _failure;
+        private TextMeshProUGUI _status;
+        private Button _restore;
+        private bool _restoring;
 
-        public void Init(CanvasGroup group)
+        public void Init(CanvasGroup group, Action ready)
         {
             _group = group;
+            _ready = ready;
+            var safe = CreateRect(transform, "StatusSafeArea", Vector2.zero, Vector2.one,
+                new Vector2(.5f, .5f), Vector2.zero, Vector2.zero);
+            safe.gameObject.AddComponent<SafeAreaFitter>();
+            _status = CreateTmp(safe, "ConnectionStatus", "Connecting…", 24, Color.white,
+                TextAnchor.MiddleCenter, FontStyle.Normal, DefaultFont,
+                new Vector2(0f, 120f), new Vector2(660f, 60f), new Vector2(.5f, 0f));
+            _status.raycastTarget = false;
+            BuildFailure();
         }
 
         private void Update()
         {
-            _elapsed += Time.unscaledDeltaTime;
-
-            float fadeT = (_elapsed - HoldSeconds) / FadeSeconds;
-            if (fadeT <= 0f) return;
-            if (fadeT >= 1f)
+            if (_revealing)
             {
-                Destroy(gameObject);
+                _fadeElapsed += Time.unscaledDeltaTime;
+                _group.alpha = 1f - Mathf.Clamp01(_fadeElapsed / FadeSeconds);
+                if (_fadeElapsed >= FadeSeconds) Destroy(gameObject);
                 return;
             }
-            _group.alpha = 1f - fadeT;
+            _elapsed += Time.unscaledDeltaTime;
+            var decision = StartupGate.Evaluate(OnlineService.Enabled, OnlineService.IsReady,
+                AttemptsSync.HasFullServerState, ProgressSync.HasSyncedThisSession,
+                PremiumStore.IsPremium, _elapsed);
+            bool blocked = decision == StartupGate.Decision.RetryRequired;
+            _failure.SetActive(blocked);
+            _status.gameObject.SetActive(!blocked);
+            if (blocked)
+            {
+                _restore.gameObject.SetActive(PremiumStore.HasStore);
+                _restore.interactable = PremiumStore.Available && !_restoring;
+                return;
+            }
+            _status.text = OnlineService.IsReady ? "Loading your progress…" : "Connecting…";
+            if (decision == StartupGate.Decision.Waiting || _elapsed < HoldSeconds) return;
+            _status.text = decision == StartupGate.Decision.Offline ? "Opening your saved game" : "Ready";
+            _revealing = true; // latch before invoking code that can reload the scene
+            var ready = _ready;
+            _ready = null;
+            ready?.Invoke(); // build the final menu under opaque art, then fade on subsequent frames
+        }
+
+        private void BuildFailure()
+        {
+            var wash = CreateImage(transform, "ConnectionUnavailable", null, new Color(0f, 0f, 0f, .78f));
+            Stretch(wash.rectTransform);
+            wash.raycastTarget = true;
+            _failure = wash.gameObject;
+            var panel = CreateRect(wash.transform, "Panel", new Vector2(.5f, .5f), new Vector2(.5f, .5f),
+                new Vector2(.5f, .5f), Vector2.zero, new Vector2(760f, 600f));
+            ModalSafeFrame.Attach(panel);
+            CreateTmp(panel, "Title", "We couldn’t connect", 44, Color.white,
+                TextAnchor.MiddleCenter, FontStyle.Normal, DefaultFont,
+                new Vector2(0f, -28f), new Vector2(700f, 80f), new Vector2(.5f, 1f));
+            CreateTmp(panel, "Explanation", "Check your connection and try again.", 27, GameMenuStyle.BodyText,
+                TextAnchor.MiddleCenter, FontStyle.Normal, DefaultFont,
+                new Vector2(0f, -132f), new Vector2(660f, 80f), new Vector2(.5f, 1f));
+            CreateTmp(panel, "Unlimited", "Hazard Heights Unlimited includes offline play.", 24, GameMenuStyle.BodyText,
+                TextAnchor.MiddleCenter, FontStyle.Normal, DefaultFont,
+                new Vector2(0f, -236f), new Vector2(640f, 90f), new Vector2(.5f, 1f));
+            ActionButton(panel, "Retry", "Try again", -370f, () =>
+            {
+                _elapsed = 0f;
+                OnlineService.RetryConnect();
+            });
+            _restore = ActionButton(panel, "Restore", "Restore purchases", -482f, Restore);
+            _failure.SetActive(false);
+        }
+
+        private void Restore()
+        {
+            if (_restoring) return;
+            _restoring = true;
+            var label = _restore.GetComponentInChildren<TextMeshProUGUI>();
+            label.text = "Checking purchases…";
+            PremiumStore.Restore(result =>
+            {
+                if (this == null) return;
+                _restoring = false;
+                label.text = result == PremiumStoreResult.NothingToRestore ? "No purchase found — try again"
+                    : result == PremiumStoreResult.Failed ? "Store unavailable — try again" : "Restore purchases";
+            });
+        }
+
+        private static Button ActionButton(Transform panel, string name, string label, float y, Action action)
+        {
+            var image = CreateImage(panel, name, RuntimeSprites.RoundedPanel(), name == "Retry"
+                ? new Color(.96f, .95f, .9f) : new Color(.12f, .12f, .13f));
+            image.type = Image.Type.Sliced;
+            SetRect(image.rectTransform, new Vector2(0f, y), new Vector2(640f, 88f), new Vector2(.5f, 1f));
+            image.raycastTarget = true;
+            CreateTmp(image.transform, "Label", label, 26, name == "Retry" ? Color.black : Color.white,
+                TextAnchor.MiddleCenter, FontStyle.Normal, DefaultFont);
+            var button = image.gameObject.AddComponent<Button>();
+            button.targetGraphic = image;
+            button.onClick.AddListener(() => action());
+            return button;
         }
     }
 }

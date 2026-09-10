@@ -1,3 +1,4 @@
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -33,6 +34,10 @@ public static class ProgressStore
         // First-launch routing is separate from learned controls and winning the introduction.
         // Returning players may leave an unfinished introduction without being auto-launched again.
         public bool firstLaunchHandled;
+        // Set only when creating a fresh save. Keeps the introduction eligible if startup
+        // writes a cloud snapshot but the player quits while the connection gate is up.
+        // Monotonic marker; firstLaunchHandled wins once the introduction was offered.
+        public bool introductionEligible;
         // The Vault's discovery sets (v3, BACKEND.md §7): which brick variants the player has SEEN
         // drop in play, which abilities have ever APPEARED in a 3-card offer (picked or not), and
         // which Vault entries have been opened at least once (clears the "NEW" badge). All three
@@ -98,7 +103,20 @@ public static class ProgressStore
     private static PlayerProgress _data;
     private static bool _loadedExistingSave;
 
-    private static string FilePath => Path.Combine(Application.persistentDataPath, "progress.json");
+#if UNITY_EDITOR
+    // Isolated Editor fixtures must never write into the real player save directory.
+    internal static string EditorSavePathOverride;
+#endif
+    private static string FilePath
+    {
+        get
+        {
+#if UNITY_EDITOR
+            if (!string.IsNullOrEmpty(EditorSavePathOverride)) return EditorSavePathOverride;
+#endif
+            return Path.Combine(Application.persistentDataPath, "progress.json");
+        }
+    }
 
     /// <summary>Stable identity of a level across sessions, saves and (later) the cloud. Runtime
     /// levels (Custom Game) have an empty asset name and therefore NO identity - returning null
@@ -126,13 +144,13 @@ public static class ProgressStore
     /// overlay only (never the level's own win/completion). See TUTORIAL.md.</summary>
     public static bool IsTutorialCompleted() => Data.tutorialCompleted;
 
-    /// <summary>Claim the automatic introduction once, before the first scene loads. Existing
+    /// <summary>Claim the automatic introduction once, after startup has resolved. Existing
     /// saves (including pre-feature installs) always open normally; resetting tips cannot re-arm it.</summary>
     public static bool ClaimFirstLaunchIntroduction()
     {
         PlayerProgress progress = Data;
         if (progress.firstLaunchHandled) return false;
-        bool fresh = !_loadedExistingSave && !progress.tutorialCompleted &&
+        bool fresh = (!_loadedExistingSave || progress.introductionEligible) && !progress.tutorialCompleted &&
             progress.completedLevelIds.Count == 0 && progress.bests.Count == 0;
         progress.firstLaunchHandled = true;
         Save();
@@ -432,8 +450,8 @@ public static class ProgressStore
 
     // ---- cloud mirror seam (BACKEND.md §5.2; only ProgressSync calls these) ------------------
 
-    /// <summary>Fired after every successful disk write (except merge applications - the
-    /// guard below - so the sync layer never echoes its own pull back as a push).</summary>
+    /// <summary>Fired on local save attempts, including disk failures so the cloud can
+    /// still preserve the mutation. Merge applications never echo themselves as a push.</summary>
     public static event Action Saved;
 
     public static int SchemaVersion => CurrentSchemaVersion;
@@ -450,12 +468,10 @@ public static class ProgressStore
     /// <summary>Replace the local document with the server-merged one. The merge is a
     /// superset of local state (union/max server-side), so replacing wholesale is safe.
     /// Saves without firing Saved - a pull must not schedule a push of itself.</summary>
-    public static void ApplyMergedPayload(string json)
+    public static bool ApplyMergedPayload(string json)
     {
-        PlayerProgress merged = null;
-        try { merged = JsonUtility.FromJson<PlayerProgress>(json); }
-        catch (Exception e) { Debug.LogWarning($"[Progress] Unreadable merged payload: {e.Message}"); }
-        if (merged == null) return;
+        if (!TryReadMergedPayload(json, out PlayerProgress merged)) return false;
+        if (!PreservesLocalProgress(Data, merged)) return false;
 
         merged.schemaVersion = CurrentSchemaVersion;
         // Server-owned display caches never round-trip through the payload (merge_progress
@@ -467,6 +483,7 @@ public static class ProgressStore
         if (_data != null)
         {
             merged.firstLaunchHandled |= _data.firstLaunchHandled;
+            merged.introductionEligible |= _data.introductionEligible;
             merged.attemptsCount = _data.attemptsCount;
             merged.attemptsUpdatedAtUnixUtc = _data.attemptsUpdatedAtUnixUtc;
         }
@@ -474,6 +491,62 @@ public static class ProgressStore
         _suppressSavedEvent = true;
         try { Save(); }
         finally { _suppressSavedEvent = false; }
+        return true;
+    }
+
+    // The server promises union/max. Refuse a structurally valid but incomplete reply
+    // rather than replacing earned offline progress with an older or empty snapshot.
+    private static bool PreservesLocalProgress(PlayerProgress local, PlayerProgress merged)
+    {
+        bool ContainsAll(List<string> incoming, List<string> existing) =>
+            incoming != null && existing != null && new HashSet<string>(incoming).IsSupersetOf(existing);
+        if (!ContainsAll(merged.completedLevelIds, local.completedLevelIds) ||
+            !ContainsAll(merged.discoveredBlocks, local.discoveredBlocks) ||
+            !ContainsAll(merged.abilitiesSeen, local.abilitiesSeen) ||
+            !ContainsAll(merged.vaultInspected, local.vaultInspected)) return false;
+        if (merged.currencyEarned < local.currencyEarned || merged.currencySpent < local.currencySpent ||
+            (local.tutorialCompleted && !merged.tutorialCompleted) ||
+            merged.linkPromptShownAtUnixUtc < local.linkPromptShownAtUnixUtc ||
+            merged.devLetterShownAtUnixUtc < local.devLetterShownAtUnixUtc ||
+            merged.reviewAskedAtUnixUtc < local.reviewAskedAtUnixUtc) return false;
+        foreach (LevelBest old in local.bests)
+        {
+            if (old == null) continue;
+            if (!merged.bests.Exists(best => best != null && best.levelId == old.levelId &&
+                best.bestScore >= old.bestScore && best.bestHeightMeters >= old.bestHeightMeters &&
+                best.bestScoreBoosted >= old.bestScoreBoosted && best.bestHeightMetersBoosted >= old.bestHeightMetersBoosted &&
+                best.bestVerifiedValue >= old.bestVerifiedValue && best.achievedAtUnixUtc >= old.achievedAtUnixUtc)) return false;
+        }
+        return true;
+    }
+
+    private static bool TryReadMergedPayload(string json, out PlayerProgress merged)
+    {
+        merged = null;
+        if (string.IsNullOrWhiteSpace(json)) return false;
+        PlayerProgress candidate;
+        try
+        {
+            // Unity treats explicit null arrays as empty arrays. Inspect token types before
+            // deserializing, so an error response cannot masquerade as an empty cloud save.
+            JObject document = JObject.Parse(json);
+            if (!(document["completedLevelIds"] is JArray levels) || !(document["bests"] is JArray bests)) return false;
+            foreach (JToken level in levels) if (level.Type != JTokenType.String) return false;
+            foreach (JToken best in bests)
+                if (!(best is JObject entry) || entry["levelId"]?.Type != JTokenType.String ||
+                    string.IsNullOrEmpty((string)entry["levelId"])) return false;
+            foreach (string key in new[] { "discoveredBlocks", "abilitiesSeen", "vaultInspected" })
+            {
+                if (!document.TryGetValue(key, out JToken token)) continue; // older schemas omit these sets
+                if (!(token is JArray values)) return false;
+                foreach (JToken value in values) if (value.Type != JTokenType.String) return false;
+            }
+            candidate = JsonUtility.FromJson<PlayerProgress>(json);
+        }
+        catch (Exception) { return false; }
+        if (candidate == null || candidate.completedLevelIds == null || candidate.bests == null) return false;
+        merged = candidate;
+        return true;
     }
 
     private static bool _suppressSavedEvent;
@@ -541,23 +614,32 @@ public static class ProgressStore
             Debug.LogWarning($"[Progress] Could not read save, starting fresh: {e.Message}");
             try { File.Copy(FilePath, FilePath + ".corrupt", true); } catch { /* best effort */ }
         }
-        return new PlayerProgress();
+        return new PlayerProgress { introductionEligible = true };
+    }
+
+    private static void WriteSaveAtomically(string path, string json)
+    {
+        string pending = path + ".tmp";
+        File.WriteAllText(pending, json);
+        if (File.Exists(path)) File.Replace(pending, path, null);
+        else File.Move(pending, path);
     }
 
     private static void Save()
     {
+        // Even a failed disk write changed the in-memory document. A cloud reply must
+        // not overwrite that mutation, and the upload can still preserve it remotely.
+        if (!_suppressSavedEvent) MutationCounter++;
         try
         {
-            File.WriteAllText(FilePath, JsonUtility.ToJson(Data, prettyPrint: true));
+            WriteSaveAtomically(FilePath, JsonUtility.ToJson(Data, prettyPrint: true));
         }
         catch (Exception e)
         {
             Debug.LogError($"[Progress] Save failed: {e.Message}");
-            return;
         }
         if (!_suppressSavedEvent)
         {
-            MutationCounter++;
             Saved?.Invoke();
         }
     }

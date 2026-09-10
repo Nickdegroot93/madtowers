@@ -20,6 +20,9 @@ using static RuntimeUiKit;
 // (the ambiguity rule). (partial of MainMenuRuntime - same class, shared statics.)
 public static partial class MainMenuRuntime
 {
+    private static string CloudSaveDescription => ProgressSync.HasPendingChanges || !ProgressSync.HasSyncedThisSession
+        ? "PROGRESS SAVED HERE · CLOUD SYNC PENDING" : "PROGRESS SYNCED TO YOUR ACCOUNT";
+
     private static void BuildProfileScreen(Transform parent, ChapterDefinition chapter)
     {
         GameObject scroll = RuntimeUiKit.CreateScrollColumn(parent, Vector2.zero, out Transform content);
@@ -65,7 +68,7 @@ public static partial class MainMenuRuntime
             TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(188f, -104f), new Vector2(540f, 26f), new Vector2(0f, 1f));
         TextMeshProUGUI detail = CreateTmp(card, "Detail",
-            guest ? "UNINSTALLING LOSES YOUR PROGRESS" : "YOUR PROGRESS IS SAFE ON EVERY DEVICE", 20,
+            guest ? "UNINSTALLING LOSES YOUR PROGRESS" : CloudSaveDescription, 20,
             WithAlpha(TextMuted, 0.65f), TextAnchor.UpperLeft, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(188f, -136f), new Vector2(540f, 24f), new Vector2(0f, 1f));
 
@@ -87,13 +90,17 @@ public static partial class MainMenuRuntime
             name.text = OnlineService.DisplayName;
             status.text = g ? "GUEST ACCOUNT" : "SIGNED IN";
             status.color = g ? WithAlpha(TextMuted, 0.9f) : WithAlpha(MenuAccent, 0.9f);
-            detail.text = g ? "UNINSTALLING LOSES YOUR PROGRESS" : "YOUR PROGRESS IS SAFE ON EVERY DEVICE";
+            detail.text = g ? "UNINSTALLING LOSES YOUR PROGRESS" : CloudSaveDescription;
             if (nameButtonLabel != null)
                 nameButtonLabel.text = HasClaimedName ? "CHANGE NAME" : "CLAIM YOUR NAME";
         }
         OnlineService.StateChanged += RefreshIdentity;
-        card.gameObject.AddComponent<UnhookOnDestroy>().Unhook =
-            () => OnlineService.StateChanged -= RefreshIdentity;
+        ProgressSync.Changed += RefreshIdentity;
+        card.gameObject.AddComponent<UnhookOnDestroy>().Unhook = () =>
+        {
+            OnlineService.StateChanged -= RefreshIdentity;
+            ProgressSync.Changed -= RefreshIdentity;
+        };
 
         // Button row: CHANGE NAME (dark) + SIGN IN (gold CTA) for guests; a signed-in
         // account keeps just the full-width name button.

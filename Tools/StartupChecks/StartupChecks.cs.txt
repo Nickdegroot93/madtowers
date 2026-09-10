@@ -1,0 +1,233 @@
+// Temporarily compile in Scripts/Editor. Edit Mode only; no player-save writes or network calls.
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+using Object = UnityEngine.Object;
+public static class StartupChecks
+{
+    const BindingFlags F = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance;
+    static int passed;
+    static FieldInfo Field(Type type, string name) => type.GetField(name, F);
+    static object Call(Type type, string name, params object[] args) => type.GetMethod(name, F).Invoke(null, args);
+    static void Check(bool ok, string message) { if (!ok) throw new Exception(message); passed++; }
+    sealed class DuplicateProvider : IPremiumStoreProvider
+    {
+        public bool IsAvailable => true;
+        public string PriceText => "test";
+        public void Purchase(Action<PremiumStoreResult> done)
+        {
+            done(PremiumStoreResult.Purchased); done(PremiumStoreResult.Purchased);
+        }
+        public void Restore(Action<PremiumStoreResult> done) => done(PremiumStoreResult.Restored);
+    }
+    sealed class DeferredProvider : IPremiumStoreProvider
+    {
+        public bool IsAvailable => true;
+        public string PriceText => "test";
+        public Action<PremiumStoreResult> Complete;
+        public void Purchase(Action<PremiumStoreResult> done) => Complete = done;
+        public void Restore(Action<PremiumStoreResult> done) => Complete = done;
+    }
+    public static string Run()
+    {
+        if (Application.isPlaying) throw new Exception("Stop Play Mode first");
+        passed = 0;
+        foreach (bool connected in new[] {false, true})
+        foreach (bool meter in new[] {false, true})
+        foreach (bool progress in new[] {false, true})
+        foreach (bool premium in new[] {false, true})
+        {
+            bool ready = connected && meter && progress;
+            Check(StartupGate.Evaluate(true, connected, meter, progress, premium, 2.99f) ==
+                (ready ? StartupGate.Decision.Online : StartupGate.Decision.Waiting), "No premature reveal");
+            Check(StartupGate.Evaluate(true, connected, meter, progress, premium, 3f) ==
+                (ready ? StartupGate.Decision.Online : premium ? StartupGate.Decision.Offline : StartupGate.Decision.RetryRequired),
+                "Deadline respects local ownership and initial state");
+        }
+        Check(StartupGate.Evaluate(false,false,false,false,false,0f) == StartupGate.Decision.Online, "Disabled backend stays usable");
+
+        var progressType = typeof(ProgressStore);
+        var dataField = Field(progressType, "_data");
+        var oldData = dataField.GetValue(null);
+        var savePathField = Field(progressType,"EditorSavePathOverride");
+        var oldSavePath = savePathField.GetValue(null);
+        var loadedField = Field(progressType,"_loadedExistingSave");
+        var oldLoaded = loadedField.GetValue(null);
+        var mutationField = Field(progressType,"<MutationCounter>k__BackingField");
+        var oldMutation = mutationField.GetValue(null);
+        var savedEvent = Field(progressType,"Saved");
+        var oldSavedEvent = savedEvent.GetValue(null);
+        var onlineField = Field(typeof(OnlineService), "<State>k__BackingField");
+        var oldState = onlineField.GetValue(null);
+        bool enabled = SupabaseConfig.Enabled;
+        var saved = new Dictionary<FieldInfo, object>();
+        foreach (string name in new[]{"_dirty","_inFlight","_loopRunning","_failStreak","_backoffUntilRealtime","<HasSyncedThisSession>k__BackingField","Changed"})
+        {
+            var field = Field(typeof(ProgressSync),name); saved[field] = field.GetValue(null);
+        }
+        foreach (string name in new[]{"_provider","_busy","Changed"})
+        {
+            var field = Field(typeof(PremiumStore),name); saved[field] = field.GetValue(null);
+        }
+        foreach (var field in typeof(AttemptsSync).GetFields(F))
+            if (field.IsStatic && !field.IsLiteral && !field.IsInitOnly) saved[field] = field.GetValue(null);
+        foreach (string name in new[]{"_displayName","_booting","_transportFailStreak"})
+        {
+            var field=Field(typeof(OnlineService),name); saved[field]=field.GetValue(null);
+        }
+        var premiumField = Field(typeof(AttemptsSync), "_premium");
+        GameObject root = null;
+        string temp = Path.Combine(Path.GetTempPath(), "hazard-startup-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temp);
+        savePathField.SetValue(null,Path.Combine(temp,"player-fixture.json"));
+        try
+        {
+            savedEvent.SetValue(null,null);
+            var data = new ProgressStore.PlayerProgress();
+            data.completedLevelIds.AddRange(new[]{"offline-1","offline-2","offline-3","offline-4"});
+            dataField.SetValue(null,data);
+            SupabaseConfig.Enabled = false;
+            Field(typeof(ProgressSync), "Changed").SetValue(null,null);
+            Field(typeof(PremiumStore), "Changed").SetValue(null,null);
+            foreach (string json in new[]{"", "null", "{}", "[]", "{\"error\":\"unavailable\"}", "{\"completedLevelIds\":null,\"bests\":[]}"})
+            {
+                Check(!ProgressStore.ApplyMergedPayload(json), "Reject incomplete cloud payload");
+                Check(ReferenceEquals(dataField.GetValue(null), data) && data.completedLevelIds.Count == 4,
+                    "Rejected cloud payload preserves all offline levels");
+            }
+            var args = new object[]{ProgressStore.ExportPayloadJson(),null};
+            bool parsed = (bool)progressType.GetMethod("TryReadMergedPayload",F).Invoke(null,args);
+            Check(parsed && ((ProgressStore.PlayerProgress)args[1]).completedLevelIds.Count == 4,
+                "Cloud payload carries four offline completions");
+            Call(typeof(ProgressSync), "CompleteMerge", "{}", ProgressStore.MutationCounter);
+            Check(ProgressSync.HasPendingChanges, "Bad reply stays queued");
+            Check((float)Field(typeof(ProgressSync),"_backoffUntilRealtime").GetValue(null) > Time.realtimeSinceStartup,
+                "Bad reply backs off");
+            Call(typeof(ProgressSync), "CompleteMerge", ProgressStore.ExportPayloadJson(), ProgressStore.MutationCounter - 1);
+            Check(ReferenceEquals(dataField.GetValue(null),data) && ProgressSync.HasPendingChanges,
+                "In-flight cloud response never erases a newer local save");
+            Check(!ProgressStore.ApplyMergedPayload("{\"completedLevelIds\":[],\"bests\":[]}"),
+                "Well-formed empty reply cannot erase offline completions");
+            data.discoveredBlocks.Add("discovered");
+            data.bests.Add(new ProgressStore.LevelBest{levelId="offline-1",bestScore=300,bestVerifiedValue=25});
+            string localJson=ProgressStore.ExportPayloadJson();
+            var lower=JsonUtility.FromJson<ProgressStore.PlayerProgress>(localJson);
+            lower.bests[0].bestVerifiedValue=24;
+            Check(!ProgressStore.ApplyMergedPayload(JsonUtility.ToJson(lower)),"Cloud reply cannot lower an earned medal");
+            lower=JsonUtility.FromJson<ProgressStore.PlayerProgress>(localJson);lower.discoveredBlocks.Clear();
+            Check(!ProgressStore.ApplyMergedPayload(JsonUtility.ToJson(lower)),"Cloud reply cannot hide a discovered brick");
+            lower=JsonUtility.FromJson<ProgressStore.PlayerProgress>(localJson);lower.currencyEarned=-1;
+            Check(!ProgressStore.ApplyMergedPayload(JsonUtility.ToJson(lower)),"Cloud reply cannot reduce earned currency");
+            Check(ProgressStore.ApplyMergedPayload(localJson),"Valid cloud superset is accepted");
+            data=(ProgressStore.PlayerProgress)dataField.GetValue(null);
+            Check(File.Exists((string)savePathField.GetValue(null)),"Accepted merge writes only isolated fixture save");
+            foreach(string json in new[]{"{}","{\"count\":5}","{\"count\":5,\"seconds_until_next\":0,\"premium\":false}",
+                "{\"count\":6,\"seconds_until_next\":0,\"premium\":false,\"meter_charged\":true}"})
+            {
+                var attemptArgs=new object[]{json,null};
+                Check(!(bool)typeof(AttemptsSync).GetMethod("TryReadSnapshot",F).Invoke(null,attemptArgs),
+                    "Incomplete or invalid ownership snapshot cannot release startup");
+            }
+            var fullArgs=new object[]{"{\"count\":5,\"seconds_until_next\":0,\"premium\":false,\"meter_charged\":true}",null};
+            Check((bool)typeof(AttemptsSync).GetMethod("TryReadSnapshot",F).Invoke(null,fullArgs),"Complete meter snapshot parses");
+            Field(typeof(AttemptsSync),"Changed").SetValue(null,null);
+            onlineField.SetValue(null,OnlineService.OnlineState.Offline);
+            Field(typeof(AttemptsSync),"<HasServerState>k__BackingField").SetValue(null,false);
+            Field(typeof(AttemptsSync),"<HasFullServerState>k__BackingField").SetValue(null,false);
+            Call(typeof(AttemptsSync),"ApplyFinishCounts",3);
+            Check(AttemptsSync.HasServerState && !AttemptsSync.HasFullServerState,"Count-only finish reply is not ownership readiness");
+            AttemptsSync.ApplyServer(3,600,false,true);
+            Check(AttemptsSync.HasFullServerState,"Full snapshot resolves ownership readiness");
+            Field(typeof(OnlineService),"_displayName").SetValue(null,"Fixture");
+            Field(typeof(OnlineService),"_booting").SetValue(null,false);
+            Call(typeof(OnlineService),"NoteTransport",true,false);
+            Check(OnlineService.State==OnlineService.OnlineState.Offline,"Reachable auth/server error does not claim online");
+            Call(typeof(OnlineService),"NoteTransport",true,true);
+            Check(OnlineService.IsReady,"Authenticated success recovers online state");
+            string path = Path.Combine(temp,"progress.json");
+            Call(progressType,"WriteSaveAtomically",path,"first");
+            Check(File.ReadAllText(path)=="first", "First atomic save");
+            Call(progressType,"WriteSaveAtomically",path,"second");
+            Check(File.ReadAllText(path)=="second" && !File.Exists(path+".tmp"), "Atomic replacement completes");
+
+            // A paused gate can render an error without claiming the first launch or revealing the menu.
+            SupabaseConfig.Enabled = true;
+            onlineField.SetValue(null, OnlineService.OnlineState.Offline);
+            premiumField.SetValue(null,false);
+            root = RuntimeUiKit.CreateOverlayCanvas("Startup fixture",12000);
+            var runnerType = typeof(SplashOverlay).GetNestedType("Runner",F);
+            var runner = root.AddComponent(runnerType);
+            int reveals=0;
+            runnerType.GetMethod("Init",F).Invoke(runner,new object[]{root.AddComponent<CanvasGroup>(),(Action)(()=>reveals++)});
+            Field(runnerType,"_elapsed").SetValue(runner,3f);
+            runnerType.GetMethod("Update",F).Invoke(runner,null);
+            Check(root.transform.Find("ConnectionUnavailable").gameObject.activeSelf && reveals==0,
+                "Free player stays on splash");
+            Check(!data.firstLaunchHandled,"Connection failure does not consume first launch");
+            data.premiumUnlocked=true;
+            runnerType.GetMethod("Update",F).Invoke(runner,null);
+            runnerType.GetMethod("Update",F).Invoke(runner,null);
+            Check(reveals==1,"Cached ownership reveals once after deadline");
+            Object.DestroyImmediate(root); root=null;
+
+            // Already-owned data avoids save writes. The deliberately broken provider double-calls.
+            PremiumStore.Install(new DuplicateProvider());
+            int callbacks=0;
+            PremiumStore.Purchase(_=>callbacks++);
+            Check(callbacks==1,"Purchase callback is exactly once");
+            root=GameObject.Find("Unlimited Confirmation");
+            Check(root!=null,"Successful exchange displays a confirmation");
+            Check(Array.Exists(root.GetComponentsInChildren<TextMeshProUGUI>(),x=>x.text=="Unlimited restored"),
+                "Existing ownership gets restore copy");
+            Object.DestroyImmediate(root); root=null;
+            Call(typeof(MainMenuRuntime),"ShowUnlimitedConfirmation",PremiumStoreResult.Purchased);
+            root=GameObject.Find("Unlimited Confirmation");
+            Check(Array.Exists(root.GetComponentsInChildren<TextMeshProUGUI>(),x=>x.text.Contains("No ads. Forever.")),
+                "New purchase explains all benefits");
+            Check(root.GetComponentsInChildren<Button>().Length==1,"Confirmation has one clear action");
+            Object.DestroyImmediate(root); root=null;
+            var deferred=new DeferredProvider();
+            PremiumStore.Install(deferred);
+            callbacks=0;
+            PremiumStore.Purchase(_=>callbacks++);
+            Field(typeof(PremiumStore),"Changed").SetValue(null,(Action)(()=>throw new Exception("fixture UI failure")));
+            try { deferred.Complete(PremiumStoreResult.Restored); }
+            catch (Exception e) { Check(e.Message=="fixture UI failure","Expected observer failure"); }
+            Check(callbacks==1 && !((bool)Field(typeof(PremiumStore),"_busy").GetValue(null)),
+                "UI observer failure still completes the purchase callback and releases busy state");
+            Field(typeof(PremiumStore),"Changed").SetValue(null,null);
+            SupabaseConfig.Enabled=false;
+            Call(typeof(ProgressSync),"OnReady");
+            Check(ProgressSync.HasPendingChanges,"Reconnection attempts a full merge even after process-local dirty state was lost");
+            File.Delete((string)savePathField.GetValue(null));
+            var fresh = (ProgressStore.PlayerProgress)Call(progressType,"Load");
+            Check(fresh.introductionEligible,"Fresh disk save records eligibility");
+            string fixturePath=(string)savePathField.GetValue(null);
+            Call(progressType,"WriteSaveAtomically",fixturePath,JsonUtility.ToJson(fresh));
+            dataField.SetValue(null,Call(progressType,"Load"));
+            Check(ProgressStore.ClaimFirstLaunchIntroduction(),"Restart after partial startup still offers introduction");
+            Check(!ProgressStore.ClaimFirstLaunchIntroduction(),"Introduction routing remains exactly once");
+            dataField.SetValue(null,new ProgressStore.PlayerProgress());
+            loadedField.SetValue(null,true);
+            Check(!ProgressStore.ClaimFirstLaunchIntroduction(),"Legacy empty save retains normal menu routing");
+            return passed+" startup, offline-save, and purchase checks passed";
+        }
+        finally
+        {
+            if(root!=null)Object.DestroyImmediate(root);
+            dataField.SetValue(null,oldData);
+            savePathField.SetValue(null,oldSavePath);
+            loadedField.SetValue(null,oldLoaded);
+            mutationField.SetValue(null,oldMutation);
+            savedEvent.SetValue(null,oldSavedEvent);
+            onlineField.SetValue(null,oldState);
+            SupabaseConfig.Enabled=enabled;
+            foreach(var entry in saved)entry.Key.SetValue(null,entry.Value);
+            Directory.Delete(temp,true);
+        }
+    }
+}

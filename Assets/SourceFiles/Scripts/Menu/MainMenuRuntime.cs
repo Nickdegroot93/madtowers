@@ -193,22 +193,6 @@ public static partial class MainMenuRuntime
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void PrepareSelection()
     {
-        bool firstLaunch = ProgressStore.ClaimFirstLaunchIntroduction();
-        if (firstLaunch && LevelSelectionState.SelectedLevel == null)
-        {
-            ChapterDefinition[] chapters = Campaign.LoadChaptersInOrder();
-            LevelDefinition first = chapters.Length > 0 && chapters[0].Levels != null &&
-                chapters[0].Levels.Count > 0 ? chapters[0].Levels[0] : null;
-            if (first != null && first.IsIntroduction)
-            {
-                // This local, unranked introduction needs no account or network handshake.
-                // Selection is ready before scene Awake, so no menu or paused build frame appears.
-                RunSuppliesState.ClearRun();
-                RunGate.ClearActiveRun();
-                LevelSelectionState.SelectLevel(first);
-                SplashOverlay.SkipForThisProcess();
-            }
-        }
         LevelSelectionState.BeginSelectionIfNeeded();
     }
 
@@ -250,10 +234,33 @@ public static partial class MainMenuRuntime
 
         Time.timeScale = 0f;
         RuntimeUiKit.EnsureEventSystem();
-        SplashOverlay.ShowIfFirstBoot(); // created before BuildMenu so it covers the first rendered frame
+        if (SplashOverlay.ShowIfFirstBoot(CompleteStartup)) return;
         BuildMenu();
         ArmRefillOfferAutoOpen(); // arriving with an empty meter auto-opens the refill offer
         MusicPlayer.PlayMenu(); // menu soundtrack plays everywhere outside a level
+    }
+
+    // First-launch decisions use the initial cloud merge, so a returning account does not
+    // enter the tutorial merely because this device started with an empty local save.
+    private static void CompleteStartup()
+    {
+        if (ProgressStore.ClaimFirstLaunchIntroduction())
+        {
+            ChapterDefinition[] chapters = Campaign.LoadChaptersInOrder();
+            LevelDefinition first = chapters.Length > 0 && chapters[0] != null &&
+                chapters[0].Levels != null && chapters[0].Levels.Count > 0
+                ? chapters[0].Levels[0] : null;
+            if (first != null && first.IsIntroduction)
+            {
+                RunSuppliesState.ClearRun();
+                RunGate.ClearActiveRun();
+                LevelSelectionState.SelectLevel(first);
+                Time.timeScale = 1f;
+                SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+                return;
+            }
+        }
+        ShowMenuIfNeeded();
     }
 
     private static void BuildMenu()

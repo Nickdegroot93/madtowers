@@ -68,7 +68,7 @@ one second, then the normal pager slide opens that newly unlocked chapter automa
 Navigating away cancels the automatic advance. Level unlocks within a chapter keep the
 current page, so finishing the introduction reveals Canopy Trial in Chapter 1.
 
-Fresh installations start the introduction directly, before any menu or splash. Its
+Fresh installations enter the introduction after the startup connection gate, without a menu detour. Its
 25-standing-block hold-steady win shows a gold **TUTORIAL COMPLETE** card with one highlighted
 **Back to Menu** action. Existing saves retain normal menu entry. Introduction cards say
 **TUTORIAL** and use a single goal/completion check; their level sheet has a full-width
@@ -193,3 +193,23 @@ Chrome twins ignore layout and are hidden immediately before deferred destructio
 badge clone would duplicate the text and enter the HorizontalLayoutGroup as a second slot,
 shifting the entire row. Repeated forward/back transitions, reversal and cancellation were
 checked with one label throughout, zero status-slot displacement and no surviving twins.
+
+## Startup connection gate
+
+`SplashOverlay` now waits for authentication/profile, the first complete ownership/lives verdict, and a
+validated initial progress merge. It reveals the populated menu only after these finish.
+A three-second wait permits cached Unlimited owners to continue from local progress;
+free players instead see connection failure and Retry. Late successful requests release
+the gate automatically. Restore Purchases is available there when a store provider is
+ready; there is no unusable offline Buy action. The gate uses unscaled time and keeps
+covering scene transition into the first introduction. Missing art does not bypass it.
+
+A confirmed explicit purchase shows the chapter-styled Unlimited thank-you; explicit
+restores show shorter restoration copy. Background entitlement refresh never celebrates.
+The profile describes pending cloud saves separately from confirmed synchronization.
+Platform account linking and receipt validation remain tracked in GOLIVE.md.
+
+Startup review follow-up: a queued finish's count-only reply cannot satisfy ownership
+readiness, and HTTP errors cannot recover the authenticated online state. Explicit store
+completion callbacks run even if a presentation subscriber throws, so sheets release their
+busy state. Generated review captures are disposable and are not shipped or committed.

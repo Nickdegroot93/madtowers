@@ -100,9 +100,22 @@ public static class PremiumStore
             if (finished) return;
             finished = true;
             _busy = false;
-            if (result == PremiumStoreResult.Purchased || result == PremiumStoreResult.Restored)
-                GrantEntitlement();
-            done?.Invoke(result);
+            try
+            {
+                if (result == PremiumStoreResult.Purchased || result == PremiumStoreResult.Restored)
+                {
+                    bool alreadyOwned = IsPremium;
+                    GrantEntitlement();
+                    MainMenuRuntime.ShowUnlimitedConfirmation(alreadyOwned
+                        ? PremiumStoreResult.Restored : result);
+                }
+            }
+            finally
+            {
+                // A broken UI subscriber must not strand the initiating sheet in its
+                // busy state after the store has already completed the transaction.
+                done?.Invoke(result);
+            }
         }
         try
         {

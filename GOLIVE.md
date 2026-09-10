@@ -128,7 +128,11 @@ hard 14-day tester clock (Phase 1) that has nothing to do with polish.
 
 ## Phase 2 — sign-in: Apple & Google account linking (BACKEND.md §3.3)
 
-Anonymous auth, link prompts, sign-in sheet, delete-account flow: BUILT. Remaining:
+Anonymous auth, link prompts, sign-in sheet, delete-account flow: BUILT. Public Auth
+settings checked 2026-09-10: anonymous/email enabled, **Apple and Google disabled**.
+Client Apple/Google methods are still placeholders; no native sign-in packages are installed.
+Cloud saves sync to the anonymous user, but uninstall recovery is not complete until a
+recoverable identity can be linked and signed into again. Remaining:
 
 - [ ] **Sign in with Apple**: capability on the App ID, Services ID + key in Apple
       Developer, configure the Apple provider in Supabase Auth, native plugin for the
@@ -144,7 +148,10 @@ Anonymous auth, link prompts, sign-in sheet, delete-account flow: BUILT. Remaini
 ## Phase 3 — payments: "MadTowers Unlimited" IAP (SHOP.md §7; seam: `PremiumStore`)
 
 Client flow DONE (Profile BUY, localized price, RESTORE in Settings → Account, offline
-entitlement cache, premium offline-unranked play). Remaining:
+entitlement cache, premium offline-unranked play, explicit purchase thank-you and restore
+confirmation). The startup splash checks cached ownership and exposes Restore when the
+provider is ready. The production store provider and receipt validator are still absent;
+Editor purchase tests are simulations, not proof that device purchases work. Remaining:
 
 - [ ] Product **`madtowers_unlimited`** (non-consumable, $3.99 tier) in BOTH consoles —
       same ID both stores.
@@ -158,6 +165,10 @@ entitlement cache, premium offline-unranked play). Remaining:
       clear `attempts.premium`. v1 may be a manual runbook — write it down.
 - [ ] **Test matrix**: sandbox buy (both stores) · cancel mid-sheet · restore on second
       device · reinstall-then-restore · airplane-mode play while premium · refund.
+- [ ] **Device startup QA**: slow/failed auth and cloud loads; airplane-mode free vs cached
+      Unlimited; background/foreground during Retry and Restore; late store callbacks.
+      Editor review passed 500 assertions plus the isolated fresh-install splash-to-welcome
+      scene transition. These do not replace store-sandbox or physical-device validation.
 - [ ] Apple review notes: RESTORE PURCHASES must be findable (Settings → Account) and
       purchasable on the reviewer's sandbox account.
 

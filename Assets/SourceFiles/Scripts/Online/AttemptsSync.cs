@@ -1,3 +1,4 @@
+using Newtonsoft.Json.Linq;
 using System;
 using UnityEngine;
 
@@ -36,6 +37,9 @@ public static class AttemptsSync
 
     /// <summary>False until the first server answer of this session.</summary>
     public static bool HasServerState { get; private set; }
+
+    /// <summary>A full ownership/meter verdict has arrived, not just a queued run's count.</summary>
+    public static bool HasFullServerState { get; private set; }
 
     /// <summary>Server count projected forward by locally elapsed regen, capped.</summary>
     public static int Count
@@ -88,10 +92,11 @@ public static class AttemptsSync
         _lastRefreshAt = Time.realtimeSinceStartup;
         _refreshInFlight = true;
 
-        OnlineService.RpcObject<AttemptsDto>("get_attempts", "{}",
-            dto =>
+        OnlineService.RpcRaw("get_attempts", "{}",
+            json =>
             {
                 _refreshInFlight = false;
+                if (!TryReadSnapshot(json, out AttemptsDto dto)) return;
                 ApplyServer(dto.count, dto.seconds_until_next, dto.premium, dto.meter_charged);
                 // The ONLY path that can un-stick an exhausted budget: once the button is
                 // hidden no grant_ad_refill is ever sent, so without this the client would
@@ -102,6 +107,24 @@ public static class AttemptsSync
             err => _refreshInFlight = false);
     }
 
+    private static bool TryReadSnapshot(string json, out AttemptsDto dto)
+    {
+        dto = null;
+        try
+        {
+            JObject document = JObject.Parse(json);
+            if (document["count"]?.Type != JTokenType.Integer ||
+                document["seconds_until_next"]?.Type != JTokenType.Integer ||
+                document["premium"]?.Type != JTokenType.Boolean ||
+                document["meter_charged"]?.Type != JTokenType.Boolean) return false;
+            var parsed = JsonUtility.FromJson<AttemptsDto>(json);
+            if (parsed == null || parsed.count < 0 || parsed.count > MaxAttempts || parsed.seconds_until_next < 0) return false;
+            dto = parsed;
+            return true;
+        }
+        catch (Exception) { return false; }
+    }
+
     public static void ApplyServer(int count, int secondsUntilNext, bool premium, bool meterCharged)
     {
         _count = Mathf.Clamp(count, 0, MaxAttempts);
@@ -110,6 +133,7 @@ public static class AttemptsSync
         _meterCharged = meterCharged;
         _fetchedAtRealtime = Time.realtimeSinceStartup;
         HasServerState = true;
+        HasFullServerState = true;
         // Direct call, not a Changed subscriber: writing the offline entitlement cache is
         // part of applying a server verdict (see PremiumStore.CacheServerVerdict for why).
         PremiumStore.CacheServerVerdict();
@@ -175,6 +199,7 @@ public static class AttemptsSync
         _lastRefreshAt = float.NegativeInfinity;
         _refreshInFlight = false;
         HasServerState = false;
+        HasFullServerState = false;
         Changed = null;
     }
 }
