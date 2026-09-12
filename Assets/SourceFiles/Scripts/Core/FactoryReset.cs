@@ -19,6 +19,7 @@ public static class FactoryReset
 {
     public static void EraseAllAndQuit()
     {
+        if (OnlineService.IdentityBusy) return;
         // Progress document: completions, bests, tutorial flag, discoveries, wallet,
         // attempts meter, premium - the account-deletion wipe spares nothing.
         ProgressStore.WipeForAccountDeletion();
@@ -29,6 +30,7 @@ public static class FactoryReset
 
         // Identity + the offline finish queue (stale run receipts must not follow the
         // new account).
+        RunGate.DeleteCurrentAccountQueue();
         SupabaseSession.Clear();
         TryDeletePersistentFile("pending_finish.json");
 

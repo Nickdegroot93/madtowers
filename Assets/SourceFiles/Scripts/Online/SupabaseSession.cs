@@ -41,7 +41,17 @@ public static class SupabaseSession
     public static void Store(string accessToken, string refreshToken, string userId,
                              long expiresAtUnixUtc, bool isAnonymous)
     {
-        _data = new SessionData
+        if (!TryStore(accessToken, refreshToken, userId, expiresAtUnixUtc, isAnonymous))
+        {
+            // A rotated refresh token must remain usable in memory if storage is full.
+            _data = NewData(accessToken, refreshToken, userId, expiresAtUnixUtc, isAnonymous);
+            _loaded = true;
+        }
+    }
+
+    private static SessionData NewData(string accessToken, string refreshToken, string userId,
+                                       long expiresAtUnixUtc, bool isAnonymous) =>
+        new SessionData
         {
             accessToken = accessToken,
             refreshToken = refreshToken,
@@ -49,19 +59,28 @@ public static class SupabaseSession
             expiresAtUnixUtc = expiresAtUnixUtc,
             isAnonymous = isAnonymous,
         };
-        _loaded = true;
+
+    // Account switching requires durable storage before replacing the current identity.
+    public static bool TryStore(string accessToken, string refreshToken, string userId,
+                                long expiresAtUnixUtc, bool isAnonymous)
+    {
+        var candidate = NewData(accessToken, refreshToken, userId, expiresAtUnixUtc, isAnonymous);
         try
         {
             // Atomic: this file is the only proof of ownership of an anonymous account and
             // it rewrites on every token rotation - a kill mid-write must not truncate it.
             string tmp = FilePath + ".tmp";
-            File.WriteAllText(tmp, JsonUtility.ToJson(_data));
+            File.WriteAllText(tmp, JsonUtility.ToJson(candidate));
             if (File.Exists(FilePath)) File.Replace(tmp, FilePath, null);
             else File.Move(tmp, FilePath);
+            _data = candidate;
+            _loaded = true;
+            return true;
         }
         catch (Exception e)
         {
             Debug.LogError($"[Online] Session save failed: {e.Message}");
+            return false;
         }
     }
 

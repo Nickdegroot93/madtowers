@@ -12,6 +12,10 @@ public static class SupabaseConfig
 {
     public const string Url = "https://cyinvljdxpdtynlkiqhm.supabase.co";
 
+    // Public OAuth audience for native Android ID tokens; the secret stays in Supabase.
+    public const string GoogleWebClientId =
+        "337047199421-jfad61tsukq8nubjbel0fs4deee4f6e8.apps.googleusercontent.com";
+
     public const string AnonKey =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
         "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5aW52bGpkeHBkdHlubGtpcWhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4MTg0OTgsImV4cCI6MjEwMDM5NDQ5OH0." +

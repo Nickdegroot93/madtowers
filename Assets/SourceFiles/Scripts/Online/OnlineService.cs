@@ -13,7 +13,7 @@ using UnityEngine.Networking;
 /// During play, services observe State/StateChanged and degrade. Campaign run starts
 /// remain gated by RunGate (BACKEND.md §5.1).
 /// </summary>
-public class OnlineService : MonoBehaviour
+public partial class OnlineService : MonoBehaviour
 {
     public enum OnlineState { Disabled, Connecting, Ready, Offline }
 
@@ -23,7 +23,7 @@ public class OnlineService : MonoBehaviour
     public static OnlineState State { get; private set; } = OnlineState.Disabled;
 
     /// <summary>Authed, profile loaded, server reachable as of the last exchange.</summary>
-    public static bool IsReady => State == OnlineState.Ready;
+    public static bool IsReady => State == OnlineState.Ready && !IdentityBusy;
 
     /// <summary>Server display name ("Builder-1234" until claimed). Falls back to the old
     /// placeholder while the profile hasn't loaded so UI never renders an empty name.</summary>
@@ -91,6 +91,9 @@ public class OnlineService : MonoBehaviour
         _failedBoots = 0;
         _transportFailStreak = 0;
         _refreshInFlight = false;
+        IdentityBusy = false;
+        _identityProfilePending = false;
+        _requestsInFlight = 0;
         State = OnlineState.Disabled;
         IsLinked = false;
         StateChanged = null;
@@ -141,9 +144,10 @@ public class OnlineService : MonoBehaviour
     {
         if (!Enabled) return;
         if (_instance == null) { EnsureInstance(); return; }
-        if (_booting) return;
+        if (_booting || IdentityBusy) return;
         if (IsReady)
         {
+            if (_identityProfilePending) { _instance.StartCoroutine(_instance.BootCo()); return; }
             AttemptsSync.ForceRefresh();
             ProgressSync.RetryInitialSync();
             return;
@@ -220,15 +224,11 @@ public class OnlineService : MonoBehaviour
             err => done?.Invoke(false, "offline"));
     }
 
-    // Link scaffolds (BACKEND.md §3.3): the real flows need the native plugins - Sign in with
-    // Apple / Google sign-in hand us an OS-verified identity token, which upgrades the
-    // anonymous Supabase user IN PLACE (same user_id, progress kept). These are the call
-    // sites; in the editor and until the plugins ship they fail immediately with honest copy.
     public static void LinkWithApple(Action<bool, string> done) =>
-        done?.Invoke(false, "Sign-in arrives with the mobile build");
+        BeginIdentity("apple", done);
 
     public static void LinkWithGoogle(Action<bool, string> done) =>
-        done?.Invoke(false, "Sign-in arrives with the mobile build");
+        BeginIdentity("google", done);
 
     /// <summary>Store-required account deletion (BACKEND.md §3.7). The server RPC deletes
     /// the auth user (FK cascades wipe profiles/progress/scores/attempts/runs/ad_grants);
@@ -247,8 +247,11 @@ public class OnlineService : MonoBehaviour
         RpcRaw("delete_account", "{}",
             _ =>
             {
+                RunGate.DeleteCurrentAccountQueue();
                 SupabaseSession.Clear();
                 ProgressStore.WipeForAccountDeletion();
+                ResetAccountState();
+                _identityProfilePending = false;
                 _displayName = null;
                 IsLinked = false;
                 _failedBoots = 0;
@@ -262,7 +265,7 @@ public class OnlineService : MonoBehaviour
 
     private IEnumerator BootCo()
     {
-        if (_booting) yield break;
+        if (_booting || IdentityBusy) yield break;
         _booting = true;
         SetState(OnlineState.Connecting);
 
@@ -271,6 +274,9 @@ public class OnlineService : MonoBehaviour
         // only key to it). Only a definitive rejection clears the session.
         if (SupabaseSession.HasSession)
         {
+            // A previous account switch may have stopped after persisting its session.
+            // Discard mismatched caches before an offline boot can use them.
+            ProgressStore.BindOnlineAccount(SupabaseSession.UserId);
             RefreshOutcome outcome = RefreshOutcome.NetworkFail;
             yield return RefreshCo(o => outcome = o);
             if (outcome == RefreshOutcome.NetworkFail)
@@ -282,6 +288,7 @@ public class OnlineService : MonoBehaviour
             {
                 Debug.LogWarning("[Online] Stored session rejected; starting a fresh account.");
                 SupabaseSession.Clear();
+                ResetAccountState();
             }
         }
 
@@ -296,6 +303,10 @@ public class OnlineService : MonoBehaviour
             }
         }
 
+        ProgressStore.BindOnlineAccount(SupabaseSession.UserId);
+        if (!SupabaseSession.IsAnonymous)
+            yield return SendWithAuthCo(() => SupabaseHttp.Rpc("mark_linked", "{}"), null, null);
+
         // Profile (auto-created by the server on signup - "Builder-XXXX", BACKEND.md §3.2).
         bool profileOk = false;
         yield return SendWithAuthCo(
@@ -306,7 +317,7 @@ public class OnlineService : MonoBehaviour
                 try { dto = JsonUtility.FromJson<ProfileDto>(body); } catch { /* falls through */ }
                 if (dto == null || string.IsNullOrEmpty(dto.display_name)) return;
                 _displayName = dto.display_name;
-                IsLinked = dto.is_linked;
+                IsLinked = !SupabaseSession.IsAnonymous;
                 // Cross-device XP display: the server total is the authority (XP.md).
                 XpSystem.ApplyServerTotal(dto.xp);
                 // Rewarded-refill budget, known before the first watch rather than after
@@ -323,6 +334,7 @@ public class OnlineService : MonoBehaviour
 
         _failedBoots = 0;
         _booting = false;
+        _identityProfilePending = false;
         SetState(OnlineState.Ready);
 
         AttemptsSync.Refresh();
@@ -402,17 +414,24 @@ public class OnlineService : MonoBehaviour
             yield break;
         }
         _refreshInFlight = true;
-        yield return RefreshExchangeCo(o => _refreshOutcome = o);
-        _refreshInFlight = false;
+        _refreshOutcome = RefreshOutcome.NetworkFail;
+        try { yield return RefreshExchangeCo(o => _refreshOutcome = o); }
+        finally { _refreshInFlight = false; }
         done?.Invoke(_refreshOutcome);
     }
 
     private IEnumerator RefreshExchangeCo(Action<RefreshOutcome> done)
     {
+        string originalUser = SupabaseSession.UserId;
         string body = $"{{\"refresh_token\":\"{SupabaseHttp.JsonEscape(SupabaseSession.RefreshToken)}\"}}";
         using (UnityWebRequest req = SupabaseHttp.AuthPost("/auth/v1/token?grant_type=refresh_token", body))
         {
             yield return req.SendWebRequest();
+            if (originalUser != SupabaseSession.UserId)
+            {
+                done?.Invoke(RefreshOutcome.NetworkFail);
+                yield break;
+            }
             if (req.result == UnityWebRequest.Result.Success)
             {
                 done?.Invoke(StoreAuthResponse(req.downloadHandler.text)
@@ -437,17 +456,30 @@ public class OnlineService : MonoBehaviour
     {
         AuthResponse auth = null;
         try { auth = JsonUtility.FromJson<AuthResponse>(json); } catch { /* falls through */ }
-        if (auth == null || string.IsNullOrEmpty(auth.access_token) || auth.user == null)
+        if (!ValidAuth(auth))
         {
             Debug.LogWarning("[Online] Unreadable auth reply.");
             return false;
         }
-        long expiresAt = auth.expires_at > 0
+        StoreAuth(auth);
+        return true;
+    }
+
+    private static long AuthExpiresAt(AuthResponse auth) => auth.expires_at > 0
             ? auth.expires_at
             : DateTimeOffset.UtcNow.ToUnixTimeSeconds() + Math.Max(60, auth.expires_in);
+
+    private static void StoreAuth(AuthResponse auth)
+    {
         SupabaseSession.Store(auth.access_token, auth.refresh_token, auth.user.id,
-            expiresAt, auth.user.is_anonymous);
-        return true;
+            AuthExpiresAt(auth), auth.user.is_anonymous);
+        bool linked = !auth.user.is_anonymous;
+        if (IsLinked == linked) return;
+        IsLinked = linked;
+        _identityProfilePending = linked;
+        // IdentityCo publishes once its transaction finishes. Ordinary refresh must
+        // also reconcile a link whose original response was lost on the network.
+        if (!IdentityBusy) StateChanged?.Invoke();
     }
 
     // ---- transport ------------------------------------------------------------------------
@@ -456,15 +488,26 @@ public class OnlineService : MonoBehaviour
     /// one refresh-and-retry on a 401 (token revoked server-side).</summary>
     private IEnumerator SendWithAuthCo(Func<UnityWebRequest> build, Action<string> onOk, Action<string> onErr)
     {
+        if (IdentityBusy) { onErr?.Invoke("sign-in in progress"); yield break; }
+        _requestsInFlight++;
+        try { yield return SendForAccountCo(build, onOk, onErr, SupabaseSession.UserId); }
+        finally { _requestsInFlight--; }
+    }
+
+    private IEnumerator SendForAccountCo(Func<UnityWebRequest> build, Action<string> onOk,
+                                         Action<string> onErr, string userId)
+    {
         if (SupabaseSession.HasSession && SupabaseSession.NeedsRefresh)
             yield return RefreshCo(null); // best effort; a hard failure hits the 401 path below
 
         for (int attempt = 0; attempt < 2; attempt++)
         {
+            if (userId != SupabaseSession.UserId) { onErr?.Invoke("account changed"); yield break; }
             string errText;
             using (UnityWebRequest req = build())
             {
                 yield return req.SendWebRequest();
+                if (userId != SupabaseSession.UserId) { onErr?.Invoke("account changed"); yield break; }
                 NoteTransport(req.result != UnityWebRequest.Result.ConnectionError,
                     req.result == UnityWebRequest.Result.Success);
                 if (req.result == UnityWebRequest.Result.Success)
@@ -501,7 +544,7 @@ public class OnlineService : MonoBehaviour
         if (reachable)
         {
             _transportFailStreak = 0;
-            if (authenticated && State == OnlineState.Offline && !_booting && !string.IsNullOrEmpty(_displayName))
+            if (authenticated && State == OnlineState.Offline && !_booting && !IdentityBusy && !string.IsNullOrEmpty(_displayName))
             {
                 SetState(OnlineState.Ready);
                 AttemptsSync.Refresh();

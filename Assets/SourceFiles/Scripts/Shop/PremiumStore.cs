@@ -51,6 +51,7 @@ public static class PremiumStore
 {
     private static IPremiumStoreProvider _provider;
     private static bool _busy;
+    public static bool Busy => _busy;
 
     /// <summary>Fires when ownership flips (purchase, restore, server sync-down) - rebuild
     /// premium-dependent UI on it.</summary>
@@ -69,7 +70,7 @@ public static class PremiumStore
     public static bool HasStore => _provider != null && _provider.IsAvailable;
 
     /// <summary>A purchase could be started right now (store up, nothing in flight).</summary>
-    public static bool Available => HasStore && !_busy;
+    public static bool Available => HasStore && !_busy && !OnlineService.IdentityBusy;
 
     /// <summary>Localized price for pitch copy; the design price only until a store answers.</summary>
     public static string PriceText => _provider != null && _provider.IsAvailable ? _provider.PriceText : "$3.99";
@@ -88,18 +89,20 @@ public static class PremiumStore
     private static void RunExchange(Func<IPremiumStoreProvider, Action<Action<PremiumStoreResult>>> call,
         Action<PremiumStoreResult> done)
     {
-        if (_provider == null || !_provider.IsAvailable || _busy)
+        if (_provider == null || !_provider.IsAvailable || _busy || OnlineService.IdentityBusy)
         {
             done?.Invoke(PremiumStoreResult.Failed);
             return;
         }
         _busy = true;
+        string accountId = SupabaseSession.UserId;
         bool finished = false;
         void Finish(PremiumStoreResult result)
         {
             if (finished) return;
             finished = true;
             _busy = false;
+            if (accountId != SupabaseSession.UserId) result = PremiumStoreResult.Failed;
             try
             {
                 if (result == PremiumStoreResult.Purchased || result == PremiumStoreResult.Restored)

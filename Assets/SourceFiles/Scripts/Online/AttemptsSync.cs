@@ -125,6 +125,15 @@ public static class AttemptsSync
         catch (Exception) { return false; }
     }
 
+    internal static bool IsValidSnapshot(string json) => TryReadSnapshot(json, out _);
+
+    internal static void ApplySnapshot(string json)
+    {
+        if (!TryReadSnapshot(json, out AttemptsDto dto)) return;
+        ApplyServer(dto.count, dto.seconds_until_next, dto.premium, dto.meter_charged);
+        AttemptsService.ApplyGrantsRemaining(dto.grants_remaining);
+    }
+
     public static void ApplyServer(int count, int secondsUntilNext, bool premium, bool meterCharged)
     {
         _count = Mathf.Clamp(count, 0, MaxAttempts);
@@ -186,6 +195,18 @@ public static class AttemptsSync
             remaining += RegenSeconds;
         }
         if (count >= MaxAttempts) remaining = 0;
+    }
+
+    internal static void OnAccountChanged()
+    {
+        _count = 0;
+        _secondsUntilNext = 0;
+        _premium = false;
+        _meterCharged = false;
+        _lastRefreshAt = float.NegativeInfinity;
+        _refreshInFlight = false;
+        HasServerState = false;
+        HasFullServerState = false;
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]

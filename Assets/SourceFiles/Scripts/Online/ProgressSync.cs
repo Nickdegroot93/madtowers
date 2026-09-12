@@ -85,7 +85,7 @@ public static class ProgressSync
 
     private static void Merge()
     {
-        if (_inFlight) return;
+        if (_inFlight || !OnlineService.IsReady) return;
         _inFlight = true;
         _dirty = false; // saves landing while in flight re-arm it
 
@@ -131,6 +131,15 @@ public static class ProgressSync
         _failStreak++;
         _backoffUntilRealtime = Time.realtimeSinceStartup + delay;
         Changed?.Invoke();
+    }
+
+    internal static void OnAccountChanged()
+    {
+        HasSyncedThisSession = false;
+        _dirty = true;
+        _inFlight = false;
+        _failStreak = 0;
+        _backoffUntilRealtime = 0f;
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]

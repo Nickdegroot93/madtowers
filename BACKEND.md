@@ -73,9 +73,10 @@ don't ship it in v1.
 
 1. Player taps the button → the **OS** shows its own sheet (Face ID / account picker), one tap.
 2. Apple/Google returns a signed **identity token** ("this is genuinely account X").
-3. The app forwards the token to Supabase Auth (`signInWithIdToken`), which verifies the
-   signature and creates-or-finds the user, returning a session (`user_id` + JWT used on
-   every request).
+3. The app forwards the token and raw nonce to Supabase's `id_token` grant with
+   `link_identity: true` and the guest's bearer token. Supabase verifies the credential
+   and upgrades that guest in place. An `identity_already_exists` response triggers
+   a separate sign-in exchange and the guarded recovery flow documented below.
 
 We never see or store a password, never run password-reset flows. Apple may hide the
 player's real email (private relay) — fine, we don't need emails.
@@ -104,6 +105,14 @@ preserved. It adds: **recovery** (progress survives uninstall / new phone), **cr
 - **Apple policy:** offering Google login inside the iOS app **requires** also offering Sign
   in with Apple. Apple-only on iOS / Google-only on Android is allowed. For cross-*platform*
   moves (iOS ↔ Android), let a player link **both** providers to one account.
+
+**2026-09-12 implementation scope:** native Apple on iOS and native Google on Android.
+Only guests can link; recovery of an existing account uses the current union/max progress
+merge after preflighting the destination. Purchases and ranked XP/scores stay with their
+server account. Purchased guests and guests with pending ranked reports cannot switch
+to another account through this flow. Cross-platform identity linking is not implemented
+or promised. Android device testing was confirmed working by Nick on 2026-09-12;
+iOS acceptance remains open. Details in `Tools/IdentityChecks/README.md`.
 
 ### 3.4 When we prompt (binding — pull, not push)
 
@@ -292,7 +301,9 @@ Local save files are replaced atomically. `Saved` signals local mutations even w
 fail, allowing cloud preservation without letting an old reply overwrite newer memory.
 
 Anonymous cloud progress still requires recoverable account linking for reinstall recovery.
-Apple/Google provider configuration and native sign-in are not complete; see GOLIVE.md Phase 2.
+Apple/Google provider configuration and native sign-in code were added 2026-09-12;
+device verification is still pending. See GOLIVE.md Phase 2 and
+[the identity test notes](Tools/IdentityChecks/README.md) for the recovery policy.
 
 Everything hides behind `ProgressStore`'s existing API (DATA.md rule 1) — gameplay calls
 `MarkBlockDiscovered`, `ReportResult`, etc.; sync happens underneath.
@@ -429,8 +440,9 @@ to one clean JSON document; wallet folded into `ProgressStore` (SHOP.md §10 ✅
   with Apple capability is enabled. **Google Play Console** ($25 one-time).
 - **Supabase project** — free tier suffices through launch; watch row counts and egress as
   the base grows, not features.
-- **Unity plugins:** a Sign in with Apple plugin (Lupidan's is the community standard),
-  Google's sign-in plugin for Android. Supabase needs no SDK (plain HTTPS).
+- **Unity identity bridges (2026-09-12):** Android Credential Manager + Google ID via a
+  small Java plugin, iOS AuthenticationServices via an Objective-C++ plugin. Supabase
+  uses plain HTTPS. The iOS build hook adds its framework and sign-in entitlement.
 - **Ads SDK decision** (AdMob is the default candidate) — ships with premium per SHOP.md;
   nothing above blocks on it.
 - **Store compliance that comes with accounts:** in-app account deletion (§3.7) and a

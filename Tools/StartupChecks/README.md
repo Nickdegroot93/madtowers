@@ -17,7 +17,9 @@ slow/no connectivity, background/foreground while retrying, reinstall/restore, a
 purchase/sign-in flows once their platform integrations are configured.
 
 Supabase public auth settings checked 2026-09-10: anonymous and email enabled; Apple
-and Google disabled. Client Apple/Google methods remain scaffolds. See GOLIVE.md Phase 2.
+and Google disabled then. Both providers and manual linking were configured 2026-09-12;
+native sign-in code and isolated recovery checks now exist (see `Tools/IdentityChecks`).
+Physical-device acceptance is still pending. See GOLIVE.md Phase 2.
 Cloud sync alone does not recover a lost anonymous account after uninstalling.
 
 Validation on 2026-09-10: 81 startup/save/purchase checks, 207 tutorial assertions,

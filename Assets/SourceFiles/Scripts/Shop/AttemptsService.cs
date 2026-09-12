@@ -51,6 +51,12 @@ public static class AttemptsService
 
     private static bool _adRefillDenied;
 
+    internal static void OnAccountChanged()
+    {
+        _adRefillDenied = false;
+        AdGrantsRemaining = GrantsUnknown;
+    }
+
     /// <summary>Online layer enabled but not (yet) connected: campaign runs cannot start
     /// (BACKEND.md §5.1) and the UI should say OFFLINE rather than show meter numbers.</summary>
     public static bool OnlineBlocked => OnlineService.Enabled && !OnlineService.IsReady;
@@ -226,10 +232,10 @@ public static class AttemptsService
     /// </summary>
     private static void AwaitVerifiedGrant(int budgetBefore, Action<bool> onDone)
     {
-        OnlineService.Run(PollForGrant(budgetBefore, onDone));
+        OnlineService.Run(PollForGrant(budgetBefore, SupabaseSession.UserId, onDone));
     }
 
-    private static System.Collections.IEnumerator PollForGrant(int budgetBefore, Action<bool> onDone)
+    private static System.Collections.IEnumerator PollForGrant(int budgetBefore, string userId, Action<bool> onDone)
     {
         // Spread out: the callback usually lands within a second or two, but a cold Edge
         // Function or a slow network can take longer, and a single check would miss it.
@@ -237,15 +243,17 @@ public static class AttemptsService
         for (int i = 0; i < waits.Length; i++)
         {
             yield return new UnityEngine.WaitForSecondsRealtime(waits[i]);
+            if (userId != SupabaseSession.UserId) { onDone?.Invoke(false); yield break; }
             AttemptsSync.ForceRefresh();
             // Wait for the REPLY, not a fixed guess: a 0.35s sleep is shorter than a
             // typical mobile round trip, so most iterations used to re-arm the debounce
             // against a request still in flight and the effective wait collapsed.
             float deadline = UnityEngine.Time.realtimeSinceStartup + 3f;
-            while (AttemptsSync.RefreshInFlight && UnityEngine.Time.realtimeSinceStartup < deadline)
+            while (userId == SupabaseSession.UserId && AttemptsSync.RefreshInFlight && UnityEngine.Time.realtimeSinceStartup < deadline)
             {
                 yield return null;
             }
+            if (userId != SupabaseSession.UserId) { onDone?.Invoke(false); yield break; }
             // Unknown budget means the server never told us; that is not evidence of a grant.
             if (budgetBefore != GrantsUnknown && AdGrantsRemaining != GrantsUnknown
                 && AdGrantsRemaining < budgetBefore)
@@ -295,7 +303,6 @@ public static class AttemptsService
     [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetForPlayMode()
     {
-        _adRefillDenied = false;
-        AdGrantsRemaining = GrantsUnknown;   // re-learned from the next get_profile
+        OnAccountChanged();
     }
 }

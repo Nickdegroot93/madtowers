@@ -1,5 +1,10 @@
 # STOREACCOUNTS.md — developer accounts, step by step
 
+**Current testing scope — Nick, 2026-09-12:** 12-person Android closed testing.
+Follow [CLOSEDTESTING.md](CLOSEDTESTING.md) for Android device acceptance before
+inviting the group. iOS build/device work is deferred to [IOS_TESTING.md](IOS_TESTING.md)
+and does not block Android testing. Android purchase acceptance remains outstanding.
+
 **Decision made (Nick, 2026-08-23): publishing as a PERSON on both stores. 100%.**
 An eenmanszaak/KvK may come later for payouts and tax — see the final section for the
 conversion path; nothing in the setup below blocks it. Facts verified against store

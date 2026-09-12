@@ -288,7 +288,7 @@ public static partial class MainMenuRuntime
     {
         if (GameObject.Find("Link Prompt") != null) return; // double-tap / multitouch guard
         GameObject overlay = RuntimeUiKit.CreateOverlayCanvas("Link Prompt", 5900);
-        void Close() => UnityEngine.Object.Destroy(overlay);
+        void Close() { if (!OnlineService.IdentityBusy) UnityEngine.Object.Destroy(overlay); }
 
         Image backdrop = CreateImage(overlay.transform, "Backdrop", null, new Color(0.02f, 0.02f, 0.03f, 0.85f));
         Stretch(backdrop.rectTransform);
@@ -298,7 +298,10 @@ public static partial class MainMenuRuntime
         backdropButton.onClick.AddListener(Close);
 
         const float W = 820f;
-        const float H = 720f;
+        bool apple = NativeIdentity.Supports("apple");
+        bool google = NativeIdentity.Supports("google");
+        bool preview = !apple && !google;
+        float H = preview ? 750f : 646f;
         const float pad = 48f;
         const float contentW = W - pad * 2f;
         RectTransform panel = CreateRect(overlay.transform, "Panel",
@@ -323,17 +326,20 @@ public static partial class MainMenuRuntime
         title.characterSpacing = 2f;
 
         CreateTmp(panel, "Body",
-            "SIGN IN TO KEEP YOUR PROGRESS ON EVERY DEVICE.\nWITHOUT IT, UNINSTALLING LOSES EVERYTHING.", 20,
+            "KEEP YOUR PROGRESS WHEN YOU REINSTALL.\nRECOVER IT WITH THE SAME SIGN-IN ACCOUNT.", 20,
             WithAlpha(TextMuted, 0.9f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
             new Vector2(0f, -226f), new Vector2(contentW, 62f), new Vector2(0.5f, 1f));
 
         TextMeshProUGUI status = CreateTmp(panel, "Status", string.Empty, 18,
             WithAlpha(MenuAccent, 0.9f), TextAnchor.UpperCenter, FontStyle.Bold, RuntimeUiKit.TitleFont,
-            new Vector2(0f, -302f), new Vector2(contentW, 26f), new Vector2(0.5f, 1f));
+            new Vector2(0f, -302f), new Vector2(contentW, 62f), new Vector2(0.5f, 1f));
+
+        var buttons = new System.Collections.Generic.List<Button>();
 
         void LinkResult(bool ok, string message)
         {
             if (overlay == null || status == null) return;
+            foreach (var button in buttons) if (button != null) button.interactable = true;
             if (ok)
             {
                 // A real link (mobile plugins) invalidates every open identity surface's
@@ -347,10 +353,20 @@ public static partial class MainMenuRuntime
             status.text = string.IsNullOrEmpty(message) ? string.Empty : message.ToUpperInvariant();
         }
 
-        BuildLinkButton(panel, "Apple", "SIGN IN WITH APPLE", new Vector2(pad, -352f), contentW,
-            () => OnlineService.LinkWithApple(LinkResult));
-        BuildLinkButton(panel, "Google", "SIGN IN WITH GOOGLE", new Vector2(pad, -456f), contentW,
-            () => OnlineService.LinkWithGoogle(LinkResult));
+        void SignIn(bool withApple)
+        {
+            if (OnlineService.IdentityBusy) return;
+            status.text = "SIGNING IN...";
+            foreach (var button in buttons) button.interactable = false;
+            if (withApple) OnlineService.LinkWithApple(LinkResult);
+            else OnlineService.LinkWithGoogle(LinkResult);
+        }
+        if (apple || preview)
+            buttons.Add(BuildLinkButton(panel, "Apple", "SIGN IN WITH APPLE", new Vector2(pad, -382f),
+                contentW, () => SignIn(true)));
+        if (google || preview)
+            buttons.Add(BuildLinkButton(panel, "Google", "SIGN IN WITH GOOGLE",
+                new Vector2(pad, preview ? -486f : -382f), contentW, () => SignIn(false)));
 
         // LATER/CLOSE: a quiet exit, not a punished one.
         TextMeshProUGUI later = CreateTmp(panel, "Later", dismissLabel, 22, WithAlpha(TextMuted, 0.8f),
@@ -363,7 +379,7 @@ public static partial class MainMenuRuntime
         laterButton.onClick.AddListener(() => { SfxPlayer.Play("ui-button-click"); Close(); });
     }
 
-    private static void BuildLinkButton(Transform panel, string name, string label,
+    private static Button BuildLinkButton(Transform panel, string name, string label,
         Vector2 anchoredPosition, float width, Action onClick)
     {
         Image bg = CreateImage(panel, name, RuntimeSprites.RoundedPanel(), new Color(0.13f, 0.12f, 0.10f, 1f));
@@ -376,5 +392,6 @@ public static partial class MainMenuRuntime
         Button button = bg.gameObject.AddComponent<Button>();
         button.targetGraphic = bg;
         button.onClick.AddListener(() => { SfxPlayer.Play("ui-button-click"); onClick?.Invoke(); });
+        return button;
     }
 }

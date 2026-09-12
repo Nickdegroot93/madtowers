@@ -83,6 +83,10 @@ public static class RunGate
     private static PendingFinishFile _queue;
     private static readonly HashSet<string> _inFlight = new HashSet<string>();
     private static bool _grantPending;
+    internal static bool IdentityChangeBlocked => _grantPending || ActiveRunServerBacked;
+    internal static bool HasPendingReports => Queue.items.Count > 0 ||
+        File.Exists(Path.Combine(Application.persistentDataPath, "pending_finish.json"));
+    private static string _queueOwner;
 
     /// <summary>The last WON run, still open to a post-victory score improvement, and the
     /// level it belonged to. BOTH are checked at report time: clearing alone is not enough,
@@ -110,7 +114,8 @@ public static class RunGate
     /// _improvableLevelId when that run is won).</summary>
     private static string _activeLevelId;
 
-    private static string QueuePath => Path.Combine(Application.persistentDataPath, "pending_finish.json");
+    private static string QueuePath => Path.Combine(Application.persistentDataPath,
+        "pending_finish_" + (SupabaseSession.UserId ?? "guest") + ".json");
 
     /// <summary>Ask to start a run. Campaign online → start_run RPC; Custom Game or online
     /// layer disabled, or the introduction → local allow. done always fires exactly once,
@@ -118,6 +123,11 @@ public static class RunGate
     public static void BeginRun(LevelDefinition level, bool boosted, string loadoutJson,
                                 Action<GateResult> done)
     {
+        if (OnlineService.IdentityBusy)
+        {
+            done?.Invoke(new GateResult { DeniedReason = "busy" });
+            return;
+        }
         string levelId = ProgressStore.LevelId(level);
         if (levelId == null || !OnlineService.Enabled)
         {
@@ -340,6 +350,17 @@ public static class RunGate
         ClearImprovableRun();
     }
 
+    internal static void DeleteCurrentAccountQueue()
+    {
+        try { if (File.Exists(QueuePath)) File.Delete(QueuePath); }
+        catch (Exception) { Debug.LogWarning("[Online] Couldn't remove the old finish queue."); }
+        _queue = null;
+        _queueOwner = null;
+        ActiveRunId = null;
+        ActiveRunServerBacked = false;
+        _activeLevelId = null;
+    }
+
     /// <summary>Resend queued finish reports (called on Ready and on app-focus regain).</summary>
     public static void RetryPendingFinishes()
     {
@@ -431,9 +452,16 @@ public static class RunGate
     {
         get
         {
-            if (_queue != null) return _queue;
+            if (_queue != null && _queueOwner == SupabaseSession.UserId) return _queue;
+            _queue = null;
+            _queueOwner = SupabaseSession.UserId;
             try
             {
+                // Upgrade the old single-account queue while that original account is
+                // still active. Each account thereafter has its own durable queue.
+                string legacy = Path.Combine(Application.persistentDataPath, "pending_finish.json");
+                if (!File.Exists(QueuePath) && File.Exists(legacy) && SupabaseSession.HasSession)
+                    File.Move(legacy, QueuePath);
                 if (File.Exists(QueuePath))
                     _queue = JsonUtility.FromJson<PendingFinishFile>(File.ReadAllText(QueuePath));
             }
@@ -480,6 +508,7 @@ public static class RunGate
         // with it - deliberately: an app kill mid-Keep-Playing must not lose the score,
         // and the level check at report time is what prevents misattribution.
         _queue = null;          // reloaded from disk on demand; pending reports persist
+        _queueOwner = null;
         _inFlight.Clear();
         _grantPending = false;
     }

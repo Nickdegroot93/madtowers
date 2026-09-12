@@ -1,5 +1,12 @@
 # GOLIVE.md — the ordered release plan
 
+**Current testing scope — Nick, 2026-09-12:** 12-person Android closed testing.
+Prove Google login/recovery on a Play-installed build first; follow
+[CLOSEDTESTING.md](CLOSEDTESTING.md) for Android readiness. Unity iOS export, Xcode
+builds and iPhone/TestFlight tests are deferred to [IOS_TESTING.md](IOS_TESTING.md)
+and do not block this Android test. This supersedes the earlier 25-person/both-platform
+scope; Android purchase acceptance remains outstanding.
+
 **Status: binding checklist — restructured 2026-08-04 into a strictly ordered plan**
 (Nick: "we're nearing done; levels/difficulty tuning continues in parallel and is NOT
 tracked here"). This is the single place that tracks launch work. Detail lives in the
@@ -129,18 +136,40 @@ hard 14-day tester clock (Phase 1) that has nothing to do with polish.
 ## Phase 2 — sign-in: Apple & Google account linking (BACKEND.md §3.3)
 
 Anonymous auth, link prompts, sign-in sheet, delete-account flow: BUILT. Public Auth
-settings checked 2026-09-10: anonymous/email enabled, **Apple and Google disabled**.
-Client Apple/Google methods are still placeholders; no native sign-in packages are installed.
-Cloud saves sync to the anonymous user, but uninstall recovery is not complete until a
-recoverable identity can be linked and signed into again. Remaining:
+settings checked 2026-09-10: anonymous/email enabled, Apple and Google disabled then.
+**2026-09-12 console setup (confirmed by Nick):** Google provider enabled in Supabase,
+with the Web client first and three Android clients (current classical, PQC, previous
+classical signing certificates). The Web client's secret was saved in Supabase only.
+Public Google Web client ID (`Hazard Heights Supabase`):
+`337047199421-jfad61tsukq8nubjbel0fs4deee4f6e8.apps.googleusercontent.com`.
+Manual identity linking enabled (confirmed by Nick with a dashboard screenshot on
+2026-09-12); new-user signup and anonymous sign-ins remain enabled. Separately signed local QA builds
+still need matching Android OAuth clients. Apple App ID
+`com.nickdegroot.hazardheights` registered with Sign in with Apple enabled (confirmed
+by Nick on 2026-09-12). Supabase Apple provider enabled with that bundle ID and no
+OAuth secret (confirmed by Nick on 2026-09-12). Google `openid`, `userinfo.email`,
+`userinfo.profile` scopes confirmed by Nick's screenshot. Android device testing was subsequently
+confirmed working by Nick; broader audience settings are not independently audited.
+The planned iOS flow uses native Apple ID tokens; Services ID and OAuth client secret
+are only needed if a browser-based Apple flow is added.
+**Client implementation added 2026-09-12:** native Android Credential Manager and iOS
+AuthenticationServices bridges, nonce-checked Supabase identity linking, existing-account
+recovery with progress merge, account-owned caches/finish queues and guarded callbacks.
+Editor/Android C# and Android Java compilation passed. Review fixes cover partial
+links, session-write failure and account-specific refill state; 166 isolated assertions
+pass, including checks with the real save/cache classes. Nick confirmed Android
+device testing works on 2026-09-12 after submitting 2.1.2 / code 3 to closed testing;
+individual scenarios and device details were not recorded. iOS build/device acceptance
+remains deferred (Xcode and Unity iOS Build Support were missing during implementation).
+See [Tools/IdentityChecks/README.md](Tools/IdentityChecks/README.md) for the recovery
+policy, verification limits and device checklist. Remaining:
 
-- [ ] **Sign in with Apple**: capability on the App ID, Services ID + key in Apple
-      Developer, configure the Apple provider in Supabase Auth, native plugin for the
-      credential UI (Lupidan's is the community standard). MANDATORY on iOS since
-      Google login exists too.
-- [ ] **Google Sign-In**: OAuth client IDs (Android + web) in Google Cloud console,
-      SHA-1s for the release keystore AND the Play App Signing key, configure the
-      Google provider in Supabase Auth, native plugin.
+- [ ] **Sign in with Apple**: compile and validate the native iOS bridge, linking,
+      recovery and deletion on device. Apple grant revocation is not implemented by
+      the existing delete-account RPC; complete the revocation flow/credentials before
+      iOS acceptance. Services ID is only needed for an added browser sign-in flow.
+- [x] **Google Sign-In**: Android device test confirmed working by Nick, 2026-09-12.
+      Separately signed sideloaded builds still require a matching OAuth client.
 - [ ] **Test matrix**: link guest → Apple/Google · sign in on second device pulls
       progress + premium · unlink/re-link edges · delete a linked account (the
       `delete_account` client flow is built — verify once against production).
@@ -254,16 +283,24 @@ Still open, and each one is genuinely account-gated:
       removed `MADTOWERS_UNLOCK_ALL` so closed testers follow genuine progression;
       the override is now editor-only even if reintroduced. `MADTOWERS_SIM_ADS`
       remains for closed testing; remove it together with the real-ads/SSV switch above.)
-- [ ] **Size pass — get the base module under ~160 MB** (first closed-test AAB measured
-      197 MB max download, 2026-08; Play's hard cap is 200 MB, so every added chapter
-      risks a rejected upload). Usual suspects in payoff order: texture compression on
+- [ ] **Size pass — aim for a download under ~160 MB** (first closed-test AAB measured
+      197 MB max download, 2026-08). As checked 2026-09-11, [Play Console's size policy](https://support.google.com/googleplay/android-developer/answer/9859372)
+      lists a **500 MB compressed-download limit for the base module**; over 200 MB
+      triggers a non-blocking mobile-data warning, not an automatic upload rejection.
+      Measure the new release with bundletool or Play Console: the AAB file size is
+      not the device download size. The thirty new ChapterArt sprites already use
+      512px ASTC 6×6 on Android (~3.39 MiB texture payload before packaging).
+      Usual suspects in payoff order: texture compression on
       chapter/backdrop art (ASTC, sane max sizes), audio import settings (streamed
       Vorbis ~0.4, no decompress-on-load music), dead weight in `Resources/` from
       purchased packs (everything there ships whether referenced or not). The build's
-      Editor.log has the per-asset size breakdown. This buys headroom only — the real
-      ceiling fix is Play Asset Delivery (post-launch watchlist).
+      Editor.log has the per-asset size breakdown. Use Play Asset Delivery if content
+      eventually needs to exceed the base-module limit (post-launch watchlist).
 - [ ] Bump version/build numbers; signing: keystore (Phase 1) on Android,
       provisioning/certs on iOS.
+      Android **2.1.2 / version code 3** submitted to closed testing; Nick confirmed
+      Android testing works on 2026-09-12. Code 3 is used: the next new upload needs
+      a higher unused version code. Final download-size measurement remains open.
 - [ ] IL2CPP release builds, both platforms.
 - [ ] On-device pass of the Phase 2/3/4 test matrices. **iOS has never been run on a
       device** (all testing is Android) — budget a real iPhone + TestFlight pass;
@@ -277,7 +314,7 @@ Still open, and each one is genuinely account-gated:
 - Refund-revocation automation if the manual runbook gets tedious.
 - Native Game Center / Play Games layer, cosmetics, boost-weekend banner (XP.md §4) —
   all deliberately post-launch.
-- **Play Asset Delivery (install-time packs) when chapter count grows** — the 200 MB cap
+- **Play Asset Delivery (install-time packs) when chapter count grows** — the 500 MB cap
   applies to the BASE module only; tagging chapter art + music as an install-time asset
   pack (same .aab, same one-tap install for the player, fully offline) raises the ceiling
   to ~4 GB. Decided 2026-08: NOT before launch — it means moving that content off

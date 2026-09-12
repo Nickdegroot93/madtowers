@@ -67,6 +67,8 @@ public static class ProgressStore
         // profiles.xp (LWW overwrite, like the attempts fields; merge_progress strips it);
         // with the online layer disabled it is the local accumulator itself.
         public long xpEarned;
+        // Device-only ownership of premium/XP/meter caches, never cloud progress.
+        public string onlineAccountId;
         // The one-shot solo-dev letter (DEVLETTER.md beat 1) has been shown. Monotonic
         // timestamp, 0 = never; merge = max - the linkPromptShownAtUnixUtc shape, and the
         // generic server merge already maxes numbers, so it cloud-syncs with no SQL change.
@@ -463,7 +465,29 @@ public static class ProgressStore
 
     /// <summary>The whole save document as one JSON object - exactly what merge_progress
     /// takes as p_payload.</summary>
-    public static string ExportPayloadJson() => JsonUtility.ToJson(Data);
+    public static string ExportPayloadJson()
+    {
+        JObject payload = JObject.Parse(JsonUtility.ToJson(Data));
+        payload.Remove("onlineAccountId");
+        return payload.ToString(Newtonsoft.Json.Formatting.None);
+    }
+
+    internal static void BindOnlineAccount(string userId)
+    {
+        if (Data.onlineAccountId == userId) return;
+        if (!string.IsNullOrEmpty(Data.onlineAccountId))
+        {
+            Data.premiumUnlocked = false;
+            Data.xpEarned = 0;
+            Data.attemptsCount = 0;
+            Data.attemptsUpdatedAtUnixUtc = 0;
+        }
+        Data.onlineAccountId = userId;
+        Save();
+    }
+
+    internal static bool CanApplyMergedPayload(string json) =>
+        TryReadMergedPayload(json, out PlayerProgress merged) && PreservesLocalProgress(Data, merged);
 
     /// <summary>Replace the local document with the server-merged one. The merge is a
     /// superset of local state (union/max server-side), so replacing wholesale is safe.
@@ -479,7 +503,8 @@ public static class ProgressStore
         // wholesale would wipe the caches (review finding 2026-08-01: the XP badge dropped
         // to level 1 seconds after every boot). Carry the live values across.
         merged.xpEarned = _data != null ? _data.xpEarned : merged.xpEarned;
-        merged.premiumUnlocked = merged.premiumUnlocked || (_data != null && _data.premiumUnlocked);
+        merged.premiumUnlocked = _data != null && _data.premiumUnlocked;
+        merged.onlineAccountId = _data?.onlineAccountId;
         if (_data != null)
         {
             merged.firstLaunchHandled |= _data.firstLaunchHandled;

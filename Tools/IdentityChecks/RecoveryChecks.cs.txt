@@ -1,0 +1,260 @@
+// Production save/cache integration checks; all files and network replies are isolated.
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+internal static class IdentityChecks
+{
+    private const string Guest = "11111111-1111-1111-1111-111111111111";
+    private const string Target = "22222222-2222-2222-2222-222222222222";
+    internal const string Attempts = "{\"count\":2,\"seconds_until_next\":600,\"premium\":false,\"meter_charged\":true,\"grants_remaining\":10}";
+    private const string Profile = "{\"display_name\":\"Player\",\"xp\":40,\"ad_grants_remaining\":10}";
+    internal sealed class Reply { public string path, json; public int status; public Action hook; }
+    internal static readonly Queue<Reply> Replies = new Queue<Reply>();
+    internal static readonly List<UnityEngine.Networking.UnityWebRequest> Requests = new List<UnityEngine.Networking.UnityWebRequest>();
+    private static int passed;
+
+    private static void Field(Type type, string name, object value) =>
+        type.GetField(name, BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, value);
+    private static void ResetMethod(Type type) =>
+        type.GetMethod("ResetForPlayMode", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, null);
+    private static void Check(bool ok, string label)
+    {
+        if (!ok) throw new Exception("FAIL: " + label);
+        passed++;
+    }
+
+    private static void Reset(string path)
+    {
+        Replies.Clear(); Requests.Clear();
+        UnityEngine.Application.persistentDataPath = path;
+        Directory.CreateDirectory(path);
+        ResetMethod(typeof(OnlineService)); ResetMethod(typeof(AttemptsSync)); ResetMethod(typeof(AttemptsService));
+        Field(typeof(ProgressStore), "_data", null); Field(typeof(ProgressStore), "Saved", null);
+        Field(typeof(OnlineService), "_instance", new OnlineService());
+        Field(typeof(OnlineService), "_displayName", "Guest");
+        Field(typeof(OnlineService), "<State>k__BackingField", OnlineService.OnlineState.Ready);
+        SupabaseSession.Store("guest-access", "guest-refresh", Guest, long.MaxValue, true);
+        ProgressStore.BindOnlineAccount(Guest);
+        ProgressStore.SetXpFromServer(123);
+        ProgressStore.SetAttemptsState(3, 12345);
+        ProgressStore.MarkLevelCompleted(new LevelDefinition { name = "earned-level" });
+        NativeIdentity.error = null; NativeIdentity.onOpen = null;
+        RunGate.HasPendingReports = false; RunGate.IdentityChangeBlocked = false;
+        UnityEngine.Time.realtimeSinceStartup = 0;
+    }
+
+    private static string Auth(string id, bool anonymous = false) => JsonConvert.SerializeObject(new {
+        access_token = "new-access", refresh_token = "new-refresh", expires_in = 3600,
+        user = new { id, is_anonymous = anonymous }
+    });
+    private static void ReplyWith(string path, string json, int status = 200, Action hook = null) =>
+        Replies.Enqueue(new Reply { path = path, json = json, status = status, hook = hook });
+    private static void Initialization()
+    {
+        ReplyWith("/rest/v1/rpc/mark_linked", "null");
+        ReplyWith("/rest/v1/rpc/get_profile", Profile);
+        ReplyWith("/rest/v1/rpc/get_attempts", Attempts);
+        ReplyWith("/rest/v1/rpc/merge_progress", ProgressStore.ExportPayloadJson());
+    }
+    private static void Recovery()
+    {
+        ReplyWith("/auth/v1/token?grant_type=id_token", "{\"error_code\":\"identity_already_exists\"}", 422);
+        ReplyWith("/auth/v1/token?grant_type=id_token", Auth(Target));
+        Initialization();
+    }
+    private static bool SignIn()
+    {
+        bool result = false; int callbacks = 0;
+        OnlineService.LinkWithGoogle((ok, _) => { result = ok; callbacks++; });
+        Check(callbacks == 1 && !OnlineService.IdentityBusy, "one callback and busy guard released");
+        Check(Replies.Count == 0, "expected requests consumed");
+        return result;
+    }
+    private static void DenyGuestRefill()
+    {
+        ReplyWith("/rest/v1/rpc/grant_ad_refill", "{\"ok\":false,\"reason\":\"rate_limited\",\"grants_remaining\":0}");
+        AttemptsService.RequestAdRefill(_ => {});
+        Check(!AttemptsService.AdRefillAvailable, "guest refill denial established");
+    }
+
+    public static void Main(string[] args)
+    {
+        Reset(Path.Combine(args[0], "storage-failure"));
+        string originalSave = File.ReadAllText(Path.Combine(UnityEngine.Application.persistentDataPath, "progress.json"));
+        Recovery();
+        string blockedWrite = Path.Combine(UnityEngine.Application.persistentDataPath, "online_session.json.tmp");
+        Directory.CreateDirectory(blockedWrite); // Make only the session write fail; save storage still works.
+        Check(!SignIn(), "failed session write refuses recovery");
+        Check(SupabaseSession.UserId == Guest && SupabaseSession.RefreshToken == "guest-refresh", "guest session intact");
+        Check(ProgressStore.XpEarned == 123, "guest XP intact");
+        ProgressStore.GetAttemptsState(out int count, out long stamp);
+        Check(count == 3 && stamp == 12345, "guest meter cache intact");
+        Check(File.ReadAllText(Path.Combine(UnityEngine.Application.persistentDataPath, "progress.json")) == originalSave,
+            "failed recovery preserves the exact save file");
+        Directory.Delete(blockedWrite);
+        Recovery();
+        Check(SignIn() && SupabaseSession.UserId == Target && ProgressStore.XpEarned == 40, "retry succeeds after storage recovers");
+        Check(ProgressStore.IsLevelCompleted(new LevelDefinition { name = "earned-level" }), "guest earned progress preserved");
+
+        Reset(Path.Combine(args[0], "interrupted-persistence"));
+        ProgressStore.SetPremium(true);
+        SupabaseSession.TryStore("target-access", "target-refresh", Target, long.MaxValue, false);
+        Field(typeof(ProgressStore), "_data", null); // Reload the old owner's durable save as on restart.
+        Field(typeof(OnlineService), "_failedBoots", 3); // Keep this offline probe from scheduling automatic retries.
+        ReplyWith("/auth/v1/token?grant_type=refresh_token", "unavailable", 503);
+        var boot = (IEnumerator)typeof(OnlineService).GetMethod("BootCo", BindingFlags.NonPublic | BindingFlags.Instance)
+            .Invoke(new OnlineService(), null);
+        Run(boot);
+        Check(OnlineService.State == OnlineService.OnlineState.Offline && SupabaseSession.UserId == Target, "offline boot keeps persisted destination session");
+        Check(!ProgressStore.IsPremium && ProgressStore.XpEarned == 0, "mismatched caches cleared before offline fallback");
+
+        Reset(Path.Combine(args[0], "ad-denial"));
+        DenyGuestRefill(); Recovery();
+        Check(SignIn() && SupabaseSession.UserId == Target, "recovery after refill denial succeeds");
+        Check(AttemptsService.AdGrantsRemaining == 10 && AttemptsService.AdRefillAvailable, "destination has its own refill availability");
+
+        Reset(Path.Combine(args[0], "partial-link"));
+        ReplyWith("/auth/v1/token?grant_type=id_token", Auth(Guest));
+        ReplyWith("/rest/v1/rpc/mark_linked", "unavailable", 503);
+        Check(!SignIn() && OnlineService.IsLinked && !SupabaseSession.IsAnonymous, "failed game RPC preserves committed authentication");
+        Check(SupabaseSession.RefreshToken == "new-refresh" && ProgressStore.XpEarned == 123, "linked session retained without clearing caches");
+        int opens = 0;
+        NativeIdentity.onOpen = () => opens++;
+        Initialization();
+        Check(SignIn() && opens == 0 && ProgressStore.XpEarned == 40, "retry finishes profile sync without provider UI");
+
+        Reset(Path.Combine(args[0], "lost-link-response"));
+        ReplyWith("/auth/v1/token?grant_type=id_token", "unavailable", 503);
+        Check(!SignIn() && !OnlineService.IsLinked, "lost auth response does not fabricate a successful link");
+        SupabaseSession.Store("guest-access", "guest-refresh", Guest, 0, true);
+        int stateEvents = 0;
+        OnlineService.StateChanged += () => stateEvents++;
+        ReplyWith("/auth/v1/token?grant_type=refresh_token", Auth(Guest));
+        ReplyWith("/rest/v1/rpc/get_profile", Profile);
+        OnlineService.RpcRaw("get_profile", "{}", _ => {}, _ => {});
+        Check(OnlineService.IsLinked && !SupabaseSession.IsAnonymous && stateEvents > 0, "refresh reconciles identity and notifies UI");
+        ReplyWith("/auth/v1/token?grant_type=refresh_token", Auth(Guest));
+        ReplyWith("/rest/v1/rpc/mark_linked", "null");
+        ReplyWith("/rest/v1/rpc/get_profile", Profile);
+        OnlineService.RetryConnect();
+        Check(Replies.Count == 0 && OnlineService.IsReady && ProgressStore.XpEarned == 40, "regular reconnect completes pending profile initialization");
+
+        Reset(Path.Combine(args[0], "stale-ad-poll"));
+        int pollCallbacks = 0; bool reward = true;
+        var poll = (IEnumerator)typeof(AttemptsService).GetMethod("PollForGrant", BindingFlags.NonPublic | BindingFlags.Static)
+            .Invoke(null, new object[] { 10, Guest, (Action<bool>)(ok => { reward = ok; pollCallbacks++; }) });
+        Check(poll.MoveNext(), "old-account poll is waiting");
+        SupabaseSession.Store("target-access", "target-refresh", Target, long.MaxValue, false);
+        AttemptsService.OnAccountChanged(); AttemptsService.ApplyGrantsRemaining(9);
+        Check(!poll.MoveNext() && !reward && pollCallbacks == 1, "old-account poll cannot claim destination budget change as a reward");
+        Check(Requests.Count == 0, "stale poll sends no request for replacement account");
+
+        Reset(Path.Combine(args[0], "deletion-reset"));
+        DenyGuestRefill();
+        ReplyWith("/rest/v1/rpc/delete_account", "null");
+        ReplyWith("/auth/v1/signup", Auth(Target, true));
+        ReplyWith("/rest/v1/rpc/get_profile", Profile);
+        bool deleted = false;
+        OnlineService.DeleteAccount((ok, _) => deleted = ok);
+        Check(deleted && Replies.Count == 0 && SupabaseSession.UserId == Target, "deletion boots a fresh account");
+        Check(AttemptsService.AdRefillAvailable && AttemptsService.AdGrantsRemaining == 10, "deletion clears previous refill denial");
+
+        Console.WriteLine("PASS: " + passed + " recovery checks using real save/cache classes; temporary files only.");
+    }
+
+    internal static void Run(IEnumerator routine)
+    {
+        using (routine as IDisposable)
+            while (routine.MoveNext())
+            {
+                if (routine.Current is IEnumerator child) Run(child);
+                else UnityEngine.Time.realtimeSinceStartup += 1;
+            }
+    }
+}
+
+namespace UnityEngine {
+    public class Object { public static void DontDestroyOnLoad(Object value) {} }
+    public class MonoBehaviour : Object { public Coroutine StartCoroutine(IEnumerator value) { IdentityChecks.Run(value); return new Coroutine(); } }
+    public class Coroutine {}
+    public class GameObject : Object { public GameObject(string name) {} public T AddComponent<T>() where T:new() => new T(); }
+    public static class Application { public static string persistentDataPath; public static event Action<bool> focusChanged; }
+    public static class Time { public static float realtimeSinceStartup; }
+    public class WaitForSecondsRealtime { public WaitForSecondsRealtime(float seconds) {} }
+    public enum RuntimeInitializeLoadType { SubsystemRegistration, AfterSceneLoad }
+    public class RuntimeInitializeOnLoadMethodAttribute : Attribute { public RuntimeInitializeOnLoadMethodAttribute(RuntimeInitializeLoadType type) {} }
+    public static class Debug { public static void Log(object value) {} public static void LogWarning(object value) {} public static void LogError(object value) {} }
+    public static class JsonUtility {
+        public static T FromJson<T>(string value) => JsonConvert.DeserializeObject<T>(value);
+        public static string ToJson(object value, bool prettyPrint=false) => JsonConvert.SerializeObject(value);
+    }
+}
+namespace UnityEngine.SceneManagement {
+    public struct Scene {} public enum LoadSceneMode { Single }
+    public static class SceneManager { public static event Action<Scene,LoadSceneMode> sceneLoaded; }
+}
+namespace UnityEngine.Networking {
+    public class UploadHandlerRaw { public byte[] data; public UploadHandlerRaw(byte[] data) { this.data=data; } }
+    public class DownloadHandlerBuffer { public string text; }
+    public class UnityWebRequest : IDisposable {
+        public enum Result { Success, ConnectionError, ProtocolError }
+        public const string kHttpVerbPOST = "POST";
+        public string url, error; public int timeout; public long responseCode;
+        public UploadHandlerRaw uploadHandler; public DownloadHandlerBuffer downloadHandler;
+        public Result result;
+        public string body => System.Text.Encoding.UTF8.GetString(uploadHandler.data);
+        public Dictionary<string,string> headers = new Dictionary<string,string>();
+        public UnityWebRequest(string url, string method) { this.url=url; }
+        public static UnityWebRequest Get(string url) => new UnityWebRequest(url,"GET");
+        public void SetRequestHeader(string name,string value) => headers[name]=value;
+        public object SendWebRequest() {
+            var reply=IdentityChecks.Replies.Count>0 ? IdentityChecks.Replies.Dequeue() :
+ new IdentityChecks.Reply { path="/rest/v1/rpc/get_attempts", status=200, json=IdentityChecks.Attempts };
+            if (!url.EndsWith(reply.path)) throw new Exception("Unexpected path " + url);
+            IdentityChecks.Requests.Add(this);
+            responseCode=reply.status; result=responseCode==200 ? Result.Success : Result.ProtocolError;
+            downloadHandler.text=reply.json; reply.hook?.Invoke(); return null;
+        }
+        public void Dispose() {}
+    }
+}
+public static class SupabaseConfig { public static bool Enabled=true; public const string Url="https://invalid.test"; public const string AnonKey="public-key"; }
+public static class NativeIdentity {
+    public sealed class Credential { public string idToken, nonce, error; }
+    public static string error; public static Action onOpen;
+    public static bool Supports(string provider) => true;
+    public static void SignIn(string provider, Action<Credential> done) {
+        onOpen?.Invoke(); done(new Credential { idToken="fake-id-token",nonce="raw-nonce",error=error });
+    }
+}
+public static class ProgressSync { public static void Init() {} public static void RetryInitialSync() {} public static void OnAccountChanged() {} public static void OnReady() {} public static void OnBackground() {} public static void OnFocusRegained() {} }
+public static class RunGate { public static bool IdentityChangeBlocked,HasPendingReports; public static void RetryPendingFinishes() {} public static void ClearActiveRun() {} public static void DeleteCurrentAccountQueue() {} }
+public static class PremiumStore {
+ public static bool Busy; public static bool IsPremium => ProgressStore.IsPremium || AttemptsSync.Premium;
+ public static void CacheServerVerdict() { if (AttemptsSync.Premium) ProgressStore.SetPremium(true); }
+}
+public static class RewardedAds { public static bool IsShowing; public static bool Available=true; }
+
+
+public class LevelDefinition { public string name; }
+public class AbilityDefinition { public string name; }
+public class BlockData { public string name; }
+public static class Campaign { public static bool UnlockAllForTesting=false, HasReachedChapterThree=true; }
+namespace UnityEngine {
+ public static class Mathf {
+  public static int Max(int a,int b)=>Math.Max(a,b);
+  public static float Max(float a,float b)=>Math.Max(a,b);
+  public static int Clamp(int a,int lo,int hi)=>Math.Max(lo,Math.Min(hi,a));
+  public static float Clamp(float a,float lo,float hi)=>Math.Max(lo,Math.Min(hi,a));
+  public static float Clamp01(float a)=>Clamp(a,0,1);
+ }
+ public static class PlayerPrefs {
+  public static bool HasKey(string k)=>false; public static int GetInt(string k,int d)=>d;
+  public static void DeleteKey(string k) {} public static void Save() {}
+ }
+}

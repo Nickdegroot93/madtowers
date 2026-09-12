@@ -1,0 +1,233 @@
+// Isolated runner for the production OnlineService, identity transaction, HTTP builder
+// and session store. The small Unity/network/game doubles below never use live services.
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+internal static class IdentityChecks
+{
+    internal const string Guest = "11111111-1111-1111-1111-111111111111";
+    internal const string Returning = "22222222-2222-2222-2222-222222222222";
+    private static int passed;
+    internal static readonly Queue<Reply> Replies = new Queue<Reply>();
+    internal static readonly List<UnityEngine.Networking.UnityWebRequest> Requests = new List<UnityEngine.Networking.UnityWebRequest>();
+    internal sealed class Reply { public string path, json; public int status; public Action hook; }
+    internal static void Assert(bool test, string label)
+    {
+        if (!test) throw new Exception("FAIL: " + label);
+        passed++;
+    }
+    private static void Set(string name, object value) => typeof(OnlineService)
+        .GetField(name, BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, value);
+    private static void Reset()
+    {
+        Replies.Clear(); Requests.Clear();
+        Directory.CreateDirectory(UnityEngine.Application.persistentDataPath);
+        SupabaseSession.Store("guest-access", "guest-refresh", Guest, long.MaxValue, true);
+        typeof(OnlineService).GetMethod("ResetForPlayMode", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, null);
+        Set("_instance", new OnlineService());
+        Set("_displayName", "Guest");
+        Set("<State>k__BackingField", OnlineService.OnlineState.Ready);
+        NativeIdentity.error = null; NativeIdentity.onOpen = null;
+        RunGate.HasPendingReports = false; RunGate.IdentityChangeBlocked = false;
+        PremiumStore.IsPremium = false; PremiumStore.Busy = false; RewardedAds.IsShowing = false;
+        ProgressStore.MutationCounter = 0; ProgressStore.Applied = null; ProgressStore.Owner = Guest;
+        ProgressStore.AcceptMerge = true;
+        AttemptsSync.Applied = null;
+        UnityEngine.Time.realtimeSinceStartup = 0;
+    }
+    private static void ReplyWith(string path, string json, int status = 200, Action hook = null) =>
+        Replies.Enqueue(new Reply { path = path, json = json, status = status, hook = hook });
+    private static string Auth(string id, bool anonymous = false) => JsonConvert.SerializeObject(new {
+        access_token = "target-access", refresh_token = "target-refresh", expires_in = 3600,
+        user = new { id, is_anonymous = anonymous }
+    });
+    private static void Preflight(Action mergeHook = null)
+    {
+        ReplyWith("/rest/v1/rpc/mark_linked", "null");
+        ReplyWith("/rest/v1/rpc/get_profile", "{\"display_name\":\"Recovered\",\"is_linked\":true,\"xp\":40}");
+        ReplyWith("/rest/v1/rpc/get_attempts", "{\"count\":5,\"seconds_until_next\":0,\"premium\":false,\"meter_charged\":false}");
+        ReplyWith("/rest/v1/rpc/merge_progress", "{\"completedLevelIds\":[\"guest-level\",\"cloud-level\"]}", 200, mergeHook);
+    }
+    private static bool SignIn()
+    {
+        int callbacks = 0; bool ok = false;
+        OnlineService.LinkWithGoogle((success, _) => { callbacks++; ok = success; });
+        Assert(callbacks == 1, "one completion callback");
+        Assert(!OnlineService.IdentityBusy, "busy released");
+        Assert(Replies.Count == 0, "expected request sequence consumed");
+        return ok;
+    }
+    private static void GuestUnchanged()
+    {
+        Assert(SupabaseSession.UserId == Guest, "guest identity preserved");
+        Assert(SupabaseSession.RefreshToken == "guest-refresh", "guest refresh token preserved");
+        Assert(ProgressStore.Applied == null, "failed recovery leaves guest save alone");
+    }
+    public static void Main(string[] args)
+    {
+        UnityEngine.Application.persistentDataPath = args[0];
+        Reset(); ReplyWith("/auth/v1/token?grant_type=id_token", Auth(Guest)); Preflight();
+        Assert(SignIn(), "new identity links in place");
+        Assert(SupabaseSession.UserId == Guest && !SupabaseSession.IsAnonymous, "same guest ID becomes permanent");
+        Assert(OnlineService.IsLinked && ProgressStore.Applied != null, "linked profile and cloud progress applied");
+        JObject first = JObject.Parse(Requests[0].body);
+        Assert((bool)first["link_identity"] && (string)first["nonce"] == "raw-nonce", "link flag and raw nonce supplied");
+        Assert(Requests[0].headers["Authorization"] == "Bearer guest-access", "link authenticated as guest");
+
+        Reset(); ReplyWith("/auth/v1/token?grant_type=id_token", "{\"error_code\":\"identity_already_exists\"}", 422);
+        ReplyWith("/auth/v1/token?grant_type=id_token", Auth(Returning)); Preflight();
+        Assert(SignIn(), "returning account recovery succeeds");
+        Assert(SupabaseSession.UserId == Returning && ProgressStore.Owner == Returning, "recovery changes identity and cache owner");
+        Assert(!(bool)JObject.Parse(Requests[1].body)["link_identity"], "fallback uses sign-in not link");
+        Assert(Requests[1].headers["Authorization"] == "Bearer public-key", "fallback does not impersonate the guest");
+        Assert(Requests[5].headers["Authorization"] == "Bearer target-access", "preflight merge uses verified target token");
+        Assert(File.ReadAllText(Path.Combine(args[0], "online_session.json")).Contains(Returning), "new session persisted");
+
+        foreach (string failure in new[] { "provider_disabled", "validation_failed", "manual_linking_disabled", "over_request_rate_limit" })
+        {
+            Reset(); ReplyWith("/auth/v1/token?grant_type=id_token", "{\"error_code\":\"" + failure + "\"}", 400);
+            Assert(!SignIn(), failure + " rejects without account fallback"); GuestUnchanged();
+        }
+        Reset(); NativeIdentity.error = "Sign-in cancelled";
+        Assert(!SignIn() && Requests.Count == 0, "cancel sends no auth request"); GuestUnchanged();
+
+        Reset(); NativeIdentity.onOpen = () => {
+            int calls = 0;
+            OnlineService.LinkWithApple((ok, _) => { Assert(!ok, "duplicate request refused"); calls++; });
+            Assert(calls == 1 && OnlineService.IdentityBusy, "duplicate does not unlock first request");
+        };
+        ReplyWith("/auth/v1/token?grant_type=id_token", Auth(Guest)); Preflight();
+        Assert(SignIn(), "first request survives duplicate tap");
+
+        foreach (string bad in new[] { "{}", Auth(Guest, true), Auth(Returning), "invalid-json" })
+        {
+            Reset(); ReplyWith("/auth/v1/token?grant_type=id_token", bad);
+            Assert(!SignIn(), "malformed or wrong-account linking reply refused"); GuestUnchanged();
+        }
+        Reset(); ReplyWith("/auth/v1/token?grant_type=id_token", Auth(Guest));
+        ReplyWith("/rest/v1/rpc/mark_linked", "unavailable", 503);
+        Assert(!SignIn(), "preflight failure reports incomplete sync");
+        Assert(SupabaseSession.UserId == Guest && !SupabaseSession.IsAnonymous && OnlineService.IsLinked, "committed link survives preflight failure");
+
+        Reset(); ReplyWith("/auth/v1/token?grant_type=id_token", Auth(Guest)); Preflight(() => ProgressStore.MutationCounter++);
+        Assert(!SignIn(), "new local save rejects stale merge");
+        Assert(ProgressStore.Applied == null && OnlineService.IsLinked, "stale merge preserves save and committed link");
+
+        Reset(); ProgressStore.AcceptMerge = false;
+        ReplyWith("/auth/v1/token?grant_type=id_token", Auth(Guest)); Preflight();
+        Assert(!SignIn(), "regressing cloud reply rejected");
+        Assert(ProgressStore.Applied == null && OnlineService.IsLinked, "regressing merge preserves save and committed link");
+
+        foreach (bool premium in new[] { false, true })
+        {
+            Reset(); PremiumStore.IsPremium = premium; RunGate.HasPendingReports = !premium;
+            ReplyWith("/auth/v1/token?grant_type=id_token", "{\"error_code\":\"identity_already_exists\"}", 422);
+            ReplyWith("/auth/v1/token?grant_type=id_token", Auth(Returning));
+            Assert(!SignIn(), "guest purchases and unfinished ranked reports prevent destructive recovery"); GuestUnchanged();
+        }
+        Reset(); Set("_requestsInFlight", 1);
+        Assert(!SignIn() && Requests.Count == 0, "stuck old request times out before token exchange"); GuestUnchanged();
+
+        Reset(); ReplyWith("/auth/v1/token?grant_type=id_token", Auth(Guest));
+        Preflight(() => { throw new InvalidOperationException("injected transport failure"); });
+        Assert(!SignIn(), "nested exception still completes and unlocks");
+        Assert(ProgressStore.Applied == null && OnlineService.IsLinked, "exception preserves save and committed link");
+
+        Reset(); string disk = File.ReadAllText(Path.Combine(args[0], "online_session.json"));
+        string savedPath = UnityEngine.Application.persistentDataPath;
+        UnityEngine.Application.persistentDataPath = Path.Combine(savedPath, "missing", "directory");
+        Assert(!SupabaseSession.TryStore("a", "b", Returning, 123, false), "failed durable store reports failure");
+        Assert(SupabaseSession.UserId == Guest, "failed durable store preserves memory session");
+        UnityEngine.Application.persistentDataPath = savedPath;
+        Assert(File.ReadAllText(Path.Combine(args[0], "online_session.json")) == disk, "failed durable store preserves disk session");
+
+        Console.WriteLine("PASS: " + passed + " identity checks; no live network or player saves used.");
+    }
+    internal static void Run(IEnumerator routine)
+    {
+        using (routine as IDisposable)
+            while (routine.MoveNext())
+            {
+                if (routine.Current is IEnumerator nested) Run(nested);
+                else UnityEngine.Time.realtimeSinceStartup += 1;
+            }
+    }
+}
+
+namespace UnityEngine {
+    public class Object { public static void DontDestroyOnLoad(Object value) {} }
+    public class MonoBehaviour : Object { public Coroutine StartCoroutine(IEnumerator value) { IdentityChecks.Run(value); return new Coroutine(); } }
+    public class Coroutine {}
+    public class GameObject : Object { public GameObject(string name) {} public T AddComponent<T>() where T:new() => new T(); }
+    public static class Application { public static string persistentDataPath; public static event Action<bool> focusChanged; }
+    public static class Time { public static float realtimeSinceStartup; }
+    public class WaitForSecondsRealtime { public WaitForSecondsRealtime(float seconds) {} }
+    public enum RuntimeInitializeLoadType { SubsystemRegistration, AfterSceneLoad }
+    public class RuntimeInitializeOnLoadMethodAttribute : Attribute { public RuntimeInitializeOnLoadMethodAttribute(RuntimeInitializeLoadType type) {} }
+    public static class Debug { public static void LogWarning(object value) {} public static void LogError(object value) {} }
+    public static class JsonUtility {
+        public static T FromJson<T>(string value) => JsonConvert.DeserializeObject<T>(value);
+        public static string ToJson(object value) => JsonConvert.SerializeObject(value);
+    }
+}
+namespace UnityEngine.SceneManagement {
+    public struct Scene {} public enum LoadSceneMode { Single }
+    public static class SceneManager { public static event Action<Scene,LoadSceneMode> sceneLoaded; }
+}
+namespace UnityEngine.Networking {
+    public class UploadHandlerRaw { public byte[] data; public UploadHandlerRaw(byte[] data) { this.data=data; } }
+    public class DownloadHandlerBuffer { public string text; }
+    public class UnityWebRequest : IDisposable {
+        public enum Result { Success, ConnectionError, ProtocolError }
+        public const string kHttpVerbPOST = "POST";
+        public string url, error; public int timeout; public long responseCode;
+        public UploadHandlerRaw uploadHandler; public DownloadHandlerBuffer downloadHandler;
+        public Result result;
+        public string body => System.Text.Encoding.UTF8.GetString(uploadHandler.data);
+        public Dictionary<string,string> headers = new Dictionary<string,string>();
+        public UnityWebRequest(string url, string method) { this.url=url; }
+        public static UnityWebRequest Get(string url) => new UnityWebRequest(url,"GET");
+        public void SetRequestHeader(string name,string value) => headers[name]=value;
+        public object SendWebRequest() {
+            var reply=IdentityChecks.Replies.Dequeue();
+            if (!url.EndsWith(reply.path)) throw new Exception("Unexpected path " + url);
+            IdentityChecks.Requests.Add(this);
+            responseCode=reply.status; result=responseCode==200 ? Result.Success : Result.ProtocolError;
+            downloadHandler.text=reply.json; reply.hook?.Invoke(); return null;
+        }
+        public void Dispose() {}
+    }
+}
+public static class SupabaseConfig { public static bool Enabled=true; public const string Url="https://invalid.test"; public const string AnonKey="public-key"; }
+public static class NativeIdentity {
+    public sealed class Credential { public string idToken, nonce, error; }
+    public static string error; public static Action onOpen;
+    public static bool Supports(string provider) => true;
+    public static void SignIn(string provider, Action<Credential> done) {
+        onOpen?.Invoke(); done(new Credential { idToken="fake-id-token",nonce="raw-nonce",error=error });
+    }
+}
+public static class ProgressStore {
+    public static long MutationCounter; public static int SchemaVersion=5; public static string Applied,Owner; public static bool AcceptMerge=true;
+    public static void WipeForAccountDeletion() {} public static void BindOnlineAccount(string id) { Owner=id; MutationCounter++; }
+    public static string ExportPayloadJson() => "{\"completedLevelIds\":[\"guest-level\"]}";
+    public static bool CanApplyMergedPayload(string json) => AcceptMerge && json!=null;
+    public static bool ApplyMergedPayload(string json) { Applied=json; return true; }
+}
+public static class ProgressSync { public static void Init() {} public static void RetryInitialSync() {} public static void OnAccountChanged() {} public static void OnReady() {} public static void OnBackground() {} public static void OnFocusRegained() {} }
+public static class AttemptsSync {
+    public static string Applied;
+    public static void Refresh() {} public static void ForceRefresh() {} public static void OnAccountChanged() {}
+    public static bool IsValidSnapshot(string value) => value!=null && value.Contains("count");
+    public static void ApplySnapshot(string value) => Applied=value;
+}
+public static class RunGate { public static bool IdentityChangeBlocked,HasPendingReports; public static void RetryPendingFinishes() {} public static void ClearActiveRun() {} public static void DeleteCurrentAccountQueue() {} }
+public static class PremiumStore { public static bool Busy,IsPremium; }
+public static class RewardedAds { public static bool IsShowing; }
+public static class AttemptsService { public static void OnAccountChanged() {} public const int GrantsUnknown=-1; public static void ApplyGrantsRemaining(int value) {} }
+public static class XpSystem { public static void ApplyServerTotal(long value) {} }

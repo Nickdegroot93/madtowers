@@ -68,7 +68,7 @@ public static class RewardedAds
     /// <summary>Is an ad genuinely on screen right now? Self-heals a provider that never
     /// reported back: the reward is still never granted (no confirmed watch), the player
     /// just gets the affordance back instead of losing it permanently.</summary>
-    private static bool IsShowing
+    public static bool IsShowing
     {
         get
         {
@@ -89,6 +89,7 @@ public static class RewardedAds
     /// provider that throws or double-fires must not wedge _showing shut or double-grant.</summary>
     public static void Show(Action<bool> onFinished)
     {
+        if (OnlineService.IdentityBusy) { onFinished?.Invoke(false); return; }
         if (!Available)
         {
             // Say WHY, always. A silent refusal here presents as "the button does
@@ -101,6 +102,7 @@ public static class RewardedAds
             return;
         }
         _showing = true;
+        string accountId = SupabaseSession.UserId;
         _showStartedAt = UnityEngine.Time.unscaledTime;
         MuteGameAudioForAd();
         bool finished = false;
@@ -110,7 +112,7 @@ public static class RewardedAds
             finished = true;
             _showing = false;
             RestoreGameAudio();
-            onFinished?.Invoke(earned);
+            onFinished?.Invoke(earned && accountId == SupabaseSession.UserId && !OnlineService.IdentityBusy);
         }
         try
         {
