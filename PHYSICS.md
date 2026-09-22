@@ -46,6 +46,15 @@ narrowed contact and must release. When an interface fails, that block becomes D
 remaining graph is revalidated in the same frame. Unsupported pieces above follow, while an
 independently supported base may remain exact.
 
+When two contact-patch centres bracket a load's resultant, split its reaction between those
+centres while conserving total weight and horizontal moment. Do not use the nearest inner
+edges of those patches: that puts an artificial eccentric load on otherwise centred support
+columns, eventually failing their edge reserve in a perfectly aligned stack. Outside the
+centre span, retain the actual eccentric line of action, including the full moment of hooks.
+This changes reaction distribution only, not support eligibility, edge reserves or release
+rules. `Tools/PhysicsChecks/stack-alignment.cs.txt` reproduces the former false release with
+real prefabs and cast-driven landings, then checks exact alignment through repeated placements.
+
 A genuine ledge hook is a separate exact support case: one cell rests on top, a connected cell
 extends past that edge on the same row, and another cell continues down beside the support. That
 geometry can react against the vertical ledge, so S/Z and J/L hooks remain grid-owned rather than

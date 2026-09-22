@@ -1,0 +1,164 @@
+// Unity MCP execute_code method body. Run in the prepared __PocketPhysicsReview scene.
+// Real prefabs, cast-driven descent and production support decisions; no player run/save.
+if (!Application.isPlaying || UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "__PocketPhysicsReview"
+    || GameManager.Instance != null || BlockController.AllBlocks.Count != 0)
+    throw new Exception("Use an empty __PocketPhysicsReview play-mode scene with no game or blocks.");
+var bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+var checks = new List<object>();
+var errors = new List<string>();
+Application.LogCallback captureError = (message, stack, type) =>
+{
+    if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert) errors.Add(message);
+};
+Application.logMessageReceived += captureError;
+var previousSimulation = Physics2D.simulationMode;
+float previousTimeScale = Time.timeScale;
+GameObject fixture = null;
+var pieces = new List<BlockController>();
+void Check(string name, bool passed, object details = null) { checks.Add(new { name, passed, details }); }
+void Start(string name, bool rounded = false)
+{
+    if (fixture != null) UnityEngine.Object.DestroyImmediate(fixture);
+    pieces.Clear();
+    fixture = new GameObject(name);
+    var terrain = fixture.AddComponent<FloorTerrain>();
+    for (int x = -8; x <= 8; x++)
+        typeof(FloorTerrain).GetMethod("CreateColumnCollider", bf).Invoke(terrain,
+            new object[] { (float)x, -5f, -.5f, 1f, .03f, rounded });
+    Physics2D.SyncTransforms();
+}
+// Spawn three rows above the requested cell-bounds corner, then use normal descent to land.
+// Cell bounds keep placement coordinates comparable across all four rotations.
+BlockController Drop(string shape, float minX, float minY, float angle = 0, string variant = "Normal")
+{
+    var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Blocks/Block_" + shape + ".prefab");
+    var go = UnityEngine.Object.Instantiate(prefab, Vector3.zero, Quaternion.Euler(0, 0, angle), fixture.transform);
+    var block = go.GetComponent<BlockController>();
+    block.ApplyData(UnityEditor.AssetDatabase.LoadAssetAtPath<BlockData>("Assets/Data/Blocks/" + variant + ".asset"));
+    block.enabled = false;
+    var cells = new List<Vector2>(); block.GetWorldCellCenters(cells);
+    Vector3 position = new Vector3(minX - cells.Min(c => c.x), minY + 3f - cells.Min(c => c.y), 0);
+    typeof(BlockController).GetMethod("SetPosition", bf).Invoke(block, new object[] { position });
+    typeof(BlockController).GetMethod("ResetControlTargets", bf).Invoke(block, null);
+    typeof(BlockController).GetMethod("InitDynamicControlBody", bf).Invoke(block, null);
+    for (int step = 0; step < 1000 && !block.HasLanded; step++)
+        typeof(BlockController).GetMethod("SteerWhileFalling", bf).Invoke(block, null);
+    if (!block.HasLanded) throw new Exception("Fixture failed to land: " + shape);
+    pieces.Add(block);
+    return block;
+}
+void Step(int count)
+{
+    for (int step = 0; step < count; step++)
+    {
+        Physics2D.Simulate(.02f);
+        foreach (var block in pieces)
+            if (block != null && block.HasLanded)
+                typeof(BlockController).GetMethod("HandleLandedMaintenance", bf).Invoke(block, null);
+    }
+}
+bool Exact(BlockController block)
+{
+    var body = block.GetComponent<Rigidbody2D>();
+    var cells = new List<Vector2>(); block.GetWorldCellCenters(cells);
+    return block.IsGridStable && body.constraints == RigidbodyConstraints2D.FreezeAll
+        && Mathf.Abs(Mathf.DeltaAngle(body.rotation, Mathf.Round(body.rotation / 90f) * 90f)) < .00001f
+        && cells.All(c => Mathf.Abs(c.x - Mathf.Round(c.x)) < .00001f && Mathf.Abs(c.y - Mathf.Round(c.y)) < .00001f);
+}
+try
+{
+    Time.timeScale = 0; Physics2D.simulationMode = SimulationMode2D.Script;
+    foreach (bool rounded in new[] { false, true })
+    foreach (bool reverse in new[] { false, true })
+    {
+        string label = "Two equal columns / rounded=" + rounded + " / reverse=" + reverse;
+        Start(label, rounded);
+        var first = Drop("I", reverse ? 0 : -1, 0, reverse ? 270 : 90);
+        var second = Drop("I", reverse ? -1 : 0, 0, reverse ? 90 : 270);
+        var basePositions = new[] { first.GetComponent<Rigidbody2D>().position, second.GetComponent<Rigidbody2D>().position };
+        int firstReleasedAt = -1;
+        for (int i = 0; i < 20; i++)
+        {
+            Drop("O", -1, 4 + 2 * i, (i % 4) * 90);
+            if (firstReleasedAt < 0 && pieces.Any(b => !Exact(b))) firstReleasedAt = i + 1;
+            Step(25); // later placements arrive after real simulation, not all in one frozen frame
+        }
+        Check(label + " stays exact through 20 placements", firstReleasedAt < 0, new { firstReleasedAt });
+        var before = pieces.Select(b => b.GetComponent<Rigidbody2D>().position).ToArray();
+        Step(6000); // 120 simulated seconds with the production debris maintenance path
+        float drift = pieces.Select((b, i) => Vector2.Distance(before[i], b.GetComponent<Rigidbody2D>().position)).Max();
+        float baseDrift = Mathf.Max(Vector2.Distance(basePositions[0], first.GetComponent<Rigidbody2D>().position),
+            Vector2.Distance(basePositions[1], second.GetComponent<Rigidbody2D>().position));
+        Check(label + " has no drift or tilt after 120 seconds", pieces.All(Exact) && drift < .00001f && baseDrift < .00001f,
+            new { drift, baseDrift, maxAngle = pieces.Max(b => Mathf.Abs(Mathf.DeltaAngle(b.GetComponent<Rigidbody2D>().rotation,
+                Mathf.Round(b.GetComponent<Rigidbody2D>().rotation / 90f) * 90f))) });
+    }
+
+    // Fully support each shape's underside across independent columns at every quarter turn.
+    foreach (string shape in new[] { "I", "O", "T", "J", "L", "S", "Z" })
+    foreach (float angle in new[] { 0f, 90f, 180f, 270f })
+    {
+        Start("Mixed support " + shape + " " + angle);
+        for (int x = -2; x <= 1; x++) Drop("I", x, 0, 90);
+        // Match every underside row: an upside-down J/L or vertical S/Z on a flat
+        // surface is an overhang, not a fully supported placement.
+        var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Blocks/Block_" + shape + ".prefab");
+        var rotation = Quaternion.Euler(0, 0, angle);
+        var localCells = prefab.GetComponentsInChildren<BoxCollider2D>()
+            .Select(c => rotation * c.transform.TransformPoint(c.offset)).ToArray();
+        float leftX = localCells.Min(c => c.x), bottomY = localCells.Min(c => c.y);
+        foreach (var column in localCells.GroupBy(c => Mathf.RoundToInt(c.x - leftX)))
+        {
+            int underside = Mathf.RoundToInt(column.Min(c => c.y) - bottomY);
+            for (int row = 0; row < underside; row++) Drop("Pip", -2 + column.Key, 4 + row);
+        }
+        Drop(shape, -2, 4, angle);
+        Step(150);
+        Check(shape + " at " + angle + " on matching independent supports remains exact", pieces.All(Exact));
+    }
+    Start("Repeated horizontal bridges");
+    for (int x = -2; x <= 1; x++) Drop("I", x, 0, 90);
+    for (int row = 4; row < 44; row++) Drop("I", -2, row);
+    Step(1500);
+    Check("40 horizontal I rows retain exact support columns", pieces.All(Exact));
+
+    // Fully supported heavy, light and ice variants must also stay aligned.
+    foreach (string variant in new[] { "Boulder", "Feather", "Ice" })
+    {
+        Start("Supported " + variant);
+        Drop("I", -1, 0, 90); Drop("I", 0, 0, 90);
+        for (int i = 0; i < 8; i++) Drop("O", -1, 4 + 2 * i, variant: variant);
+        Step(1500);
+        Check("Centered " + variant + " load remains exact", pieces.All(Exact));
+    }
+
+    // A bridge must still fail after losing either of its only two base columns.
+    foreach (int side in new[] { 0, 1 })
+    {
+        Start("Removed support " + side);
+        var left = Drop("I", -1, 0, 90); var right = Drop("I", 0, 0, 90);
+        var upper = Drop("O", -1, 4);
+        UnityEngine.Object.DestroyImmediate((side == 0 ? left : right).gameObject);
+        Check("Removing support " + side + " releases bridge", !upper.IsGridStable
+            && upper.GetComponent<Rigidbody2D>().bodyType == RigidbodyType2D.Dynamic);
+        Step(250);
+        Check("Removing support " + side + " produces a physical fall/tip",
+            Mathf.Abs(upper.GetComponent<Rigidbody2D>().rotation) > 5f || upper.GetComponent<Rigidbody2D>().position.y < 3f);
+    }
+    Start("External jolt");
+    var joltedLeft = Drop("I", -1, 0, 90); Drop("I", 0, 0, 90); Drop("O", -1, 4);
+    joltedLeft.ApplyJolt(new Vector2(-2, 0));
+    Check("Explicit jolt releases the connected stack", pieces.All(b => !b.IsGridStable));
+    Step(250);
+    Check("Jolted blocks stay in free physics", pieces.All(b => !b.IsGridStable));
+}
+finally
+{
+    if (fixture != null) UnityEngine.Object.DestroyImmediate(fixture);
+    Physics2D.SyncTransforms(); Physics2D.simulationMode = previousSimulation; Time.timeScale = previousTimeScale;
+    Application.logMessageReceived -= captureError;
+}
+System.IO.File.WriteAllText("Library/stack-alignment-checks.json",
+    Newtonsoft.Json.JsonConvert.SerializeObject(new { checks, errors }, Newtonsoft.Json.Formatting.Indented));
+int failed = Newtonsoft.Json.Linq.JArray.FromObject(checks).Count(c => !(bool)c["passed"]);
+return new { passed = checks.Count - failed, failed, errors, report = "Library/stack-alignment-checks.json" };

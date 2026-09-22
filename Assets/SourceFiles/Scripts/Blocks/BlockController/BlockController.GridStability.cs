@@ -616,6 +616,52 @@ public partial class BlockController
         float resultantX,
         float tolerance)
     {
+        // Prefer the nearest contact-patch centres on either side of the resultant. Reactions
+        // at the inner edges artificially load the tipping edges of the supporting columns:
+        // even a centred O stack on two vertical I pieces can then fail the edge reserve.
+        // Splitting at the centres preserves total load and moment. Balance is checked by
+        // the caller before distribution and on each lower block when its loads are complete.
+        int leftCenterIndex = -1;
+        int rightCenterIndex = -1;
+        float leftCenterX = float.MinValue;
+        float rightCenterX = float.MaxValue;
+        for (int i = 0; i < upper.Supports.Count; i++)
+        {
+            GridSupportContact support = upper.Supports[i];
+            float centerX = (support.MinX + support.MaxX) * 0.5f;
+            if (centerX <= resultantX && centerX > leftCenterX)
+            {
+                leftCenterX = centerX;
+                leftCenterIndex = i;
+            }
+            if (centerX >= resultantX && centerX < rightCenterX)
+            {
+                rightCenterX = centerX;
+                rightCenterIndex = i;
+            }
+        }
+
+        if (leftCenterIndex >= 0 && rightCenterIndex >= 0)
+        {
+            if (rightCenterX - leftCenterX <= 0.0001f)
+            {
+                // Coincident or nearly coincident centres need no split; keep the line of action.
+                AddGridLoad(nodes, upper.Supports[leftCenterIndex].LowerBlock, upper.Load, resultantX);
+            }
+            else
+            {
+                float rightShare = (resultantX - leftCenterX) / (rightCenterX - leftCenterX);
+                float rightReaction = upper.Load * rightShare;
+                AddGridLoad(nodes, upper.Supports[leftCenterIndex].LowerBlock,
+                    upper.Load - rightReaction, leftCenterX);
+                AddGridLoad(nodes, upper.Supports[rightCenterIndex].LowerBlock,
+                    rightReaction, rightCenterX);
+            }
+            return;
+        }
+
+        // Outside the contact-centre span, retain the actual eccentric line of action.
+        // In particular a hook must pass its full overhang moment into the lower structure.
         int containing = -1;
         for (int i = 0; i < upper.Supports.Count; i++)
         {
@@ -656,10 +702,9 @@ public partial class BlockController
 
         if (leftIndex < 0 || rightIndex < 0)
         {
-            // The resultant lies beyond every top contact. Reaching this branch is legal only
-            // for a verified ledge hook. Apply its weight to the nearest supporting block while
-            // retaining the original application X: the offset from the ledge represents the
-            // reaction couple that the lower structure must resist.
+            // The resultant lies beyond every top contact. The caller has already verified
+            // a ledge hook or static terrain brace. Retain the original application X so a
+            // supporting block receives the full moment. Static terrain has no lower load node.
             int hookSupportIndex = leftIndex >= 0 ? leftIndex : rightIndex;
             GridSupportContact hookSupport = upper.Supports[hookSupportIndex];
             AddGridLoad(nodes, hookSupport.LowerBlock, upper.Load, resultantX);

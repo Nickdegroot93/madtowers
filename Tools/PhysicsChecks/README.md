@@ -59,6 +59,30 @@ sound/tutorial events now fire at application, so refused turns do not report su
 
 ## Coverage and reproducible layouts
 
+### Stack drift and alignment
+
+Run `stack-alignment.cs.txt` through Unity MCP `execute_code` in the same prepared empty
+scene. It returns passed/failed counts and writes `Library/stack-alignment-checks.json`;
+require **zero failures and zero runtime errors**. It restores its fixtures, simulation mode
+and time scale in `finally`. The 46 checks use real prefabs, cast-driven descent, production
+landing/support decisions and manually stepped physics plus landed-body maintenance.
+
+Coverage includes two independent vertical I supports carrying 20 O pieces, sharp and
+rounded terrain, both placement orders, all seven standard shapes at four rotations on
+matching supports, 40 horizontal I rows, Boulder/Feather/Ice loads, support removal and jolts.
+Long-duration cases simulate 120 seconds after repeated placements and measure position
+drift and rotation error. Existing terrain checks cover eccentric overloads and hooks.
+
+On September 22, the same 46 checks produced **35 passes / 11 failures** with the original
+load-distribution code, and **46 passes / 0 failures** with contact-centre load distribution.
+The four long-duration fixtures report zero drift/rotation error with the fix. The original
+code releases equal supporting columns at the eighth O on sharp terrain, or fourth O on
+rounded terrain. See [the investigation report](stack-alignment-review.md) for measurements,
+scope and follow-up play-test coverage. Other physics regression results above predate this change;
+the 38 terrain checks and 46 rotation checks were also rerun successfully with this fix.
+
+### Existing terrain and failure cases
+
 - Horizontal I inserted into a one-row static socket, both directions, including an O/T load.
 - Same I with no ceiling, two-row clearance, a moving/kinematic ceiling, a frozen playable-block
   ceiling, or a marked slope must release. A ceiling without a floor cannot anchor a brick.
