@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 // Maintenance for freely dynamic landed blocks: settle detection, the stillness watchdog,
@@ -11,17 +12,16 @@ public partial class BlockController
                Mathf.Abs(_rb.angularVelocity) <= settleAngularThreshold;
     }
 
-    // Going to sleep must never move the body. A block that physics holds slightly off-grid or
-    // tilted has an off-grid equilibrium: snapping it at sleep time teleports it away from that
-    // equilibrium, the solver wakes it and pushes it back, and the next sleep snaps it again -
-    // a metronomic, infinite twitch. Grid registration is decided once before physics handoff;
-    // rejected or released Dynamic bodies are never registered later.
-    private void SleepSettledBody()
+    // Sleeping never changes the pose or grid ownership. Dynamic blocks retain the
+    // equilibrium physics found, including any tilt. Readiness is tracked per body;
+    // SleepGroups coordinates the actual sleep across contacts and block joints.
+    private void ResetSettlingTimers()
     {
-        _rb.linearVelocity = Vector2.zero;
-        _rb.angularVelocity = 0f;
-        _rb.Sleep();
-        _fallingAway = false; // re-earned sleep = provably stable again, not falling debris
+        _landedMaintenanceSettleTimer = 0f;
+        _stillnessTimer = 0f;
+        _stillnessAnchorPosition = _rb.position;
+        _stillnessAnchorRotation = _rb.rotation;
+        _knifeEdgeDeferTime = 0f;
     }
 
     // --- Dynamic-debris knife-edge sleep guard (see PHYSICS.md I5) -----------------------
@@ -30,17 +30,31 @@ public partial class BlockController
     // happened on was decided by sub-millimetre float noise, so identical-looking edge
     // placements survived on one side and fell on the other. Deferring sleep lets gravity
     // resolve the balance honestly. Strictly bounded: after KnifeEdgeGraceSeconds of
-    // staying quiet anyway (leaning, wedged, vine-held) the block sleeps normally - the
-    // no-twitch guarantee is delayed for marginal debris, never lost.
+    // staying quiet anyway (leaning, wedged, vine-held) the block becomes eligible for group
+    // sleep. Moving neighbours must still finish settling before the group can sleep.
     private const float KnifeEdgeGraceSeconds = 2f;
     private const float SupportSpanEpsilon = 0.01f;
-    private static readonly ContactPoint2D[] SharedContactBuffer = new ContactPoint2D[16];
+    private static readonly List<ContactPoint2D> SharedContactBuffer = new List<ContactPoint2D>(32);
     private float _knifeEdgeDeferTime;
 
     private bool ShouldDeferSleepForKnifeEdge()
     {
         if (_knifeEdgeDeferTime >= KnifeEdgeGraceSeconds) return false;
 
+        if (!HasKnifeEdgeSupport())
+        {
+            _knifeEdgeDeferTime = 0f;
+            return false;
+        }
+
+        _knifeEdgeDeferTime += Time.fixedDeltaTime;
+        return _knifeEdgeDeferTime < KnifeEdgeGraceSeconds;
+    }
+
+    // A read-only check is also needed when a neighbour requests group sleep, before
+    // this block's own FixedUpdate may have refreshed its timers.
+    private bool HasKnifeEdgeSupport()
+    {
         int count = _rb.GetContacts(SharedContactBuffer);
         Vector2 centerOfMass = _rb.worldCenterOfMass;
         bool hasSupport = false;
@@ -58,17 +72,9 @@ public partial class BlockController
             supportMaxX = Mathf.Max(supportMaxX, contact.point.x);
         }
 
-        bool knifeEdged = hasSupport &&
+        return hasSupport &&
             (centerOfMass.x < supportMinX - SupportSpanEpsilon ||
              centerOfMass.x > supportMaxX + SupportSpanEpsilon);
-        if (!knifeEdged)
-        {
-            _knifeEdgeDeferTime = 0f;
-            return false;
-        }
-
-        _knifeEdgeDeferTime += Time.fixedDeltaTime;
-        return _knifeEdgeDeferTime < KnifeEdgeGraceSeconds;
     }
 
     private void HandleLandedMaintenance()
@@ -83,8 +89,7 @@ public partial class BlockController
 
         bool deferSleep = ShouldDeferSleepForKnifeEdge();
 
-        UpdateStillnessWatchdog(deferSleep);
-        if (_rb.IsSleeping()) return;
+        UpdateStillnessWatchdog();
 
         // While deferred, the block stays fully live - no grid pull, no soft damping, no
         // settle timer - so nothing slows the tip that resolves the knife edge.
@@ -92,20 +97,31 @@ public partial class BlockController
         {
             SoftDampSettledBody();
             _landedMaintenanceSettleTimer += Time.fixedDeltaTime;
-            if (_landedMaintenanceSettleTimer >= settleTime)
-            {
-                // Sleep freezes the block exactly where physics left it (see SleepSettledBody).
-                if (sleepSettledBlocksOnLock)
-                {
-                    SleepSettledBody();
-                }
-                _landedMaintenanceSettleTimer = 0f;
-            }
         }
         else
         {
             _landedMaintenanceSettleTimer = 0f;
         }
+
+        if (!deferSleep && IsReadyForGroupSleep()) TrySleepSettledGroup();
+    }
+
+    private bool IsReadyForGroupSleep()
+    {
+        if (!HasLanded || _isControlEnabled || !sleepSettledBlocksOnLock) return false;
+        if (_rb.IsSleeping()) return true;
+        if (_knifeEdgeDeferTime < KnifeEdgeGraceSeconds && HasKnifeEdgeSupport()) return false;
+
+        // Recheck current motion: a neighbour can ask before this body's maintenance
+        // runs, and its timers may describe the preceding physics step.
+        return (_landedMaintenanceSettleTimer >= settleTime && IsSettled()) ||
+               (_stillnessTimer >= stillnessTime && IsWithinStillnessWindow());
+    }
+
+    private bool IsWithinStillnessWindow()
+    {
+        return Vector2.Distance(_rb.position, _stillnessAnchorPosition) <= stillnessPositionTolerance &&
+               Mathf.Abs(Mathf.DeltaAngle(_rb.rotation, _stillnessAnchorRotation)) <= stillnessRotationToleranceDegrees;
     }
 
     private void InvalidatePlacementOccupancyIfMoved()
@@ -123,18 +139,12 @@ public partial class BlockController
         _placementOccupancyVersion++;
     }
 
-    // The velocity-based settle check above can be defeated by a marginal contact configuration:
-    // a block pivoting on a corner alternates between two contact states and the solver kicks it
-    // every cycle, so its instantaneous velocity never stays quiet. But such a limit cycle has
-    // zero NET movement, which is what this watchdog measures. Anything that is not actually
-    // going anywhere is put to sleep, making persistent twitching structurally impossible.
-    private void UpdateStillnessWatchdog(bool deferSleep)
+    // Contact jitter can keep instantaneous speed above the settle threshold while the
+    // pose stays within a small window. The watchdog makes that body eligible for sleep;
+    // it cannot sleep independently of neighbours that are still moving.
+    private void UpdateStillnessWatchdog()
     {
-        if (!sleepSettledBlocksOnLock) return;
-
-        float positionDrift = Vector2.Distance(_rb.position, _stillnessAnchorPosition);
-        float rotationDrift = Mathf.Abs(Mathf.DeltaAngle(_rb.rotation, _stillnessAnchorRotation));
-        if (positionDrift > stillnessPositionTolerance || rotationDrift > stillnessRotationToleranceDegrees)
+        if (!IsWithinStillnessWindow())
         {
             _stillnessAnchorPosition = _rb.position;
             _stillnessAnchorRotation = _rb.rotation;
@@ -142,14 +152,8 @@ public partial class BlockController
             return;
         }
 
+        // Accrue while knife-edge sleep is deferred, preserving the existing grace period.
         _stillnessTimer += Time.fixedDeltaTime;
-        // The timer keeps accruing while a knife-edge defers sleep, so the moment the
-        // grace expires the watchdog acts immediately - the bounded Dynamic-debris stillness
-        // guarantee is delayed for marginal blocks, never lost.
-        if (_stillnessTimer >= stillnessTime && !deferSleep)
-        {
-            SleepSettledBody();
-        }
     }
 
     private void SoftDampSettledBody()
@@ -167,6 +171,7 @@ public partial class BlockController
 
         ReleaseGridStructureForForce();
         if (_rb.bodyType != RigidbodyType2D.Dynamic) return;
+        ResetSettlingTimers();
         _rb.WakeUp();
         _rb.linearVelocity += velocityChange;
     }

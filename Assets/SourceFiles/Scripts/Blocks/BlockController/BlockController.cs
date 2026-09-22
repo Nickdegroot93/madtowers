@@ -135,11 +135,11 @@ public partial class BlockController : MonoBehaviour
     [Tooltip("Minimum horizontal support overlap required for landing, as a fraction of one grid cell.")]
     [Range(0f, 0.5f)]
     [SerializeField] private float landingMinSupportWidthFraction = 0.15f;
-    [Tooltip("A landed block that has not NET-moved beyond these tolerances for the stillness window is force-slept, even if the solver keeps twitching it in place. This is what guarantees oscillation can never persist: twitching has zero net movement by definition.")]
+    [Tooltip("A landed block that stays within these pose tolerances for the stillness window becomes eligible for sleep, even with contact jitter. Its connected group must also be ready.")]
     [SerializeField] private float stillnessPositionTolerance = 0.005f;
     [Tooltip("Net rotation tolerance (degrees) for the stillness watchdog.")]
     [SerializeField] private float stillnessRotationToleranceDegrees = 0.5f;
-    [Tooltip("How long a block must stay within the stillness tolerances before it is force-slept.")]
+    [Tooltip("How long a block must stay within the stillness tolerances before it is eligible for group sleep.")]
     [SerializeField] private float stillnessTime = 0.75f;
 
     private static PhysicsMaterial2D _sharedFallbackMaterial;
@@ -425,7 +425,7 @@ public partial class BlockController : MonoBehaviour
     // bricks tumble off-screen untracked; the view holds on the stable tower) and the loss
     // line charges it moments later. Latched only while the body is Dynamic: a block converted
     // to Static (Freeze, Hardline's platform conversion - which sets bodyType directly, not via
-    // FreezeInPlace) is stationary terrain again and must be framed. SleepSettledBody clears
+    // FreezeInPlace) is stationary terrain again and must be framed. Coordinated group sleep clears
     // the latch too: a knocked-loose block that came to rest and re-earned sleep is provably
     // stable, not debris.
     private const float FallingAwaySpeed = -2.5f;

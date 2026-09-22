@@ -215,10 +215,7 @@ public partial class BlockController
             _rb.gravityScale = ResolveLandedGravityScale();
         }
 
-        _landedMaintenanceSettleTimer = 0f;
-        _stillnessAnchorPosition = _rb.position;
-        _stillnessAnchorRotation = _rb.rotation;
-        _stillnessTimer = 0f;
+        ResetSettlingTimers();
         _lastPlacementOccupancyPosition = _rb.position;
         _lastPlacementOccupancyRotation = _rb.rotation;
     }

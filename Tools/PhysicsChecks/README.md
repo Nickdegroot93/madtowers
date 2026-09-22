@@ -122,3 +122,25 @@ were refused by `TuckIntoStaticPocket` both before and after the restoration, wi
 resulting positions. They appear as observations in the report, not passing entry assertions.
 The on-row insertion succeeds and is asserted. PHYSICS.md's broad entry-window claim is therefore
 not fully met by the existing code. This patch intentionally does not change tuck/overlap logic.
+
+## Dynamic settling and tilted branches
+
+Run `settling.cs.txt` through Unity MCP `execute_code` in the same prepared empty scene.
+It rebuilds `Fixtures/tilted-branch.json`, captured from the paused player tower, and calls the
+production landed-maintenance method around explicit physics steps. It uses no player run or
+save, and restores objects, simulation mode and time scale in `finally`. Require zero failures
+and zero runtime errors in `Library/settling-checks.json`.
+
+The 82 checks cover the captured branch in both maintenance orders, later landings, twenty
+wake/settle cycles, all seven shapes at four rotations on Kinematic supports, unsupported falls,
+both sides of narrow edges, a sloped equilibrium, support removal, jolts, forward/reverse
+FixedJoint2D connections, active/external moving bodies, settling opt-out and independent piles
+on a shared static floor. A warmed blocked-sleep loop checks managed allocations separately.
+The landing probes seat bodies by cast and hand them to Dynamic physics; the existing 130
+alignment/terrain/rotation checks cover full production landing and support decisions.
+
+All **82 settling + 130 existing checks passed**, with no captured runtime errors, on September
+22, 2026. The initial 12-check captured-tower reproduction failed seven checks before the fix.
+The new-load probe legitimately sheds its unsupported additions: it asserts that they remain
+free to fall and the surviving original branch stops drifting, not that an unstable stack must
+stay upright. See [the investigation and implementation report](tilted-branch-review.md).

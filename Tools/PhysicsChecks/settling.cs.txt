@@ -1,0 +1,336 @@
+// Unity MCP execute_code method body; use the prepared __PocketPhysicsReview scene.
+// Rebuild the captured tower with production maintenance, without a player run or save.
+if (!Application.isPlaying || UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "__PocketPhysicsReview"
+    || GameManager.Instance != null || BlockController.AllBlocks.Count != 0)
+    throw new Exception("Use an empty __PocketPhysicsReview play-mode scene with no game or blocks.");
+var bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+var maintenance = typeof(BlockController).GetMethod("HandleLandedMaintenance", bf);
+var checks = new List<object>();
+var errors = new List<string>();
+Application.LogCallback captureError = (message, stack, type) =>
+{
+    if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert) errors.Add(message);
+};
+Application.logMessageReceived += captureError;
+var previousSimulation = Physics2D.simulationMode;
+float previousTimeScale = Time.timeScale;
+GameObject fixture = null;
+var pieces = new List<BlockController>();
+var materials = new List<PhysicsMaterial2D>();
+var contacts = new List<ContactPoint2D>();
+void Set(BlockController c, string name, object value) => typeof(BlockController).GetField(name, bf).SetValue(c, value);
+void Call(BlockController c, string name) => typeof(BlockController).GetMethod(name, bf).Invoke(c, null);
+void Check(string name, bool passed, object details = null) { checks.Add(new { name, passed, details }); }
+Vector2 V(Newtonsoft.Json.Linq.JToken a) => new Vector2((float)a[0], (float)a[1]);
+void Clean()
+{
+    // Do not revalidate a partially destroyed fixture as if it were a player's support removal.
+    foreach (var c in pieces) if (c != null) typeof(BlockController).GetProperty("HasLanded").SetValue(c, false);
+    if (fixture != null) UnityEngine.Object.DestroyImmediate(fixture);
+    pieces.Clear();
+    foreach (var m in materials) UnityEngine.Object.DestroyImmediate(m);
+    materials.Clear();
+}
+void Start(string name)
+{
+    Clean();
+    fixture = new GameObject(name);
+}
+void Landed(BlockController c, bool grid)
+{
+    typeof(BlockController).GetProperty("HasLanded").SetValue(c, true);
+    Set(c, "_isControlEnabled", false); Set(c, "_hasTouchedDown", true); Set(c, "_isGridStable", grid);
+    if (grid) c.GetComponent<Rigidbody2D>().bodyType = RigidbodyType2D.Kinematic;
+    Call(c, "FinalizeDynamicControl");
+}
+void LoadCapture()
+{
+    Start("Captured tilted branch");
+    var data = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText("Tools/PhysicsChecks/Fixtures/tilted-branch.json"));
+    foreach (var entry in data["terrain"])
+    {
+        var go = new GameObject("Captured terrain"); go.transform.SetParent(fixture.transform);
+        go.transform.position = V(entry["position"]); go.transform.rotation = Quaternion.Euler(0, 0, (float)entry["angle"]);
+        var scale = V(entry["scale"]); go.transform.localScale = new Vector3(scale.x, scale.y, 1);
+        var box = go.AddComponent<BoxCollider2D>(); box.size = V(entry["size"]); box.offset = V(entry["offset"]); box.edgeRadius = (float)entry["radius"];
+        var mat = new PhysicsMaterial2D { friction = (float)entry["friction"] }; materials.Add(mat); box.sharedMaterial = mat;
+    }
+    foreach (var entry in data["blocks"])
+    {
+        var go = new GameObject("Captured " + (int)entry["id"]); go.SetActive(false); go.transform.SetParent(fixture.transform);
+        var rb = go.AddComponent<Rigidbody2D>();
+        var boxes = new List<BoxCollider2D>();
+        foreach (var cell in entry["colliders"])
+        {
+            var child = new GameObject("Cell"); child.transform.SetParent(go.transform, false);
+            child.transform.localPosition = V(cell["localPosition"]);
+            child.transform.localRotation = Quaternion.Euler(0, 0, (float)cell["localAngle"]);
+            var box = child.AddComponent<BoxCollider2D>(); box.offset = V(cell["offset"]); boxes.Add(box);
+        }
+        var c = go.AddComponent<BlockController>(); c.enabled = false; Set(c, "showPlacementBeam", false);
+        go.SetActive(true); // Awake configures control/collider forgiveness; restore captured geometry afterwards.
+        int index = 0;
+        foreach (var cell in entry["colliders"])
+        { boxes[index].size = V(cell["size"]); boxes[index].edgeRadius = (float)cell["radius"]; index++; }
+        go.transform.position = V(entry["position"]); go.transform.rotation = Quaternion.Euler(0, 0, (float)entry["angle"]);
+        rb.position = go.transform.position; rb.rotation = (float)entry["angle"];
+        Set(c, "_originalCenterOfMass", V(entry["centerOfMass"])); Set(c, "_dynamicControlReady", true);
+        Landed(c, (bool)entry["IsGridStable"]);
+        rb.mass = (float)entry["mass"]; rb.gravityScale = (float)entry["gravity"];
+        rb.linearDamping = (float)entry["linearDamping"]; rb.angularDamping = (float)entry["angularDamping"];
+        var mat = new PhysicsMaterial2D { friction = (float)entry["friction"], bounciness = (float)entry["bounciness"] };
+        materials.Add(mat); rb.sharedMaterial = mat;
+        rb.linearVelocity = V(entry["velocity"]); rb.angularVelocity = (float)entry["angularVelocity"];
+        pieces.Add(c);
+    }
+    Physics2D.SyncTransforms();
+}
+void Step(int count, bool reverse = false)
+{
+    for (int step = 0; step < count; step++)
+    {
+        for (int j = 0; j < pieces.Count; j++)
+        {
+            var c = pieces[reverse ? pieces.Count - 1 - j : j];
+            if (c != null && c.HasLanded) maintenance.Invoke(c, null);
+        }
+        Physics2D.Simulate(.02f);
+    }
+}
+float MaxImpulse()
+{
+    float max = 0;
+    foreach (var c in pieces)
+    {
+        if (c == null) continue;
+        c.GetComponent<Rigidbody2D>().GetContacts(contacts);
+        foreach (var contact in contacts) max = Mathf.Max(max, contact.normalImpulse);
+    }
+    return max;
+}
+BlockController Spawn(string shape, Vector2 position, float angle = 0)
+{
+    var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Blocks/Block_" + shape + ".prefab");
+    var go = UnityEngine.Object.Instantiate(prefab, position, Quaternion.Euler(0, 0, angle), fixture.transform);
+    var c = go.GetComponent<BlockController>(); c.enabled = false;
+    c.ApplyData(UnityEditor.AssetDatabase.LoadAssetAtPath<BlockData>("Assets/Data/Blocks/Normal.asset"));
+    Call(c, "InitDynamicControlBody"); Landed(c, false); pieces.Add(c);
+    return c;
+}
+void AddLoad()
+{
+    var c = Spawn("O", new Vector2(5, 40)); var rb = c.GetComponent<Rigidbody2D>();
+    Physics2D.SyncTransforms();
+    var hits = new RaycastHit2D[128]; var filter = new ContactFilter2D { useTriggers = false };
+    int count = rb.Cast(Vector2.down, filter, hits, 100);
+    float travel = float.MaxValue;
+    for (int i = 0; i < count; i++) if (hits[i].normal.y >= .7f) travel = Mathf.Min(travel, hits[i].distance);
+    if (travel == float.MaxValue) throw new Exception("No landing support in captured fixture");
+    rb.position += Vector2.down * travel; rb.transform.position = rb.position;
+    Call(c, "FinalizeDynamicControl"); rb.linearVelocity = new Vector2(0, -2);
+    Physics2D.SyncTransforms();
+}
+BoxCollider2D Floor(Vector2 center, Vector2 size, float angle = 0)
+{
+    var go = new GameObject("Static support"); go.transform.SetParent(fixture.transform);
+    go.transform.position = center; go.transform.rotation = Quaternion.Euler(0, 0, angle);
+    var box = go.AddComponent<BoxCollider2D>(); box.size = size;
+    var mat = new PhysicsMaterial2D { friction = .95f }; materials.Add(mat); box.sharedMaterial = mat;
+    Physics2D.SyncTransforms(); return box;
+}
+void Seat(BlockController c)
+{
+    var rb = c.GetComponent<Rigidbody2D>(); Physics2D.SyncTransforms();
+    var hits = new RaycastHit2D[128]; var filter = new ContactFilter2D { useTriggers = false };
+    int count = rb.Cast(Vector2.down, filter, hits, 100);
+    float travel = float.MaxValue;
+    for (int i = 0; i < count; i++) if (hits[i].normal.y >= .7f) travel = Mathf.Min(travel, hits[i].distance);
+    if (travel == float.MaxValue) throw new Exception("No support for " + c.name);
+    rb.position += Vector2.down * travel; rb.transform.position = rb.position;
+    Call(c, "FinalizeDynamicControl"); rb.linearVelocity = new Vector2(0, -2);
+    Physics2D.SyncTransforms();
+}
+try
+{
+    Time.timeScale = 0; Physics2D.simulationMode = SimulationMode2D.Script;
+    foreach (bool reverse in new[] { false, true })
+    {
+        LoadCapture();
+        var dynamicBodies = pieces.Where(c => !c.IsGridStable).Select(c => c.GetComponent<Rigidbody2D>()).ToArray();
+        var gridBodies = pieces.Where(c => c.IsGridStable).Select(c => c.GetComponent<Rigidbody2D>()).ToArray();
+        var gridPositions = gridBodies.Select(b => b.position).ToArray();
+        Step(500, reverse);
+        var positions = dynamicBodies.Select(b => b.position).ToArray();
+        Step(2500, reverse);
+        float impulse = MaxImpulse();
+        float drift = dynamicBodies.Select((b, i) => Vector2.Distance(b.position, positions[i])).Max();
+        Check("Captured branch sleeps / reverse=" + reverse, dynamicBodies.All(b => b.IsSleeping()), new { awake = dynamicBodies.Count(b => !b.IsSleeping()), impulse });
+        Check("Captured branch has bounded contact impulses / reverse=" + reverse, impulse < 5, new { impulse });
+        Check("Captured branch stops drifting / reverse=" + reverse, drift < .00001f, new { drift });
+        Check("Grid supports retain exact poses / reverse=" + reverse, gridBodies.Select((b, i) => b.position == gridPositions[i] && b.bodyType == RigidbodyType2D.Kinematic).All(x => x));
+        Check("Sleeping branch retains physical tilt / reverse=" + reverse, dynamicBodies.Any(b => Mathf.Abs(Mathf.DeltaAngle(b.rotation, Mathf.Round(b.rotation / 90) * 90)) > .5f)
+            && dynamicBodies.All(b => b.bodyType == RigidbodyType2D.Dynamic && b.constraints == RigidbodyConstraints2D.None));
+    }
+    LoadCapture();
+    Step(500);
+    for (int i = 0; i < 4; i++) { AddLoad(); Step(250); }
+    Step(1500);
+    float loadedImpulse = MaxImpulse();
+    Check("Repeated new landings have bounded contact impulses", loadedImpulse < 10, new { loadedImpulse });
+    var originalPieces = pieces.Take(50).ToArray();
+    var loadedPositions = originalPieces.Select(c => c.GetComponent<Rigidbody2D>().position).ToArray();
+    Step(1000);
+    float loadedDrift = originalPieces.Select((c, i) => Vector2.Distance(c.GetComponent<Rigidbody2D>().position, loadedPositions[i])).Max();
+    Check("Surviving loaded branch stops drifting", loadedDrift < .00001f && originalPieces.All(c => c.IsGridStable || c.GetComponent<Rigidbody2D>().IsSleeping()), new { loadedDrift });
+    Check("Unsupported new loads remain free to fall", pieces.Skip(50).All(c => !c.IsGridStable && !c.GetComponent<Rigidbody2D>().IsSleeping() && c.GetComponent<Rigidbody2D>().position.y < -30));
+    // All shapes and orientations on a Kinematic support exercise the same global path.
+    foreach (string shape in new[] { "I", "O", "T", "J", "L", "S", "Z" })
+    foreach (float angle in new[] { 0f, 90f, 180f, 270f })
+    {
+        Start(shape + " at " + angle);
+        foreach (float x in new[] { -4f, 0f, 4f })
+        { var support = Spawn("I", new Vector2(x, 0)); Landed(support, true); }
+        var c = Spawn(shape, new Vector2(0, 6), angle); Seat(c);
+        Step(500);
+        var rb = c.GetComponent<Rigidbody2D>(); Vector2 position = rb.position; float rotation = rb.rotation;
+        Step(500);
+        Check("Mixed-body resting stack " + shape + "/" + angle, rb.IsSleeping() && rb.bodyType == RigidbodyType2D.Dynamic
+            && Vector2.Distance(rb.position, position) < .00001f && Mathf.Abs(Mathf.DeltaAngle(rb.rotation, rotation)) < .00001f,
+            new { sleeping = rb.IsSleeping(), position = rb.position.ToString(), rotation = rb.rotation });
+    }
+    foreach (string shape in new[] { "I", "O", "T", "J", "L", "S", "Z" })
+    {
+        Start("Unsupported " + shape);
+        var c = Spawn(shape, new Vector2(0, 5)); var rb = c.GetComponent<Rigidbody2D>(); float y = rb.position.y;
+        Step(100);
+        Check("Unsupported " + shape + " falls", !rb.IsSleeping() && rb.position.y < y - 5 && rb.linearVelocity.y < -1);
+
+        foreach (int side in new[] { -1, 1 })
+        {
+            Start("Edge tip " + shape + "/" + side);
+            c = Spawn(shape, new Vector2(0, 5)); rb = c.GetComponent<Rigidbody2D>();
+            var cells = new List<Vector2>(); c.GetWorldCellCenters(cells);
+            float minY = cells.Min(v => v.y);
+            float edgeX = side < 0 ? cells.Where(v => v.y < minY + .1f).Min(v => v.x) : cells.Where(v => v.y < minY + .1f).Max(v => v.x);
+            Floor(new Vector2(edgeX + side * .4f, -1), new Vector2(.24f, 1)); Seat(c);
+            float startY = rb.position.y; Step(200);
+            Check("Narrow edge " + shape + "/" + side + " tips or falls", Mathf.Abs(Mathf.DeltaAngle(rb.rotation, 0)) > 10 || rb.position.y < startY - 2,
+                new { rotation = rb.rotation, fall = startY - rb.position.y });
+        }
+    }
+
+    Start("Inclined support");
+    Floor(new Vector2(0, -1), new Vector2(10, 1), 4);
+    var leaning = Spawn("O", new Vector2(0, 5)); Seat(leaning); Step(500);
+    var leaningBody = leaning.GetComponent<Rigidbody2D>();
+    Check("Sloped equilibrium keeps its tilt", leaningBody.IsSleeping() && Mathf.Abs(Mathf.DeltaAngle(leaningBody.rotation, 4)) < .5f,
+        new { angle = leaningBody.rotation });
+
+    Start("Support removal");
+    var removable = Floor(new Vector2(0, -1), new Vector2(8, 1));
+    var resting = Spawn("O", new Vector2(0, 5)); Seat(resting); Step(300);
+    var restingBody = resting.GetComponent<Rigidbody2D>(); float restingY = restingBody.position.y;
+    Check("Support-removal fixture starts asleep", restingBody.IsSleeping());
+    UnityEngine.Object.DestroyImmediate(removable.gameObject); Step(100);
+    Check("Removing terrain wakes and drops sleeping piece", !restingBody.IsSleeping() && restingBody.position.y < restingY - 3);
+
+    Start("Jolt"); Floor(new Vector2(0, -1), new Vector2(20, 1));
+    resting = Spawn("O", new Vector2(0, 5)); Seat(resting); Step(300);
+    restingBody = resting.GetComponent<Rigidbody2D>(); var beforeJolt = restingBody.position;
+    resting.ApplyJolt(new Vector2(4, 3)); Step(10);
+    Check("Jolt moves a previously sleeping piece", Vector2.Distance(restingBody.position, beforeJolt) > .3f && !restingBody.IsSleeping());
+    Step(500); Check("Jolted piece can settle again", restingBody.IsSleeping());
+
+    // Real FixedJoint2D components, with collisions disabled, in both ownership directions.
+    foreach (bool reverseJoint in new[] { false, true })
+    {
+        Start("Weld / reverse=" + reverseJoint);
+        var baseBlock = Spawn("I", Vector2.zero); Landed(baseBlock, true);
+        var welded = Spawn("O", new Vector2(0, 4)); var weldedBody = welded.GetComponent<Rigidbody2D>();
+        var baseBody = baseBlock.GetComponent<Rigidbody2D>();
+        var joint = (reverseJoint ? baseBlock : welded).gameObject.AddComponent<FixedJoint2D>();
+        joint.connectedBody = reverseJoint ? weldedBody : baseBody; joint.enableCollision = false;
+        Step(300);
+        Check("Non-contact weld settles / reverse=" + reverseJoint, weldedBody.IsSleeping() && baseBody.IsSleeping());
+        var previousPosition = weldedBody.position; UnityEngine.Object.DestroyImmediate(joint); Step(10);
+        Check("Broken weld resumes falling / reverse=" + reverseJoint, !weldedBody.IsSleeping() && weldedBody.position.y < previousPosition.y - .1f);
+    }
+
+    // A sleeping sibling must not cancel a moving member's impact, including reverse joints.
+    foreach (bool reverseJoint in new[] { false, true })
+    {
+        Start("Moving weld / reverse=" + reverseJoint);
+        Floor(new Vector2(0, -1), new Vector2(20, 1));
+        var a = Spawn("O", new Vector2(-2, 5)); Seat(a);
+        var b = Spawn("O", new Vector2(2, 5)); Seat(b);
+        var joint = (reverseJoint ? b : a).gameObject.AddComponent<FixedJoint2D>();
+        joint.connectedBody = (reverseJoint ? a : b).GetComponent<Rigidbody2D>(); joint.enableCollision = false;
+        Step(300);
+        var aBody = a.GetComponent<Rigidbody2D>(); var bBody = b.GetComponent<Rigidbody2D>();
+        var beforeA = aBody.position; var beforeB = bBody.position;
+        b.ApplyJolt(new Vector2(0, 6)); Step(10, reverseJoint);
+        Check("Welded impact remains physical / reverse=" + reverseJoint, !aBody.IsSleeping() && !bBody.IsSleeping()
+            && (Vector2.Distance(beforeA, aBody.position) > .05f || Vector2.Distance(beforeB, bBody.position) > .05f));
+    }
+
+    Start("Independent piles on shared terrain");
+    Floor(new Vector2(0, -1), new Vector2(30, 1));
+    var quiet = Spawn("O", new Vector2(-5, 5)); Seat(quiet);
+    var falling = Spawn("O", new Vector2(5, 20)); Step(75);
+    Check("Shared static floor does not couple independent piles", quiet.GetComponent<Rigidbody2D>().IsSleeping() && !falling.GetComponent<Rigidbody2D>().IsSleeping());
+
+    Start("Active controlled support");
+    var controlled = Spawn("I", Vector2.zero); var controlledBody = controlled.GetComponent<Rigidbody2D>();
+    controlledBody.bodyType = RigidbodyType2D.Kinematic; controlledBody.gravityScale = 0;
+    typeof(BlockController).GetProperty("HasLanded").SetValue(controlled, false); Set(controlled, "_isControlEnabled", true);
+    var onControlled = Spawn("O", new Vector2(0, 5)); Seat(onControlled); Step(150);
+    Check("Controlled Kinematic body vetoes forced group sleep", !controlledBody.IsSleeping() && !onControlled.GetComponent<Rigidbody2D>().IsSleeping());
+    var performMaintenance = (Action)Delegate.CreateDelegate(typeof(Action), onControlled, maintenance);
+    for (int i = 0; i < 30; i++) performMaintenance(); // warm buffers and JIT before measuring
+    var watch = new System.Diagnostics.Stopwatch();
+    long allocatedBefore = GC.GetAllocatedBytesForCurrentThread(); watch.Start();
+    for (int i = 0; i < 1000; i++) performMaintenance();
+    watch.Stop(); long maintenanceBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+    Check("Repeated blocked sleep attempts avoid managed allocations", maintenanceBytes == 0, new { maintenanceBytes, millisecondsFor1000Calls = watch.Elapsed.TotalMilliseconds });
+    var controlledPosition = controlledBody.position; controlledBody.linearVelocity = Vector2.right;
+    Step(5);
+    Check("Settling does not stop controlled motion", controlledBody.position.x > controlledPosition.x + .05f && controlledBody.linearVelocity.x > .9f);
+
+    Start("External moving support");
+    var externalFloor = Floor(new Vector2(0, -1), new Vector2(10, 1));
+    var externalBody = externalFloor.gameObject.AddComponent<Rigidbody2D>(); externalBody.bodyType = RigidbodyType2D.Kinematic;
+    var onExternal = Spawn("O", new Vector2(0, 5)); Seat(onExternal); Step(150);
+    Check("External Kinematic body vetoes forced group sleep", !externalBody.IsSleeping() && !onExternal.GetComponent<Rigidbody2D>().IsSleeping());
+    externalBody.linearVelocity = Vector2.right; var externalPosition = externalBody.position; Step(5);
+    Check("Settling does not stop external motion", externalBody.position.x > externalPosition.x + .05f && externalBody.linearVelocity.x > .9f);
+
+    Start("Sleep disabled for a connected block");
+    var optedOut = Spawn("I", Vector2.zero); Landed(optedOut, true);
+    var lower = Spawn("O", new Vector2(0, 5)); Seat(lower); Set(lower, "sleepSettledBlocksOnLock", false);
+    var upper = Spawn("O", new Vector2(0, 10)); Seat(upper); Step(300);
+    Check("Opted-out connected body vetoes forced group sleep", !lower.GetComponent<Rigidbody2D>().IsSleeping() && !upper.GetComponent<Rigidbody2D>().IsSleeping());
+
+    LoadCapture(); Step(500);
+    var repeatedlyWoken = pieces.Single(c => c.name == "Captured -359612");
+    float wakeImpulse = 0;
+    for (int cycle = 0; cycle < 20; cycle++)
+    {
+        repeatedlyWoken.ApplyJolt(new Vector2(0, .3f));
+        Step(150);
+        wakeImpulse = Mathf.Max(wakeImpulse, MaxImpulse());
+    }
+    Step(3000);
+    Check("Repeated wake cycles do not accumulate contact impulses", wakeImpulse < 10 && MaxImpulse() < 10, new { wakeImpulse, finalImpulse = MaxImpulse() });
+    Check("Repeatedly disturbed branch can sleep again", pieces.All(c => c.IsGridStable || c.GetComponent<Rigidbody2D>().IsSleeping()));
+
+}
+finally
+{
+    Clean(); Physics2D.simulationMode = previousSimulation; Time.timeScale = previousTimeScale;
+    Application.logMessageReceived -= captureError;
+}
+int failures = checks.Count(c => !(bool)c.GetType().GetProperty("passed").GetValue(c));
+var report = new { passed = checks.Count - failures, failed = failures, errors, checks };
+System.IO.File.WriteAllText("Library/settling-checks.json", Newtonsoft.Json.JsonConvert.SerializeObject(report, Newtonsoft.Json.Formatting.Indented));
+if (failures != 0 || errors.Count != 0) throw new Exception("Settling checks failed; inspect Library/settling-checks.json");
+return report;

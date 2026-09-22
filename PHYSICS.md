@@ -6,7 +6,7 @@ are ordinary physics bodies. The ownership boundary is explicit and one-way, pre
 snap/solver fights while preserving real falls and tower collapses.
 
 Sister file locations:
-- [BlockController/](Assets/SourceFiles/Scripts/Blocks/BlockController/) — descent, landing, grid stability, Dynamic-debris settling, and sleep. One class split into focused partials: core (fields/lifecycle), Input, Setup, Steering, Placement, Landing, GridStability, GridTerrainPocket, Settling, PlacementBeam — all the same `BlockController`, so everything in this document applies across them.
+- [BlockController/](Assets/SourceFiles/Scripts/Blocks/BlockController/) — descent, landing, grid stability, Dynamic-debris settling, and sleep. One class split into focused partials: core (fields/lifecycle), Input, Setup, Steering, Placement, Landing, GridStability, GridTerrainPocket, Settling, SleepGroups, PlacementBeam — all the same `BlockController`, so everything in this document applies across them.
 - [StaticSupportIslandManager.cs](Assets/SourceFiles/Scripts/World/StaticSupportIslandManager.cs) — sky platforms
 - [PlayAreaController.cs](Assets/SourceFiles/Scripts/Levels/PlayAreaController.cs) — floor
 - [GameModeConfig.cs](Assets/SourceFiles/Scripts/Levels/GameModeConfig.cs) + `Assets/Data/GameModes/` + `Assets/Resources/GameModes/` — per-level tuning
@@ -115,8 +115,24 @@ is always narrow in world-X and full-height in world-Y.
 ### I5 — Dynamic means physics owns the pose forever
 Once released or rejected, code never writes the block's position/rotation and never attempts to
 re-register it to the grid. Dynamic bodies may tilt, slide, tumble and later sleep at any pose.
-`SleepSettledBody()` only zeros velocities and calls `Sleep()`. The stillness/knife-edge logic is
-retained solely to stop dynamic wreckage from twitching indefinitely; it is not placement logic.
+Settling tracks eligibility per body, then `TrySleepSettledGroup()` traverses contacts and block
+joints in both directions. Every awake Dynamic member must be eligible before the group sleeps.
+Motionless grid-owned Kinematic supports participate because leaving them awake can immediately
+wake their Dynamic neighbours. Static terrain terminates a branch; separate piles on a shared
+floor do not have to sleep together. Controlled/moving Kinematic bodies, external bodies and
+blocks with automatic settling disabled veto forced group sleep.
+
+The coordinator clears all group velocities before calling `Sleep()` on any member. It never
+changes positions, rotations, constraints, body types or ownership. Readiness timers reset after
+successful group sleep and explicit jolts, giving later disturbances a fresh settling interval.
+The existing 0.35-second quiet window, 0.75-second stillness watchdog and bounded 2-second
+knife-edge grace govern eligibility; moving neighbours can defer the group's actual sleep.
+
+September 2026: independently sleeping members of a quiet mixed Kinematic/Dynamic branch caused
+repeated wakeups and growing contact impulses. The captured player's tower reproduces this
+without any shape-specific condition. Coordinated sleep fixes that cycle while retaining actual
+tilt, load response and collapse. `Tools/PhysicsChecks/settling.cs.txt` checks the saved geometry,
+all seven shapes/four rotations, unsupported edges, disturbances, joints and repeated wake cycles.
 
 ---
 
@@ -143,12 +159,12 @@ Inspector in debug mode if behaviour diverges between pieces.
 | `GridBalanceToleranceFraction` (const) | 0.005 | Numerical tolerance only. It must remain below the physical gap from a cell edge to the narrowed contact edge, or one-cell 2x2/1x4/L overhangs become falsely stable. |
 | Grid hook topology (code rule) | supported top cell + outside same-row cell + outside lower cell | This exact form-lock remains grid-owned even when its COM lies beyond the top contact. Merely overhanging pieces do not qualify. |
 | `settleLinearThreshold` / `settleAngularThreshold` | 0.08 / 8 | Quiet thresholds for Dynamic wreckage only. |
-| `settleTime` | 0.35 | Sustained-quiet window before a Dynamic body sleeps. |
+| `settleTime` | 0.35 | Sustained-quiet window before a Dynamic body is eligible for group sleep. |
 | `stillnessPositionTolerance` / `stillnessRotationToleranceDegrees` | 0.005 / 0.5 | Net-motion watchdog for Dynamic wreckage only. |
 | `stillnessTime` | 0.75 | Dynamic-body watchdog window. |
 | `KnifeEdgeGraceSeconds` (const) | 2 | Lets a quiet Dynamic body finish tipping before the watchdog may sleep it. |
 | `SupportSpanEpsilon` (const) | 0.01 | COM-outside-contact margin for that Dynamic knife-edge test. |
-| `sleepSettledBlocksOnLock` | true | Prevents rejected/released Dynamic debris from twitching forever. |
+| `sleepSettledBlocksOnLock` | true | Enables coordinated settling for rejected/released Dynamic debris. |
 | `landingSupportNormalY` | 0.7 | A cast hit only counts as landing if the surface is actually upward-facing — rejects corner/side grazes (diagonal normals). |
 | `landingMinSupportWidthFraction` | 0.15 | A landing also needs ≥15% of a cell of horizontal overlap. Stops 0.5 mm corner grazes from being treated as a floor (the original "block lands on nothing and tips" bug). Too high and valid narrow placements get rejected. |
 | Lateral placement assist | **removed** | The magnetic placement assist caused historical chaos and was deleted. If ever rebuilt, it is polish on top of verified geometry, never a bug fix. |
@@ -313,7 +329,7 @@ configured once, detected via `edgeRadius > 0`).
 | Gravity | −9.81 | Plain. |
 | `m_AutoSyncTransforms` | 0 | Why the manual `SyncTransforms()` calls exist. If you ever flip this to 1, the manual calls become redundant but harmless. |
 | `m_DefaultContactOffset` | 0.01 | Far smaller than the 0.06 inter-block clearance, so neighbours don't generate phantom contacts. |
-| Sleep tolerances | 0.5 s / 0.01 / 2 | Native sleep can be effectively unreachable for Dynamic wreckage, so that state has a bounded stillness watchdog (I5). Grid-stable structures do not rely on solver sleep. |
+| Sleep tolerances | 0.5 s / 0.01 / 2 | Native sleep can be effectively unreachable for Dynamic wreckage, so that state has a stillness watchdog and coordinated sleep (I5). Grid-stable structures do not rely on solver sleep. |
 
 Block data: Normal mass 1, Boulder mass 4, Feather mass 0.25. Normal↔Boulder (4:1) is
 comfortably within Box2D's tolerance at these iteration counts (mushiness starts ~10:1).
@@ -344,7 +360,7 @@ These are the *designer* dials — safe to vary per level. Current defaults:
 | Symptom | First thing to check |
 |---|---|
 | Correctly placed tower blocks tilt, separate or shimmer | A grid-stable block was made Dynamic, or code/animation is moving its Rigidbody/transform after the I1 landing decision. Check `IsGridStable`, body type, and every landed pose write. |
-| A rejected/released block twitches forever in place | Something moves the body at sleep time, the Dynamic stillness watchdog was weakened/removed, or its knife-edge grace lost its bound (I5). |
+| A rejected/released block twitches forever in place | Check for per-body sleep/wake cycling in a connected group, pose writes during sleep, or weakened stillness/knife-edge eligibility (I5). |
 | Half-on-edge Dynamic debris survives on one floor side, falls on the other | The Dynamic knife-edge sleep defer or its support test is broken; COM-on-edge outcomes otherwise degrade to float noise. |
 | A visibly good placement becomes Dynamic | Inspect the one-time seat rejection, then the failing support interface: row correction, meaningful overlap, exact support cells, propagated load, and resultant contact span (I1/I3). |
 | A badly overhanging structure remains rigid | The local support edge was omitted from the graph, the authored cell COM is wrong, `GridBalanceToleranceFraction` bridges the real contact gap, or hook propagation clamped away the original load moment (I3). |
