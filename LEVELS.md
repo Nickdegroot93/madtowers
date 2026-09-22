@@ -680,7 +680,10 @@ the giant moon, plus the campaign's first **sky platforms**, kept sparse (interv
 | The Oasis Gate | GameMode_LostCityClassic | Place 100 | Boulder 5% + Tremor 6%. **Levitating debris field** [3,·,4,·,1,1,·,5,·] with float-pair pockets: a free-floating cube (col 0), stub+float (col 2), stub+2-tall floating slab (col 7), low threshold under the spawn (reworked from the notched-post first pass — Nick: boring). Sparse sky platforms ON. 3.5→6.7 @ +0.036/blk. |
 | Aqueduct Line | GameMode_LostCityLaserLimit | Place 69 | Boulder 4% + Tremor 5%. **Five ruined aqueduct piers** [2,·,2,·,2,·,2,·,2] (1-col gaps to bridge), a fragment floats mid-span over the centre pier (+3, float pair). Sparse sky platforms ON. 5 waves 9@5 · 11@8 · 13@11 · 16@15 · 20@20 (`HeightLimitWaves_LostCity`). 3.1→5.9 @ +0.045/blk. |
 | Monolith Climb | GameMode_LostCityNarrow | Reach 85m | Boulder 4% + Tremor 5%. 4 columns beside a **+6 monolith with a levitating shard** (depths 1+3). Sky platforms OFF (pure climb). 3.35→6.35 @ +0.025/blk. |
-| Hollow Moon | GameMode_LostCityAirtight | Place 100 | **Airtight III** (AirPocket_Standard) — first Airtight on real terrain: sunken plaza [1,1,·,2,·,·,·,1,1] with a 1-wide broken altar beside the spawn; sealing against terrain faces is the new lesson. Boulder 4% + Tremor 5% (the chapter pair rides every level — Nick), no pockets/islands. 3.0→5.7 @ +0.03/blk (×0.85). Thumbnail reuses Oasis Gate's — needs art. |
+
+Former fourth level Hollow Moon (Airtight) retired to `Assets/Data/LegacyLevels/`: Airtight
+combined with Tremor bricks was too difficult. Lost City now ends at Monolith Climb; completing
+its three remaining levels satisfies the chapter's progression requirement.
 
 **Chapter: Burning Steppes (sortOrder 100)** — imported 2D Volcano Landscape pack (erupting
 hero volcano centered via `worldOffsetX`, chapter-owned `cliffs_near` copy with a jagged-cut

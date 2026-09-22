@@ -124,7 +124,7 @@ wired to nothing; skip them unless told a new level shipped.
 - **Scenery:** alien desert ruins on a distant planet under a **giant rising moon**.
 - **Palette:** moonlit teals and dusky violet with warm ember accents.
 - **Blocks:** moonlit teal, moon gold, alien violet, rust orange.
-- Levels: 1 The Oasis Gate (Classic) · 2 Aqueduct Line (Waves) · 3 Monolith Climb (Flood) · 4 Hollow Moon (Airtight).
+- Levels: 1 The Oasis Gate (Classic) · 2 Aqueduct Line (Waves) · 3 Monolith Climb (Flood).
 
 ### 10 · Burning Steppes — folder `BurningSteppes`, files `burning-steppes-1..5.jpg`
 - **Scenery:** volcanic ash plain, a smoking volcano, drifting embers.
