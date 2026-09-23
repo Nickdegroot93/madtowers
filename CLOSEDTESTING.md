@@ -23,7 +23,33 @@ and device details were not supplied. iOS and real purchases remain pending.
 | Accounts | Anonymous auth, sign-in UI, cloud progress sync; native Google/Apple integration and provider setup added 2026-09-12 | Android login works per Nick; detailed edge-case evidence not recorded; iOS deferred |
 | Unlimited | Buy/Restore UI, cached ownership, offline access, thank-you UI | Device store provider and backend receipt validation absent |
 | Startup and saves | Connection gate and offline-progress merge implemented | Physical-device network, account recovery and store tests outstanding |
-| Distribution | Android 2.1.2 / code 3 submitted and tested by Nick | Measured download size; higher unused code for the next upload |
+| Distribution | Android 2.1.2 / code 3 submitted and tested by Nick; 2.1.3 / code 4 prepared locally | Build and upload the new AAB; measure download size |
+
+## Next tester build — 2.1.3 / code 4
+
+Prepared September 23, 2026, following physics commit `55bde82`:
+
+- Unity application version: **2.1.3** (previously 2.1.2).
+- Android version code: **4** (previously 3, the latest upload recorded here).
+- Application identifier: `com.nickdegroot.hazardheights`.
+- Android App Bundle output enabled in the local Unity editor; Development Build disabled.
+- Suggested output filename: `HazardHeights-2.1.3-4.aab`.
+
+Status: version settings prepared; this update has **not yet been built or uploaded**.
+Keep the existing upload signing configuration. If another upload has already used code 4,
+choose a higher unused code before building. Build with the Android profile and upload the
+new AAB to the existing Play testing track. Record the resulting build/device test below
+once the new release is installed from Play; the version bump does not mark device tests complete.
+
+Suggested tester release notes:
+
+> More forgiving tower physics. Well-supported blocks stay neatly aligned, including
+> placements beside sky platforms. Poorly supported blocks and overloaded towers still
+> fall naturally. Improved stability when building tall and interlocking towers.
+
+Physics validation before this version bump: **265 regression checks passed**, including
+exact alignment, sky-platform bridging, extended stacks and genuine overload failures.
+See [the physics report](Tools/PhysicsChecks/sky-platform-alignment-review.md).
 
 Supabase's public Auth settings were checked on 2026-09-10: Apple and Google were
 disabled. Nick confirmed both providers enabled on 2026-09-12, plus manual linking and
@@ -139,7 +165,7 @@ Official testing references:
 ## 5. Prepare the actual tester builds
 
 - [ ] Build a fresh signed Android release AAB with a previously unused, increasing
-  version code. **2.1.2 / 3** has been submitted; use a higher unused code for the next upload.
+  version code. **2.1.2 / 3** has been submitted; **2.1.3 / 4** is now prepared for the next upload.
   Do not upload the old `HazardHeightsBuilds/HazarHeights-1.aab` as this update.
 - Deferred: iOS signed export and TestFlight build — see [IOS_TESTING.md](IOS_TESTING.md).
 - [ ] Use the real sign-in and purchase integrations, not Editor purchase simulation.
