@@ -190,13 +190,28 @@ try
     var baseHook = Piece("S", 1, 0, 90); var heavy = Piece("Pip", 1, 1, variant: "Boulder");
     Check("Overloaded hook and unsupported load both release", Dynamic(baseHook) && Dynamic(heavy));
 
-    Start("J/S edge stack"); for (int x = -3; x <= 0; x++) Column(x, -4, -.5f);
-    var j = Piece("J", 0, 0); bool jInitiallyStable = Exact(j);
-    var s = Piece("S", 1, 1);
-    Check("J/S added load releases the base and its unsupported branch", jInitiallyStable && Dynamic(j) && Dynamic(s));
+    foreach (bool mirrored in new[] { false, true })
+    {
+        Start("J/S edge stack mirror=" + mirrored);
+        for (int x = -3; x <= 0; x++) Column(mirrored ? -x : x, -4, -.5f);
+        var edgeJ = Piece(mirrored ? "L" : "J", 0, 0);
+        var edgeS = Piece(mirrored ? "Z" : "S", mirrored ? -1 : 1, 1);
+        // The two-piece resultant is +/-0.375, inside the measured +/-0.41 contact
+        // edge. The former 0.15 reserve rejected it; the casual 0.03 reserve accepts it.
+        Simulate();
+        Check("Supported J/S stays exact mirror=" + mirrored, Exact(edgeJ) && Exact(edgeS));
+        var edgeO = Piece("O", mirrored ? -1 : 2, 3);
+        // A third ordinary block moves the total resultant to +/-0.75, beyond the
+        // actual supporting surface. More leniency must still release this overload.
+        Check("J/S/O accumulated overhang releases mirror=" + mirrored,
+            Dynamic(edgeJ) && Dynamic(edgeS) && Dynamic(edgeO));
+        Vector3 before = edgeO.transform.position; Simulate();
+        Check("J/S/O overload physically falls mirror=" + mirrored,
+            Vector3.Distance(before, edgeO.transform.position) > .05f);
+    }
 
     Start("J/T/Z/L edge sculpture"); for (int x = -3; x <= 0; x++) Column(x, -4, .5f);
-    j = Piece("J", 0, 1, 180); var t = Piece("T", 0, 2); var z = Piece("Z", -1, 3, 90);
+    var j = Piece("J", 0, 1, 180); var t = Piece("T", 0, 2); var z = Piece("Z", -1, 3, 90);
     bool threeStable = Exact(j, 180) && Exact(t) && Exact(z, 90);
     var l = Piece("L", -2, 5, 90);
     Check("J/T/Z/L releases at Z while J and T remain exact",

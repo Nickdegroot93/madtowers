@@ -300,7 +300,17 @@ try
     var externalFloor = Floor(new Vector2(0, -1), new Vector2(10, 1));
     var externalBody = externalFloor.gameObject.AddComponent<Rigidbody2D>(); externalBody.bodyType = RigidbodyType2D.Kinematic;
     var onExternal = Spawn("O", new Vector2(0, 5)); Seat(onExternal); Step(150);
-    Check("External Kinematic body vetoes forced group sleep", !externalBody.IsSleeping() && !onExternal.GetComponent<Rigidbody2D>().IsSleeping());
+    // Native auto-sleep after three seconds is not evidence that our group method forced
+    // sleep. Wake the quiet contacting pair, then test that method without another physics step.
+    var onExternalBody = onExternal.GetComponent<Rigidbody2D>();
+    externalBody.WakeUp(); onExternalBody.WakeUp();
+    onExternalBody.linearVelocity = Vector2.zero; onExternalBody.angularVelocity = 0;
+    Set(onExternal, "_landedMaintenanceSettleTimer", 10f);
+    bool readyForSleep = (bool)typeof(BlockController).GetMethod("IsReadyForGroupSleep", bf).Invoke(onExternal, null);
+    int externalContacts = onExternalBody.GetContacts(contacts);
+    Call(onExternal, "TrySleepSettledGroup");
+    Check("External Kinematic body vetoes forced group sleep", readyForSleep && externalContacts > 0
+        && !externalBody.IsSleeping() && !onExternalBody.IsSleeping());
     externalBody.linearVelocity = Vector2.right; var externalPosition = externalBody.position; Step(5);
     Check("Settling does not stop external motion", externalBody.position.x > externalPosition.x + .05f && externalBody.linearVelocity.x > .9f);
 

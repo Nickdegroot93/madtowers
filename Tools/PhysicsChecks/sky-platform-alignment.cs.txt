@@ -1,0 +1,153 @@
+// Unity MCP execute_code method body. Run in the prepared __PocketPhysicsReview scene.
+// The captured sky-platform tower is rounded to intended cells; this is not input replay.
+if (!Application.isPlaying || UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "__PocketPhysicsReview"
+    || GameManager.Instance != null || BlockController.AllBlocks.Count != 0)
+    throw new Exception("Use an empty __PocketPhysicsReview play-mode scene with no game or blocks.");
+var bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+object Call(BlockController b, string name, params object[] args) => typeof(BlockController).GetMethod(name, bf).Invoke(b, args);
+Vector2 V(Newtonsoft.Json.Linq.JToken t) => new Vector2((float)t[0], (float)t[1]);
+var checks = new List<object>(); var errors = new List<string>();
+void Check(string name, bool passed, object details = null) => checks.Add(new { name, passed, details });
+Application.LogCallback captureError = (m, s, t) => { if (t == LogType.Error || t == LogType.Exception || t == LogType.Assert) errors.Add(m); };
+Application.logMessageReceived += captureError;
+var previousSimulation = Physics2D.simulationMode; float previousTimeScale = Time.timeScale;
+var data = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText("Tools/PhysicsChecks/Fixtures/sky-platform-alignment.json"));
+GameObject root = null;
+var pieces = new List<BlockController>();
+void Start()
+{
+    if (root != null) UnityEngine.Object.DestroyImmediate(root);
+    root = new GameObject("Sky platform alignment review"); pieces.Clear();
+}
+void Terrain(bool mirrored, float offset)
+{
+    foreach (var entry in data["terrain"])
+    {
+        var go = new GameObject("Captured terrain"); go.transform.SetParent(root.transform);
+        Vector2 p = V(entry["position"]); p.x = (mirrored ? -p.x : p.x) + offset;
+        go.transform.position = p; var box = go.AddComponent<BoxCollider2D>();
+        box.size = V(entry["size"]); box.edgeRadius = (float)entry["radius"];
+        box.offset = V(entry["offset"]);
+    }
+    Physics2D.SyncTransforms();
+}
+BlockController Create(string shape, Vector2 position, float angle, string variant = "Normal", bool initialize = true)
+{
+    var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Blocks/Block_" + shape + ".prefab");
+    var go = UnityEngine.Object.Instantiate(prefab, position, Quaternion.Euler(0, 0, angle), root.transform);
+    var block = go.GetComponent<BlockController>(); block.enabled = false;
+    block.ApplyData(UnityEditor.AssetDatabase.LoadAssetAtPath<BlockData>("Assets/Data/Blocks/" + variant + ".asset"));
+    if (initialize) Call(block, "InitDynamicControlBody"); pieces.Add(block); return block;
+}
+BlockController Place(Newtonsoft.Json.Linq.JToken entry, bool mirrored, float offset, bool drop = false)
+{
+    string shape = ((string)entry["name"]).Replace("Block_", "").Replace("(Clone)", "");
+    float angle = Mathf.Round((float)entry["angle"] / 90) * 90;
+    Vector2 p = V(entry["position"]); p = new Vector2(Mathf.Round(p.x), Mathf.Round(p.y));
+    if (mirrored)
+    {
+        p.x = -p.x; angle = -angle;
+        if (shape == "L") shape = "J"; else if (shape == "J") shape = "L";
+        else if (shape == "S") shape = "Z"; else if (shape == "Z") shape = "S";
+        // I and O prefab origins are offset from their mirror axes by half a cell.
+        if (shape == "I" || shape == "O") p += (Vector2)(Quaternion.Euler(0, 0, angle) * Vector3.right);
+    }
+    p.x += offset;
+    var block = Create(shape, p + (drop ? Vector2.up * 3 : Vector2.zero), angle);
+    if (drop)
+    {
+        for (int i = 0; i < 2000 && !block.HasLanded; i++) Call(block, "SteerWhileFalling");
+        if (!block.HasLanded) throw new Exception("Cast-driven piece did not land: " + shape);
+    }
+    else Call(block, "BeginPhysicsLanding");
+    return block;
+}
+void Step(int frames, bool reverse = false)
+{
+    for (int i = 0; i < frames; i++)
+    {
+        for (int j = 0; j < pieces.Count; j++)
+        {
+            var block = pieces[reverse ? pieces.Count - 1 - j : j];
+            if (block != null && block.HasLanded) Call(block, "HandleLandedMaintenance");
+        }
+        Physics2D.Simulate(.02f);
+    }
+}
+bool Exact(BlockController b)
+{
+    if (b == null || !b.IsGridStable) return false;
+    var cells = new List<Vector2>(); b.GetWorldCellCenters(cells);
+    return cells.All(c => Mathf.Abs(c.x - Mathf.Round(c.x)) < .0001f && Mathf.Abs(c.y - Mathf.Round(c.y)) < .0001f)
+        && Mathf.Abs(Mathf.DeltaAngle(b.transform.eulerAngles.z, Mathf.Round(b.transform.eulerAngles.z / 90) * 90)) < .0001f;
+}
+BlockController Drop(string shape, float left, float bottom, float angle = 0)
+{
+    var b = Create(shape, Vector2.zero, angle, initialize: false);
+    var cells = new List<Vector2>(); b.GetWorldCellCenters(cells);
+    Call(b, "SetPosition", new Vector3(left - cells.Min(c => c.x), bottom + 3 - cells.Min(c => c.y), 0));
+    Call(b, "ResetControlTargets"); Call(b, "InitDynamicControlBody");
+    for (int i = 0; i < 2000 && !b.HasLanded; i++) Call(b, "SteerWhileFalling");
+    if (!b.HasLanded) throw new Exception("Drop did not land: left=" + left + " bottom=" + bottom + " angle=" + angle + " actual=" + b.transform.position + " count=" + pieces.Count);
+    return b;
+}
+try
+{
+    Time.timeScale = 0; Physics2D.simulationMode = SimulationMode2D.Script;
+    foreach (bool mirrored in new[] { false, true })
+    {
+        Start(); Terrain(mirrored, 0); string label = "Sky-platform tower mirror=" + mirrored;
+        int firstRelease = -1;
+        for (int i = 0; i < data["blocks"].Count(); i++)
+        {
+            // Rebuild the lower layout; the upper T/L/O/Z descend through real casts.
+            Place(data["blocks"][i], mirrored, 0, drop: i >= 15);
+            Step(25, mirrored);
+            if (firstRelease < 0 && pieces.Any(b => !Exact(b))) firstRelease = i;
+        }
+        Check(label + " keeps all 19 placements exact", firstRelease < 0 && pieces.All(Exact), new { firstRelease });
+        Check(label + " upper O remains on row zero", Exact(pieces[17]) && Mathf.Abs(pieces[17].transform.position.y) < .0001f);
+        Check(label + " red Z bridges island and O at row one", Exact(pieces[18]) && Mathf.Abs(pieces[18].transform.position.y - 1) < .0001f);
+        var positions = pieces.Select(b => b.transform.position).ToArray(); Step(6000, mirrored);
+        float drift = pieces.Select((b, i) => Vector3.Distance(positions[i], b.transform.position)).Max();
+        Check(label + " stays exact for 120 seconds", pieces.All(Exact) && drift < .00001f, new { drift });
+        if (pieces.All(Exact))
+        {
+            // Build straight upward over the island-backed column of the Z. Additional
+            // centered load has a direct support path instead of growing an overhang.
+            float left = mirrored ? 2 : -2;
+            for (int i = 0; i < 20; i++) { Drop("I", left, 3 + i * 4, i % 2 == 0 ? 90 : 270); Step(25); }
+            Check(label + " accepts 20 further vertical I placements", pieces.All(Exact));
+            Step(1500);
+            Check(label + " taller extension remains aligned", pieces.All(Exact));
+        }
+        else
+        {
+            Check(label + " accepts 20 further vertical I placements", false, "Initial layout released");
+            Check(label + " taller extension remains aligned", false, "Initial layout released");
+        }
+        // Before the island bridge is added, deliberately increase the eccentric orange
+        // L load. Its line of action is beyond the blue J's support edge.
+        Start(); Terrain(mirrored, 0);
+        for (int i = 0; i <= 16; i++) Place(data["blocks"][i], mirrored, 0, drop: i >= 15);
+        Check("Branch is exact before overload mirror=" + mirrored, pieces.All(Exact));
+        var load = pieces[16]; load.GetComponent<Rigidbody2D>().mass = 20;
+        Call(load, "ValidateGridStructureAfterLanding");
+        Check("Eccentric overload releases J/T/L mirror=" + mirrored,
+            !pieces[5].IsGridStable && !pieces[15].IsGridStable && !pieces[16].IsGridStable);
+        Vector2 before = load.transform.position; Step(500);
+        Check("Eccentric overload physically moves mirror=" + mirrored, Vector2.Distance(before, load.transform.position) > .05f);
+        Check("Unaffected foundation remains exact mirror=" + mirrored, Exact(pieces[2]));
+    }
+}
+
+finally
+{
+    if (root != null) UnityEngine.Object.DestroyImmediate(root);
+    Physics2D.SyncTransforms(); Physics2D.simulationMode = previousSimulation; Time.timeScale = previousTimeScale;
+    Application.logMessageReceived -= captureError;
+}
+System.IO.File.WriteAllText("Library/sky-platform-alignment-checks.json", Newtonsoft.Json.JsonConvert.SerializeObject(new { checks, errors }, Newtonsoft.Json.Formatting.Indented));
+int failed = Newtonsoft.Json.Linq.JArray.FromObject(checks).Count(c => !(bool)c["passed"]);
+if (failed > 0 || errors.Count > 0) throw new Exception("Sky-platform alignment checks failed; inspect Library/sky-platform-alignment-checks.json");
+return new { passed = checks.Count - failed, failed, errors, report = "Library/sky-platform-alignment-checks.json" };

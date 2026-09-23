@@ -1,0 +1,471 @@
+{
+  "capturedFrame": 8313,
+  "notes": "Paused sky-platform mismatch, September 23. Poses are observations; reconstruct rounded cells and quarter-turns. Order inferred from allocation IDs, not input replay.",
+  "blocks": [
+    {
+      "name": "Block_Z(Clone)",
+      "position": [
+        -1.0,
+        -11.0
+      ],
+      "angle": 0.0,
+      "mass": 1.0,
+      "grid": true
+    },
+    {
+      "name": "Block_L(Clone)",
+      "position": [
+        -2.0,
+        -9.0
+      ],
+      "angle": 0.0,
+      "mass": 1.0,
+      "grid": true
+    },
+    {
+      "name": "Block_T(Clone)",
+      "position": [
+        -3.0,
+        -8.0
+      ],
+      "angle": 0.0,
+      "mass": 1.0,
+      "grid": true
+    },
+    {
+      "name": "Block_I(Clone)",
+      "position": [
+        -2.38418579E-07,
+        -8.0
+      ],
+      "angle": 90.0,
+      "mass": 1.0,
+      "grid": true
+    },
+    {
+      "name": "Block_S(Clone)",
+      "position": [
+        5.0,
+        -11.0
+      ],
+      "angle": 90.0,
+      "mass": 1.0,
+      "grid": true
+    },
+    {
+      "name": "Block_J(Clone)",
+      "position": [
+        -4.00908375,
+        -5.98248434
+      ],
+      "angle": -90.37312,
+      "mass": 1.0,
+      "grid": false
+    },
+    {
+      "name": "Block_O(Clone)",
+      "position": [
+        4.0,
+        -9.0
+      ],
+      "angle": 0.0,
+      "mass": 1.0,
+      "grid": true
+    },
+    {
+      "name": "Block_Z(Clone)",
+      "position": [
+        2.0,
+        -10.0
+      ],
+      "angle": 90.0,
+      "mass": 1.0,
+      "grid": true
+    },
+    {
+      "name": "Block_I(Clone)",
+      "position": [
+        0.999999762,
+        -6.99999952
+      ],
+      "angle": 90.0,
+      "mass": 1.0,
+      "grid": true
+    },
+    {
+      "name": "Block_S(Clone)",
+      "position": [
+        -1.0,
+        -7.0
+      ],
+      "angle": 0.0,
+      "mass": 1.0,
+      "grid": true
+    },
+    {
+      "name": "Block_J(Clone)",
+      "position": [
+        -1.0,
+        -5.0
+      ],
+      "angle": 0.0,
+      "mass": 1.0,
+      "grid": true
+    },
+    {
+      "name": "Block_O(Clone)",
+      "position": [
+        0.0,
+        -4.0
+      ],
+      "angle": 0.0,
+      "mass": 1.0,
+      "grid": true
+    },
+    {
+      "name": "Block_L(Clone)",
+      "position": [
+        3.0,
+        -7.0
+      ],
+      "angle": -180.0,
+      "mass": 1.0,
+      "grid": true
+    },
+    {
+      "name": "Block_T(Clone)",
+      "position": [
+        3.0,
+        -6.0
+      ],
+      "angle": 0.0,
+      "mass": 1.0,
+      "grid": true
+    },
+    {
+      "name": "Block_J(Clone)",
+      "position": [
+        2.0,
+        -4.0
+      ],
+      "angle": 90.0,
+      "mass": 1.0,
+      "grid": true
+    },
+    {
+      "name": "Block_T(Clone)",
+      "position": [
+        -4.01444149,
+        -3.967459
+      ],
+      "angle": -0.375822425,
+      "mass": 1.0,
+      "grid": false
+    },
+    {
+      "name": "Block_L(Clone)",
+      "position": [
+        -3.00830364,
+        -1.95671439
+      ],
+      "angle": 89.97559,
+      "mass": 1.0,
+      "grid": false
+    },
+    {
+      "name": "Block_O(Clone)",
+      "position": [
+        -3.00625682,
+        0.0582377
+      ],
+      "angle": -0.0268776789,
+      "mass": 1.0,
+      "grid": false
+    },
+    {
+      "name": "Block_Z(Clone)",
+      "position": [
+        -2.01893973,
+        1.038338
+      ],
+      "angle": -3.365397,
+      "mass": 1.0,
+      "grid": false
+    }
+  ],
+  "terrain": [
+    {
+      "name": "FloorColumnCollider",
+      "position": [
+        -1.0,
+        -23.5
+      ],
+      "size": [
+        0.94,
+        24.0
+      ],
+      "offset": [
+        0.0,
+        0.0
+      ],
+      "radius": 0.0,
+      "angle": 0.0,
+      "scale": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "StaticBlock(Clone)",
+      "position": [
+        5.0,
+        -2.0
+      ],
+      "size": [
+        0.82,
+        0.88
+      ],
+      "offset": [
+        0.0,
+        0.0
+      ],
+      "radius": 0.06,
+      "angle": 0.0,
+      "scale": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "FloorColumnCollider",
+      "position": [
+        4.0,
+        -23.5
+      ],
+      "size": [
+        0.94,
+        24.0
+      ],
+      "offset": [
+        0.0,
+        0.0
+      ],
+      "radius": 0.0,
+      "angle": 0.0,
+      "scale": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "FloorColumnCollider",
+      "position": [
+        1.0,
+        -23.5
+      ],
+      "size": [
+        0.94,
+        24.0
+      ],
+      "offset": [
+        0.0,
+        0.0
+      ],
+      "radius": 0.0,
+      "angle": 0.0,
+      "scale": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "FloorColumnCollider",
+      "position": [
+        0.0,
+        -23.5
+      ],
+      "size": [
+        0.94,
+        24.0
+      ],
+      "offset": [
+        0.0,
+        0.0
+      ],
+      "radius": 0.0,
+      "angle": 0.0,
+      "scale": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "FloorColumnCollider",
+      "position": [
+        3.0,
+        -22.5
+      ],
+      "size": [
+        0.94,
+        26.0
+      ],
+      "offset": [
+        0.0,
+        0.0
+      ],
+      "radius": 0.0,
+      "angle": 0.0,
+      "scale": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "StaticBlock(Clone)",
+      "position": [
+        -2.0,
+        0.0
+      ],
+      "size": [
+        0.82,
+        0.88
+      ],
+      "offset": [
+        0.0,
+        0.0
+      ],
+      "radius": 0.06,
+      "angle": 0.0,
+      "scale": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "StaticBlock(Clone)",
+      "position": [
+        -6.0,
+        2.0
+      ],
+      "size": [
+        0.82,
+        0.88
+      ],
+      "offset": [
+        0.0,
+        0.0
+      ],
+      "radius": 0.06,
+      "angle": 0.0,
+      "scale": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "FloorColumnCollider",
+      "position": [
+        -3.0,
+        -22.5
+      ],
+      "size": [
+        0.82,
+        25.88
+      ],
+      "offset": [
+        0.0,
+        0.0
+      ],
+      "radius": 0.06,
+      "angle": 0.0,
+      "scale": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "FloorColumnCollider",
+      "position": [
+        -4.0,
+        -22.0
+      ],
+      "size": [
+        0.94,
+        27.0
+      ],
+      "offset": [
+        0.0,
+        0.0
+      ],
+      "radius": 0.0,
+      "angle": 0.0,
+      "scale": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "StaticBlock(Clone)",
+      "position": [
+        6.0,
+        -2.0
+      ],
+      "size": [
+        0.82,
+        0.88
+      ],
+      "offset": [
+        0.0,
+        0.0
+      ],
+      "radius": 0.06,
+      "angle": 0.0,
+      "scale": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "FloorColumnCollider",
+      "position": [
+        2.0,
+        -23.0
+      ],
+      "size": [
+        0.82,
+        24.88
+      ],
+      "offset": [
+        0.0,
+        0.0
+      ],
+      "radius": 0.06,
+      "angle": 0.0,
+      "scale": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "FloorColumnCollider",
+      "position": [
+        -2.0,
+        -23.5
+      ],
+      "size": [
+        0.94,
+        24.0
+      ],
+      "offset": [
+        0.0,
+        0.0
+      ],
+      "radius": 0.0,
+      "angle": 0.0,
+      "scale": [
+        1.0,
+        1.0
+      ]
+    }
+  ]
+}

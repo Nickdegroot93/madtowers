@@ -1,7 +1,7 @@
 # Physics regression checks
 
 `terrain-pocket.cs.txt` is a Unity MCP `execute_code` method body, not a shipping script.
-It runs 38 assertions using real block prefabs, `FloorTerrain`'s collider construction,
+It runs 43 assertions using real block prefabs, `FloorTerrain`'s collider construction,
 `BeginPhysicsLanding`, support revalidation, and 150 explicit 0.02-second physics steps.
 It exercises accounting-free physics in an empty scene: no GameManager or player run exists.
 It cleans up its fixture roots and restores time scale / simulation mode in `finally`.
@@ -23,6 +23,43 @@ Failures throw after writing `Library/terrain-pocket-checks.json` (ignored local
 
 The test runner explicitly steps the default 2D world because BlockController's overlap/cast
 queries use that world. The empty-scene guard prevents stepping a live player's tower.
+
+## Forgiving support and sky-platform alignment
+
+Run `sky-platform-alignment.cs.txt` in the same prepared empty scene. It rebuilds
+`Fixtures/sky-platform-alignment.json`, captured from the paused 19-piece tower. It rounds
+the observed poses to intended cells and quarter turns, then uses the production landing
+path, cast-driven descent for the upper T/L/O/Z, and real simulation/maintenance between
+placements. This is a layout reconstruction, not input replay.
+
+The 20 assertions cover both mirrored directions, exact O/Z heights beside the island,
+zero drift for 120 seconds, twenty further vertical I placements over the island-backed
+column, another 30-second hold, and real release/movement under eccentric overload.
+Require zero failures and zero captured errors in `Library/sky-platform-alignment-checks.json`.
+
+With the 0.15-cell reserve this runner produced 6 passes / 14 failures. With the 0.03-cell
+reserve and stabilized equilibrium pivots it produces 20 / 0. All six current suites total
+265 passing assertions. Terrain checks now allow the supported J/S edge stack and verify
+that a third O overload still falls, in both directions. The external-Kinematic settling
+check explicitly probes forced group sleep, independently of native auto-sleep timing.
+See [the investigation and measurements](sky-platform-alignment-review.md).
+
+The accepted September 23 baseline is:
+
+| Runner | Passing assertions |
+| --- | ---: |
+| `terrain-pocket.cs.txt` | 43 |
+| `stack-alignment.cs.txt` | 46 |
+| `rotation.cs.txt` | 46 |
+| `settling.cs.txt` | 82 |
+| `load-sharing.cs.txt` | 28 |
+| `sky-platform-alignment.cs.txt` | 20 |
+| **Total** | **265** |
+
+All six final reports contain zero failures and zero captured runtime errors. Run the
+runners sequentially in the prepared scene. Keep their unsupported-fall and overload
+cases alongside alignment checks when changing physics; a straight but impossible tower
+is not a passing result. Counts in the historical investigations below describe their dates.
 
 ## Controlled rotation regression
 
@@ -93,8 +130,10 @@ the 38 terrain checks and 46 rotation checks were also rerun successfully with t
   preserve their existing ownership rules.
 - Flat O/L overhangs release, centered O-on-O stays exact, a Boulder overload releases an S hook,
   explicit force releases a pocket arm, and a released arm never becomes grid-owned again.
-- J/S: terrain columns -3 through 0, top Y=-0.5; J root (0,0), S root (1,1), both 0 degrees.
-  J starts exact, then both pieces release when S adds its load.
+- J/S/O: terrain columns -3 through 0, top Y=-0.5; J root (0,0), S root (1,1), both 0 degrees.
+  J and S stay exact: their resultant X=0.375 is inside the measured contact edge X=0.41.
+  O root (2,3) moves it to X=0.75: all three release and physically fall. Both mirrored
+  directions are covered. This replaces the old 0.15-margin expectation that J/S alone released.
 - J/T/Z/L: same columns, top Y=0.5; J (0,1,180 degrees), T (0,2,0), Z (-1,3,90),
   then L (-2,5,90). The first three remain exact; the last addition releases Z and L while
   J and T stay exact. Positions are prefab roots, all pieces use their normal authored mass.
@@ -144,3 +183,16 @@ All **82 settling + 130 existing checks passed**, with no captured runtime error
 The new-load probe legitimately sheds its unsupported additions: it asserts that they remain
 free to fall and the surviving original branch stops drifting, not that an unstable stack must
 stay upright. See [the investigation and implementation report](tilted-branch-review.md).
+
+## September 23: alternative support reactions
+
+Run `load-sharing.cs.txt` in the same prepared scene. The 28 assertions reconstruct intended
+lattice placements from the saved tower, mirror and translate them, reverse the component order,
+step between placements, and observe two minutes of rest. Two scenarios then add 30 pieces using
+real descent/landing to a supported foundation. Outboard overload, jolts and terrain removal must
+still cause release and physical motion. Read `Library/load-sharing-checks.json`; require zero
+failures and zero captured errors. See [the comparison and implementation report](tricky-towers-review.md).
+
+The reconstruction uses rounded snapshot poses, not the player's original input sequence.
+The other five suites in the current baseline remain required alongside this suite. Ordinary top-down support checks
+remain the fast path; the new force/moment feasibility check runs only before a proposed release.

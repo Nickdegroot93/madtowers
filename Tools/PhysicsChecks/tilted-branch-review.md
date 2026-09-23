@@ -160,7 +160,8 @@ The measurements establish that coordinated sleep removes the reproduced artific
 They do not prove that all displacement accumulated before the paused snapshot came from it.
 A physically tilted support can still produce tilted upper pieces or collapse under added
 weight. An on-device play test remains necessary to judge feel and any remaining visible drift.
-No changes have been committed or pushed.
+The coordinated-sleep correction was committed as `1a50bb1`; later support-acceptance
+corrections and their validation are recorded in the follow-up below.
 
 ## Evidence files
 
@@ -179,3 +180,21 @@ No changes have been committed or pushed.
 
 The Library files are local, ignored diagnostic evidence. The fixture and MCP method-body
 runner under Tools preserve the reproduction without requiring the original live session.
+
+## September 23 follow-up
+
+A subsequent [Tricky Towers comparison and load-sharing investigation](tricky-towers-review.md)
+reconstructed intended placements from this fixture and reproduced an earlier false support
+release. A balanced alternative reaction distribution keeps that reconstructed branch exact.
+This addresses a cause of entering Dynamic physics; the coordinated-sleep correction above
+still governs bodies that legitimately do so. The reconstruction is not a replay of the saved
+run's original inputs or cached solver contacts.
+
+A later [sky-platform alignment investigation](sky-platform-alignment-review.md) found
+another release cause: the deliberate support edge reserve rejects a neatly aligned
+J/T/L branch before its yellow O and red Z are placed. The resulting Dynamic height
+offsets explain why the Z no longer meets an exactly grid-aligned island cleanly.
+The initial investigation preserved the paused run. The subsequent approved implementation
+reduces the reserve from 0.15 to 0.03 cell and stabilizes equilibrium pivot selection;
+the captured layout stays exact while genuine overloads still release. All 265 current
+physics regression checks pass; the linked report includes the before/after evidence.

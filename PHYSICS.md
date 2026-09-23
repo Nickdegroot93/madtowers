@@ -6,7 +6,7 @@ are ordinary physics bodies. The ownership boundary is explicit and one-way, pre
 snap/solver fights while preserving real falls and tower collapses.
 
 Sister file locations:
-- [BlockController/](Assets/SourceFiles/Scripts/Blocks/BlockController/) — descent, landing, grid stability, Dynamic-debris settling, and sleep. One class split into focused partials: core (fields/lifecycle), Input, Setup, Steering, Placement, Landing, GridStability, GridTerrainPocket, Settling, SleepGroups, PlacementBeam — all the same `BlockController`, so everything in this document applies across them.
+- [BlockController/](Assets/SourceFiles/Scripts/Blocks/BlockController/) — descent, landing, grid stability, Dynamic-debris settling, and sleep. One class split into focused partials: core (fields/lifecycle), Input, Setup, Steering, Placement, Landing, GridStability, GridEquilibrium, GridTerrainPocket, Settling, SleepGroups, PlacementBeam — all the same `BlockController`, so everything in this document applies across them.
 - [StaticSupportIslandManager.cs](Assets/SourceFiles/Scripts/World/StaticSupportIslandManager.cs) — sky platforms
 - [PlayAreaController.cs](Assets/SourceFiles/Scripts/Levels/PlayAreaController.cs) — floor
 - [GameModeConfig.cs](Assets/SourceFiles/Scripts/Levels/GameModeConfig.cs) + `Assets/Data/GameModes/` + `Assets/Resources/GameModes/` — per-level tuning
@@ -34,11 +34,12 @@ this state.
 ### I3 — Every support interface must carry its real load
 Vertically adjacent grid-stable pieces form a support graph. Weight and torque propagate from its
 top downward. At every block, the resultant of its own mass plus loads received from above must
-project inside the exact contacts immediately beneath that block, with a 0.15-cell structural edge
-reserve. Kinematic ownership removes the tiny impact/compliance that would topple a mathematically
-possible but visibly precarious tower, so the reserve deliberately makes cumulative structures fail
-before their resultant reaches the literal contact edge. A broad foundation at ground level cannot
-legalize a one-cell cantilever higher in the tower.
+project inside the exact contacts immediately beneath that block, with a 0.03-cell structural edge
+reserve. This small margin allows neatly placed eccentric stacks to stay exactly aligned while
+still releasing loads that approach or cross the real contact edge. The former 0.15-cell reserve
+released supported branches early, allowing Dynamic contact slop to accumulate into mismatched
+row heights beside fixed islands. A broad foundation at ground level cannot legalize a one-cell
+cantilever higher in the tower.
 
 `GridBalanceToleranceFraction` is only a 0.005-cell floating-point tolerance around those policy
 boundaries. A 2x2 supported beneath only one of its two bottom cells has its COM outside the real
@@ -54,6 +55,30 @@ centre span, retain the actual eccentric line of action, including the full mome
 This changes reaction distribution only, not support eligibility, edge reserves or release
 rules. `Tools/PhysicsChecks/stack-alignment.cs.txt` reproduces the former false release with
 real prefabs and cast-driven landings, then checks exact alignment through repeated placements.
+
+September 23 follow-up: that top-down distribution is a fast sufficient check, not a unique
+solution. A bridge can share load across more than its two nearest contact centres. Before a
+failed load path releases a block, `GridEquilibrium` searches for nonnegative contact reactions
+that balance force and moment at **every** block simultaneously. Reactions act equally and
+oppositely on both bodies; the existing edge reserve constrains each block's total resultant,
+and hooks retain their existing reach and transmit their full moment. Only verified static
+terrain sockets may absorb a pure moment into the world. No pose, material, mass, gravity or
+sleep setting is changed by this check. Ordinary successful load paths do not invoke it.
+
+The fallback uses deterministic lattice/contact ordering and a bounded feasibility solve.
+For nearly tied limiting rows it selects the strongest pivot within a tiny numerical feasibility
+allowance, rather than amplifying collider float noise through a tiny pivot. Basic variables cannot
+re-enter, and each pivot column is kept exactly zero/one. These are numerical protections, not
+additional physical support or permission to accept an unbalanced tower.
+It verifies the solution against the original force, moment and margin equations before accepting.
+If no valid certificate is found (including numerical failure or exhausted pivot budget), the
+existing Dynamic-release path remains. It is conservative rather than a guarantee of accepting
+every physically possible structure. `Tools/PhysicsChecks/load-sharing.cs.txt` checks the former
+false release, mirrored/translated layouts, long observation, later landings and real overloads.
+See [the Tricky Towers comparison](Tools/PhysicsChecks/tricky-towers-review.md) for the initial
+evidence and [the sky-platform report](Tools/PhysicsChecks/sky-platform-alignment-review.md)
+for the final 0.03-cell tuning, numerical fix and 265 passing regression checks. The user
+accepted this more forgiving behavior on September 23; mobile-device profiling remains outstanding.
 
 A genuine ledge hook is a separate exact support case: one cell rests on top, a connected cell
 extends past that edge on the same row, and another cell continues down beside the support. That
@@ -154,7 +179,7 @@ Inspector in debug mode if behaviour diverges between pieces.
 | `maxLandingImpactSpeed` | 2 | Velocity cap for the Dynamic fallback. Grid-stable placements keep zero velocity. |
 | `GridSeatMaxCorrectionFraction` (const) | 0.12 | Maximum one-time Y correction accepted while the incoming piece is still kinematic. It absorbs contact slop, not a wrong ledge. |
 | `GridPenetrationToleranceFraction` (const) | 0.03 | Unity's two default contact skins measure as -0.02 penetration at an exact touching pose; 0.03 accepts that without accepting visible overlap. |
-| `GridStructuralEdgeReserveFraction` (const) | 0.15 | Required support kept inside the outer contact edge. Replaces the small impacts/compliance removed by grid ownership and makes precarious cumulative towers topple before the mathematical knife edge. |
+| `GridStructuralEdgeReserveFraction` (const) | 0.03 | Small required margin inside the measured support edge. Allows supported eccentric stacks to stay exact; excessive overhang still releases under the same force/moment checks. |
 | `GridHookMaxOverhangFraction` (const) | 0.40 | Maximum resultant distance beyond a genuine hook's real top contact. Preserves intended standalone L/S/Z hooks without creating an unlimited anchor. |
 | `GridBalanceToleranceFraction` (const) | 0.005 | Numerical tolerance only. It must remain below the physical gap from a cell edge to the narrowed contact edge, or one-cell 2x2/1x4/L overhangs become falsely stable. |
 | Grid hook topology (code rule) | supported top cell + outside same-row cell + outside lower cell | This exact form-lock remains grid-owned even when its COM lies beyond the top contact. Merely overhanging pieces do not qualify. |
@@ -382,7 +407,8 @@ These are the *designer* dials — safe to vary per level. Current defaults:
 Mandatory I3 regression layouts before a physics change is accepted: standalone Z hook stays exact;
 standalone L hook stays exact; flat O on one narrowed cell releases; centered O-on-O stays exact;
 the documented four-piece J/T/Z/L edge sculpture releases at the Z interface; the documented
-two-piece J/S edge stack releases at the base; a cumulatively overloaded hook releases its support
+two-piece J/S edge stack stays exact, but a third O moving its resultant beyond the support releases
+the base and branch in both directions; a cumulatively overloaded hook releases its support
 and the unsupported branch follows in the same validation pass. Also verify a horizontal I in an
 authored one-row floor pocket stays exact under stacked load in both directions, while the same I
 with no ceiling, a two-row opening, a block ceiling, or a Dynamic ceiling releases normally.
@@ -390,6 +416,12 @@ Removing a pocket boundary must release an otherwise unbalanced arm on support r
 For the ice exception, repeat L/J and S/Z hooks with Ice: they must release to Dynamic physics;
 fully supported ice stays exact, neutralized ice regains the normal hook hold, and Freeze/Anchor
 still remains Static.
+
+The captured sky-platform layout must also keep all nineteen pieces exact in both directions,
+including cast-driven T/L/O/Z landings, 120 seconds of physics and twenty further vertical I
+placements above the island-backed column. Increasing the eccentric L's mass must still release
+the J/T/L branch and produce real motion. Run `Tools/PhysicsChecks/sky-platform-alignment.cs.txt`;
+see [the alignment investigation](Tools/PhysicsChecks/sky-platform-alignment-review.md).
 
 Repeatable checks: `Tools/PhysicsChecks/terrain-pocket.cs.txt` (isolated Unity play mode;
 setup and exact J/S, J/T/Z/L coordinates in its companion README). The September restoration

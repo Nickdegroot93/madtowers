@@ -18,10 +18,11 @@ public partial class BlockController
     // rejecting any visible/interior overlap.
     private const float GridPenetrationToleranceFraction = 0.03f;
 
-    // Reserve some real support inside the outer contact edge. Kinematic grid ownership removes
-    // the tiny impacts and compliance that would topple a physically precarious tower, so merely
-    // being a hair inside the mathematical edge is not enough for a multi-piece arcade structure.
-    private const float GridStructuralEdgeReserveFraction = 0.15f;
+    // Keep a small margin inside the measured support edge while allowing deliberately neat,
+    // eccentric stacks to remain exact. A larger reserve releases supported branches early,
+    // turning ordinary contact slop into accumulated row-height error beside fixed islands.
+    // Resultants beyond the real contact still fail; hooks keep their separate bounded reach.
+    private const float GridStructuralEdgeReserveFraction = 0.03f;
 
     // A genuine ledge hook gets enough reach to hold its own authored L/S/Z geometry exactly,
     // but it is not an infinitely strong anchor. Beyond this distance from the real top contact,
@@ -359,6 +360,19 @@ public partial class BlockController
     // immediately beneath it. This is the missing local-torque test that a whole-tower COM cannot
     // provide: a broad foundation at ground level may not rescue a one-cell cantilever ten rows up.
     private static BlockController FindUnstableGridBlock(
+        List<BlockController> component,
+        BlockController ignoredBlock)
+    {
+        BlockController candidate = FindUnstableGridBlockByLoadPath(component, ignoredBlock);
+        // A chosen load path is sufficient to prove stability, but its failure cannot prove
+        // instability: bridges and interlocked columns can share their reactions differently.
+        // Before handing a branch to physics permanently, look for a balanced distribution
+        // across its actual contacts under the same edge, hook and terrain-socket rules.
+        if (candidate != null && CanBalanceGridStructure(component, ignoredBlock)) return null;
+        return candidate;
+    }
+
+    private static BlockController FindUnstableGridBlockByLoadPath(
         List<BlockController> component,
         BlockController ignoredBlock)
     {
